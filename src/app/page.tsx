@@ -1,59 +1,126 @@
-import { revalidatePath } from "next/cache";
-import { createServerSupabase } from "@/lib/supabase-server";
-import { runLilt, makeServerEnv } from "@/lib/lilt";
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase-browser";
 
-const POST_RULE = `(and (is-signed-in) (< (profiles-count) 8888))`;
+type Post = { id: number; body: string; created_at: string };
 
-export default async function Home() {
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+export default function Home() {
+  const supabase = createClient();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [body, setBody] = useState("");
 
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("id, body, created_at")
-    .order("created_at", { ascending: false });
+  useEffect(() => {
+    let mounted = true;
 
-  async function addPost(formData: FormData) {
-    "use server";
-    const supa = await createServerSupabase();
-    const { data: { user } } = await supa.auth.getUser();
+    supabase.auth.getUser().then(({ data }) => {
+      if (!mounted) return;
+      setUserEmail(data.user?.email ?? null);
+    });
 
-    const env = { userId: user?.id ?? null, supabase: await makeServerEnv() };
-    const ok = await runLilt(POST_RULE, env as any);
-    if (!ok) throw new Error("Rule denied: sign in or member cap reached.");
+    const load = async () => {
+      const { data } = await supabase
+        .from("posts")
+        .select("id, body, created_at")
+        .order("created_at", { ascending: false });
+      if (mounted) setPosts(data ?? []);
+    };
+    load();
 
-    const body = String(formData.get("body") || "").trim();
-    if (!body) return;
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      supabase.auth.getUser().then(({ data }) =>
+        setUserEmail(data.user?.email ?? null)
+      );
+      load();
+    });
 
-    await supa.from("posts").insert({ body, author_id: user!.id });
-    revalidatePath("/");
-  }
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const addPost = async () => {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+
+    // call our server route (this runs lilt on the server)
+    const r = await fetch("/api/posts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body: trimmed }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      alert(j.error || `Failed (${r.status})`);
+      return;
+    }
+
+    setBody("");
+    // reload posts after successful insert
+    const { data } = await supabase
+      .from("posts")
+      .select("id, body, created_at")
+      .order("created_at", { ascending: false });
+    setPosts(data ?? []);
+  };
+
+  const refreshPosts = async () => {
+    const { data, error } = await supabase
+      .from("posts")
+      .select("id, body, created_at")
+      .order("created_at", { ascending: false });
+    if (error) alert(error.message);
+    else setPosts(data ?? []);
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
     <main className="max-w-xl mx-auto p-6 space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">VIKAMI Chợ (MVP + lilt)</h1>
-        {user ? (
-          <form action={async () => { "use server";
-            const s = await createServerSupabase();
-            await s.auth.signOut();
-          }}>
-            <button className="text-sm underline">Sign out</button>
-          </form>
-        ) : <a className="text-sm underline" href="/login">Sign in</a>}
+        {userEmail ? (
+          <button className="text-sm underline" onClick={signOut}>
+            Sign out
+          </button>
+        ) : (
+          <Link className="text-sm underline" href="/login">
+            Sign in
+          </Link>
+        )}
       </header>
 
-      {user && (
-        <form action={addPost} className="flex gap-2">
-          <input name="body" placeholder="Post something…" className="border p-2 flex-1" />
-          <button className="border px-4">Post</button>
-        </form>
+      {userEmail && (
+        <div className="flex gap-2">
+          <input
+            className="border p-2 flex-1"
+            placeholder="Post something…"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addPost()}
+          />
+          <button className="border px-4" onClick={addPost}>Post</button>
+        </div>
       )}
 
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Latest posts</h2>
+        <button className="text-sm underline" onClick={refreshPosts}>
+          Refresh
+        </button>
+      </div>
+
       <section className="space-y-3">
-        {(posts ?? []).map(p => (
+        {posts.length === 0 && <div className="opacity-60">No posts yet.</div>}
+        {posts.map((p) => (
           <article key={p.id} className="border p-3 rounded">
-            <div className="text-sm opacity-70">{new Date(p.created_at).toLocaleString()}</div>
+            <div className="text-sm opacity-70">
+              {new Date(p.created_at).toLocaleString()}
+            </div>
             <div>{p.body}</div>
           </article>
         ))}
