@@ -5,13 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-type TopicKey = "tien" | "tiem" | "tinh" | "banthan";
+type TopicKey = "tien" | "tiem" | "tinh" | "ban-than";
 
 const TOPIC_LABELS: Record<TopicKey, string> = {
   tien: "Tiền",
   tiem: "Tiệm",
   tinh: "Tình",
-  banthan: "Bản thân",
+  "ban-than": "Bản thân",
 };
 
 type XinXamLuck = "DAI_CAT" | "CAT" | "BINH" | "HUNG";
@@ -25,11 +25,13 @@ type XinXamStick = {
 };
 
 type XinXamResponse = {
-  week: string; // YYYY-WW
+  period_kind: "day" | "week";
+  period: string; // YYYY-MM-DD or YYYY-WW
+  category: "TIEN" | "TIEM" | "TINH" | "BAN_THAN";
   stick: XinXamStick;
+  draw_index: number;
   refresh_remaining: 0 | 1;
   message?: string;
-  // we will also attach topic locally (not from worker)
 };
 
 function luckLabel(luck: XinXamLuck) {
@@ -64,8 +66,8 @@ function getOrCreateVisitorId(): string {
     const existing = localStorage.getItem(key);
     if (existing) return existing;
     const v =
-      (globalThis.crypto?.randomUUID?.() ??
-        `vid_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+      globalThis.crypto?.randomUUID?.() ??
+      `vid_${Date.now()}_${Math.random().toString(16).slice(2)}`;
     localStorage.setItem(key, v);
     return v;
   } catch {
@@ -73,11 +75,14 @@ function getOrCreateVisitorId(): string {
   }
 }
 
-type TopicLock = { week: string; topic: TopicKey };
-const TOPIC_LOCK_KEY = "xinXam.topicLock.v1";
+type TopicLock = { period_kind: "day" | "week"; period: string; topic: TopicKey };
+const TOPIC_LOCK_KEY = "xinXam.topicLock.v2";
 
 export default function XinXamPage() {
-  const base = process.env.NEXT_PUBLIC_OD_BASE ?? "";
+  // Strong default: if env missing, use prod API
+  const base =
+    (process.env.NEXT_PUBLIC_OD_BASE && process.env.NEXT_PUBLIC_OD_BASE.trim()) ||
+    "https://api.vikami.ca";
 
   const [selectedTopic, setSelectedTopic] = useState<TopicKey | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -85,6 +90,17 @@ export default function XinXamPage() {
   const [xx, setXx] = useState<XinXamResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Dev gate: only show reset tools if URL has ?dev=1
+  const [showDev, setShowDev] = useState(false);
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      setShowDev(sp.get("dev") === "1" || sp.has("dev"));
+    } catch {
+      setShowDev(false);
+    }
+  }, []);
 
   // Load last topic lock (optional)
   useEffect(() => {
@@ -98,13 +114,19 @@ export default function XinXamPage() {
     }
   }, []);
 
-  // Helper: call worker
-  async function callWorker(path: "/xin-xam/draw" | "/xin-xam/refresh") {
+  /**
+   * IMPORTANT:
+   *  - Send topic using `topic=` (NOT `cat=`).
+   *  - Use POST for draw + refresh to avoid caching weirdness.
+   */
+  async function callWorker(path: "/xin-xam/draw" | "/xin-xam/refresh", topic: TopicKey) {
     if (!base) throw new Error("Missing NEXT_PUBLIC_OD_BASE");
     const visitorId = getOrCreateVisitorId();
 
-    // NOTE: topic is currently a frontend ritual lock; Worker doesn’t need it yet.
-    const url = `${base}${path}?visitor_id=${encodeURIComponent(visitorId)}`;
+    const url =
+      `${base}${path}` +
+      `?visitor_id=${encodeURIComponent(visitorId)}` +
+      `&topic=${encodeURIComponent(topic)}`;
 
     const res = await fetch(url, {
       method: "POST",
@@ -120,7 +142,6 @@ export default function XinXamPage() {
     return (await res.json()) as XinXamResponse;
   }
 
-  // Confirm = draw
   const handleConfirm = async () => {
     if (!selectedTopic) return;
     setConfirmed(true);
@@ -128,14 +149,18 @@ export default function XinXamPage() {
     setLoading(true);
 
     try {
-      const out = await callWorker("/xin-xam/draw");
+      const out = await callWorker("/xin-xam/draw", selectedTopic);
       setXx(out);
 
-      // lock topic for this week (local MVP)
+      // lock topic for this period (day/week depending on lane)
       try {
         localStorage.setItem(
           TOPIC_LOCK_KEY,
-          JSON.stringify({ week: out.week, topic: selectedTopic } satisfies TopicLock)
+          JSON.stringify({
+            period_kind: out.period_kind,
+            period: out.period,
+            topic: selectedTopic,
+          } satisfies TopicLock)
         );
       } catch {
         // ignore
@@ -149,10 +174,11 @@ export default function XinXamPage() {
   };
 
   const handleRefresh = async () => {
+    if (!selectedTopic) return;
     setErr(null);
     setLoading(true);
     try {
-      const out = await callWorker("/xin-xam/refresh");
+      const out = await callWorker("/xin-xam/refresh", selectedTopic);
       setXx(out);
     } catch (e: any) {
       setErr(e?.message ?? "Xin Xăm bị nghẽn.");
@@ -161,33 +187,47 @@ export default function XinXamPage() {
     }
   };
 
+  // DEV: reset lock + identity so you can re-draw without waiting day/week
+  const resetLocalXinXam = () => {
+    try {
+      localStorage.removeItem(TOPIC_LOCK_KEY);
+      localStorage.removeItem("od_vid");
+    } catch {
+      // ignore
+    }
+    setConfirmed(false);
+    setXx(null);
+    setErr(null);
+    setLoading(false);
+  };
+
   const refreshDisabled = loading || (xx?.refresh_remaining ?? 1) === 0;
 
-  // If worker week differs from local topic lock week, unlock topic
+  // If worker period differs from local lock period, unlock topic automatically
   useEffect(() => {
-    if (!xx?.week) return;
+    if (!xx?.period) return;
     try {
       const raw = localStorage.getItem(TOPIC_LOCK_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw) as TopicLock;
-      if (parsed?.week && parsed.week !== xx.week) {
+      if (parsed?.period && parsed.period !== xx.period) {
         localStorage.removeItem(TOPIC_LOCK_KEY);
       }
     } catch {
       // ignore
     }
-  }, [xx?.week]);
+  }, [xx?.period]);
 
   const topicHint = useMemo(() => {
     if (!selectedTopic) return null;
     return (
       <p className="mt-2 text-xs text-amber-800/90">
-        Tuần này xin xăm về{" "}
-        <span className="font-semibold">{TOPIC_LABELS[selectedTopic]}</span>. Đừng
-        ôm thêm chuyện khác vô chung.
+        {xx?.period_kind === "day" ? "Hôm nay" : "Tuần này"} xin xăm về{" "}
+        <span className="font-semibold">{TOPIC_LABELS[selectedTopic]}</span>. Đừng ôm thêm
+        chuyện khác vô chung.
       </p>
     );
-  }, [selectedTopic]);
+  }, [selectedTopic, xx?.period_kind]);
 
   return (
     <div className="min-h-screen bg-[#FFF9F0]">
@@ -201,7 +241,12 @@ export default function XinXamPage() {
             ← Về Chợ Neo
           </Link>
           <span className="text-xs uppercase tracking-wide text-amber-700">
-            Xin xăm tuần này
+            Xin xăm
+            {showDev && (
+              <span className="text-[10px] px-2 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-900">
+                DEV ON
+            </span>
+            )}
           </span>
         </div>
 
@@ -210,49 +255,40 @@ export default function XinXamPage() {
           <div className="shrink-0">
             <Image
               src="/Xin-Xam.png"
-              alt="Xin Xăm tuần này"
+              alt="Xin Xăm"
               width={80}
               height={80}
               className="h-20 w-20 object-contain"
             />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-amber-950">
-              Xin Xăm tuần này
-            </h1>
+            <h1 className="text-2xl font-semibold text-amber-950">Xin Xăm</h1>
             <p className="mt-1 text-sm text-amber-800">
-              Không phải bói cho vui. Chỉ là ngồi lại một chút cho lòng bớt rối,
-              rồi mới tính đường đi tiếp.
+              Không phải bói cho vui. Chỉ là ngồi lại một chút cho lòng bớt rối, rồi mới
+              tính đường đi tiếp.
             </p>
           </div>
         </div>
 
         {/* 1. Trước khi xin xăm */}
         <section className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-amber-900">
-            Trước khi xin xăm
-          </h2>
-          <p className="text-sm text-amber-900">
-            Hít thở chậm một nhịp. Nghĩ rõ trong đầu:
-          </p>
+          <h2 className="text-sm font-semibold text-amber-900">Trước khi xin xăm</h2>
+          <p className="text-sm text-amber-900">Hít thở chậm một nhịp. Nghĩ rõ trong đầu:</p>
           <ul className="list-disc list-inside text-sm text-amber-900 space-y-1">
             <li>Một chuyện muốn hỏi, không phải mười chuyện.</li>
             <li>Mình muốn nghe sự thật nhẹ nhàng, không phải lời khen cho sướng.</li>
             <li>Xin xăm để rõ đường, không phải để trốn trách nhiệm.</li>
           </ul>
-          <p className="text-xs text-amber-800/80">
-            Khi lòng bớt gấp, xăm mới nói trúng.
-          </p>
+          <p className="text-xs text-amber-800/80">Khi lòng bớt gấp, xăm mới nói trúng.</p>
         </section>
 
         {/* 2. Chủ đề xin xăm */}
         <section className="rounded-2xl border border-amber-100 bg-white p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-amber-900">
-            Chọn chủ đề Ông Địa nhắc
-          </h2>
+          <h2 className="text-sm font-semibold text-amber-900">Chọn chủ đề</h2>
           <p className="text-xs text-amber-800/80">
-            Chỉ chọn <span className="font-semibold">một</span> chủ đề cho tuần
-            này. Tuần sau tính chuyện khác.
+            Chỉ chọn <span className="font-semibold">một</span> chủ đề. Tình/Bản thân là quẻ{" "}
+            <span className="font-semibold">theo ngày</span>. Tiền/Tiệm là quẻ{" "}
+            <span className="font-semibold">theo tuần</span>.
           </p>
 
           <div className="flex flex-wrap gap-2 mt-2">
@@ -285,22 +321,18 @@ export default function XinXamPage() {
           {topicHint}
         </section>
 
-        {/* 3. Weekly warning + confirm */}
+        {/* 3. Warning + confirm */}
         <section className="rounded-2xl border border-amber-100 bg-amber-900 text-amber-50 p-4 space-y-3">
           <h2 className="text-sm font-semibold">Ông Địa nhắc nhẹ</h2>
           <p className="text-sm">
-            Xin xăm tuần này thôi nha. Đừng xin tới xin lui mỗi lần thấy bất an.
-            Nghe xăm xong rồi thì chịu khó làm phần của mình nữa.
+            Đừng xin tới xin lui mỗi lần thấy bất an. Xin xăm xong thì chịu khó làm phần của mình nữa.
           </p>
           <p className="text-xs text-amber-100/80">
-            Nếu cảm thấy không nghe nổi sự thật, cứ để tuần sau rồi xin. Không sao
-            hết.
+            Nếu cảm thấy không nghe nổi sự thật, để mai/tuần sau rồi xin. Không sao hết.
           </p>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-xs text-amber-100/90">
-              Khi sẵn sàng, bấm nút. Một tuần xin một lần là đủ.
-            </p>
+            <p className="text-xs text-amber-100/90">Khi sẵn sàng, bấm nút. Mỗi kỳ chỉ có 1 lần đổi.</p>
 
             <button
               type="button"
@@ -317,37 +349,29 @@ export default function XinXamPage() {
             </button>
           </div>
 
-          {err && (
-            <div className="text-xs text-amber-100/90">
-              Lỗi: {err}
-            </div>
-          )}
+          {err && <div className="text-xs text-amber-100/90">Lỗi: {err}</div>}
         </section>
 
-        {/* 4. Quẻ hiển thị sau confirm */}
+        {/* 4. Result */}
         {confirmed && (
           <section className="rounded-2xl border border-amber-100 bg-white p-4 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-amber-700">
-                  Quẻ tuần này
+                  {xx?.period_kind === "day" ? "Quẻ hôm nay" : "Quẻ tuần này"}
                 </p>
 
-                {loading && (
-                  <div className="text-sm text-amber-900">Đang xin quẻ…</div>
-                )}
+                {loading && <div className="text-sm text-amber-900">Đang xin quẻ…</div>}
 
                 {!loading && xx && (
-                  <h2 className="text-sm font-semibold text-amber-950">
-                    {xx.stick.title}
-                  </h2>
+                  <h2 className="text-sm font-semibold text-amber-950">{xx.stick.title}</h2>
                 )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {xx?.week && (
+                {xx?.period && (
                   <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900">
-                    Tuần {xx.week}
+                    {xx.period_kind === "week" ? `Tuần ${xx.period}` : `Ngày ${xx.period}`}
                   </span>
                 )}
                 {xx?.stick?.luck && (
@@ -392,28 +416,32 @@ export default function XinXamPage() {
                     Đổi quẻ (1 lần)
                   </button>
 
+                  {showDev && (
+                    <button
+                      type="button"
+                      onClick={resetLocalXinXam}
+                      className="px-3 py-2 rounded-xl text-xs border border-zinc-200 bg-white hover:bg-zinc-50"
+                      title="Chỉ dùng để test: xoá lock + đổi visitor_id"
+                    >
+                      Reset (dev)
+                    </button>
+                  )}
+
                   <div className="text-[11px] text-zinc-500">
-                    {xx.refresh_remaining === 0
-                      ? "Tuần này hết đổi."
-                      : "Còn 1 lần đổi tuần này."}
+                    {xx.refresh_remaining === 0 ? "Kỳ này hết đổi." : "Còn _1 lần đổi kỳ này."}
                   </div>
                 </div>
 
-                {xx.message && (
-                  <div className="text-xs text-amber-800/90">{xx.message}</div>
-                )}
+                {xx.message && <div className="text-xs text-amber-800/90">{xx.message}</div>}
 
                 <p className="text-[11px] text-amber-700/80">
-                  Xăm chỉ nhắc đường. Còn đi đường nào, quay lại lúc nào – là quyền
-                  của mình.
+                  Xăm chỉ nhắc đường. Còn đi đường nào, quay lại lúc nào – là quyền của mình.
                 </p>
               </>
             )}
 
             {!loading && !xx && (
-              <div className="text-sm text-amber-900">
-                Chưa xin được quẻ. Thử bấm lại.
-              </div>
+              <div className="text-sm text-amber-900">Chưa xin được quẻ. Thử bấm lại.</div>
             )}
           </section>
         )}
