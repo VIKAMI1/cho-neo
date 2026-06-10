@@ -14,10 +14,25 @@ const tables = [
     label: "quick chatter",
     description: "Fast hellos, tiny wins, price checks, appointment chaos, and the kind of talk that happens while coffee is still hot.",
     members: 18,
-    lines: [
-      "Anyone else booked solid after one auntie posted a story?",
-      "New cafe next to my shop finally has strong iced coffee.",
-      "Quick poll: chrome powder still moving or cooling off?",
+    bubbles: [
+      {
+        name: "Mai",
+        city: "Calgary",
+        message: "Anyone seeing slower weekday walk-ins this month?",
+        side: "left",
+      },
+      {
+        name: "Tina",
+        city: "London",
+        message: "Acrylic is still strong here, but BIAB questions are growing.",
+        side: "right",
+      },
+      {
+        name: "Kim",
+        city: "Houston",
+        message: "Chrome powder still moves when one auntie posts a story.",
+        side: "left",
+      },
     ],
     seats: ["MT", "KP", "VN", "LD", "AH"],
   },
@@ -26,10 +41,25 @@ const tables = [
     label: "salon stories",
     description: "Longer stories from the beauty floor: funny clients, hard days, family pressure, and the little rituals that keep a shop alive.",
     members: 12,
-    lines: [
-      "Client brought her mom, her cousin, and a full dinner plan.",
-      "How do you handle people who are late but still want full art?",
-      "Today was exhausting but one regular made the whole room laugh.",
+    bubbles: [
+      {
+        name: "Vy",
+        city: "Garden Grove",
+        message: "Client brought her mom, cousin, and a whole dinner plan.",
+        side: "left",
+      },
+      {
+        name: "Lan",
+        city: "Melbourne",
+        message: "Late but wants full art? I smile and point to the clock.",
+        side: "right",
+      },
+      {
+        name: "Hana",
+        city: "Toronto",
+        message: "One regular made the room laugh today. Saved my shift.",
+        side: "left",
+      },
     ],
     seats: ["LT", "HN", "TV", "MC"],
   },
@@ -38,10 +68,25 @@ const tables = [
     label: "product rumors",
     description: "Product chatter without the smoke: what is worth buying, what is overhyped, and which supplier actually ships on time.",
     members: 9,
-    lines: [
-      "That new builder gel is good, but the brush cap is annoying.",
-      "Anyone tried the lamp everyone in Westminster is talking about?",
-      "Supplier says restock Friday. I am believing it at 60 percent.",
+    bubbles: [
+      {
+        name: "Anh",
+        city: "Saigon",
+        message: "Supplier price changed again. Watch your margins.",
+        side: "left",
+      },
+      {
+        name: "Bao",
+        city: "Westminster",
+        message: "That lamp is fast, but the timer button feels cheap.",
+        side: "right",
+      },
+      {
+        name: "Nhi",
+        city: "Seattle",
+        message: "Builder gel is good. Brush cap is the drama.",
+        side: "left",
+      },
     ],
     seats: ["AD", "BN", "PQ", "SL", "NT", "VX"],
   },
@@ -50,10 +95,25 @@ const tables = [
     label: "owner/tech talk",
     description: "Small-business talk for owners, techs, reception, and managers comparing policies, pay, scheduling, and burnout fixes.",
     members: 15,
-    lines: [
-      "What deposit rule actually reduced no-shows for you?",
-      "Trying a quieter lunch rotation so nobody eats standing up.",
-      "How are owners explaining service price changes this month?",
+    bubbles: [
+      {
+        name: "Linh",
+        city: "California",
+        message: "Deposits helped, but clear reschedule rules helped more.",
+        side: "left",
+      },
+      {
+        name: "Kim",
+        city: "Houston",
+        message: "We made lunch rotation sacred. Nobody eats standing now.",
+        side: "right",
+      },
+      {
+        name: "Duc",
+        city: "Calgary",
+        message: "Price changes land better when you explain product costs.",
+        side: "left",
+      },
     ],
     seats: ["LP", "KH", "TN", "YL", "DM"],
   },
@@ -62,10 +122,25 @@ const tables = [
     label: "Calgary, California, London, Saigon",
     description: "Diaspora check-ins by city: openings, closures, lease talk, neighborhood notes, travel tips, and where the crowd is moving.",
     members: 21,
-    lines: [
-      "Calgary folks: which plaza has decent evening parking?",
-      "California rent stories are getting wild again.",
-      "Saigon supply run notes: bring photos, not just product names.",
+    bubbles: [
+      {
+        name: "Mina",
+        city: "Calgary",
+        message: "Which plaza has decent parking after 6?",
+        side: "left",
+      },
+      {
+        name: "Tina",
+        city: "London",
+        message: "Rent is wild here too. Tiny rooms, big numbers.",
+        side: "right",
+      },
+      {
+        name: "Anh",
+        city: "Saigon",
+        message: "Supply run tip: bring photos, not just product names.",
+        side: "left",
+      },
     ],
     seats: ["CG", "CA", "LDN", "SGN", "TX"],
   },
@@ -159,8 +234,16 @@ export default function ChoNeoGossipPage() {
                 </div>
 
                 <div className="discussion-lines">
-                  {table.lines.map((line) => (
-                    <p key={line}>{line}</p>
+                  {table.bubbles.map((bubble) => (
+                    <div
+                      className={`chat-bubble chat-bubble-${bubble.side}`}
+                      key={`${bubble.name}-${bubble.city}-${bubble.message}`}
+                    >
+                      <small>
+                        {bubble.name} · {bubble.city}
+                      </small>
+                      <p>{bubble.message}</p>
+                    </div>
                   ))}
                 </div>
               </article>
@@ -541,16 +624,66 @@ export default function ChoNeoGossipPage() {
 
         .discussion-lines {
           display: grid;
-          gap: 8px;
+          gap: 10px;
           margin-top: 16px;
         }
 
-        .discussion-lines p {
-          margin: 0;
+        .chat-bubble {
+          position: relative;
+          width: min(88%, 330px);
           padding: 10px 12px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 16px;
-          background: rgba(255, 255, 255, 0.07);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 247, 237, 0.11);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+        }
+
+        .chat-bubble-left {
+          justify-self: start;
+          border-radius: 18px 18px 18px 6px;
+        }
+
+        .chat-bubble-right {
+          justify-self: end;
+          border-radius: 18px 18px 6px 18px;
+          background: rgba(253, 230, 138, 0.16);
+          border-color: rgba(253, 230, 138, 0.18);
+        }
+
+        .chat-bubble::after {
+          content: "";
+          position: absolute;
+          bottom: -1px;
+          width: 10px;
+          height: 10px;
+          background: inherit;
+          border-bottom: inherit;
+        }
+
+        .chat-bubble-left::after {
+          left: -3px;
+          border-left: inherit;
+          border-radius: 0 0 0 8px;
+          transform: skewX(-18deg);
+        }
+
+        .chat-bubble-right::after {
+          right: -3px;
+          border-right: inherit;
+          border-radius: 0 0 8px 0;
+          transform: skewX(18deg);
+        }
+
+        .chat-bubble small {
+          display: block;
+          margin: 0;
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.05em;
+        }
+
+        .chat-bubble p {
+          margin: 5px 0 0;
           color: rgba(255, 247, 237, 0.82);
           font-size: 13px;
           line-height: 1.45;
