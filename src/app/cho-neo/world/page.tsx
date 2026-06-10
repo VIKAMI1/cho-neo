@@ -242,10 +242,10 @@ export default function ChoNeoWorldPage() {
           min-height: 100vh;
           width: min(1440px, 100%);
           margin: 0 auto;
-          padding: 18px 22px 22px;
+          padding: 14px 22px 18px;
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 12px;
         }
 
         .world-header {
@@ -257,7 +257,7 @@ export default function ChoNeoWorldPage() {
         }
 
         .eyebrow {
-          margin: 0 0 10px;
+          margin: 0 0 8px;
           color: #fde68a;
           font-size: 12px;
           font-weight: 900;
@@ -268,18 +268,18 @@ export default function ChoNeoWorldPage() {
         h1 {
           margin: 0;
           max-width: 860px;
-          font-size: clamp(36px, 6.2vw, 76px);
-          line-height: 0.9;
+          font-size: clamp(34px, 5.6vw, 66px);
+          line-height: 0.92;
           letter-spacing: -0.04em;
           text-wrap: balance;
         }
 
         .intro {
-          margin: 18px 0 0;
+          margin: 12px 0 0;
           max-width: 680px;
           color: rgba(255, 247, 237, 0.78);
-          font-size: clamp(14px, 1.6vw, 17px);
-          line-height: 1.7;
+          font-size: clamp(13px, 1.4vw, 16px);
+          line-height: 1.55;
         }
 
         .forum-link {
@@ -287,8 +287,8 @@ export default function ChoNeoWorldPage() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-height: 46px;
-          padding: 0 18px;
+          min-height: 42px;
+          padding: 0 16px;
           border: 1px solid rgba(253, 230, 138, 0.65);
           border-radius: 999px;
           color: #16110a;
@@ -303,19 +303,19 @@ export default function ChoNeoWorldPage() {
           flex: 1;
           display: grid;
           grid-template-columns: minmax(180px, 0.72fr) minmax(420px, 1.46fr) minmax(180px, 0.9fr);
-          gap: 18px;
+          gap: 16px;
           align-items: stretch;
         }
 
         .gates {
           display: grid;
-          gap: 16px;
+          gap: 12px;
           align-content: center;
         }
 
         .gate {
           position: relative;
-          min-height: 214px;
+          min-height: 190px;
           overflow: hidden;
           border: 1px solid rgba(255,255,255,0.14);
           border-radius: 28px;
@@ -339,7 +339,7 @@ export default function ChoNeoWorldPage() {
         .gate-glow {
           position: absolute;
           inset: 16px 24px auto;
-          height: 96px;
+          height: 82px;
           border-radius: 999px;
           opacity: 0.48;
           filter: blur(24px);
@@ -353,7 +353,7 @@ export default function ChoNeoWorldPage() {
 
         .skyline {
           position: relative;
-          height: 80px;
+          height: 68px;
           display: flex;
           align-items: flex-end;
           justify-content: center;
@@ -372,16 +372,16 @@ export default function ChoNeoWorldPage() {
 
         .portal {
           position: relative;
-          height: 86px;
+          height: 74px;
           margin-top: -2px;
           display: grid;
           place-items: center;
         }
 
         .portal-arch {
-          width: 86px;
-          height: 82px;
-          border: 12px solid rgba(255, 247, 237, 0.72);
+          width: 76px;
+          height: 72px;
+          border: 10px solid rgba(255, 247, 237, 0.72);
           border-bottom: 0;
           border-radius: 52px 52px 12px 12px;
           background: radial-gradient(circle at 50% 68%, rgba(255,255,255,0.62), rgba(251,191,36,0.15) 36%, rgba(0,0,0,0.22) 68%);
@@ -393,8 +393,8 @@ export default function ChoNeoWorldPage() {
         .portal-floor {
           position: absolute;
           bottom: 0;
-          width: 120px;
-          height: 18px;
+          width: 108px;
+          height: 16px;
           border-radius: 999px;
           background: rgba(0,0,0,0.34);
           box-shadow: 0 0 22px rgba(251,191,36,0.22);
@@ -402,7 +402,7 @@ export default function ChoNeoWorldPage() {
 
         .gate h2 {
           position: relative;
-          margin: 10px 0 4px;
+          margin: 8px 0 4px;
           text-align: center;
           font-size: 14px;
           letter-spacing: 0.13em;
@@ -416,12 +416,12 @@ export default function ChoNeoWorldPage() {
           color: rgba(255, 247, 237, 0.66);
           text-align: center;
           font-size: 12px;
-          line-height: 1.45;
+          line-height: 1.35;
         }
 
         .plaza {
           position: relative;
-          min-height: 650px;
+          min-height: 570px;
           overflow: hidden;
           border: 1px solid rgba(255,255,255,0.14);
           border-radius: 38px;
@@ -443,16 +443,16 @@ export default function ChoNeoWorldPage() {
           bottom: 78px;
           transform: translateX(-50%) rotate(-3deg);
           width: min(720px, 96%);
-          height: 330px;
+          height: 300px;
           border-radius: 50%;
           background: #4b2f3c;
           box-shadow: inset 0 0 42px rgba(0,0,0,0.24);
         }
 
         .plaza::after {
-          bottom: 118px;
+          bottom: 108px;
           width: min(560px, 78%);
-          height: 230px;
+          height: 205px;
           transform: translateX(-50%) rotate(2deg);
           background: #65404b;
           border: 1px solid rgba(253, 230, 138, 0.15);
@@ -460,8 +460,8 @@ export default function ChoNeoWorldPage() {
 
         .plaza-orbit {
           position: absolute;
-          inset: 64px 10% auto;
-          height: 190px;
+          inset: 48px 10% auto;
+          height: 164px;
           border-radius: 50%;
           background: radial-gradient(circle, rgba(253,230,138,0.20), transparent 64%);
           filter: blur(6px);
@@ -470,17 +470,17 @@ export default function ChoNeoWorldPage() {
         .light-column {
           position: relative;
           z-index: 2;
-          width: 170px;
-          height: 240px;
-          margin: 36px auto 0;
+          width: 154px;
+          height: 206px;
+          margin: 24px auto 0;
         }
 
         .light-top {
           position: absolute;
           left: 50%;
           top: 0;
-          width: 124px;
-          height: 124px;
+          width: 110px;
+          height: 110px;
           transform: translateX(-50%);
           border-radius: 999px;
           background: radial-gradient(circle, #fff7ed 0 12%, #fde68a 28%, rgba(251,191,36,0.16) 66%, transparent 72%);
@@ -490,9 +490,9 @@ export default function ChoNeoWorldPage() {
         .light-stem {
           position: absolute;
           left: 50%;
-          top: 70px;
-          width: 18px;
-          height: 130px;
+          top: 64px;
+          width: 16px;
+          height: 108px;
           transform: translateX(-50%);
           border-radius: 999px;
           background: linear-gradient(180deg, #fff7ed, #f59e0b);
@@ -502,9 +502,9 @@ export default function ChoNeoWorldPage() {
         .light-base {
           position: absolute;
           left: 50%;
-          bottom: 18px;
-          width: 150px;
-          height: 34px;
+          bottom: 16px;
+          width: 132px;
+          height: 30px;
           transform: translateX(-50%);
           border-radius: 999px;
           background: rgba(8, 13, 28, 0.82);
@@ -515,8 +515,8 @@ export default function ChoNeoWorldPage() {
           position: relative;
           z-index: 3;
           width: min(430px, calc(100% - 34px));
-          margin: -10px auto 0;
-          padding: 16px 18px;
+          margin: -12px auto 0;
+          padding: 13px 16px;
           border: 1px solid rgba(253,230,138,0.28);
           border-radius: 999px;
           text-align: center;
@@ -551,12 +551,12 @@ export default function ChoNeoWorldPage() {
           grid-template-columns: repeat(5, minmax(0, 1fr));
           gap: 10px;
           width: min(760px, calc(100% - 28px));
-          margin: 42px auto 0;
+          margin: 30px auto 0;
         }
 
         .store {
-          min-height: 134px;
-          padding: 11px;
+          min-height: 118px;
+          padding: 10px;
           border: 1px solid rgba(255,255,255,0.25);
           border-radius: 20px;
           background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.52));
@@ -574,15 +574,15 @@ export default function ChoNeoWorldPage() {
         .store-4 { background-color: #d1fae5; }
 
         .store-awning {
-          height: 18px;
+          height: 16px;
           border-radius: 14px 14px 6px 6px;
           background:
             repeating-linear-gradient(90deg, #111827 0 16px, #fef3c7 16px 28px);
         }
 
         .store-sign {
-          margin-top: 12px;
-          padding: 8px 6px;
+          margin-top: 10px;
+          padding: 7px 6px;
           border-radius: 12px;
           background: rgba(255,255,255,0.74);
           text-align: center;
@@ -597,11 +597,11 @@ export default function ChoNeoWorldPage() {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 5px;
-          margin-top: 12px;
+          margin-top: 10px;
         }
 
         .store-windows span {
-          height: 30px;
+          height: 24px;
           border-radius: 8px;
           background: linear-gradient(180deg, rgba(15,23,42,0.20), rgba(15,23,42,0.08));
         }
@@ -612,7 +612,7 @@ export default function ChoNeoWorldPage() {
           display: flex;
           justify-content: center;
           gap: 10px;
-          margin-top: 30px;
+          margin-top: 22px;
         }
 
         .stool {
@@ -635,7 +635,7 @@ export default function ChoNeoWorldPage() {
           align-items: flex-end;
           justify-content: space-between;
           width: min(620px, calc(100% - 40px));
-          margin: 26px auto 0;
+          margin: 18px auto 0;
         }
 
         .sedan {
@@ -725,7 +725,7 @@ export default function ChoNeoWorldPage() {
           }
 
           .plaza {
-            min-height: 610px;
+            min-height: 560px;
           }
 
           .storefront-row {
