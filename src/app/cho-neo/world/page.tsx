@@ -3,30 +3,35 @@ import Link from "next/link";
 const regions = [
   {
     name: "North America",
+    href: "/cho-neo/world/north-america",
     tone: "cyan",
     skyline: [34, 62, 48, 76, 42, 58],
     note: "shops, suburbs, downtown leases",
   },
   {
     name: "South America",
+    href: "/cho-neo/world/south-america",
     tone: "green",
     skyline: [28, 52, 40, 68, 36, 48],
     note: "new routes, trade, family calls",
   },
   {
     name: "Asia",
+    href: "/cho-neo/world/asia",
     tone: "rose",
     skyline: [44, 78, 56, 50, 68, 38],
     note: "suppliers, visits, late-night deals",
   },
   {
     name: "Australia",
+    href: "/cho-neo/world/australia",
     tone: "gold",
     skyline: [28, 44, 66, 36, 54, 42],
     note: "coastal cities, steady work",
   },
   {
     name: "Europe",
+    href: "/cho-neo/world/europe",
     tone: "violet",
     skyline: [54, 36, 70, 58, 42, 64],
     note: "old streets, fresh storefronts",
@@ -47,17 +52,19 @@ function Skyline({ heights }: { heights: number[] }) {
 
 function RegionGate({
   name,
+  href,
   tone,
   skyline,
   note,
 }: {
   name: string;
+  href: string;
   tone: string;
   skyline: number[];
   note: string;
 }) {
   return (
-    <article className={`gate gate-${tone}`}>
+    <Link className={`gate gate-${tone}`} href={href} aria-label={`Enter ${name}`}>
       <div className="gate-glow" />
       <Skyline heights={skyline} />
       <div className="portal">
@@ -66,7 +73,8 @@ function RegionGate({
       </div>
       <h2>{name}</h2>
       <p>{note}</p>
-    </article>
+      <span className="gate-cta">Enter region</span>
+    </Link>
   );
 }
 
@@ -783,6 +791,33 @@ export default function ChoNeoWorldPage() {
             transform: scaleX(-1) scale(0.86);
           }
         }
+        .gate {
+          color: inherit;
+          text-decoration: none;
+          cursor: pointer;
+        }
+
+        .gate:focus-visible {
+          outline: 3px solid rgba(253, 230, 138, 0.9);
+          outline-offset: 4px;
+        }
+
+        .gate-cta {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: fit-content;
+          margin-top: 10px;
+          padding: 7px 10px;
+          border-radius: 999px;
+          color: #111827;
+          background: rgba(253, 230, 138, 0.92);
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
       `}</style>
     </main>
   );
