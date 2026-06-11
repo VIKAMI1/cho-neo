@@ -69,6 +69,7 @@ const destinations = [
   },
   {
     name: "Waterfront",
+    href: "/cho-neo/waterfront",
     status: "Coming soon",
     kicker: "Cool-down path",
     description:
