@@ -90,11 +90,15 @@ const tables = [
 ];
 
 const rules = [
-  "No doxxing",
-  "No supplier spam",
-  "Respect shop owners and techs",
-  "Gossip is allowed, poison is not",
+  "Talk shop, share receipts, and help each other leave smarter.",
+  "No supplier spam.",
+  "No personal attacks.",
+  "No political baiting or national-label insults.",
+  "No doxxing or exposing private client/staff details.",
+  "Product talk is allowed when useful, not when blasted like an ad.",
 ];
+
+const hostTools = ["report", "hide", "remove", "member identity"];
 
 export default function ChoNeoGossipPage() {
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
@@ -320,16 +324,31 @@ export default function ChoNeoGossipPage() {
           )}
         </section>
 
-        <section className="house-rules" aria-label="House rules">
-          <div>
+        <section className="house-rules" aria-label="Table etiquette">
+          <div className="rules-heading">
             <p className="eyebrow">House Rules</p>
-            <h2>Warm room, sharp boundaries.</h2>
+            <h2>Table Etiquette</h2>
+            <p>
+              Warm room, sharp boundaries. Gossip Café works when the talk stays
+              useful, funny, or kind.
+            </p>
           </div>
-          <ul>
-            {rules.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
+          <div className="rules-body">
+            <ul>
+              {rules.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+            <div className="host-note">
+              <strong>Village host tools coming later</strong>
+              <p>No buttons yet. Future tools include:</p>
+              <div>
+                {hostTools.map((tool) => (
+                  <span key={tool}>{tool}</span>
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
       </section>
 
@@ -953,7 +972,7 @@ export default function ChoNeoGossipPage() {
 
         .house-rules {
           display: grid;
-          grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+          grid-template-columns: minmax(240px, 0.62fr) minmax(0, 1.38fr);
           gap: 18px;
           margin-top: 16px;
           padding: 18px;
@@ -968,11 +987,23 @@ export default function ChoNeoGossipPage() {
           backdrop-filter: blur(12px);
         }
 
+        .rules-heading p:not(.eyebrow) {
+          margin: 12px 0 0;
+          color: rgba(255, 247, 237, 0.7);
+          font-size: 14px;
+          line-height: 1.5;
+        }
+
         .house-rules h2 {
           margin: 0;
           font-size: clamp(24px, 3.2vw, 42px);
           line-height: 0.98;
           letter-spacing: -0.035em;
+        }
+
+        .rules-body {
+          display: grid;
+          gap: 12px;
         }
 
         .house-rules ul {
@@ -990,6 +1021,44 @@ export default function ChoNeoGossipPage() {
           border-radius: 18px;
           background: rgba(255, 255, 255, 0.07);
           color: rgba(255, 247, 237, 0.84);
+          font-weight: 850;
+        }
+
+        .host-note {
+          padding: 14px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 20px;
+          background:
+            radial-gradient(circle at 10% 0%, rgba(253, 230, 138, 0.14), transparent 34%),
+            rgba(253, 230, 138, 0.08);
+        }
+
+        .host-note strong {
+          color: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .host-note p {
+          margin: 6px 0 10px;
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        .host-note div {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
+        }
+
+        .host-note span {
+          padding: 6px 9px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 999px;
+          background: rgba(8, 13, 28, 0.42);
+          color: rgba(255, 247, 237, 0.78);
+          font-size: 12px;
           font-weight: 850;
         }
 
