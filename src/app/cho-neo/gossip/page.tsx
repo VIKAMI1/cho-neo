@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 
 type ConversationMessage = {
   name: string;
@@ -9,6 +15,9 @@ type ConversationMessage = {
 };
 
 const FRONT_COUNTER_MESSAGE_LIMIT = 180;
+const FOUNDING_PASSCODE = "CHO-NEO-FOUNDERS";
+const FOUNDING_PASS_UNLOCKED_KEY = "choNeoFoundingPassUnlocked";
+const FOUNDING_PASS_NAME_KEY = "choNeoFoundingPassDisplayName";
 
 const tables = [
   {
@@ -106,6 +115,13 @@ export default function ChoNeoGossipPage() {
     ConversationMessage[]
   >(() => tables[0].messages);
   const [frontCounterDraft, setFrontCounterDraft] = useState("");
+  const [foundingPassUnlocked, setFoundingPassUnlocked] = useState(false);
+  const [foundingDisplayName, setFoundingDisplayName] = useState("");
+  const [foundingPassNameDraft, setFoundingPassNameDraft] = useState("");
+  const [foundingPasscodeDraft, setFoundingPasscodeDraft] = useState("");
+  const [foundingPassError, setFoundingPassError] = useState<string | null>(
+    null
+  );
   const selectedTable = useMemo(
     () => tables.find((table) => table.name === selectedTableName) ?? null,
     [selectedTableName]
@@ -117,6 +133,21 @@ export default function ChoNeoGossipPage() {
   const remainingFrontCounterCharacters =
     FRONT_COUNTER_MESSAGE_LIMIT - frontCounterDraft.length;
   const canSubmitFrontCounterMessage = frontCounterDraft.trim().length > 0;
+  const canTryFoundingPass =
+    foundingPassNameDraft.trim().length > 0 &&
+    foundingPasscodeDraft.trim().length > 0;
+
+  useEffect(() => {
+    const savedUnlocked =
+      localStorage.getItem(FOUNDING_PASS_UNLOCKED_KEY) === "true";
+    const savedName = localStorage.getItem(FOUNDING_PASS_NAME_KEY) ?? "";
+
+    if (savedUnlocked && savedName.trim()) {
+      setFoundingPassUnlocked(true);
+      setFoundingDisplayName(savedName);
+      setFoundingPassNameDraft(savedName);
+    }
+  }, []);
 
   function handleFrontCounterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -129,9 +160,26 @@ export default function ChoNeoGossipPage() {
 
     setFrontCounterMessages((messages) => [
       ...messages,
-      { name: "You", text },
+      { name: foundingDisplayName || "You", text },
     ]);
     setFrontCounterDraft("");
+  }
+
+  function handleFoundingPassSubmit() {
+    const displayName = foundingPassNameDraft.trim();
+    const passcode = foundingPasscodeDraft.trim();
+
+    if (!displayName || passcode !== FOUNDING_PASSCODE) {
+      setFoundingPassError("That pass does not open this table yet.");
+      return;
+    }
+
+    localStorage.setItem(FOUNDING_PASS_UNLOCKED_KEY, "true");
+    localStorage.setItem(FOUNDING_PASS_NAME_KEY, displayName);
+    setFoundingPassUnlocked(true);
+    setFoundingDisplayName(displayName);
+    setFoundingPassError(null);
+    setFoundingPasscodeDraft("");
   }
 
   function openTable(tableName: string) {
@@ -145,6 +193,13 @@ export default function ChoNeoGossipPage() {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openTable(tableName);
+    }
+  }
+
+  function handleFoundingPassKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleFoundingPassSubmit();
     }
   }
 
@@ -230,22 +285,81 @@ export default function ChoNeoGossipPage() {
                       Prototype table. Real member identity and moderation come
                       later. Messages are not saved yet and reset on refresh.
                     </p>
+                    <p className="prototype-note">
+                      Temporary Founding Pass for prototype testing. Real
+                      sign-in comes later.
+                    </p>
+                    {foundingPassUnlocked ? (
+                      <p className="posting-as">
+                        Posting as <strong>{foundingDisplayName}</strong>
+                      </p>
+                    ) : (
+                      <div className="founding-pass">
+                        <div>
+                          <strong>Founding Pass</strong>
+                          <p>Unlock posting at the Front Counter.</p>
+                        </div>
+                        <label htmlFor="founding-display-name">
+                          Display name
+                        </label>
+                        <input
+                          id="founding-display-name"
+                          maxLength={32}
+                          onChange={(event) =>
+                            setFoundingPassNameDraft(event.target.value)
+                          }
+                          placeholder="Mai Calgary"
+                          type="text"
+                          value={foundingPassNameDraft}
+                        />
+                        <label htmlFor="founding-passcode">
+                          Invite passcode
+                        </label>
+                        <input
+                          id="founding-passcode"
+                          onKeyDown={handleFoundingPassKeyDown}
+                          onChange={(event) =>
+                            setFoundingPasscodeDraft(event.target.value)
+                          }
+                          placeholder="CHO-NEO-..."
+                          type="text"
+                          value={foundingPasscodeDraft}
+                        />
+                        {foundingPassError ? (
+                          <p className="pass-error">{foundingPassError}</p>
+                        ) : null}
+                        <button
+                          disabled={!canTryFoundingPass}
+                          type="button"
+                          onClick={handleFoundingPassSubmit}
+                        >
+                          Unlock posting
+                        </button>
+                      </div>
+                    )}
                     <label htmlFor="front-counter-message">
                       Front Counter conversation
                     </label>
                     <div className="message-row">
                       <input
+                        disabled={!foundingPassUnlocked}
                         id="front-counter-message"
                         maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
                         onChange={(event) =>
                           setFrontCounterDraft(event.target.value)
                         }
-                        placeholder="Add a short café note..."
+                        placeholder={
+                          foundingPassUnlocked
+                            ? "Add a short café note..."
+                            : "Unlock the Founding Pass to post..."
+                        }
                         type="text"
                         value={frontCounterDraft}
                       />
                       <button
-                        disabled={!canSubmitFrontCounterMessage}
+                        disabled={
+                          !foundingPassUnlocked || !canSubmitFrontCounterMessage
+                        }
                         type="submit"
                       >
                         Post
@@ -804,6 +918,92 @@ export default function ChoNeoGossipPage() {
           line-height: 1.4;
         }
 
+        .posting-as {
+          margin: 0;
+          padding: 10px 12px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 16px;
+          color: rgba(255, 247, 237, 0.78);
+          background: rgba(253, 230, 138, 0.1);
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        .posting-as strong {
+          color: #fde68a;
+        }
+
+        .founding-pass {
+          display: grid;
+          gap: 9px;
+          padding: 14px;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 20px;
+          background:
+            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.16), transparent 34%),
+            rgba(8, 13, 28, 0.42);
+        }
+
+        .founding-pass strong {
+          color: #fde68a;
+          font-size: 14px;
+          font-weight: 950;
+        }
+
+        .founding-pass p {
+          margin: 4px 0 0;
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        .founding-pass label {
+          margin-top: 3px;
+        }
+
+        .founding-pass input {
+          width: 100%;
+          min-height: 40px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 999px;
+          padding: 0 13px;
+          color: #fff7ed;
+          background: rgba(8, 13, 28, 0.64);
+          font: inherit;
+          outline: none;
+        }
+
+        .founding-pass input::placeholder {
+          color: rgba(255, 247, 237, 0.42);
+        }
+
+        .founding-pass input:focus {
+          border-color: rgba(253, 230, 138, 0.66);
+          box-shadow: 0 0 0 3px rgba(253, 230, 138, 0.12);
+        }
+
+        .founding-pass button {
+          min-height: 40px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .founding-pass button:disabled {
+          cursor: not-allowed;
+          color: rgba(255, 247, 237, 0.54);
+          background: rgba(255, 255, 255, 0.14);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .pass-error {
+          color: #fecdd3 !important;
+          font-weight: 850;
+        }
+
         .conversation-form label {
           color: #fde68a;
           font-size: 11px;
@@ -837,6 +1037,12 @@ export default function ChoNeoGossipPage() {
         .message-row input:focus {
           border-color: rgba(253, 230, 138, 0.66);
           box-shadow: 0 0 0 3px rgba(253, 230, 138, 0.12);
+        }
+
+        .message-row input:disabled {
+          cursor: not-allowed;
+          color: rgba(255, 247, 237, 0.48);
+          background: rgba(255, 255, 255, 0.08);
         }
 
         .message-row button {
@@ -1233,7 +1439,8 @@ export default function ChoNeoGossipPage() {
 
           .table-footer button,
           .leave-button,
-          .message-row button {
+          .message-row button,
+          .founding-pass button {
             width: 100%;
           }
 
