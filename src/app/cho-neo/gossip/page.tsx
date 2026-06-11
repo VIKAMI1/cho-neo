@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 
 type ConversationMessage = {
   name: string;
@@ -125,6 +125,20 @@ export default function ChoNeoGossipPage() {
     setFrontCounterDraft("");
   }
 
+  function openTable(tableName: string) {
+    setSelectedTableName(tableName);
+  }
+
+  function handleTableKeyDown(
+    event: KeyboardEvent<HTMLElement>,
+    tableName: string
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openTable(tableName);
+    }
+  }
+
   return (
     <main className="cafe-page">
       <div className="room-glow" />
@@ -238,7 +252,15 @@ export default function ChoNeoGossipPage() {
           ) : (
             <div className="table-map">
               {tables.map((table) => (
-                <article className={`table-cluster table-${table.tone}`} key={table.name}>
+                <article
+                  aria-label={`Open ${table.name}`}
+                  className={`table-cluster table-${table.tone}`}
+                  key={table.name}
+                  onClick={() => openTable(table.name)}
+                  onKeyDown={(event) => handleTableKeyDown(event, table.name)}
+                  role="button"
+                  tabIndex={0}
+                >
                   <span className="table-glow" />
                   <div className="table-plate" aria-hidden="true">
                     {table.initials.map((initial, seatIndex) => (
@@ -268,7 +290,13 @@ export default function ChoNeoGossipPage() {
                       <strong>
                         {table.count} {table.action}
                       </strong>
-                      <button type="button" onClick={() => setSelectedTableName(table.name)}>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openTable(table.name);
+                        }}
+                      >
                         Join table
                       </button>
                     </div>
@@ -485,6 +513,9 @@ export default function ChoNeoGossipPage() {
         .table-cluster {
           position: absolute;
           width: 292px;
+          cursor: pointer;
+          outline: none;
+          transition: filter 160ms ease, transform 160ms ease;
         }
 
         .table-cluster:nth-child(1) { left: 6%; top: 154px; }
@@ -493,6 +524,17 @@ export default function ChoNeoGossipPage() {
         .table-cluster:nth-child(4) { left: 18%; bottom: 62px; width: 340px; }
         .table-cluster:nth-child(5) { right: 16%; bottom: 72px; width: 320px; }
 
+        .table-cluster:hover {
+          filter: drop-shadow(0 18px 34px rgba(0, 0, 0, 0.34));
+          transform: translateY(-4px);
+        }
+
+        .table-cluster:focus-visible {
+          border-radius: 28px;
+          outline: 3px solid rgba(253, 230, 138, 0.88);
+          outline-offset: 7px;
+        }
+
         .table-glow {
           position: absolute;
           inset: 10px 24px auto;
@@ -500,6 +542,7 @@ export default function ChoNeoGossipPage() {
           border-radius: 999px;
           opacity: 0.36;
           filter: blur(24px);
+          pointer-events: none;
         }
 
         .table-rose .table-glow { background: #fda4af; }
@@ -522,6 +565,7 @@ export default function ChoNeoGossipPage() {
           box-shadow:
             0 16px 34px rgba(0, 0, 0, 0.28),
             inset 0 0 28px rgba(0, 0, 0, 0.2);
+          pointer-events: none;
         }
 
         .table-plate span {
@@ -553,6 +597,17 @@ export default function ChoNeoGossipPage() {
             0 18px 54px rgba(0, 0, 0, 0.34),
             inset 0 1px 0 rgba(255, 255, 255, 0.13);
           backdrop-filter: blur(12px);
+        }
+
+        .table-card::after {
+          content: "Tap anywhere to enter";
+          display: block;
+          margin-top: 12px;
+          color: rgba(253, 230, 138, 0.76);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
         }
 
         .room-scene-focused {
