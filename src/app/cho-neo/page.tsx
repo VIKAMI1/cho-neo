@@ -56,6 +56,7 @@ const destinations = [
   },
   {
     name: "Owner Corner",
+    href: "/cho-neo/owner-corner",
     status: "Coming soon",
     kicker: "Small-business room",
     description:
