@@ -1070,6 +1070,7 @@ export default function ChoNeoGossipPage() {
 
           .room-scene {
             padding: 18px;
+            overflow: visible;
           }
 
           .counter,
@@ -1084,21 +1085,31 @@ export default function ChoNeoGossipPage() {
           }
 
           .counter {
-            margin-bottom: 14px;
+            z-index: 4;
+            margin-bottom: 18px;
           }
 
           .table-map {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
+            gap: 18px;
+          }
+
+          .table-cluster {
+            min-width: 0;
+          }
+
+          .table-cluster:hover {
+            transform: translateY(-2px);
           }
 
           .room-scene-focused {
             display: block;
+            min-height: auto;
           }
 
           .table-detail {
-            margin: 110px auto 0;
+            margin: 118px auto 0;
           }
         }
 
@@ -1115,9 +1126,57 @@ export default function ChoNeoGossipPage() {
           .cafe-hero {
             flex-direction: column;
           }
+
+          .room-scene {
+            border-radius: 28px;
+          }
+
+          .house-rules {
+            gap: 14px;
+          }
         }
 
         @media (max-width: 720px) {
+          .cafe-shell {
+            padding: 16px 12px 22px;
+          }
+
+          h1 {
+            font-size: clamp(38px, 13vw, 58px);
+          }
+
+          .subtitle {
+            font-size: 15px;
+          }
+
+          .room-scene {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 24px;
+          }
+
+          .room-scene::before {
+            bottom: -160px;
+            height: 420px;
+          }
+
+          .room-scene::after {
+            display: none;
+          }
+
+          .counter {
+            min-height: 78px;
+            border-radius: 20px;
+          }
+
+          .counter strong {
+            width: calc(100% - 24px);
+            border-radius: 18px;
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+
           .table-map,
           .house-rules ul {
             grid-template-columns: 1fr;
@@ -1125,6 +1184,44 @@ export default function ChoNeoGossipPage() {
 
           .back-link {
             width: 100%;
+          }
+
+          .table-card,
+          .detail-panel,
+          .house-rules {
+            border-radius: 22px;
+          }
+
+          .table-card {
+            padding: 16px;
+          }
+
+          .table-plate {
+            width: 118px;
+            height: 70px;
+            margin-bottom: -16px;
+          }
+
+          .room-scene-focused {
+            padding: 14px;
+          }
+
+          .room-scene-focused .counter {
+            display: none;
+          }
+
+          .table-detail {
+            margin: 0 auto;
+          }
+
+          .detail-table-plate {
+            width: 190px;
+            height: 104px;
+            margin-bottom: -26px;
+          }
+
+          .detail-panel {
+            padding: 18px;
           }
 
           .table-heading,
@@ -1146,6 +1243,14 @@ export default function ChoNeoGossipPage() {
 
           .thread-message {
             width: 100%;
+          }
+
+          .house-rules {
+            padding: 16px;
+          }
+
+          .host-note div {
+            align-items: stretch;
           }
         }
       `}</style>
