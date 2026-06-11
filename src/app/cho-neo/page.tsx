@@ -1,5 +1,33 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+
+type AtmosphereId = "morning" | "afternoon" | "evening" | "night";
+
+const atmosphereLabels: Record<AtmosphereId, string> = {
+  morning: "Morning in the village",
+  afternoon: "Afternoon in the village",
+  evening: "Evening in the village",
+  night: "Night in the village",
+};
+
+function getLocalAtmosphere(hour: number): AtmosphereId {
+  if (hour >= 5 && hour < 12) {
+    return "morning";
+  }
+
+  if (hour >= 12 && hour < 17) {
+    return "afternoon";
+  }
+
+  if (hour >= 17 && hour < 21) {
+    return "evening";
+  }
+
+  return "night";
+}
 
 const destinations = [
   {
@@ -155,8 +183,16 @@ function DestinationBuilding({
 }
 
 export default function ChoNeoPage() {
+  const [atmosphere, setAtmosphere] = useState<AtmosphereId | null>(null);
+  const activeAtmosphere = atmosphere ?? "evening";
+
+  useEffect(() => {
+    setAtmosphere(getLocalAtmosphere(new Date().getHours()));
+  }, []);
+
   return (
-    <main className="forum-page">
+    <main className={`forum-page atmosphere-${activeAtmosphere}`}>
+      <div className="atmosphere-sky" />
       <div className="street-glow" />
       <div className="paper-grid" />
 
@@ -171,6 +207,9 @@ export default function ChoNeoPage() {
               rooms, useful rituals, and community first.
             </p>
           </div>
+          <p className="atmosphere-label" aria-live="polite">
+            {atmosphere ? atmosphereLabels[activeAtmosphere] : "Village atmosphere"}
+          </p>
         </header>
 
         <section className="village-note" aria-label="Village direction">
@@ -258,6 +297,66 @@ export default function ChoNeoPage() {
             linear-gradient(180deg, #101224 0%, #21162c 45%, #321b29 72%, #151015 100%);
         }
 
+        .atmosphere-morning {
+          background:
+            radial-gradient(circle at 18% 16%, rgba(253, 186, 116, 0.28), transparent 30%),
+            radial-gradient(circle at 82% 12%, rgba(125, 211, 252, 0.2), transparent 28%),
+            linear-gradient(180deg, #172033 0%, #2b2140 46%, #5a3140 76%, #17121a 100%);
+        }
+
+        .atmosphere-afternoon {
+          background:
+            radial-gradient(circle at 16% 14%, rgba(253, 224, 71, 0.22), transparent 30%),
+            radial-gradient(circle at 84% 16%, rgba(45, 212, 191, 0.2), transparent 28%),
+            linear-gradient(180deg, #12213a 0%, #22264a 44%, #3e2441 74%, #151015 100%);
+        }
+
+        .atmosphere-evening {
+          background:
+            radial-gradient(circle at 18% 16%, rgba(251, 191, 36, 0.24), transparent 28%),
+            radial-gradient(circle at 82% 12%, rgba(45, 212, 191, 0.18), transparent 26%),
+            linear-gradient(180deg, #101224 0%, #21162c 45%, #321b29 72%, #151015 100%);
+        }
+
+        .atmosphere-night {
+          background:
+            radial-gradient(circle at 16% 14%, rgba(147, 197, 253, 0.13), transparent 30%),
+            radial-gradient(circle at 84% 18%, rgba(196, 181, 253, 0.13), transparent 28%),
+            linear-gradient(180deg, #070b18 0%, #111827 44%, #1e1428 74%, #09070d 100%);
+        }
+
+        .atmosphere-sky {
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          transition: opacity 220ms ease, background 220ms ease;
+        }
+
+        .atmosphere-morning .atmosphere-sky {
+          background:
+            radial-gradient(circle at 22% 18%, rgba(254, 215, 170, 0.24), transparent 24%),
+            linear-gradient(180deg, rgba(125, 211, 252, 0.1), transparent 54%);
+        }
+
+        .atmosphere-afternoon .atmosphere-sky {
+          background:
+            radial-gradient(circle at 66% 12%, rgba(254, 240, 138, 0.2), transparent 24%),
+            linear-gradient(180deg, rgba(56, 189, 248, 0.08), transparent 56%);
+        }
+
+        .atmosphere-evening .atmosphere-sky {
+          background:
+            radial-gradient(circle at 50% 18%, rgba(251, 191, 36, 0.12), transparent 34%),
+            linear-gradient(180deg, rgba(244, 114, 182, 0.06), transparent 58%);
+        }
+
+        .atmosphere-night .atmosphere-sky {
+          background:
+            radial-gradient(circle at 74% 13%, rgba(219, 234, 254, 0.12), transparent 12%),
+            radial-gradient(circle at 24% 22%, rgba(196, 181, 253, 0.08), transparent 22%),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.3), transparent 58%);
+        }
+
         .street-glow,
         .paper-grid {
           position: fixed;
@@ -270,6 +369,27 @@ export default function ChoNeoPage() {
             radial-gradient(ellipse at 50% 100%, rgba(251, 191, 36, 0.2), transparent 48%),
             radial-gradient(ellipse at 10% 70%, rgba(244, 114, 182, 0.12), transparent 34%),
             radial-gradient(ellipse at 90% 72%, rgba(34, 211, 238, 0.12), transparent 34%);
+        }
+
+        .atmosphere-morning .street-glow {
+          background:
+            radial-gradient(ellipse at 50% 100%, rgba(251, 191, 36, 0.18), transparent 48%),
+            radial-gradient(ellipse at 12% 68%, rgba(251, 146, 60, 0.12), transparent 34%),
+            radial-gradient(ellipse at 90% 72%, rgba(125, 211, 252, 0.14), transparent 34%);
+        }
+
+        .atmosphere-afternoon .street-glow {
+          background:
+            radial-gradient(ellipse at 50% 100%, rgba(251, 191, 36, 0.16), transparent 48%),
+            radial-gradient(ellipse at 10% 70%, rgba(45, 212, 191, 0.1), transparent 34%),
+            radial-gradient(ellipse at 90% 72%, rgba(251, 113, 133, 0.1), transparent 34%);
+        }
+
+        .atmosphere-night .street-glow {
+          background:
+            radial-gradient(ellipse at 50% 100%, rgba(251, 191, 36, 0.18), transparent 48%),
+            radial-gradient(ellipse at 10% 70%, rgba(96, 165, 250, 0.1), transparent 34%),
+            radial-gradient(ellipse at 90% 72%, rgba(196, 181, 253, 0.1), transparent 34%);
         }
 
         .paper-grid {
@@ -306,6 +426,41 @@ export default function ChoNeoPage() {
 
         .hero-copy {
           max-width: 920px;
+        }
+
+        .atmosphere-label {
+          flex: 0 0 auto;
+          margin: 2px 0 0;
+          padding: 9px 12px;
+          border: 1px solid rgba(253, 230, 138, 0.24);
+          border-radius: 999px;
+          background: rgba(8, 13, 28, 0.58);
+          color: rgba(255, 247, 237, 0.82);
+          font-size: 12px;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+          backdrop-filter: blur(10px);
+        }
+
+        .atmosphere-morning .atmosphere-label {
+          border-color: rgba(254, 215, 170, 0.36);
+          color: #fed7aa;
+        }
+
+        .atmosphere-afternoon .atmosphere-label {
+          border-color: rgba(186, 230, 253, 0.3);
+          color: #bae6fd;
+        }
+
+        .atmosphere-evening .atmosphere-label {
+          color: #fde68a;
+        }
+
+        .atmosphere-night .atmosphere-label {
+          border-color: rgba(196, 181, 253, 0.28);
+          color: #ddd6fe;
         }
 
         .eyebrow {
@@ -373,6 +528,30 @@ export default function ChoNeoPage() {
             0 24px 80px rgba(0, 0, 0, 0.38),
             inset 0 1px 0 rgba(255, 255, 255, 0.14);
           backdrop-filter: blur(12px);
+        }
+
+        .atmosphere-morning .village-map {
+          background:
+            radial-gradient(circle at 50% 18%, rgba(254, 215, 170, 0.18), transparent 28%),
+            radial-gradient(circle at 16% 74%, rgba(251, 146, 60, 0.1), transparent 34%),
+            radial-gradient(circle at 88% 76%, rgba(125, 211, 252, 0.12), transparent 34%),
+            rgba(15, 23, 42, 0.5);
+        }
+
+        .atmosphere-afternoon .village-map {
+          background:
+            radial-gradient(circle at 50% 18%, rgba(254, 240, 138, 0.16), transparent 28%),
+            radial-gradient(circle at 16% 74%, rgba(45, 212, 191, 0.1), transparent 34%),
+            radial-gradient(circle at 88% 76%, rgba(251, 113, 133, 0.1), transparent 34%),
+            rgba(15, 23, 42, 0.52);
+        }
+
+        .atmosphere-night .village-map {
+          background:
+            radial-gradient(circle at 50% 18%, rgba(196, 181, 253, 0.1), transparent 28%),
+            radial-gradient(circle at 16% 74%, rgba(96, 165, 250, 0.08), transparent 34%),
+            radial-gradient(circle at 88% 76%, rgba(253, 230, 138, 0.08), transparent 34%),
+            rgba(8, 13, 28, 0.72);
         }
 
         .skyline {
