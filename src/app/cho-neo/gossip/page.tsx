@@ -8,6 +8,8 @@ type ConversationMessage = {
   text: string;
 };
 
+const FRONT_COUNTER_MESSAGE_LIMIT = 180;
+
 const tables = [
   {
     name: "Front Counter",
@@ -108,6 +110,9 @@ export default function ChoNeoGossipPage() {
   const selectedMessages = isFrontCounter
     ? frontCounterMessages
     : selectedTable?.messages ?? [];
+  const remainingFrontCounterCharacters =
+    FRONT_COUNTER_MESSAGE_LIMIT - frontCounterDraft.length;
+  const canSubmitFrontCounterMessage = frontCounterDraft.trim().length > 0;
 
   function handleFrontCounterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -219,7 +224,7 @@ export default function ChoNeoGossipPage() {
                   >
                     <p className="prototype-note">
                       Prototype table. Real member identity and moderation come
-                      later.
+                      later. Messages are not saved yet and reset on refresh.
                     </p>
                     <label htmlFor="front-counter-message">
                       Front Counter conversation
@@ -227,7 +232,7 @@ export default function ChoNeoGossipPage() {
                     <div className="message-row">
                       <input
                         id="front-counter-message"
-                        maxLength={180}
+                        maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
                         onChange={(event) =>
                           setFrontCounterDraft(event.target.value)
                         }
@@ -235,8 +240,16 @@ export default function ChoNeoGossipPage() {
                         type="text"
                         value={frontCounterDraft}
                       />
-                      <button type="submit">Post</button>
+                      <button
+                        disabled={!canSubmitFrontCounterMessage}
+                        type="submit"
+                      >
+                        Post
+                      </button>
                     </div>
+                    <p className="character-count">
+                      {remainingFrontCounterCharacters} characters left
+                    </p>
                   </form>
                 ) : null}
 
@@ -816,6 +829,21 @@ export default function ChoNeoGossipPage() {
           background: #fde68a;
           font-size: 13px;
           font-weight: 950;
+        }
+
+        .message-row button:disabled {
+          cursor: not-allowed;
+          color: rgba(255, 247, 237, 0.54);
+          background: rgba(255, 255, 255, 0.14);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .character-count {
+          justify-self: end;
+          margin: -2px 4px 0 0;
+          color: rgba(255, 247, 237, 0.56);
+          font-size: 12px;
+          font-weight: 850;
         }
 
         .leave-button {
