@@ -43,6 +43,7 @@ const destinations = [
   },
   {
     name: "Technique Hall",
+    href: "/cho-neo/technique",
     status: "Coming soon",
     kicker: "Skill exchange",
     description:
