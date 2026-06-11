@@ -8,6 +8,11 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
+import {
+  isFoundingPassCode,
+  readFoundingPass,
+  saveFoundingPass,
+} from "@/lib/cho-neo/founding-pass";
 
 type ConversationMessage = {
   name: string;
@@ -15,9 +20,6 @@ type ConversationMessage = {
 };
 
 const FRONT_COUNTER_MESSAGE_LIMIT = 180;
-const FOUNDING_PASSCODE = "CHO-NEO-FOUNDERS";
-const FOUNDING_PASS_UNLOCKED_KEY = "choNeoFoundingPassUnlocked";
-const FOUNDING_PASS_NAME_KEY = "choNeoFoundingPassDisplayName";
 
 const tables = [
   {
@@ -138,14 +140,12 @@ export default function ChoNeoGossipPage() {
     foundingPasscodeDraft.trim().length > 0;
 
   useEffect(() => {
-    const savedUnlocked =
-      localStorage.getItem(FOUNDING_PASS_UNLOCKED_KEY) === "true";
-    const savedName = localStorage.getItem(FOUNDING_PASS_NAME_KEY) ?? "";
+    const savedPass = readFoundingPass();
 
-    if (savedUnlocked && savedName.trim()) {
+    if (savedPass.unlocked) {
       setFoundingPassUnlocked(true);
-      setFoundingDisplayName(savedName);
-      setFoundingPassNameDraft(savedName);
+      setFoundingDisplayName(savedPass.displayName);
+      setFoundingPassNameDraft(savedPass.displayName);
     }
   }, []);
 
@@ -169,15 +169,14 @@ export default function ChoNeoGossipPage() {
     const displayName = foundingPassNameDraft.trim();
     const passcode = foundingPasscodeDraft.trim();
 
-    if (!displayName || passcode !== FOUNDING_PASSCODE) {
+    if (!displayName || !isFoundingPassCode(passcode)) {
       setFoundingPassError("That pass does not open the village table yet.");
       return;
     }
 
-    localStorage.setItem(FOUNDING_PASS_UNLOCKED_KEY, "true");
-    localStorage.setItem(FOUNDING_PASS_NAME_KEY, displayName);
+    const savedPass = saveFoundingPass(displayName);
     setFoundingPassUnlocked(true);
-    setFoundingDisplayName(displayName);
+    setFoundingDisplayName(savedPass.displayName);
     setFoundingPassError(null);
     setFoundingPasscodeDraft("");
   }
