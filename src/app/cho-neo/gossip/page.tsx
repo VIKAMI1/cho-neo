@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+
+type ConversationMessage = {
+  name: string;
+  text: string;
+};
 
 const tables = [
   {
@@ -91,10 +96,34 @@ const rules = [
 
 export default function ChoNeoGossipPage() {
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
+  const [frontCounterMessages, setFrontCounterMessages] = useState<
+    ConversationMessage[]
+  >(() => tables[0].messages);
+  const [frontCounterDraft, setFrontCounterDraft] = useState("");
   const selectedTable = useMemo(
     () => tables.find((table) => table.name === selectedTableName) ?? null,
     [selectedTableName]
   );
+  const isFrontCounter = selectedTable?.name === "Front Counter";
+  const selectedMessages = isFrontCounter
+    ? frontCounterMessages
+    : selectedTable?.messages ?? [];
+
+  function handleFrontCounterSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const text = frontCounterDraft.trim();
+
+    if (!text) {
+      return;
+    }
+
+    setFrontCounterMessages((messages) => [
+      ...messages,
+      { name: "You", text },
+    ]);
+    setFrontCounterDraft("");
+  }
 
   return (
     <main className="cafe-page">
@@ -156,7 +185,7 @@ export default function ChoNeoGossipPage() {
                 </div>
 
                 <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
-                  {selectedTable.messages.map((message, index) => (
+                  {selectedMessages.map((message, index) => (
                     <div
                       className={`thread-message ${
                         index % 2 ? "thread-message-right" : "thread-message-left"
@@ -168,6 +197,34 @@ export default function ChoNeoGossipPage() {
                     </div>
                   ))}
                 </div>
+
+                {isFrontCounter ? (
+                  <form
+                    className="conversation-form"
+                    onSubmit={handleFrontCounterSubmit}
+                  >
+                    <p className="prototype-note">
+                      Prototype table. Real member identity and moderation come
+                      later.
+                    </p>
+                    <label htmlFor="front-counter-message">
+                      Front Counter conversation
+                    </label>
+                    <div className="message-row">
+                      <input
+                        id="front-counter-message"
+                        maxLength={180}
+                        onChange={(event) =>
+                          setFrontCounterDraft(event.target.value)
+                        }
+                        placeholder="Add a short café note..."
+                        type="text"
+                        value={frontCounterDraft}
+                      />
+                      <button type="submit">Post</button>
+                    </div>
+                  </form>
+                ) : null}
 
                 <button
                   className="leave-button"
@@ -641,6 +698,71 @@ export default function ChoNeoGossipPage() {
           line-height: 1.45;
         }
 
+        .conversation-form {
+          display: grid;
+          gap: 10px;
+          margin-top: 20px;
+          padding: 14px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 22px;
+          background:
+            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.14), transparent 34%),
+            rgba(255, 247, 237, 0.08);
+        }
+
+        .prototype-note {
+          margin: 0;
+          color: rgba(255, 247, 237, 0.72);
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        .conversation-form label {
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
+        .message-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+        }
+
+        .message-row input {
+          width: 100%;
+          min-height: 42px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 999px;
+          padding: 0 14px;
+          color: #fff7ed;
+          background: rgba(8, 13, 28, 0.62);
+          font: inherit;
+          outline: none;
+        }
+
+        .message-row input::placeholder {
+          color: rgba(255, 247, 237, 0.44);
+        }
+
+        .message-row input:focus {
+          border-color: rgba(253, 230, 138, 0.66);
+          box-shadow: 0 0 0 3px rgba(253, 230, 138, 0.12);
+        }
+
+        .message-row button {
+          min-height: 42px;
+          padding: 0 16px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
         .leave-button {
           min-height: 40px;
           margin-top: 20px;
@@ -861,8 +983,13 @@ export default function ChoNeoGossipPage() {
           }
 
           .table-footer button,
-          .leave-button {
+          .leave-button,
+          .message-row button {
             width: 100%;
+          }
+
+          .message-row {
+            grid-template-columns: 1fr;
           }
 
           .thread-message {
