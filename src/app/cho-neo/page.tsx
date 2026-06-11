@@ -17,6 +17,7 @@ const destinations = [
   },
   {
     name: "Ông Địa Shrine",
+    href: "/cho-neo/shrine",
     status: "Open soon",
     kicker: "Ritual center",
     description:
