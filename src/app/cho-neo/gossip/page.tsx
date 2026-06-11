@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo, useState } from "react";
 
 const tables = [
   {
@@ -10,6 +13,12 @@ const tables = [
     initials: ["Mai", "TN", "Vy", "KP", "An"],
     tone: "rose",
     note: "Quick takes while someone is waiting on coffee and the next client.",
+    messages: [
+      { name: "Mai", text: "Chrome still sells, but clients ask price first now." },
+      { name: "Bao", text: "Supply cost is not the only issue. Time is the killer." },
+      { name: "Vy", text: "In my shop, chrome is still strong for short sets." },
+      { name: "TN", text: "Receipts matter. People compare everything now." },
+    ],
   },
   {
     name: "Corner Table",
@@ -20,6 +29,11 @@ const tables = [
     initials: ["MT", "Kim", "LD"],
     tone: "violet",
     note: "Local shop rhythm, walk-ins, bookings, and the weather nobody asked for.",
+    messages: [
+      { name: "MT", text: "June always feels sleepy until grad sets come in all at once." },
+      { name: "Kim", text: "Walk-ins are slower, but regulars are still booking fills." },
+      { name: "LD", text: "Calgary weather decides half our appointment book." },
+    ],
   },
   {
     name: "Window Seat",
@@ -30,6 +44,10 @@ const tables = [
     initials: ["Vy", "Han"],
     tone: "cyan",
     note: "Smaller city check-ins, work leads, and soft advice from across the room.",
+    messages: [
+      { name: "Vy", text: "Two salons near me are hiring, but everyone wants weekends covered." },
+      { name: "Han", text: "Ask about product split before you agree. Learned that one." },
+    ],
   },
   {
     name: "Big Table",
@@ -40,6 +58,12 @@ const tables = [
     initials: ["Anh", "Bao", "Nhi", "SL", "PQ", "TV"],
     tone: "gold",
     note: "Product opinions, lamp gossip, application notes, and receipts if you have them.",
+    messages: [
+      { name: "Anh", text: "Builder gel depends on your prep. No magic bottle fixes lifting." },
+      { name: "Bao", text: "The popular one is good, but the viscosity runs warm." },
+      { name: "Nhi", text: "Clients like strength, but they hate thick sidewalls." },
+      { name: "SL", text: "I need brands that ship consistently more than hype." },
+    ],
   },
   {
     name: "Quiet Table",
@@ -50,6 +74,11 @@ const tables = [
     initials: ["Linh", "Duc"],
     tone: "green",
     note: "Lower voices for owner pressure, team tension, and staying kind under load.",
+    messages: [
+      { name: "Linh", text: "Staffing gets heavy when everyone is tired but nobody says it." },
+      { name: "Duc", text: "Clear schedule rules saved us more drama than any meeting." },
+      { name: "Linh", text: "I am trying to fix the system before blaming people." },
+    ],
   },
 ];
 
@@ -61,6 +90,12 @@ const rules = [
 ];
 
 export default function ChoNeoGossipPage() {
+  const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
+  const selectedTable = useMemo(
+    () => tables.find((table) => table.name === selectedTableName) ?? null,
+    [selectedTableName]
+  );
+
   return (
     <main className="cafe-page">
       <div className="room-glow" />
@@ -82,50 +117,108 @@ export default function ChoNeoGossipPage() {
           </Link>
         </header>
 
-        <section className="room-scene" aria-label="Gossip Café table clusters">
+        <section
+          className={`room-scene ${selectedTable ? "room-scene-focused" : ""}`}
+          aria-label="Gossip Café table clusters"
+        >
           <div className="counter" aria-hidden="true">
             <span className="counter-light" />
             <strong>Order here, talk softly, bring receipts.</strong>
           </div>
 
-          <div className="table-map">
-            {tables.map((table, index) => (
-              <article className={`table-cluster table-${table.tone}`} key={table.name}>
-                <span className="table-glow" />
-                <div className="table-plate" aria-hidden="true">
-                  {table.initials.map((initial, seatIndex) => (
-                    <span key={`${initial}-${seatIndex}`} />
+          {selectedTable ? (
+            <article className={`table-detail table-${selectedTable.tone}`}>
+              <span className="table-glow" />
+              <div className="detail-table-plate" aria-hidden="true">
+                {selectedTable.initials.map((initial, seatIndex) => (
+                  <span key={`${initial}-${seatIndex}`} />
+                ))}
+              </div>
+
+              <div className="detail-panel">
+                <div className="detail-heading">
+                  <div>
+                    <p>{selectedTable.status} table</p>
+                    <h2>{selectedTable.name}</h2>
+                  </div>
+                  <strong>
+                    {selectedTable.count} {selectedTable.action}
+                  </strong>
+                </div>
+
+                <p className="topic">Topic: “{selectedTable.topic}”</p>
+
+                <div className="member-row detail-members" aria-label={`${selectedTable.name} seated members`}>
+                  {selectedTable.initials.map((initial) => (
+                    <span key={initial}>{initial}</span>
                   ))}
                 </div>
 
-                <div className="table-card">
-                  <div className="table-heading">
-                    <div>
-                      <p>{table.action}</p>
-                      <h2>{table.name}</h2>
+                <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
+                  {selectedTable.messages.map((message, index) => (
+                    <div
+                      className={`thread-message ${
+                        index % 2 ? "thread-message-right" : "thread-message-left"
+                      }`}
+                      key={`${message.name}-${message.text}`}
+                    >
+                      <small>{message.name}</small>
+                      <p>{message.text}</p>
                     </div>
-                    <span>{table.status}</span>
-                  </div>
+                  ))}
+                </div>
 
-                  <p className="topic">Topic: “{table.topic}”</p>
-                  <p className="note">{table.note}</p>
-
-                  <div className="member-row" aria-label={`${table.name} members`}>
-                    {table.initials.map((initial) => (
-                      <span key={initial}>{initial}</span>
+                <button
+                  className="leave-button"
+                  type="button"
+                  onClick={() => setSelectedTableName(null)}
+                >
+                  Back to all tables
+                </button>
+              </div>
+            </article>
+          ) : (
+            <div className="table-map">
+              {tables.map((table) => (
+                <article className={`table-cluster table-${table.tone}`} key={table.name}>
+                  <span className="table-glow" />
+                  <div className="table-plate" aria-hidden="true">
+                    {table.initials.map((initial, seatIndex) => (
+                      <span key={`${initial}-${seatIndex}`} />
                     ))}
                   </div>
 
-                  <div className="table-footer">
-                    <strong>
-                      {table.count} {table.action}
-                    </strong>
-                    <button type="button">Join table</button>
+                  <div className="table-card">
+                    <div className="table-heading">
+                      <div>
+                        <p>{table.action}</p>
+                        <h2>{table.name}</h2>
+                      </div>
+                      <span>{table.status}</span>
+                    </div>
+
+                    <p className="topic">Topic: “{table.topic}”</p>
+                    <p className="note">{table.note}</p>
+
+                    <div className="member-row" aria-label={`${table.name} members`}>
+                      {table.initials.map((initial) => (
+                        <span key={initial}>{initial}</span>
+                      ))}
+                    </div>
+
+                    <div className="table-footer">
+                      <strong>
+                        {table.count} {table.action}
+                      </strong>
+                      <button type="button" onClick={() => setSelectedTableName(table.name)}>
+                        Join table
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="house-rules" aria-label="House rules">
@@ -394,6 +487,161 @@ export default function ChoNeoGossipPage() {
           backdrop-filter: blur(12px);
         }
 
+        .room-scene-focused {
+          min-height: 650px;
+          display: grid;
+          place-items: center;
+          padding: 28px;
+        }
+
+        .room-scene-focused .counter {
+          opacity: 0.38;
+        }
+
+        .table-detail {
+          position: relative;
+          z-index: 5;
+          width: min(780px, 100%);
+          margin-top: 92px;
+        }
+
+        .detail-table-plate {
+          position: relative;
+          z-index: 2;
+          width: 240px;
+          height: 124px;
+          margin: 0 auto -34px;
+          border: 1px solid rgba(253, 230, 138, 0.25);
+          border-radius: 50%;
+          background:
+            radial-gradient(circle at 50% 44%, rgba(253, 230, 138, 0.2), transparent 44%),
+            rgba(101, 64, 75, 0.94);
+          box-shadow:
+            0 18px 42px rgba(0, 0, 0, 0.3),
+            inset 0 0 34px rgba(0, 0, 0, 0.22);
+        }
+
+        .detail-table-plate span {
+          position: absolute;
+          width: 24px;
+          height: 24px;
+          border-radius: 999px;
+          background: linear-gradient(180deg, #fff7ed, #fcd34d);
+          box-shadow: 0 0 20px rgba(251, 191, 36, 0.28);
+        }
+
+        .detail-table-plate span:nth-child(1) { left: 18px; top: 50px; }
+        .detail-table-plate span:nth-child(2) { left: 70px; top: 8px; }
+        .detail-table-plate span:nth-child(3) { right: 70px; top: 8px; }
+        .detail-table-plate span:nth-child(4) { right: 18px; top: 50px; }
+        .detail-table-plate span:nth-child(5) { left: 72px; bottom: 4px; }
+        .detail-table-plate span:nth-child(6) { right: 72px; bottom: 4px; }
+
+        .detail-panel {
+          position: relative;
+          z-index: 1;
+          padding: 24px;
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          border-radius: 30px;
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05)),
+            rgba(8, 13, 28, 0.78);
+          box-shadow:
+            0 22px 70px rgba(0, 0, 0, 0.42),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
+          backdrop-filter: blur(14px);
+        }
+
+        .detail-heading {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 18px;
+        }
+
+        .detail-heading p {
+          margin: 0 0 8px;
+          color: #fde68a;
+          font-size: 12px;
+          font-weight: 900;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+        }
+
+        .detail-heading h2 {
+          margin: 0;
+          font-size: clamp(36px, 5vw, 62px);
+          line-height: 0.9;
+          letter-spacing: -0.045em;
+        }
+
+        .detail-heading strong {
+          flex: 0 0 auto;
+          padding: 8px 11px;
+          border-radius: 999px;
+          color: #111827;
+          background: rgba(253, 230, 138, 0.92);
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .detail-members {
+          margin-top: 18px;
+        }
+
+        .mock-thread {
+          display: grid;
+          gap: 12px;
+          margin-top: 20px;
+        }
+
+        .thread-message {
+          width: min(82%, 430px);
+          padding: 12px 14px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 247, 237, 0.11);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+        }
+
+        .thread-message-left {
+          justify-self: start;
+          border-radius: 18px 18px 18px 6px;
+        }
+
+        .thread-message-right {
+          justify-self: end;
+          border-radius: 18px 18px 6px 18px;
+          background: rgba(253, 230, 138, 0.16);
+          border-color: rgba(253, 230, 138, 0.18);
+        }
+
+        .thread-message small {
+          display: block;
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.06em;
+        }
+
+        .thread-message p {
+          margin: 6px 0 0;
+          color: rgba(255, 247, 237, 0.84);
+          font-size: 14px;
+          line-height: 1.45;
+        }
+
+        .leave-button {
+          min-height: 40px;
+          margin-top: 20px;
+          padding: 0 14px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
         .table-heading {
           display: flex;
           justify-content: space-between;
@@ -559,6 +807,14 @@ export default function ChoNeoGossipPage() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 14px;
           }
+
+          .room-scene-focused {
+            display: block;
+          }
+
+          .table-detail {
+            margin: 110px auto 0;
+          }
         }
 
         @media (max-width: 980px) {
@@ -587,12 +843,18 @@ export default function ChoNeoGossipPage() {
           }
 
           .table-heading,
-          .table-footer {
+          .table-footer,
+          .detail-heading {
             flex-direction: column;
             align-items: flex-start;
           }
 
-          .table-footer button {
+          .table-footer button,
+          .leave-button {
+            width: 100%;
+          }
+
+          .thread-message {
             width: 100%;
           }
         }
