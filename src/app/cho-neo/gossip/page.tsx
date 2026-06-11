@@ -170,7 +170,7 @@ export default function ChoNeoGossipPage() {
     const passcode = foundingPasscodeDraft.trim();
 
     if (!displayName || passcode !== FOUNDING_PASSCODE) {
-      setFoundingPassError("That pass does not open this table yet.");
+      setFoundingPassError("That pass does not open the village table yet.");
       return;
     }
 
@@ -296,8 +296,11 @@ export default function ChoNeoGossipPage() {
                     ) : (
                       <div className="founding-pass">
                         <div>
-                          <strong>Founding Pass</strong>
-                          <p>Unlock posting at the Front Counter.</p>
+                          <strong>Founding Pass Gatehouse</strong>
+                          <p>
+                            Visitors may look around. Founding Pass unlocks
+                            prototype posting at the café.
+                          </p>
                         </div>
                         <label htmlFor="founding-display-name">
                           Display name

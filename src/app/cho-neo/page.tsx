@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
 
 type AtmosphereId = "morning" | "afternoon" | "evening" | "night";
+
+const FOUNDING_PASSCODE = "CHO-NEO-FOUNDERS";
+const FOUNDING_PASS_UNLOCKED_KEY = "choNeoFoundingPassUnlocked";
+const FOUNDING_PASS_NAME_KEY = "choNeoFoundingPassDisplayName";
 
 const atmosphereLabels: Record<AtmosphereId, string> = {
   morning: "Morning in the village",
@@ -184,11 +188,60 @@ function DestinationBuilding({
 
 export default function ChoNeoPage() {
   const [atmosphere, setAtmosphere] = useState<AtmosphereId | null>(null);
+  const [foundingPassUnlocked, setFoundingPassUnlocked] = useState(false);
+  const [foundingDisplayName, setFoundingDisplayName] = useState("");
+  const [foundingPassNameDraft, setFoundingPassNameDraft] = useState("");
+  const [foundingPasscodeDraft, setFoundingPasscodeDraft] = useState("");
+  const [foundingPassError, setFoundingPassError] = useState<string | null>(
+    null
+  );
   const activeAtmosphere = atmosphere ?? "evening";
+  const canTryFoundingPass =
+    foundingPassNameDraft.trim().length > 0 &&
+    foundingPasscodeDraft.trim().length > 0;
 
   useEffect(() => {
     setAtmosphere(getLocalAtmosphere(new Date().getHours()));
+
+    const savedUnlocked =
+      localStorage.getItem(FOUNDING_PASS_UNLOCKED_KEY) === "true";
+    const savedName = localStorage.getItem(FOUNDING_PASS_NAME_KEY) ?? "";
+
+    if (savedUnlocked && savedName.trim()) {
+      setFoundingPassUnlocked(true);
+      setFoundingDisplayName(savedName);
+      setFoundingPassNameDraft(savedName);
+    }
   }, []);
+
+  function unlockFoundingPass() {
+    const displayName = foundingPassNameDraft.trim();
+    const passcode = foundingPasscodeDraft.trim();
+
+    if (!displayName || passcode !== FOUNDING_PASSCODE) {
+      setFoundingPassError("That pass does not open the village table yet.");
+      return;
+    }
+
+    localStorage.setItem(FOUNDING_PASS_UNLOCKED_KEY, "true");
+    localStorage.setItem(FOUNDING_PASS_NAME_KEY, displayName);
+    setFoundingPassUnlocked(true);
+    setFoundingDisplayName(displayName);
+    setFoundingPassError(null);
+    setFoundingPasscodeDraft("");
+  }
+
+  function handleGatehouseSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    unlockFoundingPass();
+  }
+
+  function handleGatehouseKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      unlockFoundingPass();
+    }
+  }
 
   return (
     <main className={`forum-page atmosphere-${activeAtmosphere}`}>
@@ -218,6 +271,66 @@ export default function ChoNeoPage() {
             One warm square, real rooms, useful rituals, and community first.
             Future districts are parked until the village is alive.
           </span>
+        </section>
+
+        <section className="gatehouse" aria-label="Village Gatehouse">
+          <div className="gatehouse-booth" aria-hidden="true">
+            <span className="booth-roof" />
+            <span className="booth-window" />
+            <span className="booth-lantern" />
+          </div>
+          <div className="gatehouse-copy">
+            <p className="eyebrow">Village Gatehouse</p>
+            <h2>Visitors may look around.</h2>
+            <p>
+              Visitors may look around. Founding Pass unlocks prototype posting
+              at the café.
+            </p>
+            <p>
+              Temporary prototype pass. Real member accounts and host tools come
+              later.
+            </p>
+          </div>
+
+          {foundingPassUnlocked ? (
+            <div className="gatehouse-active" aria-live="polite">
+              <strong>
+                Founding Pass active — posting as {foundingDisplayName}.
+              </strong>
+              <span>Room doors stay open for browsing.</span>
+            </div>
+          ) : (
+            <form className="gatehouse-form" onSubmit={handleGatehouseSubmit}>
+              <label htmlFor="gatehouse-display-name">Display name</label>
+              <input
+                id="gatehouse-display-name"
+                maxLength={32}
+                onChange={(event) =>
+                  setFoundingPassNameDraft(event.target.value)
+                }
+                placeholder="Mai Calgary"
+                type="text"
+                value={foundingPassNameDraft}
+              />
+              <label htmlFor="gatehouse-passcode">Founding Pass code</label>
+              <input
+                id="gatehouse-passcode"
+                onChange={(event) =>
+                  setFoundingPasscodeDraft(event.target.value)
+                }
+                onKeyDown={handleGatehouseKeyDown}
+                placeholder="CHO-NEO-..."
+                type="text"
+                value={foundingPasscodeDraft}
+              />
+              {foundingPassError ? (
+                <p className="gatehouse-error">{foundingPassError}</p>
+              ) : null}
+              <button disabled={!canTryFoundingPass} type="submit">
+                Open posting pass
+              </button>
+            </form>
+          )}
         </section>
 
         <section className="village-map" aria-label="Cho Neo village map">
@@ -511,6 +624,175 @@ export default function ChoNeoPage() {
           color: rgba(255, 247, 237, 0.72);
           font-size: 13px;
           line-height: 1.45;
+        }
+
+        .gatehouse {
+          display: grid;
+          grid-template-columns: 110px minmax(0, 1fr) minmax(280px, 0.8fr);
+          gap: 16px;
+          align-items: center;
+          padding: 16px;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 24px;
+          background:
+            radial-gradient(circle at 8% 10%, rgba(253, 230, 138, 0.16), transparent 28%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.045)),
+            rgba(8, 13, 28, 0.62);
+          box-shadow:
+            0 18px 54px rgba(0, 0, 0, 0.26),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+          backdrop-filter: blur(12px);
+        }
+
+        .gatehouse-booth {
+          position: relative;
+          width: 96px;
+          height: 98px;
+          justify-self: center;
+        }
+
+        .booth-roof,
+        .booth-window,
+        .booth-lantern {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+        }
+
+        .booth-roof {
+          top: 0;
+          width: 86px;
+          height: 36px;
+          border-radius: 18px 18px 8px 8px;
+          background: linear-gradient(135deg, #fef3c7, #f59e0b);
+          clip-path: polygon(50% 0, 100% 72%, 92% 100%, 8% 100%, 0 72%);
+          box-shadow: 0 0 28px rgba(251, 191, 36, 0.26);
+        }
+
+        .booth-window {
+          bottom: 10px;
+          width: 76px;
+          height: 62px;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          border-radius: 14px 14px 18px 18px;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.82), rgba(253, 230, 138, 0.5)),
+            rgba(253, 230, 138, 0.64);
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+        }
+
+        .booth-window::before {
+          content: "";
+          position: absolute;
+          left: 12px;
+          right: 12px;
+          top: 14px;
+          height: 18px;
+          border-radius: 8px;
+          background: rgba(15, 23, 42, 0.28);
+        }
+
+        .booth-lantern {
+          right: -5px;
+          left: auto;
+          top: 44px;
+          width: 14px;
+          height: 24px;
+          transform: none;
+          border-radius: 999px;
+          background: #ef4444;
+          box-shadow: 0 0 24px rgba(239, 68, 68, 0.62);
+        }
+
+        .gatehouse-copy h2 {
+          margin: 0;
+          font-size: clamp(28px, 4vw, 44px);
+          line-height: 0.95;
+          letter-spacing: -0.04em;
+        }
+
+        .gatehouse-copy p:not(.eyebrow) {
+          max-width: 620px;
+          margin: 8px 0 0;
+          color: rgba(255, 247, 237, 0.72);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .gatehouse-form,
+        .gatehouse-active {
+          display: grid;
+          gap: 8px;
+          padding: 13px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 20px;
+          background: rgba(253, 230, 138, 0.08);
+        }
+
+        .gatehouse-form label {
+          color: #fde68a;
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
+        .gatehouse-form input {
+          width: 100%;
+          min-height: 39px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 999px;
+          padding: 0 12px;
+          color: #fff7ed;
+          background: rgba(8, 13, 28, 0.62);
+          font: inherit;
+          outline: none;
+        }
+
+        .gatehouse-form input::placeholder {
+          color: rgba(255, 247, 237, 0.42);
+        }
+
+        .gatehouse-form input:focus {
+          border-color: rgba(253, 230, 138, 0.66);
+          box-shadow: 0 0 0 3px rgba(253, 230, 138, 0.12);
+        }
+
+        .gatehouse-form button {
+          min-height: 39px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .gatehouse-form button:disabled {
+          cursor: not-allowed;
+          color: rgba(255, 247, 237, 0.54);
+          background: rgba(255, 255, 255, 0.14);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .gatehouse-error {
+          margin: 0;
+          color: #fecdd3;
+          font-size: 13px;
+          font-weight: 850;
+          line-height: 1.35;
+        }
+
+        .gatehouse-active strong {
+          color: #fde68a;
+          font-size: 14px;
+          line-height: 1.35;
+        }
+
+        .gatehouse-active span {
+          color: rgba(255, 247, 237, 0.7);
+          font-size: 13px;
+          line-height: 1.4;
         }
 
         .village-map {
@@ -1216,6 +1498,29 @@ export default function ChoNeoPage() {
             align-items: flex-start;
           }
 
+          .gatehouse {
+            grid-template-columns: 82px minmax(0, 1fr);
+          }
+
+          .gatehouse-form,
+          .gatehouse-active {
+            grid-column: 1 / -1;
+          }
+
+          .gatehouse-booth {
+            width: 76px;
+            height: 84px;
+          }
+
+          .booth-roof {
+            width: 72px;
+          }
+
+          .booth-window {
+            width: 62px;
+            height: 54px;
+          }
+
           .village-map {
             min-height: auto;
             display: grid;
@@ -1293,6 +1598,19 @@ export default function ChoNeoPage() {
 
           h1 {
             font-size: clamp(36px, 13vw, 56px);
+          }
+
+          .gatehouse {
+            grid-template-columns: 1fr;
+            padding: 14px;
+          }
+
+          .gatehouse-booth {
+            display: none;
+          }
+
+          .gatehouse-copy h2 {
+            font-size: clamp(28px, 9vw, 38px);
           }
 
           .village-map {
