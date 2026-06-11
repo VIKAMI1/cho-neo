@@ -16,7 +16,8 @@ export default function ChoNeoShrinePage() {
           </div>
 
           <Link className="back-link" href="/cho-neo">
-            Back to Village Square
+            <span className="back-kicker">Cho Neo Village</span>
+            <span>Back to Village Square</span>
           </Link>
         </header>
 
@@ -158,17 +159,27 @@ export default function ChoNeoShrinePage() {
         .back-link {
           flex: 0 0 auto;
           display: inline-flex;
-          align-items: center;
+          flex-direction: column;
+          align-items: flex-start;
           justify-content: center;
-          min-height: 42px;
-          padding: 0 15px;
+          min-height: 50px;
+          padding: 7px 15px;
           border-radius: 999px;
           color: #111827;
           background: #fde68a;
           font-size: 14px;
+          line-height: 1.1;
           font-weight: 950;
           text-decoration: none;
           box-shadow: 0 0 34px rgba(251, 191, 36, 0.22);
+        }
+
+        .back-kicker {
+          font-size: 9px;
+          font-weight: 950;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          opacity: 0.68;
         }
 
         .shrine-room {

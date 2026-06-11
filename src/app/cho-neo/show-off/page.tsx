@@ -43,7 +43,8 @@ export default function ChoNeoShowOffPage() {
           </div>
 
           <Link className="back-link" href="/cho-neo">
-            Back to Village Square
+            <span className="back-kicker">Cho Neo Village</span>
+            <span>Back to Village Square</span>
           </Link>
         </header>
 
@@ -173,6 +174,19 @@ export default function ChoNeoShowOffPage() {
 
         .back-link {
           flex: 0 0 auto;
+          flex-direction: column;
+          align-items: flex-start;
+          min-height: 50px;
+          padding: 7px 15px;
+          line-height: 1.1;
+        }
+
+        .back-kicker {
+          font-size: 9px;
+          font-weight: 950;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          opacity: 0.68;
         }
 
         .gallery-wall {
