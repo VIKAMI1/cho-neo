@@ -194,6 +194,19 @@ export default function ChoNeoPage() {
             <span className="side-path side-path-right" />
             <span className="water-edge" />
           </div>
+          <div className="route-layer" aria-hidden="true">
+            <span className="route-road route-main" />
+            <span className="route-road route-main-spur" />
+            <span className="route-road route-shrine" />
+            <span className="route-road route-owner" />
+            <span className="route-road route-riverwalk" />
+            <span className="route-road route-market" />
+            <span className="route-label label-main">Main Road</span>
+            <span className="route-label label-shrine">Shrine Path</span>
+            <span className="route-label label-owner">Owner Lane</span>
+            <span className="route-label label-riverwalk">Riverwalk</span>
+            <span className="route-label label-market">Market Gate</span>
+          </div>
           <div className="lanterns" aria-hidden="true">
             {Array.from({ length: 10 }).map((_, index) => (
               <span key={index} />
@@ -217,6 +230,18 @@ export default function ChoNeoPage() {
           <div className="map-caption" aria-hidden="true">
             <span>Community first</span>
             <span>Commerce later</span>
+          </div>
+
+          <div className="future-district-sign" aria-hidden="true">
+            Future districts parked until the village is alive.
+          </div>
+
+          <div className="mobile-wayfinding" aria-label="Village paths">
+            <span>Main Road: café, gallery, hall</span>
+            <span>Shrine Path: Ông Địa Shrine</span>
+            <span>Owner Lane: Owner Corner</span>
+            <span>Riverwalk: Waterfront</span>
+            <span>Market Gate: locked future</span>
           </div>
         </section>
       </section>
@@ -374,11 +399,15 @@ export default function ChoNeoPage() {
 
         .map-ground,
         .map-ground span,
+        .route-layer,
+        .route-road,
+        .route-label,
         .central-square,
         .central-square span,
         .lanterns,
         .lanterns span,
-        .map-caption {
+        .map-caption,
+        .future-district-sign {
           position: absolute;
           pointer-events: none;
         }
@@ -444,9 +473,174 @@ export default function ChoNeoPage() {
           box-shadow: 0 0 48px rgba(45, 212, 191, 0.18);
         }
 
+        .route-layer {
+          inset: 0;
+          z-index: 2;
+        }
+
+        .route-road {
+          display: block;
+          border-radius: 999px;
+          transform-origin: center;
+          filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.18));
+        }
+
+        .route-road::before,
+        .route-road::after {
+          content: "";
+          position: absolute;
+          inset: 8px;
+          border-radius: inherit;
+        }
+
+        .route-road::before {
+          border: 1px solid rgba(253, 230, 138, 0.18);
+        }
+
+        .route-road::after {
+          inset: 50% 18px auto;
+          height: 2px;
+          background: repeating-linear-gradient(90deg, rgba(255, 247, 237, 0.4) 0 18px, transparent 18px 34px);
+          opacity: 0.5;
+        }
+
+        .route-main {
+          left: 18%;
+          top: 43%;
+          width: 58%;
+          height: 72px;
+          transform: rotate(-2deg);
+          background:
+            linear-gradient(180deg, rgba(253, 230, 138, 0.24), transparent),
+            rgba(120, 72, 75, 0.82);
+          box-shadow:
+            0 0 34px rgba(251, 191, 36, 0.12),
+            inset 0 0 28px rgba(0, 0, 0, 0.18);
+        }
+
+        .route-main-spur {
+          left: 20%;
+          top: 52%;
+          width: 32%;
+          height: 62px;
+          transform: rotate(-23deg);
+          background:
+            linear-gradient(180deg, rgba(253, 230, 138, 0.18), transparent),
+            rgba(101, 64, 75, 0.76);
+          box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.18);
+        }
+
+        .route-shrine {
+          left: 44%;
+          top: 17%;
+          width: 60px;
+          height: 238px;
+          transform: rotate(8deg);
+          background:
+            repeating-linear-gradient(180deg, rgba(253, 230, 138, 0.36) 0 7px, transparent 7px 22px),
+            rgba(82, 57, 55, 0.54);
+          box-shadow:
+            0 0 34px rgba(251, 191, 36, 0.2),
+            inset 0 0 24px rgba(0, 0, 0, 0.18);
+        }
+
+        .route-owner {
+          left: 54%;
+          top: 53%;
+          width: 27%;
+          height: 54px;
+          transform: rotate(17deg);
+          background:
+            linear-gradient(180deg, rgba(134, 239, 172, 0.18), transparent),
+            rgba(55, 65, 53, 0.78);
+          box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.22);
+        }
+
+        .route-riverwalk {
+          left: 39%;
+          top: 61%;
+          width: 68px;
+          height: 176px;
+          transform: rotate(-1deg);
+          background:
+            repeating-linear-gradient(180deg, rgba(186, 230, 253, 0.28) 0 8px, transparent 8px 24px),
+            rgba(30, 64, 104, 0.56);
+          box-shadow:
+            0 0 32px rgba(45, 212, 191, 0.16),
+            inset 0 0 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .route-market {
+          left: 45%;
+          top: 42%;
+          width: 78px;
+          height: 110px;
+          transform: rotate(3deg);
+          background:
+            repeating-linear-gradient(135deg, rgba(253, 230, 138, 0.28) 0 9px, rgba(15, 23, 42, 0.3) 9px 18px),
+            rgba(75, 47, 60, 0.66);
+          box-shadow:
+            0 0 28px rgba(251, 191, 36, 0.08),
+            inset 0 0 24px rgba(0, 0, 0, 0.26);
+          opacity: 0.76;
+        }
+
+        .route-market::after {
+          inset: 16px 50% auto;
+          width: 2px;
+          height: 76px;
+          background: repeating-linear-gradient(180deg, rgba(255, 247, 237, 0.44) 0 11px, transparent 11px 22px);
+        }
+
+        .route-label {
+          z-index: 3;
+          padding: 7px 10px;
+          border: 1px solid rgba(253, 230, 138, 0.22);
+          border-radius: 999px;
+          background: rgba(8, 13, 28, 0.68);
+          color: rgba(255, 247, 237, 0.84);
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+          backdrop-filter: blur(8px);
+        }
+
+        .label-main {
+          left: 28%;
+          top: 41%;
+        }
+
+        .label-shrine {
+          left: 47%;
+          top: 26%;
+          color: #fde68a;
+        }
+
+        .label-owner {
+          right: 20%;
+          top: 55%;
+          color: #bbf7d0;
+        }
+
+        .label-riverwalk {
+          left: 43%;
+          bottom: 122px;
+          color: #bae6fd;
+        }
+
+        .label-market {
+          left: 49%;
+          top: 38%;
+          color: rgba(253, 230, 138, 0.74);
+          border-style: dashed;
+        }
+
         .central-square {
           left: 50%;
           top: 48%;
+          z-index: 3;
           width: 250px;
           height: 180px;
           transform: translate(-50%, -50%);
@@ -795,6 +989,7 @@ export default function ChoNeoPage() {
         .map-caption {
           left: 50%;
           bottom: 18px;
+          z-index: 5;
           display: flex;
           gap: 10px;
           transform: translateX(-50%);
@@ -808,6 +1003,27 @@ export default function ChoNeoPage() {
           color: rgba(255, 247, 237, 0.72);
           font-size: 12px;
           font-weight: 850;
+        }
+
+        .future-district-sign {
+          right: 18px;
+          bottom: 18px;
+          z-index: 5;
+          max-width: 220px;
+          padding: 10px 12px;
+          border: 1px dashed rgba(253, 230, 138, 0.28);
+          border-radius: 16px;
+          background: rgba(8, 13, 28, 0.66);
+          color: rgba(255, 247, 237, 0.7);
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.35;
+          text-align: center;
+          backdrop-filter: blur(8px);
+        }
+
+        .mobile-wayfinding {
+          display: none;
         }
 
         @media (max-width: 980px) {
@@ -831,7 +1047,9 @@ export default function ChoNeoPage() {
 
           .skyline,
           .map-ground,
-          .lanterns {
+          .route-layer,
+          .lanterns,
+          .future-district-sign {
             display: none;
           }
 
@@ -865,6 +1083,24 @@ export default function ChoNeoPage() {
             justify-content: center;
             transform: none;
           }
+
+          .mobile-wayfinding {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+          }
+
+          .mobile-wayfinding span {
+            padding: 8px 10px;
+            border: 1px solid rgba(253, 230, 138, 0.18);
+            border-radius: 999px;
+            background: rgba(8, 13, 28, 0.58);
+            color: rgba(255, 247, 237, 0.76);
+            font-size: 12px;
+            font-weight: 850;
+          }
         }
 
         @media (max-width: 640px) {
@@ -895,6 +1131,15 @@ export default function ChoNeoPage() {
           .map-caption {
             flex-direction: column;
             align-items: stretch;
+            text-align: center;
+          }
+
+          .mobile-wayfinding {
+            justify-content: stretch;
+          }
+
+          .mobile-wayfinding span {
+            width: 100%;
             text-align: center;
           }
         }
