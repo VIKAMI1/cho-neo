@@ -8,6 +8,16 @@ import {
   readFoundingPass,
   saveFoundingPass,
 } from "@/lib/cho-neo/founding-pass";
+import {
+  CHO_NEO_AVATARS,
+  type ChoNeoIdentity,
+  getAvatarById,
+  getChoNeoIdentity,
+  getRandomAvatar,
+  getRandomNicknameSuggestion,
+  isValidVillageNickname,
+  saveChoNeoIdentity,
+} from "@/lib/cho-neo/avatar-identity";
 
 type AtmosphereId = "morning" | "afternoon" | "evening" | "night";
 
@@ -196,7 +206,13 @@ export default function ChoNeoPage() {
   const [foundingPassError, setFoundingPassError] = useState<string | null>(
     null
   );
+  const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
+  const [identityPickerOpen, setIdentityPickerOpen] = useState(false);
+  const [identityAvatarId, setIdentityAvatarId] = useState(CHO_NEO_AVATARS[0].id);
+  const [identityNicknameDraft, setIdentityNicknameDraft] = useState("");
+  const [identityError, setIdentityError] = useState<string | null>(null);
   const activeAtmosphere = atmosphere ?? "evening";
+  const activeAvatar = identity ? getAvatarById(identity.avatarId) : null;
   const canTryFoundingPass =
     foundingPassNameDraft.trim().length > 0 &&
     foundingPasscodeDraft.trim().length > 0;
@@ -211,7 +227,54 @@ export default function ChoNeoPage() {
       setFoundingDisplayName(savedPass.displayName);
       setFoundingPassNameDraft(savedPass.displayName);
     }
+
+    const savedIdentity = getChoNeoIdentity();
+
+    if (savedIdentity) {
+      setIdentity(savedIdentity);
+      setIdentityAvatarId(savedIdentity.avatarId);
+      setIdentityNicknameDraft(savedIdentity.nickname);
+    } else {
+      setIdentityPickerOpen(true);
+    }
   }, []);
+
+  function saveIdentity() {
+    const validation = isValidVillageNickname(identityNicknameDraft);
+
+    if (!validation.valid) {
+      setIdentityError(validation.message);
+      return;
+    }
+
+    const savedIdentity = saveChoNeoIdentity({
+      avatarId: identityAvatarId,
+      existingIdentity: identity,
+      nickname: identityNicknameDraft,
+    });
+
+    if (!savedIdentity) {
+      setIdentityError("Choose a village nickname first.");
+      return;
+    }
+
+    setIdentity(savedIdentity);
+    setIdentityAvatarId(savedIdentity.avatarId);
+    setIdentityNicknameDraft(savedIdentity.nickname);
+    setIdentityPickerOpen(false);
+    setIdentityError(null);
+  }
+
+  function surpriseIdentity() {
+    const avatar = getRandomAvatar();
+    setIdentityAvatarId(avatar.id);
+
+    if (!identityNicknameDraft.trim()) {
+      setIdentityNicknameDraft(getRandomNicknameSuggestion());
+    }
+
+    setIdentityError(null);
+  }
 
   function unlockFoundingPass() {
     const displayName = foundingPassNameDraft.trim();
@@ -329,6 +392,88 @@ export default function ChoNeoPage() {
               </button>
             </form>
           )}
+        </section>
+
+        <section className="identity-panel" aria-label="Cho Neo avatar identity">
+          {identity && activeAvatar ? (
+            <div className="identity-card">
+              <div className={`avatar-token avatar-${activeAvatar.tone}`} aria-hidden="true">
+                <span>{activeAvatar.emoji}</span>
+              </div>
+              <div>
+                <p className="eyebrow">Village Identity</p>
+                <h2>{identity.nickname}</h2>
+                <p>{activeAvatar.name}</p>
+              </div>
+              <button type="button" onClick={() => setIdentityPickerOpen(true)}>
+                Change avatar
+              </button>
+            </div>
+          ) : null}
+
+          {identityPickerOpen ? (
+            <div className="identity-picker">
+              <div className="identity-picker-heading">
+                <div>
+                  <p className="eyebrow">Avatar Identity V1</p>
+                  <h2>Choose your village face.</h2>
+                  <p>
+                    Preset avatars only for now. No uploads, no costume shop,
+                    no custom builder.
+                  </p>
+                </div>
+                {identity ? (
+                  <button type="button" onClick={() => setIdentityPickerOpen(false)}>
+                    Change later
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="avatar-grid">
+                {CHO_NEO_AVATARS.map((avatar) => (
+                  <button
+                    className={`avatar-choice avatar-${avatar.tone} ${
+                      identityAvatarId === avatar.id ? "avatar-choice-active" : ""
+                    }`}
+                    key={avatar.id}
+                    onClick={() => {
+                      setIdentityAvatarId(avatar.id);
+                      setIdentityError(null);
+                    }}
+                    type="button"
+                  >
+                    <span>{avatar.emoji}</span>
+                    <strong>{avatar.name}</strong>
+                    <small>{avatar.description}</small>
+                  </button>
+                ))}
+              </div>
+
+              <div className="identity-form">
+                <label htmlFor="village-nickname">Village nickname</label>
+                <input
+                  id="village-nickname"
+                  maxLength={24}
+                  onChange={(event) => {
+                    setIdentityNicknameDraft(event.target.value);
+                    setIdentityError(null);
+                  }}
+                  placeholder="Mai Calgary"
+                  type="text"
+                  value={identityNicknameDraft}
+                />
+                {identityError ? <p>{identityError}</p> : null}
+                <div>
+                  <button type="button" onClick={surpriseIdentity}>
+                    Surprise me
+                  </button>
+                  <button type="button" onClick={saveIdentity}>
+                    Save identity
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="village-map" aria-label="Cho Neo village map">
@@ -791,6 +936,187 @@ export default function ChoNeoPage() {
           color: rgba(255, 247, 237, 0.7);
           font-size: 13px;
           line-height: 1.4;
+        }
+
+        .identity-panel {
+          display: grid;
+          gap: 12px;
+        }
+
+        .identity-card,
+        .identity-picker {
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 24px;
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.045)),
+            rgba(8, 13, 28, 0.58);
+          box-shadow:
+            0 18px 54px rgba(0, 0, 0, 0.24),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(12px);
+        }
+
+        .identity-card {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 14px;
+          align-items: center;
+          padding: 14px;
+        }
+
+        .avatar-token {
+          display: grid;
+          place-items: center;
+          width: 58px;
+          height: 58px;
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          border-radius: 22px;
+          background: rgba(253, 230, 138, 0.12);
+          box-shadow: 0 0 28px rgba(251, 191, 36, 0.12);
+        }
+
+        .avatar-token span {
+          font-size: 30px;
+        }
+
+        .identity-card h2,
+        .identity-picker h2 {
+          margin: 0;
+          font-size: clamp(26px, 3.4vw, 42px);
+          line-height: 0.98;
+          letter-spacing: -0.035em;
+        }
+
+        .identity-card p:not(.eyebrow),
+        .identity-picker p:not(.eyebrow) {
+          margin: 7px 0 0;
+          color: rgba(255, 247, 237, 0.7);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .identity-card button,
+        .identity-picker button {
+          min-height: 38px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .identity-card button {
+          padding: 0 14px;
+        }
+
+        .identity-picker {
+          display: grid;
+          gap: 14px;
+          padding: 16px;
+        }
+
+        .identity-picker-heading {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          align-items: flex-start;
+        }
+
+        .identity-picker-heading button {
+          flex: 0 0 auto;
+          padding: 0 12px;
+          color: rgba(255, 247, 237, 0.86);
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .avatar-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .avatar-choice {
+          display: grid;
+          gap: 8px;
+          place-items: center;
+          min-height: 104px;
+          padding: 12px 8px;
+          color: #fff7ed !important;
+          background: rgba(15, 23, 42, 0.62) !important;
+          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          border-radius: 18px !important;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .avatar-choice span {
+          font-size: 30px;
+        }
+
+        .avatar-choice strong {
+          font-size: 12px;
+          line-height: 1.15;
+        }
+
+        .avatar-choice small {
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 11px;
+          font-weight: 750;
+          line-height: 1.25;
+        }
+
+        .avatar-choice-active {
+          border-color: rgba(253, 230, 138, 0.58) !important;
+          box-shadow:
+            0 0 30px rgba(251, 191, 36, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .identity-form {
+          display: grid;
+          gap: 9px;
+        }
+
+        .identity-form label {
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
+        .identity-form input {
+          min-height: 42px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 999px;
+          padding: 0 14px;
+          color: #fff7ed;
+          background: rgba(8, 13, 28, 0.62);
+          font: inherit;
+          outline: none;
+        }
+
+        .identity-form input:focus {
+          border-color: rgba(253, 230, 138, 0.66);
+          box-shadow: 0 0 0 3px rgba(253, 230, 138, 0.12);
+        }
+
+        .identity-form > p {
+          margin: 0;
+          color: #fecdd3;
+          font-size: 13px;
+          font-weight: 850;
+        }
+
+        .identity-form div {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .identity-form div button {
+          padding: 0 14px;
         }
 
         .village-map {
@@ -1501,8 +1827,14 @@ export default function ChoNeoPage() {
           }
 
           .gatehouse-form,
-          .gatehouse-active {
+          .gatehouse-active,
+          .identity-card,
+          .identity-picker {
             grid-column: 1 / -1;
+          }
+
+          .avatar-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
 
           .gatehouse-booth {
@@ -1601,6 +1933,22 @@ export default function ChoNeoPage() {
           .gatehouse {
             grid-template-columns: 1fr;
             padding: 14px;
+          }
+
+          .identity-card,
+          .identity-picker-heading {
+            grid-template-columns: 1fr;
+            display: grid;
+          }
+
+          .avatar-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .identity-form div button,
+          .identity-card button,
+          .identity-picker-heading button {
+            width: 100%;
           }
 
           .gatehouse-booth {

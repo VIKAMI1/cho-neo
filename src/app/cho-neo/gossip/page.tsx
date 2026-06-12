@@ -9,10 +9,25 @@ import {
   type KeyboardEvent,
 } from "react";
 import {
-  isFoundingPassCode,
-  readFoundingPass,
-  saveFoundingPass,
-} from "@/lib/cho-neo/founding-pass";
+  CHO_NEO_AVATARS,
+  type ChoNeoIdentity,
+  getAvatarById,
+  getChoNeoIdentity,
+  getRandomAvatar,
+  getRandomNicknameSuggestion,
+  isValidVillageNickname,
+  saveChoNeoIdentity,
+} from "@/lib/cho-neo/avatar-identity";
+import {
+  FRONT_COUNTER_MESSAGE_CAP,
+  type FrontCounterMessage,
+  type FrontCounterSeat,
+  createFrontCounterMessage,
+  createFrontCounterSeat,
+  readFrontCounterState,
+  saveFrontCounterSeat,
+  saveFrontCounterState,
+} from "@/lib/cho-neo/gossip-front-counter";
 
 type ConversationMessage = {
   name: string;
@@ -20,6 +35,41 @@ type ConversationMessage = {
 };
 
 const FRONT_COUNTER_MESSAGE_LIMIT = 180;
+
+const seededFrontCounterMessages: FrontCounterMessage[] = [
+  {
+    avatarId: "auntie-owner",
+    createdAt: "2026-06-01T17:00:00.000Z",
+    id: "seed-front-counter-1",
+    nickname: "Mai",
+    reactions: { heart: 2, tea: 1 },
+    text: "Chrome still sells, but clients ask price first now.",
+  },
+  {
+    avatarId: "uncle-coffee",
+    createdAt: "2026-06-01T17:03:00.000Z",
+    id: "seed-front-counter-2",
+    nickname: "Bao",
+    reactions: { laugh: 1 },
+    text: "Supply cost is not the only issue. Time is the killer.",
+  },
+  {
+    avatarId: "young-nail-tech",
+    createdAt: "2026-06-01T17:05:00.000Z",
+    id: "seed-front-counter-3",
+    nickname: "Vy",
+    reactions: { heart: 1 },
+    text: "In my shop, chrome is still strong for short sets.",
+  },
+  {
+    avatarId: "front-counter-pro",
+    createdAt: "2026-06-01T17:08:00.000Z",
+    id: "seed-front-counter-4",
+    nickname: "TN",
+    reactions: { tea: 2 },
+    text: "Receipts matter. People compare everything now.",
+  },
+];
 
 const tables = [
   {
@@ -114,39 +164,65 @@ const hostTools = ["report", "hide", "remove", "member identity"];
 export default function ChoNeoGossipPage() {
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
   const [frontCounterMessages, setFrontCounterMessages] = useState<
-    ConversationMessage[]
-  >(() => tables[0].messages);
-  const [frontCounterDraft, setFrontCounterDraft] = useState("");
-  const [foundingPassUnlocked, setFoundingPassUnlocked] = useState(false);
-  const [foundingDisplayName, setFoundingDisplayName] = useState("");
-  const [foundingPassNameDraft, setFoundingPassNameDraft] = useState("");
-  const [foundingPasscodeDraft, setFoundingPasscodeDraft] = useState("");
-  const [foundingPassError, setFoundingPassError] = useState<string | null>(
+    FrontCounterMessage[]
+  >(seededFrontCounterMessages);
+  const [seatedIdentity, setSeatedIdentity] = useState<FrontCounterSeat | null>(
     null
   );
+  const [frontCounterDraft, setFrontCounterDraft] = useState("");
+  const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
+  const [identityPickerOpen, setIdentityPickerOpen] = useState(false);
+  const [identityAvatarId, setIdentityAvatarId] = useState(CHO_NEO_AVATARS[0].id);
+  const [identityNicknameDraft, setIdentityNicknameDraft] = useState("");
+  const [identityError, setIdentityError] = useState<string | null>(null);
   const selectedTable = useMemo(
     () => tables.find((table) => table.name === selectedTableName) ?? null,
     [selectedTableName]
   );
   const isFrontCounter = selectedTable?.name === "Front Counter";
-  const selectedMessages = isFrontCounter
+  const selectedMessages: Array<ConversationMessage | FrontCounterMessage> = isFrontCounter
     ? frontCounterMessages
     : selectedTable?.messages ?? [];
   const remainingFrontCounterCharacters =
     FRONT_COUNTER_MESSAGE_LIMIT - frontCounterDraft.length;
   const canSubmitFrontCounterMessage = frontCounterDraft.trim().length > 0;
-  const canTryFoundingPass =
-    foundingPassNameDraft.trim().length > 0 &&
-    foundingPasscodeDraft.trim().length > 0;
+  const currentAvatar = identity ? getAvatarById(identity.avatarId) : null;
+  const visibleSeats = dedupeSeats([
+    ...seededFrontCounterMessages.slice(0, 4).map((message) => ({
+      avatarId: message.avatarId,
+      nickname: message.nickname,
+    })),
+    ...(seatedIdentity ? [seatedIdentity] : []),
+  ]);
+  const isCurrentIdentitySeated =
+    !!identity &&
+    !!seatedIdentity &&
+    seatedIdentity.avatarId === identity.avatarId &&
+    seatedIdentity.nickname === identity.nickname;
+  const latestOwnMessage = identity
+    ? [...frontCounterMessages]
+        .reverse()
+        .find((message) => message.nickname === identity.nickname)
+    : null;
 
   useEffect(() => {
-    const savedPass = readFoundingPass();
+    const savedIdentity = getChoNeoIdentity();
 
-    if (savedPass.unlocked) {
-      setFoundingPassUnlocked(true);
-      setFoundingDisplayName(savedPass.displayName);
-      setFoundingPassNameDraft(savedPass.displayName);
+    if (savedIdentity) {
+      setIdentity(savedIdentity);
+      setIdentityAvatarId(savedIdentity.avatarId);
+      setIdentityNicknameDraft(savedIdentity.nickname);
+    } else {
+      setIdentityPickerOpen(true);
     }
+
+    const savedFrontCounter = readFrontCounterState();
+    setFrontCounterMessages(
+      savedFrontCounter.messages.length
+        ? savedFrontCounter.messages
+        : seededFrontCounterMessages
+    );
+    setSeatedIdentity(savedFrontCounter.seatedIdentity ?? null);
   }, []);
 
   function handleFrontCounterSubmit(event: FormEvent<HTMLFormElement>) {
@@ -154,31 +230,70 @@ export default function ChoNeoGossipPage() {
 
     const text = frontCounterDraft.trim();
 
-    if (!text) {
+    if (!text || !identity || !isCurrentIdentitySeated) {
       return;
     }
 
-    setFrontCounterMessages((messages) => [
-      ...messages,
-      { name: foundingDisplayName || "You", text },
-    ]);
+    const nextMessage = createFrontCounterMessage({ identity, text });
+    const nextMessages = [...frontCounterMessages, nextMessage].slice(
+      -FRONT_COUNTER_MESSAGE_CAP
+    );
+    const nextSeat = seatedIdentity;
+
+    setFrontCounterMessages(nextMessages);
+    saveFrontCounterState({
+      messages: nextMessages,
+      seatedIdentity: nextSeat,
+    });
     setFrontCounterDraft("");
   }
 
-  function handleFoundingPassSubmit() {
-    const displayName = foundingPassNameDraft.trim();
-    const passcode = foundingPasscodeDraft.trim();
+  function saveIdentity() {
+    const validation = isValidVillageNickname(identityNicknameDraft);
 
-    if (!displayName || !isFoundingPassCode(passcode)) {
-      setFoundingPassError("That pass does not open the village table yet.");
+    if (!validation.valid) {
+      setIdentityError(validation.message);
       return;
     }
 
-    const savedPass = saveFoundingPass(displayName);
-    setFoundingPassUnlocked(true);
-    setFoundingDisplayName(savedPass.displayName);
-    setFoundingPassError(null);
-    setFoundingPasscodeDraft("");
+    const savedIdentity = saveChoNeoIdentity({
+      avatarId: identityAvatarId,
+      existingIdentity: identity,
+      nickname: identityNicknameDraft,
+    });
+
+    if (!savedIdentity) {
+      setIdentityError("Choose a village nickname first.");
+      return;
+    }
+
+    setIdentity(savedIdentity);
+    setIdentityAvatarId(savedIdentity.avatarId);
+    setIdentityNicknameDraft(savedIdentity.nickname);
+    setIdentityPickerOpen(false);
+    setIdentityError(null);
+  }
+
+  function surpriseIdentity() {
+    const avatar = getRandomAvatar();
+    setIdentityAvatarId(avatar.id);
+
+    if (!identityNicknameDraft.trim()) {
+      setIdentityNicknameDraft(getRandomNicknameSuggestion());
+    }
+
+    setIdentityError(null);
+  }
+
+  function takeFrontCounterSeat() {
+    if (!identity) {
+      setIdentityPickerOpen(true);
+      return;
+    }
+
+    const nextSeat = createFrontCounterSeat(identity);
+    setSeatedIdentity(nextSeat);
+    saveFrontCounterSeat(nextSeat);
   }
 
   function openTable(tableName: string) {
@@ -192,13 +307,6 @@ export default function ChoNeoGossipPage() {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openTable(tableName);
-    }
-  }
-
-  function handleFoundingPassKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      handleFoundingPassSubmit();
     }
   }
 
@@ -223,6 +331,95 @@ export default function ChoNeoGossipPage() {
             <span>Back to Village Square</span>
           </Link>
         </header>
+
+        <section className="identity-strip" aria-label="Cho Neo identity">
+          {identity && currentAvatar ? (
+            <div className="current-identity">
+              <div className={`avatar-token avatar-${currentAvatar.tone}`} aria-hidden="true">
+                <span>{currentAvatar.emoji}</span>
+              </div>
+              <div>
+                <p className="eyebrow">Village Identity</p>
+                <strong>{identity.nickname}</strong>
+                <span>{currentAvatar.name}</span>
+              </div>
+              <button type="button" onClick={() => setIdentityPickerOpen(true)}>
+                Change avatar
+              </button>
+            </div>
+          ) : (
+            <p className="identity-nudge">
+              Create a village identity before taking a seat at the Front
+              Counter.
+            </p>
+          )}
+
+          {identityPickerOpen ? (
+            <div className="identity-picker">
+              <div className="identity-picker-heading">
+                <div>
+                  <p className="eyebrow">Avatar Identity V1</p>
+                  <h2>Choose your café face.</h2>
+                  <p>
+                    Preset avatars only. No uploads, no custom builder, no
+                    shopping.
+                  </p>
+                </div>
+                {identity ? (
+                  <button type="button" onClick={() => setIdentityPickerOpen(false)}>
+                    Change later
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="avatar-grid">
+                {CHO_NEO_AVATARS.map((avatar) => (
+                  <button
+                    className={`avatar-choice avatar-${avatar.tone} ${
+                      identityAvatarId === avatar.id ? "avatar-choice-active" : ""
+                    }`}
+                    key={avatar.id}
+                    onClick={() => {
+                      setIdentityAvatarId(avatar.id);
+                      setIdentityError(null);
+                    }}
+                    type="button"
+                  >
+                    <span>{avatar.emoji}</span>
+                    <strong>{avatar.name}</strong>
+                    <small>{avatar.description}</small>
+                  </button>
+                ))}
+              </div>
+
+              <div className="identity-form">
+                <label htmlFor="gossip-village-nickname">
+                  Village nickname
+                </label>
+                <input
+                  id="gossip-village-nickname"
+                  maxLength={24}
+                  onChange={(event) => {
+                    setIdentityNicknameDraft(event.target.value);
+                    setIdentityError(null);
+                  }}
+                  placeholder="Mai Calgary"
+                  type="text"
+                  value={identityNicknameDraft}
+                />
+                {identityError ? <p>{identityError}</p> : null}
+                <div>
+                  <button type="button" onClick={surpriseIdentity}>
+                    Surprise me
+                  </button>
+                  <button type="button" onClick={saveIdentity}>
+                    Save identity
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </section>
 
         <section
           className={`room-scene ${selectedTable ? "room-scene-focused" : ""}`}
@@ -267,10 +464,22 @@ export default function ChoNeoGossipPage() {
                       className={`thread-message ${
                         index % 2 ? "thread-message-right" : "thread-message-left"
                       }`}
-                      key={`${message.name}-${message.text}`}
+                      key={"id" in message ? message.id : `${message.name}-${message.text}`}
                     >
-                      <small>{message.name}</small>
+                      {"avatarId" in message ? (
+                        <span className="thread-avatar" aria-hidden="true">
+                          {getAvatarById(message.avatarId).emoji}
+                        </span>
+                      ) : null}
+                      <small>{"nickname" in message ? message.nickname : message.name}</small>
                       <p>{message.text}</p>
+                      {"reactions" in message && message.reactions ? (
+                        <span className="reaction-row" aria-hidden="true">
+                          {message.reactions.heart ? `heart ${message.reactions.heart}` : ""}
+                          {message.reactions.laugh ? ` laugh ${message.reactions.laugh}` : ""}
+                          {message.reactions.tea ? ` tea ${message.reactions.tea}` : ""}
+                        </span>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -281,61 +490,63 @@ export default function ChoNeoGossipPage() {
                     onSubmit={handleFrontCounterSubmit}
                   >
                     <p className="prototype-note">
-                      Prototype table. Real member identity and moderation come
-                      later. Messages are not saved yet and reset on refresh.
+                      This V1 remembers messages on this device. Shared village
+                      memory comes later.
                     </p>
-                    <p className="prototype-note">
-                      Temporary Founding Pass for prototype testing. Real
-                      sign-in comes later.
-                    </p>
-                    {foundingPassUnlocked ? (
-                      <p className="posting-as">
-                        Posting as <strong>{foundingDisplayName}</strong>
-                      </p>
-                    ) : (
-                      <div className="founding-pass">
-                        <div>
-                          <strong>Founding Pass Gatehouse</strong>
-                          <p>
-                            Visitors may look around. Founding Pass unlocks
-                            prototype posting at the café.
-                          </p>
-                        </div>
-                        <label htmlFor="founding-display-name">
-                          Display name
-                        </label>
-                        <input
-                          id="founding-display-name"
-                          maxLength={32}
-                          onChange={(event) =>
-                            setFoundingPassNameDraft(event.target.value)
-                          }
-                          placeholder="Mai Calgary"
-                          type="text"
-                          value={foundingPassNameDraft}
-                        />
-                        <label htmlFor="founding-passcode">
-                          Invite passcode
-                        </label>
-                        <input
-                          id="founding-passcode"
-                          onKeyDown={handleFoundingPassKeyDown}
-                          onChange={(event) =>
-                            setFoundingPasscodeDraft(event.target.value)
-                          }
-                          placeholder="CHO-NEO-..."
-                          type="text"
-                          value={foundingPasscodeDraft}
-                        />
-                        {foundingPassError ? (
-                          <p className="pass-error">{foundingPassError}</p>
-                        ) : null}
+                    <div className="seat-stage" aria-label="Front Counter stools">
+                      {visibleSeats.map((seat) => {
+                        const avatar = getAvatarById(seat.avatarId);
+                        const isCurrentSeat =
+                          identity?.nickname === seat.nickname &&
+                          identity?.avatarId === seat.avatarId;
+
+                        return (
+                          <div
+                            className={`seat-person ${
+                              isCurrentSeat ? "seat-person-current" : ""
+                            }`}
+                            key={`${seat.avatarId}-${seat.nickname}`}
+                          >
+                            {isCurrentSeat && latestOwnMessage ? (
+                              <p className="speech-bubble">
+                                {latestOwnMessage.text}
+                              </p>
+                            ) : null}
+                            <div className={`avatar-token avatar-${avatar.tone}`}>
+                              <span>{avatar.emoji}</span>
+                            </div>
+                            <strong>{seat.nickname}</strong>
+                            <span>stool</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {identity ? (
+                      isCurrentIdentitySeated ? (
+                        <p className="posting-as">
+                          Seated as <strong>{identity.nickname}</strong>
+                        </p>
+                      ) : (
                         <button
-                          disabled={!canTryFoundingPass}
+                          className="take-seat-button"
                           type="button"
-                          onClick={handleFoundingPassSubmit}
+                          onClick={takeFrontCounterSeat}
                         >
-                          Unlock posting
+                          Take a seat
+                        </button>
+                      )
+                    ) : (
+                      <div className="identity-needed">
+                        <strong>Create your village identity first.</strong>
+                        <p>
+                          Pick an avatar and nickname before joining the Front
+                          Counter.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setIdentityPickerOpen(true)}
+                        >
+                          Create identity
                         </button>
                       </div>
                     )}
@@ -344,23 +555,25 @@ export default function ChoNeoGossipPage() {
                     </label>
                     <div className="message-row">
                       <input
-                        disabled={!foundingPassUnlocked}
+                        disabled={!identity || !isCurrentIdentitySeated}
                         id="front-counter-message"
                         maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
                         onChange={(event) =>
                           setFrontCounterDraft(event.target.value)
                         }
                         placeholder={
-                          foundingPassUnlocked
+                          identity && isCurrentIdentitySeated
                             ? "Add a short café note..."
-                            : "Unlock the Founding Pass to post..."
+                            : "Take a seat to post..."
                         }
                         type="text"
                         value={frontCounterDraft}
                       />
                       <button
                         disabled={
-                          !foundingPassUnlocked || !canSubmitFrontCounterMessage
+                          !identity ||
+                          !isCurrentIdentitySeated ||
+                          !canSubmitFrontCounterMessage
                         }
                         type="submit"
                       >
@@ -571,6 +784,207 @@ export default function ChoNeoGossipPage() {
           letter-spacing: 0.16em;
           text-transform: uppercase;
           opacity: 0.68;
+        }
+
+        .identity-strip {
+          display: grid;
+          gap: 12px;
+          margin-top: 18px;
+        }
+
+        .current-identity,
+        .identity-picker,
+        .identity-nudge {
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 24px;
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.045)),
+            rgba(8, 13, 28, 0.62);
+          box-shadow:
+            0 18px 54px rgba(0, 0, 0, 0.26),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(12px);
+        }
+
+        .current-identity {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 14px;
+          align-items: center;
+          padding: 14px;
+        }
+
+        .avatar-token {
+          display: grid;
+          place-items: center;
+          width: 58px;
+          height: 58px;
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          border-radius: 22px;
+          background: rgba(253, 230, 138, 0.12);
+          box-shadow: 0 0 28px rgba(251, 191, 36, 0.12);
+        }
+
+        .avatar-token span {
+          font-size: 30px;
+        }
+
+        .current-identity strong {
+          display: block;
+          color: #fff7ed;
+          font-size: 24px;
+          line-height: 1;
+          letter-spacing: -0.02em;
+        }
+
+        .current-identity div > span {
+          display: block;
+          margin-top: 6px;
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 13px;
+        }
+
+        .current-identity button,
+        .identity-picker button {
+          min-height: 38px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .current-identity button {
+          padding: 0 14px;
+        }
+
+        .identity-nudge {
+          margin: 0;
+          padding: 14px;
+          color: rgba(255, 247, 237, 0.74);
+          font-size: 14px;
+          line-height: 1.5;
+        }
+
+        .identity-picker {
+          display: grid;
+          gap: 14px;
+          padding: 16px;
+        }
+
+        .identity-picker-heading {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+          align-items: flex-start;
+        }
+
+        .identity-picker h2 {
+          margin: 0;
+          font-size: clamp(28px, 4vw, 46px);
+          line-height: 0.96;
+          letter-spacing: -0.04em;
+        }
+
+        .identity-picker p:not(.eyebrow) {
+          margin: 8px 0 0;
+          color: rgba(255, 247, 237, 0.7);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .identity-picker-heading button {
+          flex: 0 0 auto;
+          padding: 0 12px;
+          color: rgba(255, 247, 237, 0.86);
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .avatar-grid {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .avatar-choice {
+          display: grid;
+          gap: 8px;
+          place-items: center;
+          min-height: 104px;
+          padding: 12px 8px;
+          color: #fff7ed !important;
+          background: rgba(15, 23, 42, 0.62) !important;
+          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          border-radius: 18px !important;
+        }
+
+        .avatar-choice span {
+          font-size: 30px;
+        }
+
+        .avatar-choice strong {
+          font-size: 12px;
+          line-height: 1.15;
+        }
+
+        .avatar-choice small {
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 11px;
+          font-weight: 750;
+          line-height: 1.25;
+        }
+
+        .avatar-choice-active {
+          border-color: rgba(253, 230, 138, 0.58) !important;
+          box-shadow: 0 0 30px rgba(251, 191, 36, 0.16);
+        }
+
+        .identity-form {
+          display: grid;
+          gap: 9px;
+        }
+
+        .identity-form label {
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
+        .identity-form input {
+          min-height: 42px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 999px;
+          padding: 0 14px;
+          color: #fff7ed;
+          background: rgba(8, 13, 28, 0.62);
+          font: inherit;
+          outline: none;
+        }
+
+        .identity-form input:focus {
+          border-color: rgba(253, 230, 138, 0.66);
+          box-shadow: 0 0 0 3px rgba(253, 230, 138, 0.12);
+        }
+
+        .identity-form > p {
+          margin: 0;
+          color: #fecdd3;
+          font-size: 13px;
+          font-weight: 850;
+        }
+
+        .identity-form div {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .identity-form div button {
+          padding: 0 14px;
         }
 
         .room-scene {
@@ -867,6 +1281,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .thread-message {
+          position: relative;
           width: min(82%, 430px);
           padding: 12px 14px;
           border: 1px solid rgba(255, 255, 255, 0.12);
@@ -874,9 +1289,26 @@ export default function ChoNeoGossipPage() {
           box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
         }
 
+        .thread-avatar {
+          position: absolute;
+          top: -9px;
+          width: 26px;
+          height: 26px;
+          display: grid;
+          place-items: center;
+          border: 1px solid rgba(253, 230, 138, 0.22);
+          border-radius: 999px;
+          background: rgba(8, 13, 28, 0.82);
+          font-size: 15px;
+        }
+
         .thread-message-left {
           justify-self: start;
           border-radius: 18px 18px 18px 6px;
+        }
+
+        .thread-message-left .thread-avatar {
+          left: -8px;
         }
 
         .thread-message-right {
@@ -884,6 +1316,10 @@ export default function ChoNeoGossipPage() {
           border-radius: 18px 18px 6px 18px;
           background: rgba(253, 230, 138, 0.16);
           border-color: rgba(253, 230, 138, 0.18);
+        }
+
+        .thread-message-right .thread-avatar {
+          right: -8px;
         }
 
         .thread-message small {
@@ -899,6 +1335,14 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.84);
           font-size: 14px;
           line-height: 1.45;
+        }
+
+        .reaction-row {
+          display: block;
+          margin-top: 8px;
+          color: rgba(253, 230, 138, 0.7);
+          font-size: 11px;
+          font-weight: 850;
         }
 
         .conversation-form {
@@ -918,6 +1362,108 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.72);
           font-size: 13px;
           line-height: 1.4;
+        }
+
+        .seat-stage {
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 10px;
+          align-items: end;
+          padding: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 22px;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.12), transparent 34%),
+            rgba(8, 13, 28, 0.34);
+        }
+
+        .seat-person {
+          position: relative;
+          display: grid;
+          gap: 6px;
+          justify-items: center;
+          min-height: 124px;
+          align-content: end;
+          padding: 8px;
+          border-radius: 18px;
+          background: rgba(255, 255, 255, 0.055);
+        }
+
+        .seat-person-current {
+          box-shadow: inset 0 0 0 1px rgba(253, 230, 138, 0.24);
+        }
+
+        .speech-bubble {
+          position: absolute;
+          left: 50%;
+          bottom: calc(100% - 26px);
+          width: min(220px, 165%);
+          transform: translateX(-50%);
+          margin: 0;
+          padding: 9px 11px;
+          border: 1px solid rgba(253, 230, 138, 0.22);
+          border-radius: 16px 16px 16px 5px;
+          color: rgba(255, 247, 237, 0.88);
+          background: rgba(8, 13, 28, 0.9);
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+          font-size: 12px;
+          line-height: 1.35;
+        }
+
+        .seat-person strong {
+          color: #fff7ed;
+          font-size: 12px;
+          line-height: 1.1;
+          text-align: center;
+        }
+
+        .seat-person > span {
+          color: rgba(255, 247, 237, 0.55);
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .take-seat-button {
+          position: relative;
+          z-index: 2;
+          min-height: 42px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .identity-needed {
+          display: grid;
+          gap: 8px;
+          padding: 14px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 20px;
+          background: rgba(253, 230, 138, 0.08);
+        }
+
+        .identity-needed strong {
+          color: #fde68a;
+          font-size: 14px;
+        }
+
+        .identity-needed p {
+          margin: 0;
+          color: rgba(255, 247, 237, 0.7);
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        .identity-needed button {
+          min-height: 40px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
         }
 
         .posting-as {
@@ -1342,6 +1888,14 @@ export default function ChoNeoGossipPage() {
           .house-rules {
             gap: 14px;
           }
+
+          .avatar-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+
+          .seat-stage {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
         }
 
         @media (max-width: 720px) {
@@ -1392,6 +1946,23 @@ export default function ChoNeoGossipPage() {
 
           .back-link {
             width: 100%;
+          }
+
+          .current-identity,
+          .identity-picker-heading {
+            display: grid;
+            grid-template-columns: 1fr;
+          }
+
+          .current-identity button,
+          .identity-picker-heading button,
+          .identity-form div button {
+            width: 100%;
+          }
+
+          .avatar-grid,
+          .seat-stage {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
           .table-card,
@@ -1465,4 +2036,21 @@ export default function ChoNeoGossipPage() {
       `}</style>
     </main>
   );
+}
+
+function dedupeSeats(
+  seats: Array<{ avatarId: string; nickname: string }>
+) {
+  const seen = new Set<string>();
+
+  return seats.filter((seat) => {
+    const key = `${seat.avatarId}:${seat.nickname}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
