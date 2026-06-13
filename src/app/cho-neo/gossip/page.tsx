@@ -20,10 +20,13 @@ import {
 } from "@/lib/cho-neo/avatar-identity";
 import {
   FRONT_COUNTER_MESSAGE_CAP,
+  FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
   type FrontCounterMessage,
   type FrontCounterSeat,
   createFrontCounterMessage,
   createFrontCounterSeat,
+  fetchSharedFrontCounterMessages,
+  postSharedFrontCounterMessage,
   readFrontCounterState,
   saveFrontCounterSeat,
   saveFrontCounterState,
@@ -34,7 +37,9 @@ type ConversationMessage = {
   text: string;
 };
 
-const FRONT_COUNTER_MESSAGE_LIMIT = 180;
+type FrontCounterMemoryMode = "local" | "shared";
+
+const FRONT_COUNTER_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 
 const seededFrontCounterMessages: FrontCounterMessage[] = [
   {
@@ -170,6 +175,12 @@ export default function ChoNeoGossipPage() {
     null
   );
   const [frontCounterDraft, setFrontCounterDraft] = useState("");
+  const [frontCounterMemoryMode, setFrontCounterMemoryMode] =
+    useState<FrontCounterMemoryMode>("local");
+  const [frontCounterMemoryNotice, setFrontCounterMemoryNotice] = useState<
+    string | null
+  >(null);
+  const [frontCounterPosting, setFrontCounterPosting] = useState(false);
   const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
   const [identityPickerOpen, setIdentityPickerOpen] = useState(false);
   const [identityAvatarId, setIdentityAvatarId] = useState(CHO_NEO_AVATARS[0].id);
@@ -185,7 +196,8 @@ export default function ChoNeoGossipPage() {
     : selectedTable?.messages ?? [];
   const remainingFrontCounterCharacters =
     FRONT_COUNTER_MESSAGE_LIMIT - frontCounterDraft.length;
-  const canSubmitFrontCounterMessage = frontCounterDraft.trim().length > 0;
+  const canSubmitFrontCounterMessage =
+    frontCounterDraft.trim().length > 0 && !frontCounterPosting;
   const currentAvatar = identity ? getAvatarById(identity.avatarId) : null;
   const visibleSeats = dedupeSeats([
     ...seededFrontCounterMessages.slice(0, 4).map((message) => ({
@@ -199,13 +211,8 @@ export default function ChoNeoGossipPage() {
     !!seatedIdentity &&
     seatedIdentity.avatarId === identity.avatarId &&
     seatedIdentity.nickname === identity.nickname;
-  const latestOwnMessage = identity
-    ? [...frontCounterMessages]
-        .reverse()
-        .find((message) => message.nickname === identity.nickname)
-    : null;
-
   useEffect(() => {
+    let cancelled = false;
     const savedIdentity = getChoNeoIdentity();
 
     if (savedIdentity) {
@@ -223,22 +230,88 @@ export default function ChoNeoGossipPage() {
         : seededFrontCounterMessages
     );
     setSeatedIdentity(savedFrontCounter.seatedIdentity ?? null);
+
+    async function loadSharedFrontCounterMessages() {
+      try {
+        const sharedMessages = await fetchSharedFrontCounterMessages();
+
+        if (cancelled) {
+          return;
+        }
+
+        setFrontCounterMessages(sharedMessages);
+        setFrontCounterMemoryMode("shared");
+        setFrontCounterMemoryNotice(null);
+      } catch {
+        if (cancelled) {
+          return;
+        }
+
+        setFrontCounterMemoryMode("local");
+        setFrontCounterMemoryNotice(
+          "Shared village memory is not configured yet, so this table is using this device."
+        );
+      }
+    }
+
+    void loadSharedFrontCounterMessages();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  function handleFrontCounterSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleFrontCounterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const text = frontCounterDraft.trim();
 
-    if (!text || !identity || !isCurrentIdentitySeated) {
+    if (!text || !identity || !isCurrentIdentitySeated || frontCounterPosting) {
       return;
     }
 
-    const nextMessage = createFrontCounterMessage({ identity, text });
-    const nextMessages = [...frontCounterMessages, nextMessage].slice(
-      -FRONT_COUNTER_MESSAGE_CAP
-    );
-    const nextSeat = seatedIdentity;
+    setFrontCounterPosting(true);
+
+    if (frontCounterMemoryMode === "shared") {
+      try {
+        const savedMessage = await postSharedFrontCounterMessage({
+          avatarId: identity.avatarId,
+          nickname: identity.nickname,
+          text,
+        });
+        const nextSharedMessages = [...frontCounterMessages, savedMessage].slice(
+          -FRONT_COUNTER_MESSAGE_CAP
+        );
+
+        setFrontCounterMessages(nextSharedMessages);
+        setFrontCounterDraft("");
+        setFrontCounterMemoryNotice(null);
+        return;
+      } catch {
+        setFrontCounterMemoryMode("local");
+        setFrontCounterMemoryNotice(
+          "Shared village memory is unavailable right now, so this post is saved on this device."
+        );
+      } finally {
+        setFrontCounterPosting(false);
+      }
+    }
+
+    saveFrontCounterMessageLocally({ identity, text });
+    setFrontCounterPosting(false);
+  }
+
+  function saveFrontCounterMessageLocally(input: {
+    identity: ChoNeoIdentity;
+    text: string;
+  }) {
+    const localState = readFrontCounterState();
+    const nextMessage = createFrontCounterMessage(input);
+    const nextMessages = [
+      ...(localState.messages.length ? localState.messages : frontCounterMessages),
+      nextMessage,
+    ].slice(-FRONT_COUNTER_MESSAGE_CAP);
+    const nextSeat = seatedIdentity ?? localState.seatedIdentity;
 
     setFrontCounterMessages(nextMessages);
     saveFrontCounterState({
@@ -490,9 +563,13 @@ export default function ChoNeoGossipPage() {
                     onSubmit={handleFrontCounterSubmit}
                   >
                     <p className="prototype-note">
-                      This V1 remembers messages on this device. Shared village
-                      memory comes later.
+                      {frontCounterMemoryMode === "shared"
+                        ? "This table remembers the village conversation."
+                        : "This V1 remembers messages on this device. Shared village memory comes later."}
                     </p>
+                    {frontCounterMemoryNotice ? (
+                      <p className="memory-notice">{frontCounterMemoryNotice}</p>
+                    ) : null}
                     <div className="seat-stage" aria-label="Front Counter stools">
                       {visibleSeats.map((seat) => {
                         const avatar = getAvatarById(seat.avatarId);
@@ -507,11 +584,6 @@ export default function ChoNeoGossipPage() {
                             }`}
                             key={`${seat.avatarId}-${seat.nickname}`}
                           >
-                            {isCurrentSeat && latestOwnMessage ? (
-                              <p className="speech-bubble">
-                                {latestOwnMessage.text}
-                              </p>
-                            ) : null}
                             <div className={`avatar-token avatar-${avatar.tone}`}>
                               <span>{avatar.emoji}</span>
                             </div>
@@ -555,7 +627,11 @@ export default function ChoNeoGossipPage() {
                     </label>
                     <div className="message-row">
                       <input
-                        disabled={!identity || !isCurrentIdentitySeated}
+                        disabled={
+                          !identity ||
+                          !isCurrentIdentitySeated ||
+                          frontCounterPosting
+                        }
                         id="front-counter-message"
                         maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
                         onChange={(event) =>
@@ -573,11 +649,12 @@ export default function ChoNeoGossipPage() {
                         disabled={
                           !identity ||
                           !isCurrentIdentitySeated ||
-                          !canSubmitFrontCounterMessage
+                          !canSubmitFrontCounterMessage ||
+                          frontCounterPosting
                         }
                         type="submit"
                       >
-                        Post
+                        {frontCounterPosting ? "Posting..." : "Post"}
                       </button>
                     </div>
                     <p className="character-count">
@@ -1364,6 +1441,14 @@ export default function ChoNeoGossipPage() {
           line-height: 1.4;
         }
 
+        .memory-notice {
+          margin: -2px 0 0;
+          color: rgba(253, 230, 138, 0.74);
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.4;
+        }
+
         .seat-stage {
           display: grid;
           grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1391,23 +1476,6 @@ export default function ChoNeoGossipPage() {
 
         .seat-person-current {
           box-shadow: inset 0 0 0 1px rgba(253, 230, 138, 0.24);
-        }
-
-        .speech-bubble {
-          position: absolute;
-          left: 50%;
-          bottom: calc(100% - 26px);
-          width: min(220px, 165%);
-          transform: translateX(-50%);
-          margin: 0;
-          padding: 9px 11px;
-          border: 1px solid rgba(253, 230, 138, 0.22);
-          border-radius: 16px 16px 16px 5px;
-          color: rgba(255, 247, 237, 0.88);
-          background: rgba(8, 13, 28, 0.9);
-          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
-          font-size: 12px;
-          line-height: 1.35;
         }
 
         .seat-person strong {

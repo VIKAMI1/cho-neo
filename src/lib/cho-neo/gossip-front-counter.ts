@@ -30,6 +30,9 @@ export type FrontCounterState = {
 
 export const CHO_NEO_GOSSIP_FRONT_COUNTER_KEY = "choNeoGossipFrontCounterV1";
 export const FRONT_COUNTER_MESSAGE_CAP = 50;
+export const FRONT_COUNTER_MESSAGE_TEXT_LIMIT = 180;
+export const FRONT_COUNTER_MESSAGES_API =
+  "/api/cho-neo/gossip/front-counter/messages";
 
 export function createFrontCounterMessage(input: {
   identity: ChoNeoIdentity;
@@ -111,6 +114,74 @@ export function saveFrontCounterSeat(seatedIdentity: FrontCounterSeat) {
   });
 }
 
+export async function fetchSharedFrontCounterMessages() {
+  const response = await fetch(FRONT_COUNTER_MESSAGES_API, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw await createSharedFrontCounterError(response, "fetch");
+  }
+
+  const payload = (await response.json()) as { messages?: unknown };
+
+  return Array.isArray(payload.messages)
+    ? payload.messages.filter(isFrontCounterMessage).slice(-FRONT_COUNTER_MESSAGE_CAP)
+    : [];
+}
+
+export async function postSharedFrontCounterMessage(input: {
+  avatarId: string;
+  nickname: string;
+  text: string;
+}) {
+  const response = await fetch(FRONT_COUNTER_MESSAGES_API, {
+    body: JSON.stringify(input),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw await createSharedFrontCounterError(response, "post");
+  }
+
+  const payload = (await response.json()) as { message?: unknown };
+
+  if (!isFrontCounterMessage(payload.message)) {
+    throw new Error("Shared Front Counter returned an invalid message.");
+  }
+
+  return payload.message;
+}
+
+async function createSharedFrontCounterError(
+  response: Response,
+  operation: "fetch" | "post"
+) {
+  const payload = await response.json().catch(() => null);
+  const reason =
+    payload && typeof payload === "object" && "reason" in payload
+      ? String(payload.reason)
+      : response.statusText;
+  const detail =
+    payload && typeof payload === "object" && "detail" in payload
+      ? String(payload.detail)
+      : "No response detail.";
+
+  if (process.env.NODE_ENV === "development") {
+    console.warn("[cho-neo:gossip-front-counter]", {
+      detail,
+      operation,
+      reason,
+      status: response.status,
+    });
+  }
+
+  return new Error(`Shared Front Counter ${operation} failed: ${reason}`);
+}
+
 function isFrontCounterMessage(message: unknown): message is FrontCounterMessage {
   if (!message || typeof message !== "object") {
     return false;
@@ -124,6 +195,7 @@ function isFrontCounterMessage(message: unknown): message is FrontCounterMessage
     isValidVillageNickname(candidate.nickname).valid &&
     typeof candidate.text === "string" &&
     candidate.text.trim().length > 0 &&
+    candidate.text.trim().length <= FRONT_COUNTER_MESSAGE_TEXT_LIMIT &&
     typeof candidate.createdAt === "string"
   );
 }
