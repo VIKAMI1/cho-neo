@@ -211,12 +211,6 @@ export default function ChoNeoGossipPage() {
     !!seatedIdentity &&
     seatedIdentity.avatarId === identity.avatarId &&
     seatedIdentity.nickname === identity.nickname;
-  const latestOwnMessage = identity
-    ? [...frontCounterMessages]
-        .reverse()
-        .find((message) => message.nickname === identity.nickname)
-    : null;
-
   useEffect(() => {
     let cancelled = false;
     const savedIdentity = getChoNeoIdentity();
@@ -590,11 +584,6 @@ export default function ChoNeoGossipPage() {
                             }`}
                             key={`${seat.avatarId}-${seat.nickname}`}
                           >
-                            {isCurrentSeat && latestOwnMessage ? (
-                              <p className="speech-bubble">
-                                {latestOwnMessage.text}
-                              </p>
-                            ) : null}
                             <div className={`avatar-token avatar-${avatar.tone}`}>
                               <span>{avatar.emoji}</span>
                             </div>
@@ -1487,23 +1476,6 @@ export default function ChoNeoGossipPage() {
 
         .seat-person-current {
           box-shadow: inset 0 0 0 1px rgba(253, 230, 138, 0.24);
-        }
-
-        .speech-bubble {
-          position: absolute;
-          left: 50%;
-          bottom: calc(100% - 26px);
-          width: min(220px, 165%);
-          transform: translateX(-50%);
-          margin: 0;
-          padding: 9px 11px;
-          border: 1px solid rgba(253, 230, 138, 0.22);
-          border-radius: 16px 16px 16px 5px;
-          color: rgba(255, 247, 237, 0.88);
-          background: rgba(8, 13, 28, 0.9);
-          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
-          font-size: 12px;
-          line-height: 1.35;
         }
 
         .seat-person strong {
