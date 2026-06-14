@@ -26,8 +26,12 @@ import {
   createFrontCounterMessage,
   createFrontCounterSeat,
   fetchSharedFrontCounterMessages,
+  hideSharedFrontCounterMessage,
+  isSharedFrontCounterMessageId,
   postSharedFrontCounterMessage,
   readFrontCounterState,
+  removeSharedFrontCounterMessage,
+  reportSharedFrontCounterMessage,
   saveFrontCounterSeat,
   saveFrontCounterState,
 } from "@/lib/cho-neo/gossip-front-counter";
@@ -38,8 +42,11 @@ type ConversationMessage = {
 };
 
 type FrontCounterMemoryMode = "local" | "shared";
+type FrontCounterModerationAction = "hide" | "remove";
 
 const FRONT_COUNTER_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
+const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
+  "choNeoGossipFrontCounterReportedMessagesV1";
 
 const seededFrontCounterMessages: FrontCounterMessage[] = [
   {
@@ -186,14 +193,25 @@ export default function ChoNeoGossipPage() {
   const [identityAvatarId, setIdentityAvatarId] = useState(CHO_NEO_AVATARS[0].id);
   const [identityNicknameDraft, setIdentityNicknameDraft] = useState("");
   const [identityError, setIdentityError] = useState<string | null>(null);
+  const [reportedMessageIds, setReportedMessageIds] = useState<string[]>([]);
+  const [moderationNotice, setModerationNotice] = useState<string | null>(null);
+  const [moderationBusyMessageId, setModerationBusyMessageId] = useState<
+    string | null
+  >(null);
+  const [hostToolsOpen, setHostToolsOpen] = useState(false);
+  const [hostKey, setHostKey] = useState("");
+  const [sharedFetchedMessageIds, setSharedFetchedMessageIds] = useState<string[]>(
+    []
+  );
   const selectedTable = useMemo(
     () => tables.find((table) => table.name === selectedTableName) ?? null,
     [selectedTableName]
   );
   const isFrontCounter = selectedTable?.name === "Front Counter";
-  const selectedMessages: Array<ConversationMessage | FrontCounterMessage> = isFrontCounter
-    ? frontCounterMessages
-    : selectedTable?.messages ?? [];
+  const selectedMessages: Array<ConversationMessage | FrontCounterMessage> =
+    isFrontCounter
+      ? frontCounterMessages.filter(isVisibleFrontCounterMessage)
+      : selectedTable?.messages ?? [];
   const remainingFrontCounterCharacters =
     FRONT_COUNTER_MESSAGE_LIMIT - frontCounterDraft.length;
   const canSubmitFrontCounterMessage =
@@ -223,6 +241,11 @@ export default function ChoNeoGossipPage() {
       setIdentityPickerOpen(true);
     }
 
+    setHostToolsOpen(
+      new URLSearchParams(window.location.search).get("hostTools") === "1"
+    );
+    setReportedMessageIds(readReportedFrontCounterMessageIds());
+
     const savedFrontCounter = readFrontCounterState();
     setFrontCounterMessages(
       savedFrontCounter.messages.length
@@ -240,6 +263,7 @@ export default function ChoNeoGossipPage() {
         }
 
         setFrontCounterMessages(sharedMessages);
+        setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(sharedMessages));
         setFrontCounterMemoryMode("shared");
         setFrontCounterMemoryNotice(null);
       } catch {
@@ -248,6 +272,7 @@ export default function ChoNeoGossipPage() {
         }
 
         setFrontCounterMemoryMode("local");
+        setSharedFetchedMessageIds([]);
         setFrontCounterMemoryNotice(
           "Shared village memory is not configured yet, so this table is using this device."
         );
@@ -279,16 +304,23 @@ export default function ChoNeoGossipPage() {
           nickname: identity.nickname,
           text,
         });
-        const nextSharedMessages = [...frontCounterMessages, savedMessage].slice(
-          -FRONT_COUNTER_MESSAGE_CAP
-        );
 
-        setFrontCounterMessages(nextSharedMessages);
+        if (process.env.NODE_ENV === "development") {
+          console.info("[cho-neo:gossip-front-counter] POST returned message id", {
+            messageId: savedMessage.id,
+          });
+        }
+
+        const sharedMessages = await fetchSharedFrontCounterMessages();
+
+        setFrontCounterMessages(sharedMessages);
+        setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(sharedMessages));
         setFrontCounterDraft("");
         setFrontCounterMemoryNotice(null);
         return;
       } catch {
         setFrontCounterMemoryMode("local");
+        setSharedFetchedMessageIds([]);
         setFrontCounterMemoryNotice(
           "Shared village memory is unavailable right now, so this post is saved on this device."
         );
@@ -319,6 +351,174 @@ export default function ChoNeoGossipPage() {
       seatedIdentity: nextSeat,
     });
     setFrontCounterDraft("");
+  }
+
+  async function reportFrontCounterMessage(message: FrontCounterMessage) {
+    if (!identity) {
+      setIdentityPickerOpen(true);
+      setModerationNotice("Create a village identity before reporting a message.");
+      return;
+    }
+
+    if (reportedMessageIds.includes(message.id) || moderationBusyMessageId) {
+      return;
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.info("[cho-neo:gossip-front-counter] Report clicked message id", {
+        messageId: message.id,
+      });
+    }
+
+    if (!sharedFetchedMessageIds.includes(message.id)) {
+      await refreshSharedFrontCounterMessages(
+        "Refreshing shared messages before reporting."
+      );
+      return;
+    }
+
+    setModerationBusyMessageId(message.id);
+    setModerationNotice(null);
+
+    try {
+      const updatedMessage =
+        frontCounterMemoryMode === "shared"
+          ? await reportSharedFrontCounterMessage(message.id)
+          : {
+              ...message,
+              reportCount: (message.reportCount ?? 0) + 1,
+              reportedAt: new Date().toISOString(),
+            };
+
+      updateFrontCounterMessage(updatedMessage);
+      rememberReportedFrontCounterMessageId(message.id);
+      setReportedMessageIds((currentIds) => [...currentIds, message.id]);
+      setModerationNotice("Thanks. The village host can review this report.");
+    } catch {
+      setModerationNotice("Could not report that message right now.");
+    } finally {
+      setModerationBusyMessageId(null);
+    }
+  }
+
+  async function moderateFrontCounterMessage(
+    action: FrontCounterModerationAction,
+    message: FrontCounterMessage
+  ) {
+    if (!hostToolsOpen || moderationBusyMessageId) {
+      return;
+    }
+
+    if (
+      action === "remove" &&
+      !window.confirm(
+        "Remove this message from the café? This will show a village host removed-message placeholder."
+      )
+    ) {
+      return;
+    }
+
+    if (frontCounterMemoryMode === "shared" && !hostKey.trim()) {
+      setModerationNotice("Enter the host key before using host tools.");
+      return;
+    }
+
+    if (!sharedFetchedMessageIds.includes(message.id)) {
+      await refreshSharedFrontCounterMessages(
+        "Refreshing shared messages before using host tools."
+      );
+      return;
+    }
+
+    setModerationBusyMessageId(message.id);
+    setModerationNotice(null);
+
+    try {
+      if (frontCounterMemoryMode === "shared") {
+        const updatedMessage =
+          action === "hide"
+            ? await hideSharedFrontCounterMessage({
+                hostKey: hostKey.trim(),
+                messageId: message.id,
+              })
+            : await removeSharedFrontCounterMessage({
+                hostKey: hostKey.trim(),
+                messageId: message.id,
+              });
+
+        if (action === "hide") {
+          removeFrontCounterMessage(message.id);
+        } else {
+          updateFrontCounterMessage(updatedMessage);
+        }
+      } else if (action === "hide") {
+        removeFrontCounterMessage(message.id);
+      } else {
+        updateFrontCounterMessage({
+          ...message,
+          removedAt: new Date().toISOString(),
+          text: "This message was removed by the village host.",
+        });
+      }
+
+      setModerationNotice(
+        action === "hide"
+          ? "Message hidden from the Front Counter."
+          : "Message replaced with a host removal notice."
+      );
+    } catch {
+      setModerationNotice("Host action failed. Check the host key and Supabase setup.");
+    } finally {
+      setModerationBusyMessageId(null);
+    }
+  }
+
+  function updateFrontCounterMessage(updatedMessage: FrontCounterMessage) {
+    setFrontCounterMessages((currentMessages) => {
+      const nextMessages = currentMessages.map((message) =>
+        message.id === updatedMessage.id ? updatedMessage : message
+      );
+
+      if (frontCounterMemoryMode === "local") {
+        saveFrontCounterState({
+          messages: nextMessages,
+          seatedIdentity,
+        });
+      }
+
+      return nextMessages;
+    });
+  }
+
+  function removeFrontCounterMessage(messageId: string) {
+    setFrontCounterMessages((currentMessages) => {
+      const nextMessages = currentMessages.filter(
+        (message) => message.id !== messageId
+      );
+
+      if (frontCounterMemoryMode === "local") {
+        saveFrontCounterState({
+          messages: nextMessages,
+          seatedIdentity,
+        });
+      }
+
+      return nextMessages;
+    });
+  }
+
+  async function refreshSharedFrontCounterMessages(notice: string) {
+    setModerationNotice(notice);
+
+    try {
+      const sharedMessages = await fetchSharedFrontCounterMessages();
+      setFrontCounterMessages(sharedMessages);
+      setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(sharedMessages));
+      setFrontCounterMemoryMode("shared");
+      setFrontCounterMemoryNotice(null);
+    } catch {
+      setModerationNotice("Could not refresh shared messages right now.");
+    }
   }
 
   function saveIdentity() {
@@ -531,30 +731,133 @@ export default function ChoNeoGossipPage() {
                   ))}
                 </div>
 
-                <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
-                  {selectedMessages.map((message, index) => (
-                    <div
-                      className={`thread-message ${
-                        index % 2 ? "thread-message-right" : "thread-message-left"
-                      }`}
-                      key={"id" in message ? message.id : `${message.name}-${message.text}`}
-                    >
-                      {"avatarId" in message ? (
-                        <span className="thread-avatar" aria-hidden="true">
-                          {getAvatarById(message.avatarId).emoji}
-                        </span>
-                      ) : null}
-                      <small>{"nickname" in message ? message.nickname : message.name}</small>
-                      <p>{message.text}</p>
-                      {"reactions" in message && message.reactions ? (
-                        <span className="reaction-row" aria-hidden="true">
-                          {message.reactions.heart ? `heart ${message.reactions.heart}` : ""}
-                          {message.reactions.laugh ? ` laugh ${message.reactions.laugh}` : ""}
-                          {message.reactions.tea ? ` tea ${message.reactions.tea}` : ""}
-                        </span>
-                      ) : null}
+                {isFrontCounter && hostToolsOpen ? (
+                  <div className="host-tools-panel">
+                    <div>
+                      <strong>Host tools V1</strong>
+                      <p>
+                        Server-side scaffold only. Future real auth and
+                        moderation queues should connect here.
+                      </p>
                     </div>
-                  ))}
+                    <input
+                      aria-label="Cho Neo host key"
+                      onChange={(event) => setHostKey(event.target.value)}
+                      placeholder="Host key"
+                      type="password"
+                      value={hostKey}
+                    />
+                  </div>
+                ) : null}
+
+                {isFrontCounter && moderationNotice ? (
+                  <p className="moderation-notice">{moderationNotice}</p>
+                ) : null}
+
+                <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
+                  {selectedMessages.map((message, index) => {
+                    const frontCounterMessage =
+                      "avatarId" in message ? message : null;
+                    const conversationMessage =
+                      "name" in message ? message : null;
+                    const isRemoved = !!frontCounterMessage?.removedAt;
+                    const reportedByThisBrowser =
+                      !!frontCounterMessage &&
+                      reportedMessageIds.includes(frontCounterMessage.id);
+                    const isBusy =
+                      !!frontCounterMessage &&
+                      moderationBusyMessageId === frontCounterMessage.id;
+                    const hasSharedDatabaseId =
+                      !!frontCounterMessage &&
+                      isSharedFrontCounterMessageId(frontCounterMessage.id);
+                    const canModeratePersistedMessage =
+                      hasSharedDatabaseId &&
+                      sharedFetchedMessageIds.includes(frontCounterMessage.id);
+                    const displayName = frontCounterMessage
+                      ? isRemoved
+                        ? "Village host"
+                        : frontCounterMessage.nickname
+                      : conversationMessage?.name ?? "";
+
+                    return (
+                      <div
+                        className={`thread-message ${
+                          index % 2 ? "thread-message-right" : "thread-message-left"
+                        } ${isRemoved ? "thread-message-removed" : ""}`}
+                        key={"id" in message ? message.id : `${message.name}-${message.text}`}
+                      >
+                        {frontCounterMessage ? (
+                          <span className="thread-avatar" aria-hidden="true">
+                            {getAvatarById(frontCounterMessage.avatarId).emoji}
+                          </span>
+                        ) : null}
+                        <small>{displayName}</small>
+                        <p>{message.text}</p>
+                        {"reactions" in message && message.reactions && !isRemoved ? (
+                          <span className="reaction-row" aria-hidden="true">
+                            {message.reactions.heart ? `heart ${message.reactions.heart}` : ""}
+                            {message.reactions.laugh ? ` laugh ${message.reactions.laugh}` : ""}
+                            {message.reactions.tea ? ` tea ${message.reactions.tea}` : ""}
+                          </span>
+                        ) : null}
+                        {frontCounterMessage && !isRemoved ? (
+                          <div className="moderation-row">
+                            <button
+                              disabled={
+                                isBusy ||
+                                reportedByThisBrowser ||
+                                !identity ||
+                                !canModeratePersistedMessage
+                              }
+                              onClick={() =>
+                                reportFrontCounterMessage(frontCounterMessage)
+                              }
+                              type="button"
+                            >
+                              {reportedByThisBrowser ? "Reported" : "Report"}
+                            </button>
+                            {(frontCounterMessage.reportCount ?? 0) > 0 ? (
+                              <span>
+                                {frontCounterMessage.reportCount} report
+                                {frontCounterMessage.reportCount === 1 ? "" : "s"}
+                              </span>
+                            ) : null}
+                            {hostToolsOpen ? (
+                              <>
+                                <button
+                                  disabled={isBusy || !canModeratePersistedMessage}
+                                  onClick={() =>
+                                    moderateFrontCounterMessage(
+                                      "hide",
+                                      frontCounterMessage
+                                    )
+                                  }
+                                  type="button"
+                                >
+                                  Hide
+                                </button>
+                                <button
+                                  disabled={
+                                    isBusy ||
+                                    !canModeratePersistedMessage
+                                  }
+                                  onClick={() =>
+                                    moderateFrontCounterMessage(
+                                      "remove",
+                                      frontCounterMessage
+                                    )
+                                  }
+                                  type="button"
+                                >
+                                  Remove
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {isFrontCounter ? (
@@ -1357,6 +1660,59 @@ export default function ChoNeoGossipPage() {
           margin-top: 20px;
         }
 
+        .host-tools-panel,
+        .moderation-notice {
+          margin-top: 14px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 18px;
+          background: rgba(253, 230, 138, 0.08);
+        }
+
+        .host-tools-panel {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+          gap: 12px;
+          align-items: center;
+          padding: 12px;
+        }
+
+        .host-tools-panel strong {
+          color: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .host-tools-panel p {
+          margin: 4px 0 0;
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 12px;
+          line-height: 1.35;
+        }
+
+        .host-tools-panel input {
+          min-height: 38px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 999px;
+          padding: 0 12px;
+          color: #fff7ed;
+          background: rgba(8, 13, 28, 0.62);
+          font: inherit;
+          outline: none;
+        }
+
+        .host-tools-panel input::placeholder {
+          color: rgba(255, 247, 237, 0.42);
+        }
+
+        .moderation-notice {
+          margin-bottom: -6px;
+          padding: 10px 12px;
+          color: rgba(255, 247, 237, 0.74);
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.4;
+        }
+
         .thread-message {
           position: relative;
           width: min(82%, 430px);
@@ -1414,10 +1770,50 @@ export default function ChoNeoGossipPage() {
           line-height: 1.45;
         }
 
+        .thread-message-removed {
+          border-style: dashed;
+          background: rgba(255, 255, 255, 0.07);
+        }
+
+        .thread-message-removed p {
+          color: rgba(255, 247, 237, 0.62);
+          font-style: italic;
+        }
+
         .reaction-row {
           display: block;
           margin-top: 8px;
           color: rgba(253, 230, 138, 0.7);
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .moderation-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
+          align-items: center;
+          margin-top: 9px;
+        }
+
+        .moderation-row button {
+          min-height: 27px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 999px;
+          padding: 0 9px;
+          color: rgba(255, 247, 237, 0.76);
+          background: rgba(8, 13, 28, 0.28);
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .moderation-row button:disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+
+        .moderation-row span {
+          color: rgba(253, 230, 138, 0.68);
           font-size: 11px;
           font-weight: 850;
         }
@@ -2085,6 +2481,10 @@ export default function ChoNeoGossipPage() {
             width: 100%;
           }
 
+          .host-tools-panel {
+            grid-template-columns: 1fr;
+          }
+
           .message-row {
             grid-template-columns: 1fr;
           }
@@ -2121,4 +2521,49 @@ function dedupeSeats(
     seen.add(key);
     return true;
   });
+}
+
+function isVisibleFrontCounterMessage(message: FrontCounterMessage) {
+  if (message.hiddenAt) {
+    return false;
+  }
+
+  return message.text.trim().length > 0;
+}
+
+function getSharedFrontCounterMessageIds(messages: FrontCounterMessage[]) {
+  return messages
+    .filter((message) => isSharedFrontCounterMessageId(message.id))
+    .map((message) => message.id);
+}
+
+function readReportedFrontCounterMessageIds() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(FRONT_COUNTER_REPORTED_MESSAGES_KEY) ?? "[]"
+    );
+
+    return Array.isArray(parsed)
+      ? parsed.filter((messageId) => typeof messageId === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberReportedFrontCounterMessageId(messageId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const messageIds = new Set(readReportedFrontCounterMessageIds());
+  messageIds.add(messageId);
+  localStorage.setItem(
+    FRONT_COUNTER_REPORTED_MESSAGES_KEY,
+    JSON.stringify([...messageIds])
+  );
 }

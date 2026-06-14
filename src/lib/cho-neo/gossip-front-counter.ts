@@ -10,6 +10,10 @@ export type FrontCounterMessage = {
   nickname: string;
   text: string;
   createdAt: string;
+  hiddenAt?: string | null;
+  removedAt?: string | null;
+  reportCount?: number;
+  reportedAt?: string | null;
   reactions?: {
     heart?: number;
     laugh?: number;
@@ -33,6 +37,8 @@ export const FRONT_COUNTER_MESSAGE_CAP = 50;
 export const FRONT_COUNTER_MESSAGE_TEXT_LIMIT = 180;
 export const FRONT_COUNTER_MESSAGES_API =
   "/api/cho-neo/gossip/front-counter/messages";
+const SUPABASE_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function createFrontCounterMessage(input: {
   identity: ChoNeoIdentity;
@@ -156,9 +162,84 @@ export async function postSharedFrontCounterMessage(input: {
   return payload.message;
 }
 
+export async function reportSharedFrontCounterMessage(messageId: string) {
+  if (!isSharedFrontCounterMessageId(messageId)) {
+    throw new Error("Shared Front Counter report requires a database message id.");
+  }
+
+  return updateSharedFrontCounterMessage({
+    action: "report",
+    messageId,
+  });
+}
+
+export async function hideSharedFrontCounterMessage(input: {
+  hostKey: string;
+  messageId: string;
+}) {
+  if (!isSharedFrontCounterMessageId(input.messageId)) {
+    throw new Error("Shared Front Counter hide requires a database message id.");
+  }
+
+  return updateSharedFrontCounterMessage({
+    action: "hide",
+    hostKey: input.hostKey,
+    messageId: input.messageId,
+  });
+}
+
+export async function removeSharedFrontCounterMessage(input: {
+  hostKey: string;
+  messageId: string;
+}) {
+  if (!isSharedFrontCounterMessageId(input.messageId)) {
+    throw new Error("Shared Front Counter remove requires a database message id.");
+  }
+
+  return updateSharedFrontCounterMessage({
+    action: "remove",
+    hostKey: input.hostKey,
+    messageId: input.messageId,
+  });
+}
+
+async function updateSharedFrontCounterMessage(input: {
+  action: "hide" | "remove" | "report";
+  hostKey?: string;
+  messageId: string;
+}) {
+  const response = await fetch(FRONT_COUNTER_MESSAGES_API, {
+    body: JSON.stringify({
+      action: input.action,
+      messageId: input.messageId,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+      ...(input.hostKey ? { "X-Cho-Neo-Host-Key": input.hostKey } : {}),
+    },
+    method: "PATCH",
+  });
+
+  if (!response.ok) {
+    throw await createSharedFrontCounterError(response, input.action);
+  }
+
+  const payload = (await response.json()) as { message?: unknown };
+
+  if (!isFrontCounterMessage(payload.message)) {
+    throw new Error("Shared Front Counter returned an invalid moderation update.");
+  }
+
+  return payload.message;
+}
+
+export function isSharedFrontCounterMessageId(messageId: string) {
+  return SUPABASE_UUID_PATTERN.test(messageId);
+}
+
 async function createSharedFrontCounterError(
   response: Response,
-  operation: "fetch" | "post"
+  operation: "fetch" | "hide" | "post" | "remove" | "report"
 ) {
   const payload = await response.json().catch(() => null);
   const reason =
@@ -196,7 +277,20 @@ function isFrontCounterMessage(message: unknown): message is FrontCounterMessage
     typeof candidate.text === "string" &&
     candidate.text.trim().length > 0 &&
     candidate.text.trim().length <= FRONT_COUNTER_MESSAGE_TEXT_LIMIT &&
-    typeof candidate.createdAt === "string"
+    typeof candidate.createdAt === "string" &&
+    (candidate.hiddenAt === undefined ||
+      candidate.hiddenAt === null ||
+      typeof candidate.hiddenAt === "string") &&
+    (candidate.removedAt === undefined ||
+      candidate.removedAt === null ||
+      typeof candidate.removedAt === "string") &&
+    (candidate.reportedAt === undefined ||
+      candidate.reportedAt === null ||
+      typeof candidate.reportedAt === "string") &&
+    (candidate.reportCount === undefined ||
+      (typeof candidate.reportCount === "number" &&
+        Number.isFinite(candidate.reportCount) &&
+        candidate.reportCount >= 0))
   );
 }
 
