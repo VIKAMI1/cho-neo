@@ -52,6 +52,7 @@ type FrontCounterModerationAction =
   | "unhide";
 
 const FRONT_COUNTER_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
+const FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS = 3;
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
 
@@ -195,6 +196,9 @@ export default function ChoNeoGossipPage() {
     string | null
   >(null);
   const [frontCounterPosting, setFrontCounterPosting] = useState(false);
+  const [frontCounterPostNotice, setFrontCounterPostNotice] = useState<
+    string | null
+  >(null);
   const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
   const [identityPickerOpen, setIdentityPickerOpen] = useState(false);
   const [identityAvatarId, setIdentityAvatarId] = useState(CHO_NEO_AVATARS[0].id);
@@ -227,8 +231,12 @@ export default function ChoNeoGossipPage() {
       : selectedTable?.messages ?? [];
   const remainingFrontCounterCharacters =
     FRONT_COUNTER_MESSAGE_LIMIT - frontCounterDraft.length;
+  const frontCounterMeaningfulCharacters =
+    getMeaningfulCharacterCount(frontCounterDraft);
   const canSubmitFrontCounterMessage =
-    frontCounterDraft.trim().length > 0 && !frontCounterPosting;
+    frontCounterDraft.trim().length > 0 &&
+    frontCounterMeaningfulCharacters >= FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS &&
+    !frontCounterPosting;
   const currentAvatar = identity ? getAvatarById(identity.avatarId) : null;
   const visibleSeats = dedupeSeats([
     ...seededFrontCounterMessages.slice(0, 4).map((message) => ({
@@ -304,11 +312,24 @@ export default function ChoNeoGossipPage() {
 
     const text = frontCounterDraft.trim();
 
-    if (!text || !identity || !isCurrentIdentitySeated || frontCounterPosting) {
+    if (!identity || !isCurrentIdentitySeated || frontCounterPosting) {
+      return;
+    }
+
+    if (!text) {
+      setFrontCounterPostNotice("Write a little note before posting.");
+      return;
+    }
+
+    if (getMeaningfulCharacterCount(text) < FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS) {
+      setFrontCounterPostNotice(
+        "Give it a little more than a nod so the village can understand."
+      );
       return;
     }
 
     setFrontCounterPosting(true);
+    setFrontCounterPostNotice(null);
 
     if (frontCounterMemoryMode === "shared") {
       try {
@@ -330,6 +351,9 @@ export default function ChoNeoGossipPage() {
         setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(sharedMessages));
         setFrontCounterDraft("");
         setFrontCounterMemoryNotice(null);
+        setFrontCounterPostNotice(
+          "Posted at the Front Counter. Thanks for keeping it useful."
+        );
         return;
       } catch {
         setFrontCounterMemoryMode("local");
@@ -364,6 +388,9 @@ export default function ChoNeoGossipPage() {
       seatedIdentity: nextSeat,
     });
     setFrontCounterDraft("");
+    setFrontCounterPostNotice(
+      "Posted at the Front Counter. Thanks for keeping it useful."
+    );
   }
 
   async function reportFrontCounterMessage(message: FrontCounterMessage) {
@@ -1132,8 +1159,13 @@ export default function ChoNeoGossipPage() {
                       </div>
                     )}
                     <label htmlFor="front-counter-message">
-                      Front Counter conversation
+                      Leave a Front Counter note
                     </label>
+                    <p className="posting-helper">
+                      Share one short village note: shop rhythm, product
+                      receipts, price checks, booking weather, or a useful
+                      observation from the day.
+                    </p>
                     <div className="message-row">
                       <input
                         disabled={
@@ -1143,12 +1175,13 @@ export default function ChoNeoGossipPage() {
                         }
                         id="front-counter-message"
                         maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
-                        onChange={(event) =>
-                          setFrontCounterDraft(event.target.value)
-                        }
+                        onChange={(event) => {
+                          setFrontCounterDraft(event.target.value);
+                          setFrontCounterPostNotice(null);
+                        }}
                         placeholder={
                           identity && isCurrentIdentitySeated
-                            ? "Add a short café note..."
+                            ? "Drop a quick shop note for the village..."
                             : "Take a seat to post..."
                         }
                         type="text"
@@ -1166,8 +1199,14 @@ export default function ChoNeoGossipPage() {
                         {frontCounterPosting ? "Posting..." : "Post"}
                       </button>
                     </div>
+                    {frontCounterPostNotice ? (
+                      <p className="post-feedback">{frontCounterPostNotice}</p>
+                    ) : null}
                     <p className="character-count">
-                      {remainingFrontCounterCharacters} characters left
+                      {remainingFrontCounterCharacters} of{" "}
+                      {FRONT_COUNTER_MESSAGE_LIMIT} characters left. Minimum{" "}
+                      {FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS} meaningful
+                      characters.
                     </p>
                   </form>
                 ) : null}
@@ -2324,6 +2363,13 @@ export default function ChoNeoGossipPage() {
           text-transform: uppercase;
         }
 
+        .posting-helper {
+          margin: -3px 0 0;
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 12px;
+          line-height: 1.4;
+        }
+
         .message-row {
           display: grid;
           grid-template-columns: minmax(0, 1fr) auto;
@@ -2373,6 +2419,14 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.54);
           background: rgba(255, 255, 255, 0.14);
           box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .post-feedback {
+          margin: -2px 4px 0 0;
+          color: rgba(253, 230, 138, 0.78);
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.4;
         }
 
         .character-count {
@@ -2883,6 +2937,10 @@ function getHostModerationNotice(action: FrontCounterModerationAction) {
     case "unhide":
       return "Message returned to the Front Counter.";
   }
+}
+
+function getMeaningfulCharacterCount(value: string) {
+  return value.replace(/\s/g, "").length;
 }
 
 function readReportedFrontCounterMessageIds() {
