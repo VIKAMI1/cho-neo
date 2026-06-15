@@ -172,7 +172,7 @@ const rules = [
   "Product talk is allowed when useful, not when blasted like an ad.",
 ];
 
-const hostTools = ["report", "hide", "remove", "member identity"];
+const hostTools = ["report", "hide", "remove"];
 
 export default function ChoNeoGossipPage() {
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
@@ -776,10 +776,10 @@ export default function ChoNeoGossipPage() {
                 {isFrontCounter && hostToolsOpen ? (
                   <div className="host-tools-panel">
                     <div>
-                      <strong>Host tools V1</strong>
+                      <strong>Host Review</strong>
                       <p>
-                        Server-side scaffold only. Future real auth and
-                        moderation queues should connect here.
+                        Review reported, hidden, and removed Front Counter
+                        messages.
                       </p>
                     </div>
                     <input
@@ -808,7 +808,7 @@ export default function ChoNeoGossipPage() {
                   <p className="moderation-notice">{moderationNotice}</p>
                 ) : null}
 
-                {isFrontCounter && hostToolsOpen && hostReviewUnlocked ? (
+                {isFrontCounter && hostToolsOpen ? (
                   <div className="host-review-panel">
                     <div className="host-review-heading">
                       <strong>Host Review</strong>
@@ -817,10 +817,12 @@ export default function ChoNeoGossipPage() {
                         onClick={() => void loadHostReviewMessages()}
                         type="button"
                       >
-                        Refresh
+                        {hostReviewUnlocked ? "Refresh" : "Open review"}
                       </button>
                     </div>
-                    {hostReviewMessages.length ? (
+                    {!hostReviewUnlocked ? (
+                      <p>Enter the host key to open Host Review.</p>
+                    ) : hostReviewMessages.length ? (
                       <div className="host-review-list">
                         {hostReviewMessages.map((message) => {
                           const labels = getHostReviewLabels(message);
@@ -1180,8 +1182,8 @@ export default function ChoNeoGossipPage() {
               ))}
             </ul>
             <div className="host-note">
-              <strong>Village host tools coming later</strong>
-              <p>No buttons yet. Future tools include:</p>
+              <strong>Village host tools</strong>
+              <p>Report is available to everyone. Hide and Remove are host-only.</p>
               <div>
                 {hostTools.map((tool) => (
                   <span key={tool}>{tool}</span>
