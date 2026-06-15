@@ -222,8 +222,38 @@ export async function removeSharedFrontCounterMessage(input: {
   });
 }
 
+export async function unhideSharedFrontCounterMessage(input: {
+  hostKey: string;
+  messageId: string;
+}) {
+  if (!isSharedFrontCounterMessageId(input.messageId)) {
+    throw new Error("Shared Front Counter unhide requires a database message id.");
+  }
+
+  return updateSharedFrontCounterMessage({
+    action: "unhide",
+    hostKey: input.hostKey,
+    messageId: input.messageId,
+  });
+}
+
+export async function markSharedFrontCounterMessageReviewed(input: {
+  hostKey: string;
+  messageId: string;
+}) {
+  if (!isSharedFrontCounterMessageId(input.messageId)) {
+    throw new Error("Shared Front Counter review requires a database message id.");
+  }
+
+  return updateSharedFrontCounterMessage({
+    action: "markReviewed",
+    hostKey: input.hostKey,
+    messageId: input.messageId,
+  });
+}
+
 async function updateSharedFrontCounterMessage(input: {
-  action: "hide" | "remove" | "report";
+  action: "hide" | "markReviewed" | "remove" | "report" | "unhide";
   hostKey?: string;
   messageId: string;
 }) {
@@ -258,7 +288,15 @@ export function isSharedFrontCounterMessageId(messageId: string) {
 
 async function createSharedFrontCounterError(
   response: Response,
-  operation: "fetch" | "hide" | "host-review" | "post" | "remove" | "report"
+  operation:
+    | "fetch"
+    | "hide"
+    | "host-review"
+    | "markReviewed"
+    | "post"
+    | "remove"
+    | "report"
+    | "unhide"
 ) {
   const payload = await response.json().catch(() => null);
   const reason =

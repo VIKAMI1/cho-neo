@@ -268,9 +268,14 @@ export async function PATCH(request: Request) {
     return reportMessage(messageId);
   }
 
-  if (action === "hide" || action === "remove") {
+  if (
+    action === "hide" ||
+    action === "markReviewed" ||
+    action === "remove" ||
+    action === "unhide"
+  ) {
     return updateMessageAsHost({
-      action,
+      action: action as HostModerationAction,
       hostKey: request.headers.get("X-Cho-Neo-Host-Key") ?? "",
       messageId,
     });
@@ -335,7 +340,9 @@ async function reportMessage(messageId: string) {
     });
   }
 
-  const lookupResult = await lookupMessageForPatch(supabase, messageId);
+  const lookupResult = await lookupMessageForPatch(supabase, messageId, {
+    requireVisible: true,
+  });
 
   if (lookupResult.response) {
     return lookupResult.response;
@@ -371,7 +378,8 @@ async function reportMessage(messageId: string) {
 
 async function lookupMessageForPatch(
   supabase: { from: (table: string) => any },
-  messageId: string
+  messageId: string,
+  options: { requireVisible?: boolean } = {}
 ): Promise<
   | { message: GossipMessageLookupRow; response?: never }
   | { message?: never; response: NextResponse }
@@ -406,13 +414,17 @@ async function lookupMessageForPatch(
     return { response: messageNotFoundResponse() };
   }
 
-  const idAndRoomResult = await supabase
+  let idAndRoomQuery = supabase
     .from(TABLE_NAME)
     .select("id, room_id, hidden_at, report_count")
     .eq("id", messageId)
-    .eq("room_id", FRONT_COUNTER_ROOM_ID)
-    .is("hidden_at", null)
-    .maybeSingle();
+    .eq("room_id", FRONT_COUNTER_ROOM_ID);
+
+  if (options.requireVisible) {
+    idAndRoomQuery = idAndRoomQuery.is("hidden_at", null);
+  }
+
+  const idAndRoomResult = await idAndRoomQuery.maybeSingle();
   const idAndRoomMessage =
     idAndRoomResult.data as GossipMessageLookupRow | null;
 
@@ -455,7 +467,7 @@ async function lookupMessageForPatch(
 }
 
 async function updateMessageAsHost(input: {
-  action: "hide" | "remove";
+  action: HostModerationAction;
   hostKey: string;
   messageId: string;
 }) {
@@ -482,10 +494,7 @@ async function updateMessageAsHost(input: {
   }
 
   const now = new Date().toISOString();
-  const update =
-    input.action === "hide"
-      ? { hidden_at: now }
-      : { removed_at: now, text: "This message was removed by the village host." };
+  const update = getHostModerationUpdate(input.action, now);
 
   const { data, error } = await supabase
     .from(TABLE_NAME)
@@ -503,6 +512,24 @@ async function updateMessageAsHost(input: {
   }
 
   return updatedMessageResponse(data as GossipMessageRow[] | null);
+}
+
+type HostModerationAction = "hide" | "markReviewed" | "remove" | "unhide";
+
+function getHostModerationUpdate(action: HostModerationAction, now: string) {
+  switch (action) {
+    case "hide":
+      return { hidden_at: now };
+    case "markReviewed":
+      return { report_count: 0, reported_at: null };
+    case "remove":
+      return {
+        removed_at: now,
+        text: "This message was removed by the village host.",
+      };
+    case "unhide":
+      return { hidden_at: null };
+  }
 }
 
 function updatedMessageResponse(rows: GossipMessageRow[] | null) {

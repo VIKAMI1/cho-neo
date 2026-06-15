@@ -29,12 +29,14 @@ import {
   fetchSharedFrontCounterMessages,
   hideSharedFrontCounterMessage,
   isSharedFrontCounterMessageId,
+  markSharedFrontCounterMessageReviewed,
   postSharedFrontCounterMessage,
   readFrontCounterState,
   removeSharedFrontCounterMessage,
   reportSharedFrontCounterMessage,
   saveFrontCounterSeat,
   saveFrontCounterState,
+  unhideSharedFrontCounterMessage,
 } from "@/lib/cho-neo/gossip-front-counter";
 
 type ConversationMessage = {
@@ -43,7 +45,11 @@ type ConversationMessage = {
 };
 
 type FrontCounterMemoryMode = "local" | "shared";
-type FrontCounterModerationAction = "hide" | "remove";
+type FrontCounterModerationAction =
+  | "hide"
+  | "markReviewed"
+  | "remove"
+  | "unhide";
 
 const FRONT_COUNTER_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
@@ -452,16 +458,11 @@ export default function ChoNeoGossipPage() {
 
     try {
       if (frontCounterMemoryMode === "shared") {
-        const updatedMessage =
-          action === "hide"
-            ? await hideSharedFrontCounterMessage({
-                hostKey: hostKey.trim(),
-                messageId: message.id,
-              })
-            : await removeSharedFrontCounterMessage({
-                hostKey: hostKey.trim(),
-                messageId: message.id,
-              });
+        const updatedMessage = await updateSharedFrontCounterMessageAsHost({
+          action,
+          hostKey: hostKey.trim(),
+          messageId: message.id,
+        });
 
         if (action === "hide") {
           removeFrontCounterMessage(message.id);
@@ -470,6 +471,17 @@ export default function ChoNeoGossipPage() {
         }
       } else if (action === "hide") {
         removeFrontCounterMessage(message.id);
+      } else if (action === "markReviewed") {
+        updateFrontCounterMessage({
+          ...message,
+          reportCount: 0,
+          reportedAt: null,
+        });
+      } else if (action === "unhide") {
+        updateFrontCounterMessage({
+          ...message,
+          hiddenAt: null,
+        });
       } else {
         updateFrontCounterMessage({
           ...message,
@@ -479,10 +491,11 @@ export default function ChoNeoGossipPage() {
       }
 
       setModerationNotice(
-        action === "hide"
-          ? "Message hidden from the Front Counter."
-          : "Message replaced with a host removal notice."
+        getHostModerationNotice(action)
       );
+      if (frontCounterMemoryMode === "shared") {
+        await syncSharedFrontCounterMessages();
+      }
       if (hostReviewUnlocked) {
         await loadHostReviewMessages();
       }
@@ -530,6 +543,18 @@ export default function ChoNeoGossipPage() {
   async function refreshSharedFrontCounterMessages(notice: string) {
     setModerationNotice(notice);
 
+    try {
+      const sharedMessages = await fetchSharedFrontCounterMessages();
+      setFrontCounterMessages(sharedMessages);
+      setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(sharedMessages));
+      setFrontCounterMemoryMode("shared");
+      setFrontCounterMemoryNotice(null);
+    } catch {
+      setModerationNotice("Could not refresh shared messages right now.");
+    }
+  }
+
+  async function syncSharedFrontCounterMessages() {
     try {
       const sharedMessages = await fetchSharedFrontCounterMessages();
       setFrontCounterMessages(sharedMessages);
@@ -840,6 +865,7 @@ export default function ChoNeoGossipPage() {
                           const labels = getHostReviewLabels(message);
                           const isRemoved = !!message.removedAt;
                           const isHidden = !!message.hiddenAt;
+                          const hasReports = (message.reportCount ?? 0) > 0;
                           const isBusy = moderationBusyMessageId === message.id;
 
                           return (
@@ -852,36 +878,71 @@ export default function ChoNeoGossipPage() {
                                 {labels.map((label) => (
                                   <span key={label}>{label}</span>
                                 ))}
-                                {(message.reportCount ?? 0) > 0 ? (
+                                {hasReports ? (
                                   <span>
                                     {message.reportCount} report
                                     {message.reportCount === 1 ? "" : "s"}
                                   </span>
                                 ) : null}
                               </div>
-                              {!isRemoved ? (
+                              {!isRemoved || hasReports ? (
                                 <div className="moderation-row">
-                                  <button
-                                    disabled={isBusy || isHidden}
-                                    onClick={() =>
-                                      moderateFrontCounterMessage("hide", message)
-                                    }
-                                    type="button"
-                                  >
-                                    Hide
-                                  </button>
-                                  <button
-                                    disabled={isBusy}
-                                    onClick={() =>
-                                      moderateFrontCounterMessage(
-                                        "remove",
-                                        message
-                                      )
-                                    }
-                                    type="button"
-                                  >
-                                    Remove
-                                  </button>
+                                  {!isRemoved && isHidden ? (
+                                    <button
+                                      disabled={isBusy}
+                                      onClick={() =>
+                                        moderateFrontCounterMessage(
+                                          "unhide",
+                                          message
+                                        )
+                                      }
+                                      type="button"
+                                    >
+                                      Unhide
+                                    </button>
+                                  ) : null}
+                                  {!isRemoved && !isHidden ? (
+                                    <button
+                                      disabled={isBusy}
+                                      onClick={() =>
+                                        moderateFrontCounterMessage(
+                                          "hide",
+                                          message
+                                        )
+                                      }
+                                      type="button"
+                                    >
+                                      Hide
+                                    </button>
+                                  ) : null}
+                                  {hasReports ? (
+                                    <button
+                                      disabled={isBusy}
+                                      onClick={() =>
+                                        moderateFrontCounterMessage(
+                                          "markReviewed",
+                                          message
+                                        )
+                                      }
+                                      type="button"
+                                    >
+                                      Mark reviewed
+                                    </button>
+                                  ) : null}
+                                  {!isRemoved ? (
+                                    <button
+                                      disabled={isBusy}
+                                      onClick={() =>
+                                        moderateFrontCounterMessage(
+                                          "remove",
+                                          message
+                                        )
+                                      }
+                                      type="button"
+                                    >
+                                      Remove
+                                    </button>
+                                  ) : null}
                                 </div>
                               ) : null}
                             </div>
@@ -2792,6 +2853,36 @@ function getHostReviewLabels(message: FrontCounterMessage) {
   }
 
   return labels;
+}
+
+async function updateSharedFrontCounterMessageAsHost(input: {
+  action: FrontCounterModerationAction;
+  hostKey: string;
+  messageId: string;
+}) {
+  switch (input.action) {
+    case "hide":
+      return hideSharedFrontCounterMessage(input);
+    case "markReviewed":
+      return markSharedFrontCounterMessageReviewed(input);
+    case "remove":
+      return removeSharedFrontCounterMessage(input);
+    case "unhide":
+      return unhideSharedFrontCounterMessage(input);
+  }
+}
+
+function getHostModerationNotice(action: FrontCounterModerationAction) {
+  switch (action) {
+    case "hide":
+      return "Message hidden from the Front Counter.";
+    case "markReviewed":
+      return "Message marked reviewed.";
+    case "remove":
+      return "Message replaced with a host removal notice.";
+    case "unhide":
+      return "Message returned to the Front Counter.";
+  }
 }
 
 function readReportedFrontCounterMessageIds() {
