@@ -563,6 +563,13 @@ export default function ChoNeoGossipPage() {
     }
   }
 
+  function closeHostReview() {
+    setHostKey("");
+    setHostReviewMessages([]);
+    setHostReviewNotice(null);
+    setHostReviewUnlocked(false);
+  }
+
   function saveIdentity() {
     const validation = isValidVillageNickname(identityNicknameDraft);
 
@@ -819,6 +826,11 @@ export default function ChoNeoGossipPage() {
                       >
                         {hostReviewUnlocked ? "Refresh" : "Open review"}
                       </button>
+                      {hostReviewUnlocked ? (
+                        <button type="button" onClick={closeHostReview}>
+                          Close Host Review
+                        </button>
+                      ) : null}
                     </div>
                     {!hostReviewUnlocked ? (
                       <p>Enter the host key to open Host Review.</p>
@@ -955,7 +967,7 @@ export default function ChoNeoGossipPage() {
                                 {frontCounterMessage.reportCount === 1 ? "" : "s"}
                               </span>
                             ) : null}
-                            {hostToolsOpen ? (
+                            {hostReviewUnlocked ? (
                               <>
                                 <button
                                   disabled={isBusy || !canModeratePersistedMessage}
