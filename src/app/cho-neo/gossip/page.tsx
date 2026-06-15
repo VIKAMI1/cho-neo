@@ -993,19 +993,46 @@ export default function ChoNeoGossipPage() {
                 ) : null}
 
                 {isFrontCounter ? (
-                  <div className="front-counter-atmosphere">
-                    <strong>What people trade at this counter</strong>
-                    <div>
-                      {FRONT_COUNTER_TALK_EXAMPLES.map((example) => (
-                        <span key={example}>{example}</span>
-                      ))}
+                  <>
+                    <div className="daily-table-talk">
+                      <p>
+                        Chuyện Bàn Hôm Nay
+                        <span>Today&apos;s Table Talk</span>
+                      </p>
+                      <strong>
+                        Khách hay làm chuyện nhỏ gì mà khiến cả tiệm bị chậm
+                        lại?
+                        <span>
+                          What small client habit secretly slows the whole shop
+                          down?
+                        </span>
+                      </strong>
+                      <span>
+                        Kể chuyện trong tiệm cho vui và có ích. Viết tiếng
+                        Việt hay Vietlish đều được. Đừng nêu tên khách, đừng
+                        công kích cá nhân, đừng spam bán hàng.
+                        <small>
+                          Share a real shop moment. Vietnamese or Vietlish is
+                          welcome. No client names, no personal attacks, no
+                          selling spam.
+                        </small>
+                      </span>
                     </div>
-                    <p>
-                      Some remembered notes may be from earlier seatings. Leave
-                      a fresh one when the shop day gives you something useful
-                      for the village.
-                    </p>
-                  </div>
+
+                    <div className="front-counter-atmosphere">
+                      <strong>What people trade at this counter</strong>
+                      <div>
+                        {FRONT_COUNTER_TALK_EXAMPLES.map((example) => (
+                          <span key={example}>{example}</span>
+                        ))}
+                      </div>
+                      <p>
+                        Some remembered notes may be from earlier seatings.
+                        Leave a fresh one when the shop day gives you something
+                        useful for the village.
+                      </p>
+                    </div>
+                  </>
                 ) : null}
 
                 <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
@@ -1936,6 +1963,66 @@ export default function ChoNeoGossipPage() {
           display: grid;
           gap: 12px;
           margin-top: 20px;
+        }
+
+        .daily-table-talk {
+          display: grid;
+          gap: 8px;
+          margin-top: 18px;
+          padding: 14px;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(253, 230, 138, 0.12), rgba(255, 247, 237, 0.055)),
+            rgba(8, 13, 28, 0.34);
+        }
+
+        .daily-table-talk p {
+          margin: 0;
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
+        .daily-table-talk p span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 10px;
+          letter-spacing: 0.12em;
+        }
+
+        .daily-table-talk strong {
+          max-width: 760px;
+          color: #fff7ed;
+          font-size: 17px;
+          line-height: 1.28;
+        }
+
+        .daily-table-talk strong span {
+          display: block;
+          margin-top: 5px;
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 13px;
+          font-weight: 850;
+          line-height: 1.35;
+        }
+
+        .daily-table-talk > span {
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 13px;
+          font-weight: 850;
+          line-height: 1.4;
+        }
+
+        .daily-table-talk > span small {
+          display: block;
+          margin-top: 5px;
+          color: rgba(255, 247, 237, 0.56);
+          font-size: 12px;
+          line-height: 1.4;
         }
 
         .front-counter-atmosphere {
