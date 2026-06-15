@@ -136,6 +136,25 @@ export async function fetchSharedFrontCounterMessages() {
     : [];
 }
 
+export async function fetchHostReviewFrontCounterMessages(hostKey: string) {
+  const response = await fetch(`${FRONT_COUNTER_MESSAGES_API}?hostReview=1`, {
+    cache: "no-store",
+    headers: {
+      "X-Cho-Neo-Host-Key": hostKey,
+    },
+  });
+
+  if (!response.ok) {
+    throw await createSharedFrontCounterError(response, "host-review");
+  }
+
+  const payload = (await response.json()) as { messages?: unknown };
+
+  return Array.isArray(payload.messages)
+    ? payload.messages.filter(isFrontCounterMessage).slice(-FRONT_COUNTER_MESSAGE_CAP)
+    : [];
+}
+
 export async function postSharedFrontCounterMessage(input: {
   avatarId: string;
   nickname: string;
@@ -239,7 +258,7 @@ export function isSharedFrontCounterMessageId(messageId: string) {
 
 async function createSharedFrontCounterError(
   response: Response,
-  operation: "fetch" | "hide" | "post" | "remove" | "report"
+  operation: "fetch" | "hide" | "host-review" | "post" | "remove" | "report"
 ) {
   const payload = await response.json().catch(() => null);
   const reason =

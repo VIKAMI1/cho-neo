@@ -42,7 +42,13 @@ type GossipMessageLookupRow = {
   room_id: string;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+
+  if (url.searchParams.get("hostReview") === "1") {
+    return getHostReviewMessages(request.headers.get("X-Cho-Neo-Host-Key") ?? "");
+  }
+
   const supabase = createChoNeoSupabaseClient();
 
   if (!supabase) {
@@ -90,6 +96,53 @@ export async function GET() {
 
   return NextResponse.json(
     { messages, mode: "shared" },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
+async function getHostReviewMessages(hostKey: string) {
+  if (!isValidHostKey(hostKey)) {
+    return NextResponse.json({ error: "Host tools are locked." }, { status: 403 });
+  }
+
+  const supabase = createChoNeoSupabaseServiceClient();
+
+  if (!supabase) {
+    return sharedMemoryUnavailable({
+      detail: "Missing Supabase service role key for Cho Neo host review.",
+      operation: "GET",
+      reason: "missing-service-role",
+    });
+  }
+
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select(MESSAGE_SELECT)
+    .eq("room_id", FRONT_COUNTER_ROOM_ID)
+    .order("created_at", { ascending: false })
+    .limit(FRONT_COUNTER_MESSAGE_CAP);
+
+  if (error) {
+    return sharedMemoryUnavailable({
+      detail: error.message,
+      operation: "GET",
+      reason: error.code ?? "supabase-host-review-select-error",
+    });
+  }
+
+  const messages = ((data ?? []) as GossipMessageRow[])
+    .filter((row) => {
+      return (
+        (row.report_count ?? 0) > 0 ||
+        !!row.hidden_at ||
+        !!row.removed_at
+      );
+    })
+    .reverse()
+    .map(rowToMessage);
+
+  return NextResponse.json(
+    { messages, mode: "host-review" },
     { headers: { "Cache-Control": "no-store" } }
   );
 }
@@ -408,7 +461,7 @@ async function updateMessageAsHost(input: {
 }) {
   // V1 scaffold: replace this shared secret with real host auth/session checks
   // before opening broader moderation access.
-  if (!process.env.CHO_NEO_HOST_TOOLS_KEY || input.hostKey !== process.env.CHO_NEO_HOST_TOOLS_KEY) {
+  if (!isValidHostKey(input.hostKey)) {
     return NextResponse.json({ error: "Host tools are locked." }, { status: 403 });
   }
 
@@ -489,6 +542,10 @@ function messageNotFoundResponse() {
     },
     { status: 404 }
   );
+}
+
+function isValidHostKey(hostKey: string) {
+  return !!process.env.CHO_NEO_HOST_TOOLS_KEY && hostKey === process.env.CHO_NEO_HOST_TOOLS_KEY;
 }
 
 function rowToMessage(row: GossipMessageRow): FrontCounterMessage {

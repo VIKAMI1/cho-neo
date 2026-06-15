@@ -25,6 +25,7 @@ import {
   type FrontCounterSeat,
   createFrontCounterMessage,
   createFrontCounterSeat,
+  fetchHostReviewFrontCounterMessages,
   fetchSharedFrontCounterMessages,
   hideSharedFrontCounterMessage,
   isSharedFrontCounterMessageId,
@@ -200,6 +201,12 @@ export default function ChoNeoGossipPage() {
   >(null);
   const [hostToolsOpen, setHostToolsOpen] = useState(false);
   const [hostKey, setHostKey] = useState("");
+  const [hostReviewMessages, setHostReviewMessages] = useState<
+    FrontCounterMessage[]
+  >([]);
+  const [hostReviewLoading, setHostReviewLoading] = useState(false);
+  const [hostReviewNotice, setHostReviewNotice] = useState<string | null>(null);
+  const [hostReviewUnlocked, setHostReviewUnlocked] = useState(false);
   const [sharedFetchedMessageIds, setSharedFetchedMessageIds] = useState<string[]>(
     []
   );
@@ -370,7 +377,10 @@ export default function ChoNeoGossipPage() {
       });
     }
 
-    if (!sharedFetchedMessageIds.includes(message.id)) {
+    if (
+      frontCounterMemoryMode === "shared" &&
+      !sharedFetchedMessageIds.includes(message.id)
+    ) {
       await refreshSharedFrontCounterMessages(
         "Refreshing shared messages before reporting."
       );
@@ -423,11 +433,18 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
-    if (!sharedFetchedMessageIds.includes(message.id)) {
-      await refreshSharedFrontCounterMessages(
-        "Refreshing shared messages before using host tools."
-      );
-      return;
+    if (
+      frontCounterMemoryMode === "shared" &&
+      !sharedFetchedMessageIds.includes(message.id)
+    ) {
+      const hostReviewMessageIds = getSharedFrontCounterMessageIds(hostReviewMessages);
+
+      if (!hostReviewMessageIds.includes(message.id)) {
+        await refreshSharedFrontCounterMessages(
+          "Refreshing shared messages before using host tools."
+        );
+        return;
+      }
     }
 
     setModerationBusyMessageId(message.id);
@@ -466,6 +483,9 @@ export default function ChoNeoGossipPage() {
           ? "Message hidden from the Front Counter."
           : "Message replaced with a host removal notice."
       );
+      if (hostReviewUnlocked) {
+        await loadHostReviewMessages();
+      }
     } catch {
       setModerationNotice("Host action failed. Check the host key and Supabase setup.");
     } finally {
@@ -518,6 +538,28 @@ export default function ChoNeoGossipPage() {
       setFrontCounterMemoryNotice(null);
     } catch {
       setModerationNotice("Could not refresh shared messages right now.");
+    }
+  }
+
+  async function loadHostReviewMessages() {
+    if (!hostKey.trim()) {
+      setHostReviewNotice("Enter the host key to open Host Review.");
+      return;
+    }
+
+    setHostReviewLoading(true);
+    setHostReviewNotice(null);
+
+    try {
+      const messages = await fetchHostReviewFrontCounterMessages(hostKey.trim());
+      setHostReviewMessages(messages);
+      setHostReviewUnlocked(true);
+    } catch {
+      setHostReviewMessages([]);
+      setHostReviewUnlocked(false);
+      setHostReviewNotice("Host Review is locked. Check the host key.");
+    } finally {
+      setHostReviewLoading(false);
     }
   }
 
@@ -742,16 +784,104 @@ export default function ChoNeoGossipPage() {
                     </div>
                     <input
                       aria-label="Cho Neo host key"
-                      onChange={(event) => setHostKey(event.target.value)}
+                      onChange={(event) => {
+                        setHostKey(event.target.value);
+                        setHostReviewMessages([]);
+                        setHostReviewNotice(null);
+                        setHostReviewUnlocked(false);
+                      }}
                       placeholder="Host key"
                       type="password"
                       value={hostKey}
                     />
+                    <button
+                      disabled={hostReviewLoading}
+                      onClick={() => void loadHostReviewMessages()}
+                      type="button"
+                    >
+                      {hostReviewLoading ? "Opening..." : "Open review"}
+                    </button>
                   </div>
                 ) : null}
 
                 {isFrontCounter && moderationNotice ? (
                   <p className="moderation-notice">{moderationNotice}</p>
+                ) : null}
+
+                {isFrontCounter && hostToolsOpen && hostReviewUnlocked ? (
+                  <div className="host-review-panel">
+                    <div className="host-review-heading">
+                      <strong>Host Review</strong>
+                      <button
+                        disabled={hostReviewLoading}
+                        onClick={() => void loadHostReviewMessages()}
+                        type="button"
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                    {hostReviewMessages.length ? (
+                      <div className="host-review-list">
+                        {hostReviewMessages.map((message) => {
+                          const labels = getHostReviewLabels(message);
+                          const isRemoved = !!message.removedAt;
+                          const isHidden = !!message.hiddenAt;
+                          const isBusy = moderationBusyMessageId === message.id;
+
+                          return (
+                            <div className="host-review-card" key={message.id}>
+                              <div>
+                                <small>{message.nickname}</small>
+                                <p>{message.text}</p>
+                              </div>
+                              <div className="host-review-labels">
+                                {labels.map((label) => (
+                                  <span key={label}>{label}</span>
+                                ))}
+                                {(message.reportCount ?? 0) > 0 ? (
+                                  <span>
+                                    {message.reportCount} report
+                                    {message.reportCount === 1 ? "" : "s"}
+                                  </span>
+                                ) : null}
+                              </div>
+                              {!isRemoved ? (
+                                <div className="moderation-row">
+                                  <button
+                                    disabled={isBusy || isHidden}
+                                    onClick={() =>
+                                      moderateFrontCounterMessage("hide", message)
+                                    }
+                                    type="button"
+                                  >
+                                    Hide
+                                  </button>
+                                  <button
+                                    disabled={isBusy}
+                                    onClick={() =>
+                                      moderateFrontCounterMessage(
+                                        "remove",
+                                        message
+                                      )
+                                    }
+                                    type="button"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p>No village host issues right now.</p>
+                    )}
+                  </div>
+                ) : null}
+
+                {isFrontCounter && hostToolsOpen && hostReviewNotice ? (
+                  <p className="moderation-notice">{hostReviewNotice}</p>
                 ) : null}
 
                 <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
@@ -771,8 +901,9 @@ export default function ChoNeoGossipPage() {
                       !!frontCounterMessage &&
                       isSharedFrontCounterMessageId(frontCounterMessage.id);
                     const canModeratePersistedMessage =
-                      hasSharedDatabaseId &&
-                      sharedFetchedMessageIds.includes(frontCounterMessage.id);
+                      frontCounterMemoryMode !== "shared" ||
+                      (hasSharedDatabaseId &&
+                        sharedFetchedMessageIds.includes(frontCounterMessage.id));
                     const displayName = frontCounterMessage
                       ? isRemoved
                         ? "Village host"
@@ -1670,7 +1801,7 @@ export default function ChoNeoGossipPage() {
 
         .host-tools-panel {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+          grid-template-columns: minmax(0, 1fr) minmax(180px, 240px) auto;
           gap: 12px;
           align-items: center;
           padding: 12px;
@@ -1704,6 +1835,25 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.42);
         }
 
+        .host-tools-panel button,
+        .host-review-heading button {
+          min-height: 36px;
+          border: 0;
+          border-radius: 999px;
+          padding: 0 12px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .host-tools-panel button:disabled,
+        .host-review-heading button:disabled {
+          cursor: not-allowed;
+          color: rgba(255, 247, 237, 0.54);
+          background: rgba(255, 255, 255, 0.14);
+        }
+
         .moderation-notice {
           margin-bottom: -6px;
           padding: 10px 12px;
@@ -1711,6 +1861,81 @@ export default function ChoNeoGossipPage() {
           font-size: 12px;
           font-weight: 850;
           line-height: 1.4;
+        }
+
+        .host-review-panel {
+          display: grid;
+          gap: 10px;
+          margin-top: 14px;
+          padding: 12px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 18px;
+          background: rgba(8, 13, 28, 0.34);
+        }
+
+        .host-review-heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .host-review-heading strong {
+          color: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .host-review-panel > p {
+          margin: 0;
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        .host-review-list {
+          display: grid;
+          gap: 9px;
+        }
+
+        .host-review-card {
+          display: grid;
+          gap: 9px;
+          padding: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 15px;
+          background: rgba(255, 247, 237, 0.08);
+        }
+
+        .host-review-card small {
+          display: block;
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.06em;
+        }
+
+        .host-review-card p {
+          margin: 5px 0 0;
+          color: rgba(255, 247, 237, 0.78);
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        .host-review-labels {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .host-review-labels span {
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 999px;
+          padding: 4px 8px;
+          color: rgba(255, 247, 237, 0.76);
+          background: rgba(8, 13, 28, 0.28);
+          font-size: 11px;
+          font-weight: 900;
         }
 
         .thread-message {
@@ -2535,6 +2760,24 @@ function getSharedFrontCounterMessageIds(messages: FrontCounterMessage[]) {
   return messages
     .filter((message) => isSharedFrontCounterMessageId(message.id))
     .map((message) => message.id);
+}
+
+function getHostReviewLabels(message: FrontCounterMessage) {
+  const labels: string[] = [];
+
+  if ((message.reportCount ?? 0) > 0) {
+    labels.push("Reported");
+  }
+
+  if (message.hiddenAt) {
+    labels.push("Hidden");
+  }
+
+  if (message.removedAt) {
+    labels.push("Removed");
+  }
+
+  return labels;
 }
 
 function readReportedFrontCounterMessageIds() {
