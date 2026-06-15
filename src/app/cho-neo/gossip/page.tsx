@@ -601,7 +601,7 @@ export default function ChoNeoGossipPage() {
 
   async function loadHostReviewMessages() {
     if (!hostKey.trim()) {
-      setHostReviewNotice("Enter the host key to open Host Review.");
+      setHostReviewNotice("Enter the host key.");
       return;
     }
 
@@ -859,30 +859,17 @@ export default function ChoNeoGossipPage() {
                       type="password"
                       value={hostKey}
                     />
-                    <button
-                      disabled={hostReviewLoading}
-                      onClick={() => void loadHostReviewMessages()}
-                      type="button"
-                    >
-                      {hostReviewLoading ? "Opening..." : "Open review"}
-                    </button>
-                  </div>
-                ) : null}
-
-                {isFrontCounter && moderationNotice ? (
-                  <p className="moderation-notice">{moderationNotice}</p>
-                ) : null}
-
-                {isFrontCounter && hostToolsOpen ? (
-                  <div className="host-review-panel">
-                    <div className="host-review-heading">
-                      <strong>Host Review</strong>
+                    <div className="host-tools-actions">
                       <button
                         disabled={hostReviewLoading}
                         onClick={() => void loadHostReviewMessages()}
                         type="button"
                       >
-                        {hostReviewUnlocked ? "Refresh" : "Open review"}
+                        {hostReviewLoading
+                          ? "Opening..."
+                          : hostReviewUnlocked
+                            ? "Refresh"
+                            : "Open review"}
                       </button>
                       {hostReviewUnlocked ? (
                         <button type="button" onClick={closeHostReview}>
@@ -890,102 +877,112 @@ export default function ChoNeoGossipPage() {
                         </button>
                       ) : null}
                     </div>
-                    {!hostReviewUnlocked ? (
-                      <p>Enter the host key to open Host Review.</p>
-                    ) : hostReviewMessages.length ? (
-                      <div className="host-review-list">
-                        {hostReviewMessages.map((message) => {
-                          const labels = getHostReviewLabels(message);
-                          const isRemoved = !!message.removedAt;
-                          const isHidden = !!message.hiddenAt;
-                          const hasReports = (message.reportCount ?? 0) > 0;
-                          const isBusy = moderationBusyMessageId === message.id;
+                    {hostReviewUnlocked ? (
+                      <div className="host-review-content">
+                        {hostReviewMessages.length ? (
+                          <div className="host-review-list">
+                            {hostReviewMessages.map((message) => {
+                              const labels = getHostReviewLabels(message);
+                              const isRemoved = !!message.removedAt;
+                              const isHidden = !!message.hiddenAt;
+                              const hasReports = (message.reportCount ?? 0) > 0;
+                              const isBusy =
+                                moderationBusyMessageId === message.id;
 
-                          return (
-                            <div className="host-review-card" key={message.id}>
-                              <div>
-                                <small>{message.nickname}</small>
-                                <p>{message.text}</p>
-                              </div>
-                              <div className="host-review-labels">
-                                {labels.map((label) => (
-                                  <span key={label}>{label}</span>
-                                ))}
-                                {hasReports ? (
-                                  <span>
-                                    {message.reportCount} report
-                                    {message.reportCount === 1 ? "" : "s"}
-                                  </span>
-                                ) : null}
-                              </div>
-                              {!isRemoved || hasReports ? (
-                                <div className="moderation-row">
-                                  {!isRemoved && isHidden ? (
-                                    <button
-                                      disabled={isBusy}
-                                      onClick={() =>
-                                        moderateFrontCounterMessage(
-                                          "unhide",
-                                          message
-                                        )
-                                      }
-                                      type="button"
-                                    >
-                                      Unhide
-                                    </button>
-                                  ) : null}
-                                  {!isRemoved && !isHidden ? (
-                                    <button
-                                      disabled={isBusy}
-                                      onClick={() =>
-                                        moderateFrontCounterMessage(
-                                          "hide",
-                                          message
-                                        )
-                                      }
-                                      type="button"
-                                    >
-                                      Hide
-                                    </button>
-                                  ) : null}
-                                  {hasReports ? (
-                                    <button
-                                      disabled={isBusy}
-                                      onClick={() =>
-                                        moderateFrontCounterMessage(
-                                          "markReviewed",
-                                          message
-                                        )
-                                      }
-                                      type="button"
-                                    >
-                                      Mark reviewed
-                                    </button>
-                                  ) : null}
-                                  {!isRemoved ? (
-                                    <button
-                                      disabled={isBusy}
-                                      onClick={() =>
-                                        moderateFrontCounterMessage(
-                                          "remove",
-                                          message
-                                        )
-                                      }
-                                      type="button"
-                                    >
-                                      Remove
-                                    </button>
+                              return (
+                                <div
+                                  className="host-review-card"
+                                  key={message.id}
+                                >
+                                  <div>
+                                    <small>{message.nickname}</small>
+                                    <p>{message.text}</p>
+                                  </div>
+                                  <div className="host-review-labels">
+                                    {labels.map((label) => (
+                                      <span key={label}>{label}</span>
+                                    ))}
+                                    {hasReports ? (
+                                      <span>
+                                        {message.reportCount} report
+                                        {message.reportCount === 1 ? "" : "s"}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  {!isRemoved || hasReports ? (
+                                    <div className="moderation-row">
+                                      {!isRemoved && isHidden ? (
+                                        <button
+                                          disabled={isBusy}
+                                          onClick={() =>
+                                            moderateFrontCounterMessage(
+                                              "unhide",
+                                              message
+                                            )
+                                          }
+                                          type="button"
+                                        >
+                                          Unhide
+                                        </button>
+                                      ) : null}
+                                      {!isRemoved && !isHidden ? (
+                                        <button
+                                          disabled={isBusy}
+                                          onClick={() =>
+                                            moderateFrontCounterMessage(
+                                              "hide",
+                                              message
+                                            )
+                                          }
+                                          type="button"
+                                        >
+                                          Hide
+                                        </button>
+                                      ) : null}
+                                      {hasReports ? (
+                                        <button
+                                          disabled={isBusy}
+                                          onClick={() =>
+                                            moderateFrontCounterMessage(
+                                              "markReviewed",
+                                              message
+                                            )
+                                          }
+                                          type="button"
+                                        >
+                                          Mark reviewed
+                                        </button>
+                                      ) : null}
+                                      {!isRemoved ? (
+                                        <button
+                                          disabled={isBusy}
+                                          onClick={() =>
+                                            moderateFrontCounterMessage(
+                                              "remove",
+                                              message
+                                            )
+                                          }
+                                          type="button"
+                                        >
+                                          Remove
+                                        </button>
+                                      ) : null}
+                                    </div>
                                   ) : null}
                                 </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p>No village host issues right now.</p>
+                        )}
                       </div>
-                    ) : (
-                      <p>No village host issues right now.</p>
-                    )}
+                    ) : null}
                   </div>
+                ) : null}
+
+                {isFrontCounter && moderationNotice ? (
+                  <p className="moderation-notice">{moderationNotice}</p>
                 ) : null}
 
                 {isFrontCounter && hostToolsOpen && hostReviewNotice ? (
@@ -2122,8 +2119,7 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.42);
         }
 
-        .host-tools-panel button,
-        .host-review-heading button {
+        .host-tools-panel button {
           min-height: 36px;
           border: 0;
           border-radius: 999px;
@@ -2134,8 +2130,14 @@ export default function ChoNeoGossipPage() {
           font-weight: 950;
         }
 
-        .host-tools-panel button:disabled,
-        .host-review-heading button:disabled {
+        .host-tools-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+
+        .host-tools-panel button:disabled {
           cursor: not-allowed;
           color: rgba(255, 247, 237, 0.54);
           background: rgba(255, 255, 255, 0.14);
@@ -2150,30 +2152,14 @@ export default function ChoNeoGossipPage() {
           line-height: 1.4;
         }
 
-        .host-review-panel {
+        .host-review-content {
           display: grid;
+          grid-column: 1 / -1;
           gap: 10px;
-          margin-top: 14px;
-          padding: 12px;
-          border: 1px solid rgba(253, 230, 138, 0.18);
-          border-radius: 18px;
-          background: rgba(8, 13, 28, 0.34);
+          padding-top: 2px;
         }
 
-        .host-review-heading {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-        }
-
-        .host-review-heading strong {
-          color: #fde68a;
-          font-size: 13px;
-          font-weight: 950;
-        }
-
-        .host-review-panel > p {
+        .host-review-content > p {
           margin: 0;
           color: rgba(255, 247, 237, 0.68);
           font-size: 13px;
