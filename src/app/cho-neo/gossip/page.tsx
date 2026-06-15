@@ -55,6 +55,12 @@ const FRONT_COUNTER_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS = 3;
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
+const FRONT_COUNTER_TALK_EXAMPLES = [
+  "Which top coat is behaving today",
+  "Slow Tuesday walk-in rhythm",
+  "Receipts, prices, and polite client notes",
+  "Weather before booking the afternoon",
+];
 
 const seededFrontCounterMessages: FrontCounterMessage[] = [
   {
@@ -986,111 +992,138 @@ export default function ChoNeoGossipPage() {
                   <p className="moderation-notice">{hostReviewNotice}</p>
                 ) : null}
 
-                <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
-                  {selectedMessages.map((message, index) => {
-                    const frontCounterMessage =
-                      "avatarId" in message ? message : null;
-                    const conversationMessage =
-                      "name" in message ? message : null;
-                    const isRemoved = !!frontCounterMessage?.removedAt;
-                    const reportedByThisBrowser =
-                      !!frontCounterMessage &&
-                      reportedMessageIds.includes(frontCounterMessage.id);
-                    const isBusy =
-                      !!frontCounterMessage &&
-                      moderationBusyMessageId === frontCounterMessage.id;
-                    const hasSharedDatabaseId =
-                      !!frontCounterMessage &&
-                      isSharedFrontCounterMessageId(frontCounterMessage.id);
-                    const canModeratePersistedMessage =
-                      frontCounterMemoryMode !== "shared" ||
-                      (hasSharedDatabaseId &&
-                        sharedFetchedMessageIds.includes(frontCounterMessage.id));
-                    const displayName = frontCounterMessage
-                      ? isRemoved
-                        ? "Village host"
-                        : frontCounterMessage.nickname
-                      : conversationMessage?.name ?? "";
+                {isFrontCounter ? (
+                  <div className="front-counter-atmosphere">
+                    <strong>What people trade at this counter</strong>
+                    <div>
+                      {FRONT_COUNTER_TALK_EXAMPLES.map((example) => (
+                        <span key={example}>{example}</span>
+                      ))}
+                    </div>
+                    <p>
+                      Some remembered notes may be from earlier seatings. Leave
+                      a fresh one when the shop day gives you something useful
+                      for the village.
+                    </p>
+                  </div>
+                ) : null}
 
-                    return (
-                      <div
-                        className={`thread-message ${
-                          index % 2 ? "thread-message-right" : "thread-message-left"
-                        } ${isRemoved ? "thread-message-removed" : ""}`}
-                        key={"id" in message ? message.id : `${message.name}-${message.text}`}
-                      >
-                        {frontCounterMessage ? (
-                          <span className="thread-avatar" aria-hidden="true">
-                            {getAvatarById(frontCounterMessage.avatarId).emoji}
-                          </span>
-                        ) : null}
-                        <small>{displayName}</small>
-                        <p>{message.text}</p>
-                        {"reactions" in message && message.reactions && !isRemoved ? (
-                          <span className="reaction-row" aria-hidden="true">
-                            {message.reactions.heart ? `heart ${message.reactions.heart}` : ""}
-                            {message.reactions.laugh ? ` laugh ${message.reactions.laugh}` : ""}
-                            {message.reactions.tea ? ` tea ${message.reactions.tea}` : ""}
-                          </span>
-                        ) : null}
-                        {frontCounterMessage && !isRemoved ? (
-                          <div className="moderation-row">
-                            <button
-                              disabled={
-                                isBusy ||
-                                reportedByThisBrowser ||
-                                !identity ||
-                                !canModeratePersistedMessage
-                              }
-                              onClick={() =>
-                                reportFrontCounterMessage(frontCounterMessage)
-                              }
-                              type="button"
-                            >
-                              {reportedByThisBrowser ? "Reported" : "Report"}
-                            </button>
-                            {(frontCounterMessage.reportCount ?? 0) > 0 ? (
-                              <span>
-                                {frontCounterMessage.reportCount} report
-                                {frontCounterMessage.reportCount === 1 ? "" : "s"}
-                              </span>
-                            ) : null}
-                            {hostReviewUnlocked ? (
-                              <>
-                                <button
-                                  disabled={isBusy || !canModeratePersistedMessage}
-                                  onClick={() =>
-                                    moderateFrontCounterMessage(
-                                      "hide",
-                                      frontCounterMessage
-                                    )
-                                  }
-                                  type="button"
-                                >
-                                  Hide
-                                </button>
-                                <button
-                                  disabled={
-                                    isBusy ||
-                                    !canModeratePersistedMessage
-                                  }
-                                  onClick={() =>
-                                    moderateFrontCounterMessage(
-                                      "remove",
-                                      frontCounterMessage
-                                    )
-                                  }
-                                  type="button"
-                                >
-                                  Remove
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
+                  {selectedMessages.length ? (
+                    selectedMessages.map((message, index) => {
+                      const frontCounterMessage =
+                        "avatarId" in message ? message : null;
+                      const conversationMessage =
+                        "name" in message ? message : null;
+                      const isRemoved = !!frontCounterMessage?.removedAt;
+                      const reportedByThisBrowser =
+                        !!frontCounterMessage &&
+                        reportedMessageIds.includes(frontCounterMessage.id);
+                      const isBusy =
+                        !!frontCounterMessage &&
+                        moderationBusyMessageId === frontCounterMessage.id;
+                      const hasSharedDatabaseId =
+                        !!frontCounterMessage &&
+                        isSharedFrontCounterMessageId(frontCounterMessage.id);
+                      const canModeratePersistedMessage =
+                        frontCounterMemoryMode !== "shared" ||
+                        (hasSharedDatabaseId &&
+                          sharedFetchedMessageIds.includes(frontCounterMessage.id));
+                      const displayName = frontCounterMessage
+                        ? isRemoved
+                          ? "Village host"
+                          : frontCounterMessage.nickname
+                        : conversationMessage?.name ?? "";
+
+                      return (
+                        <div
+                          className={`thread-message ${
+                            index % 2 ? "thread-message-right" : "thread-message-left"
+                          } ${isRemoved ? "thread-message-removed" : ""}`}
+                          key={"id" in message ? message.id : `${message.name}-${message.text}`}
+                        >
+                          {frontCounterMessage ? (
+                            <span className="thread-avatar" aria-hidden="true">
+                              {getAvatarById(frontCounterMessage.avatarId).emoji}
+                            </span>
+                          ) : null}
+                          <small>{displayName}</small>
+                          <p>{message.text}</p>
+                          {"reactions" in message && message.reactions && !isRemoved ? (
+                            <span className="reaction-row" aria-hidden="true">
+                              {message.reactions.heart ? `heart ${message.reactions.heart}` : ""}
+                              {message.reactions.laugh ? ` laugh ${message.reactions.laugh}` : ""}
+                              {message.reactions.tea ? ` tea ${message.reactions.tea}` : ""}
+                            </span>
+                          ) : null}
+                          {frontCounterMessage && !isRemoved ? (
+                            <div className="moderation-row">
+                              <button
+                                disabled={
+                                  isBusy ||
+                                  reportedByThisBrowser ||
+                                  !identity ||
+                                  !canModeratePersistedMessage
+                                }
+                                onClick={() =>
+                                  reportFrontCounterMessage(frontCounterMessage)
+                                }
+                                type="button"
+                              >
+                                {reportedByThisBrowser ? "Reported" : "Report"}
+                              </button>
+                              {(frontCounterMessage.reportCount ?? 0) > 0 ? (
+                                <span>
+                                  {frontCounterMessage.reportCount} report
+                                  {frontCounterMessage.reportCount === 1 ? "" : "s"}
+                                </span>
+                              ) : null}
+                              {hostReviewUnlocked ? (
+                                <>
+                                  <button
+                                    disabled={isBusy || !canModeratePersistedMessage}
+                                    onClick={() =>
+                                      moderateFrontCounterMessage(
+                                        "hide",
+                                        frontCounterMessage
+                                      )
+                                    }
+                                    type="button"
+                                  >
+                                    Hide
+                                  </button>
+                                  <button
+                                    disabled={
+                                      isBusy ||
+                                      !canModeratePersistedMessage
+                                    }
+                                    onClick={() =>
+                                      moderateFrontCounterMessage(
+                                        "remove",
+                                        frontCounterMessage
+                                      )
+                                    }
+                                    type="button"
+                                  >
+                                    Remove
+                                  </button>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  ) : isFrontCounter ? (
+                    <div className="front-counter-empty-state">
+                      <strong>The counter is quiet right now.</strong>
+                      <p>
+                        Start with a small shop note: what color is moving,
+                        which supply saved the morning, or whether walk-ins are
+                        light today.
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
 
                 {isFrontCounter ? (
@@ -1903,6 +1936,59 @@ export default function ChoNeoGossipPage() {
           display: grid;
           gap: 12px;
           margin-top: 20px;
+        }
+
+        .front-counter-atmosphere {
+          display: grid;
+          gap: 10px;
+          margin-top: 18px;
+          padding: 13px 14px;
+          border: 1px solid rgba(253, 230, 138, 0.16);
+          border-radius: 18px;
+          background:
+            radial-gradient(circle at 10% 0%, rgba(253, 230, 138, 0.12), transparent 34%),
+            rgba(255, 247, 237, 0.07);
+        }
+
+        .front-counter-atmosphere strong,
+        .front-counter-empty-state strong {
+          color: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .front-counter-atmosphere div {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
+        }
+
+        .front-counter-atmosphere span {
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 999px;
+          padding: 6px 9px;
+          color: rgba(255, 247, 237, 0.76);
+          background: rgba(8, 13, 28, 0.28);
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .front-counter-atmosphere p,
+        .front-counter-empty-state p {
+          margin: 0;
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .front-counter-empty-state {
+          display: grid;
+          gap: 7px;
+          justify-self: stretch;
+          padding: 14px;
+          border: 1px dashed rgba(253, 230, 138, 0.2);
+          border-radius: 18px;
+          background: rgba(255, 247, 237, 0.07);
         }
 
         .host-tools-panel,
