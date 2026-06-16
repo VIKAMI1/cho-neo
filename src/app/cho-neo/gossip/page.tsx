@@ -177,15 +177,81 @@ const tables = [
 ];
 
 const rules = [
-  "Talk shop, share receipts, and help each other leave smarter.",
-  "No supplier spam.",
-  "No personal attacks.",
-  "No political baiting or national-label insults.",
-  "No doxxing or exposing private client/staff details.",
-  "Product talk is allowed when useful, not when blasted like an ad.",
+  "Bàn chuyện tiệm, chia sẻ receipts, giúp nhau khôn hơn. / Talk shop, share receipts, and help each other leave smarter.",
+  "Không spam bán hàng supplier. / No supplier spam.",
+  "Không công kích cá nhân. / No personal attacks.",
+  "Không câu chuyện chính trị hay chửi theo quốc gia. / No political baiting or national-label insults.",
+  "Không lộ thông tin riêng của khách hoặc nhân viên. / No doxxing or exposing private client/staff details.",
+  "Nói về sản phẩm khi có ích, không quảng cáo ồn ào. / Product talk is allowed when useful, not blasted like an ad.",
 ];
 
-const hostTools = ["report", "hide", "remove"];
+const hostTools = ["báo cáo / report", "ẩn / hide", "gỡ / remove"];
+
+const GOSSIP_AVATAR_COPY: Record<
+  string,
+  { name: string; description: string }
+> = {
+  "young-nail-tech": {
+    name: "Thợ nail",
+    description: "Tay nghề chắc. Biết chuyện dưới sàn tiệm.",
+  },
+  "auntie-owner": {
+    name: "Chủ tiệm",
+    description: "Quán xuyến mọi thứ. Gánh nhiều việc.",
+  },
+  "quiet-listener": {
+    name: "Người lắng nghe",
+    description: "Điềm tĩnh. Nhìn thấy nhiều chuyện.",
+  },
+  "gossip-auntie": {
+    name: "Khách quen Gossip Café",
+    description: "Ấm áp. Hay trò chuyện. Luôn quanh bàn.",
+  },
+  "weekend-warrior": {
+    name: "Anh khoe thành tích",
+    description: "Tự tin. Thích thắng. Khoe hành trình.",
+  },
+  "salon-queen": {
+    name: "Cô gái bling-bling",
+    description: "Lấp lánh. Đẹp. Thích nổi bật.",
+  },
+  "ong-dia-buddy": {
+    name: "Người tìm may",
+    description: "Tin xin xăm, Ông Địa. Lòng còn hy vọng.",
+  },
+  "new-village-guest": {
+    name: "Học việc trẻ",
+    description: "Mới vào nghề. Tò mò. Đang học.",
+  },
+  "uncle-coffee": {
+    name: "Người suy nghĩ bên nước",
+    description: "Hay nghĩ. Thức khuya. Cần yên tĩnh.",
+  },
+  "bubble-tea-tech": {
+    name: "Người nghe radio",
+    description: "Bắt sóng nhanh. Biết nghe. Biết phản ứng.",
+  },
+  "product-hunter": {
+    name: "Người săn đồ nghề",
+    description: "Mê sản phẩm. Luôn tìm món tốt hơn.",
+  },
+  "market-runner": {
+    name: "Cú đêm",
+    description: "Hay nói chuyện sau giờ. Đóng quán muộn.",
+  },
+  "golden-scissors": {
+    name: "Nữ hoàng màu",
+    description: "Mê màu. Biết phối. Để ý từng chi tiết.",
+  },
+  "lucky-cat-friend": {
+    name: "Bạn bàn trà",
+    description: "Mang bình tĩnh. Năng lượng tốt. Trà chữa lành.",
+  },
+  "front-counter-pro": {
+    name: "Người gỡ rối",
+    description: "Đầu óc kinh doanh. Hay góp ý. Tìm cách giải quyết.",
+  },
+};
 
 export default function ChoNeoGossipPage() {
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
@@ -323,13 +389,13 @@ export default function ChoNeoGossipPage() {
     }
 
     if (!text) {
-      setFrontCounterPostNotice("Write a little note before posting.");
+      setFrontCounterPostNotice("Viết một ghi chú nhỏ trước khi đăng. / Write a little note before posting.");
       return;
     }
 
     if (getMeaningfulCharacterCount(text) < FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS) {
       setFrontCounterPostNotice(
-        "Give it a little more than a nod so the village can understand."
+        "Viết thêm chút nữa để cả làng hiểu được. / Give it a little more than a nod so the village can understand."
       );
       return;
     }
@@ -358,7 +424,7 @@ export default function ChoNeoGossipPage() {
         setFrontCounterDraft("");
         setFrontCounterMemoryNotice(null);
         setFrontCounterPostNotice(
-          "Posted at the Front Counter. Thanks for keeping it useful."
+          "Đã đăng ở Quầy Trước. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Front Counter. Thanks for keeping it useful."
         );
         return;
       } catch {
@@ -395,14 +461,14 @@ export default function ChoNeoGossipPage() {
     });
     setFrontCounterDraft("");
     setFrontCounterPostNotice(
-      "Posted at the Front Counter. Thanks for keeping it useful."
+      "Đã đăng ở Quầy Trước. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Front Counter. Thanks for keeping it useful."
     );
   }
 
   async function reportFrontCounterMessage(message: FrontCounterMessage) {
     if (!identity) {
       setIdentityPickerOpen(true);
-      setModerationNotice("Create a village identity before reporting a message.");
+      setModerationNotice("Tạo danh tính làng trước khi báo cáo tin nhắn. / Create a village identity before reporting a message.");
       return;
     }
 
@@ -699,16 +765,28 @@ export default function ChoNeoGossipPage() {
         <header className="cafe-hero">
           <div>
             <p className="eyebrow">Cho Neo Village</p>
-            <h1 id="gossip-title">Gossip Café — 18 inside</h1>
+            <h1 id="gossip-title">
+              Quán Tám — 18 người trong quán
+              <span>Gossip Café — 18 inside</span>
+            </h1>
             <p className="subtitle">
-              Salon talk, market whispers, and stories from the diaspora beauty floor.
-              People drift between small tables instead of shouting across one big room.
+              Chuyện tiệm nail, lời rỉ tai ngoài chợ, và câu chuyện của cộng
+              đồng làm đẹp xa quê. Mọi người ghé từng bàn nhỏ, nói vừa đủ nghe,
+              không cần la qua cả phòng.
+              <span>
+                Salon talk, market whispers, and stories from the diaspora
+                beauty floor. People drift between small tables instead of
+                shouting across one big room.
+              </span>
             </p>
           </div>
 
           <Link className="back-link" href="/cho-neo">
             <span className="back-kicker">Cho Neo Village</span>
-            <span>Back to Village Square</span>
+            <span>
+              Về Sân Làng
+              <small>Back to Village Square</small>
+            </span>
           </Link>
         </header>
 
@@ -719,18 +797,25 @@ export default function ChoNeoGossipPage() {
                 <span>{currentAvatar.emoji}</span>
               </div>
               <div>
-                <p className="eyebrow">Village Identity</p>
+                <p className="eyebrow">
+                  Danh tính làng
+                  <span>Village Identity</span>
+                </p>
                 <strong>{identity.nickname}</strong>
-                <span>{currentAvatar.name}</span>
+                <span>
+                  {getGossipAvatarCopy(currentAvatar.id).name}
+                  <small>{currentAvatar.name}</small>
+                </span>
               </div>
               <button type="button" onClick={() => setIdentityPickerOpen(true)}>
-                Change avatar
+                Đổi avatar
+                <span>Change avatar</span>
               </button>
             </div>
           ) : (
             <p className="identity-nudge">
-              Create a village identity before taking a seat at the Front
-              Counter.
+              Tạo danh tính làng trước khi ngồi ở Quầy Trước.
+              <span>Create a village identity before taking a seat at the Front Counter.</span>
             </p>
           )}
 
@@ -738,43 +823,61 @@ export default function ChoNeoGossipPage() {
             <div className="identity-picker">
               <div className="identity-picker-heading">
                 <div>
-                  <p className="eyebrow">Avatar Identity V1</p>
-                  <h2>Choose your café face.</h2>
+                  <p className="eyebrow">
+                    Danh tính avatar V1
+                    <span>Avatar Identity V1</span>
+                  </p>
+                  <h2>
+                    Chọn gương mặt cà phê của bạn.
+                    <span>Choose your café face.</span>
+                  </h2>
                   <p>
-                    Preset avatars only. No uploads, no custom builder, no
-                    shopping.
+                    Chỉ dùng avatar có sẵn. Không upload, không tự build, không mua sắm.
+                    <span>Preset avatars only. No uploads, no custom builder, no shopping.</span>
                   </p>
                 </div>
                 {identity ? (
                   <button type="button" onClick={() => setIdentityPickerOpen(false)}>
-                    Change later
+                    Đổi sau
+                    <span>Change later</span>
                   </button>
                 ) : null}
               </div>
 
               <div className="avatar-grid">
-                {CHO_NEO_AVATARS.map((avatar) => (
-                  <button
-                    className={`avatar-choice avatar-${avatar.tone} ${
-                      identityAvatarId === avatar.id ? "avatar-choice-active" : ""
-                    }`}
-                    key={avatar.id}
-                    onClick={() => {
-                      setIdentityAvatarId(avatar.id);
-                      setIdentityError(null);
-                    }}
-                    type="button"
-                  >
-                    <span>{avatar.emoji}</span>
-                    <strong>{avatar.name}</strong>
-                    <small>{avatar.description}</small>
-                  </button>
-                ))}
+                {CHO_NEO_AVATARS.map((avatar) => {
+                  const avatarCopy = getGossipAvatarCopy(avatar.id);
+
+                  return (
+                    <button
+                      className={`avatar-choice avatar-${avatar.tone} ${
+                        identityAvatarId === avatar.id ? "avatar-choice-active" : ""
+                      }`}
+                      key={avatar.id}
+                      onClick={() => {
+                        setIdentityAvatarId(avatar.id);
+                        setIdentityError(null);
+                      }}
+                      type="button"
+                    >
+                      <span>{avatar.emoji}</span>
+                      <strong>
+                        {avatarCopy.name}
+                        <span>{avatar.name}</span>
+                      </strong>
+                      <small>
+                        {avatarCopy.description}
+                        <span>{avatar.description}</span>
+                      </small>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="identity-form">
                 <label htmlFor="gossip-village-nickname">
-                  Village nickname
+                  Tên trong làng
+                  <span>Village nickname</span>
                 </label>
                 <input
                   id="gossip-village-nickname"
@@ -790,10 +893,12 @@ export default function ChoNeoGossipPage() {
                 {identityError ? <p>{identityError}</p> : null}
                 <div>
                   <button type="button" onClick={surpriseIdentity}>
-                    Surprise me
+                    Chọn thử cho tôi
+                    <span>Surprise me</span>
                   </button>
                   <button type="button" onClick={saveIdentity}>
-                    Save identity
+                    Lưu danh tính
+                    <span>Save identity</span>
                   </button>
                 </div>
               </div>
@@ -807,7 +912,10 @@ export default function ChoNeoGossipPage() {
         >
           <div className="counter" aria-hidden="true">
             <span className="counter-light" />
-            <strong>Order here, talk softly, bring receipts.</strong>
+            <strong>
+              GỌI MÓN Ở ĐÂY, NÓI NHỎ, NHỚ GIỮ RECEIPT.
+              <span>ORDER HERE, TALK SOFTLY, BRING RECEIPTS.</span>
+            </strong>
           </div>
 
           {selectedTable ? (
@@ -823,12 +931,12 @@ export default function ChoNeoGossipPage() {
                 <div className="detail-heading">
                   <div>
                     <p>
-                      {isFrontCounter ? "BÀN ĐANG RÔM RẢ" : `${selectedTable.status} table`}
-                      {isFrontCounter ? <span>Lively Table</span> : null}
+                      {getTableStatusHeading(selectedTable.status)}
+                      <span>{getTableStatusCopy(selectedTable.status).en} Table</span>
                     </p>
                     <h2>
-                      {isFrontCounter ? "Quầy Trước" : selectedTable.name}
-                      {isFrontCounter ? <span>Front Counter</span> : null}
+                      {getTableNameCopy(selectedTable.name).vi}
+                      <span>{getTableNameCopy(selectedTable.name).en}</span>
                     </h2>
                   </div>
                   <strong>
@@ -838,20 +946,19 @@ export default function ChoNeoGossipPage() {
                         <span>{selectedTable.count} people talking</span>
                       </>
                     ) : (
-                      `${selectedTable.count} ${selectedTable.action}`
+                      <>
+                        {selectedTable.count} {getTableActionCopy(selectedTable.action).vi}
+                        <span>
+                          {selectedTable.count} {getTableActionCopy(selectedTable.action).en}
+                        </span>
+                      </>
                     )}
                   </strong>
                 </div>
 
                 <p className="topic">
-                  {isFrontCounter ? (
-                    <>
-                      Chủ đề: “{selectedTable.topic}”
-                      <span>Topic</span>
-                    </>
-                  ) : (
-                    <>Topic: “{selectedTable.topic}”</>
-                  )}
+                  Chủ đề: “{selectedTable.topic}”
+                  <span>Topic</span>
                 </p>
 
                 <div className="member-row detail-members" aria-label={`${selectedTable.name} seated members`}>
@@ -1116,11 +1223,21 @@ export default function ChoNeoGossipPage() {
                                 }
                                 onClick={() =>
                                   reportFrontCounterMessage(frontCounterMessage)
-                                }
-                                type="button"
-                              >
-                                {reportedByThisBrowser ? "Reported" : "Report"}
-                              </button>
+                              }
+                              type="button"
+                            >
+                                {reportedByThisBrowser ? (
+                                  <>
+                                    Đã báo cáo
+                                    <span>Reported</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    Báo cáo
+                                    <span>Report</span>
+                                  </>
+                                )}
+                            </button>
                               {(frontCounterMessage.reportCount ?? 0) > 0 ? (
                                 <span>
                                   {frontCounterMessage.reportCount} report
@@ -1165,11 +1282,19 @@ export default function ChoNeoGossipPage() {
                     })
                   ) : isFrontCounter ? (
                     <div className="front-counter-empty-state">
-                      <strong>The counter is quiet right now.</strong>
+                      <strong>
+                        Quầy đang yên lúc này.
+                        <span>The counter is quiet right now.</span>
+                      </strong>
                       <p>
-                        Start with a small shop note: what color is moving,
-                        which supply saved the morning, or whether walk-ins are
-                        light today.
+                        Bắt đầu bằng một ghi chú tiệm nhỏ: màu nào đang chạy,
+                        món supply nào cứu buổi sáng, hoặc walk-in hôm nay có
+                        nhẹ không.
+                        <span>
+                          Start with a small shop note: what color is moving,
+                          which supply saved the morning, or whether walk-ins
+                          are light today.
+                        </span>
                       </p>
                     </div>
                   ) : null}
@@ -1182,8 +1307,8 @@ export default function ChoNeoGossipPage() {
                   >
                     <p className="prototype-note">
                       {frontCounterMemoryMode === "shared"
-                        ? "This table remembers the village conversation."
-                        : "This V1 remembers messages on this device. Shared village memory comes later."}
+                        ? "Bàn này nhớ câu chuyện của làng. / This table remembers the village conversation."
+                        : "V1 này nhớ tin nhắn trên máy này. Bộ nhớ chung của làng sẽ đến sau. / This V1 remembers messages on this device. Shared village memory comes later."}
                     </p>
                     {frontCounterMemoryNotice ? (
                       <p className="memory-notice">{frontCounterMemoryNotice}</p>
@@ -1206,7 +1331,10 @@ export default function ChoNeoGossipPage() {
                               <span>{avatar.emoji}</span>
                             </div>
                             <strong>{seat.nickname}</strong>
-                            <span>stool</span>
+                            <span>
+                              ghế
+                              <small>stool</small>
+                            </span>
                           </div>
                         );
                       })}
@@ -1214,7 +1342,8 @@ export default function ChoNeoGossipPage() {
                     {identity ? (
                       isCurrentIdentitySeated ? (
                         <p className="posting-as">
-                          Seated as <strong>{identity.nickname}</strong>
+                          Đang ngồi với tên <strong>{identity.nickname}</strong>
+                          <span>Seated as {identity.nickname}</span>
                         </p>
                       ) : (
                         <button
@@ -1222,21 +1351,26 @@ export default function ChoNeoGossipPage() {
                           type="button"
                           onClick={takeFrontCounterSeat}
                         >
-                          Take a seat
+                          Ngồi xuống
+                          <span>Take a seat</span>
                         </button>
                       )
                     ) : (
                       <div className="identity-needed">
-                        <strong>Create your village identity first.</strong>
+                        <strong>
+                          Tạo danh tính làng trước.
+                          <span>Create your village identity first.</span>
+                        </strong>
                         <p>
-                          Pick an avatar and nickname before joining the Front
-                          Counter.
+                          Chọn avatar và tên trước khi vào Quầy Trước.
+                          <span>Pick an avatar and nickname before joining the Front Counter.</span>
                         </p>
                         <button
                           type="button"
                           onClick={() => setIdentityPickerOpen(true)}
                         >
-                          Create identity
+                          Tạo danh tính
+                          <span>Create identity</span>
                         </button>
                       </div>
                     )}
@@ -1264,8 +1398,8 @@ export default function ChoNeoGossipPage() {
                         }}
                         placeholder={
                           identity && isCurrentIdentitySeated
-                            ? "Drop a quick shop note for the village..."
-                            : "Take a seat to post..."
+                            ? "Gửi một ghi chú tiệm nhanh cho làng..."
+                            : "Ngồi xuống để đăng..."
                         }
                         type="text"
                         value={frontCounterDraft}
@@ -1279,17 +1413,32 @@ export default function ChoNeoGossipPage() {
                         }
                         type="submit"
                       >
-                        {frontCounterPosting ? "Posting..." : "Post"}
+                        {frontCounterPosting ? (
+                          <>
+                            Đang đăng...
+                            <span>Posting...</span>
+                          </>
+                        ) : (
+                          <>
+                            Đăng
+                            <span>Post</span>
+                          </>
+                        )}
                       </button>
                     </div>
                     {frontCounterPostNotice ? (
                       <p className="post-feedback">{frontCounterPostNotice}</p>
                     ) : null}
                     <p className="character-count">
-                      {remainingFrontCounterCharacters} of{" "}
-                      {FRONT_COUNTER_MESSAGE_LIMIT} characters left. Minimum{" "}
-                      {FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS} meaningful
-                      characters.
+                      Còn {remainingFrontCounterCharacters} /{" "}
+                      {FRONT_COUNTER_MESSAGE_LIMIT} ký tự. Tối thiểu{" "}
+                      {FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS} ký tự có nghĩa.
+                      <span>
+                        {remainingFrontCounterCharacters} of{" "}
+                        {FRONT_COUNTER_MESSAGE_LIMIT} characters left. Minimum{" "}
+                        {FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS} meaningful
+                        characters.
+                      </span>
                     </p>
                   </form>
                 ) : null}
@@ -1299,7 +1448,8 @@ export default function ChoNeoGossipPage() {
                   type="button"
                   onClick={() => setSelectedTableName(null)}
                 >
-                  Back to all tables
+                  Về tất cả bàn
+                  <span>Back to all tables</span>
                 </button>
               </div>
             </article>
@@ -1326,43 +1476,23 @@ export default function ChoNeoGossipPage() {
                     <div className="table-heading">
                       <div>
                         <p>
-                          {table.name === "Front Counter"
-                            ? "BÀN ĐANG RÔM RẢ"
-                            : table.action}
-                          {table.name === "Front Counter" ? (
-                            <span>Lively Table</span>
-                          ) : null}
+                          {getTableActionCopy(table.action).vi.toUpperCase()}
+                          <span>{getTableActionCopy(table.action).en}</span>
                         </p>
                         <h2>
-                          {table.name === "Front Counter"
-                            ? "Quầy Trước"
-                            : table.name}
-                          {table.name === "Front Counter" ? (
-                            <span>Front Counter</span>
-                          ) : null}
+                          {getTableNameCopy(table.name).vi}
+                          <span>{getTableNameCopy(table.name).en}</span>
                         </h2>
                       </div>
                       <span>
-                        {table.name === "Front Counter" ? (
-                          <>
-                            Rôm rả
-                            <small>Lively</small>
-                          </>
-                        ) : (
-                          table.status
-                        )}
+                        {getTableStatusCopy(table.status).vi}
+                        <small>{getTableStatusCopy(table.status).en}</small>
                       </span>
                     </div>
 
                     <p className="topic">
-                      {table.name === "Front Counter" ? (
-                        <>
-                          Chủ đề: “{table.topic}”
-                          <span>Topic</span>
-                        </>
-                      ) : (
-                        <>Topic: “{table.topic}”</>
-                      )}
+                      Chủ đề: “{table.topic}”
+                      <span>Topic</span>
                     </p>
                     <p className="note">{table.note}</p>
 
@@ -1374,14 +1504,10 @@ export default function ChoNeoGossipPage() {
 
                     <div className="table-footer">
                       <strong>
-                        {table.name === "Front Counter" ? (
-                          <>
-                            {table.count} người đang bàn chuyện
-                            <span>{table.count} people talking</span>
-                          </>
-                        ) : (
-                          `${table.count} ${table.action}`
-                        )}
+                        {table.count} {getTableActionCopy(table.action).vi}
+                        <span>
+                          {table.count} {getTableActionCopy(table.action).en}
+                        </span>
                       </strong>
                       <button
                         type="button"
@@ -1390,7 +1516,8 @@ export default function ChoNeoGossipPage() {
                           openTable(table.name);
                         }}
                       >
-                        Join table
+                        Vào bàn
+                        <span>Join table</span>
                       </button>
                     </div>
                   </div>
@@ -1402,11 +1529,21 @@ export default function ChoNeoGossipPage() {
 
         <section className="house-rules" aria-label="Table etiquette">
           <div className="rules-heading">
-            <p className="eyebrow">House Rules</p>
-            <h2>Table Etiquette</h2>
+            <p className="eyebrow">
+              Luật trong quán
+              <span>House Rules</span>
+            </p>
+            <h2>
+              Cách ngồi bàn
+              <span>Table Etiquette</span>
+            </h2>
             <p>
-              Warm room, sharp boundaries. Gossip Café works when the talk stays
-              useful, funny, or kind.
+              Quán ấm, ranh giới rõ. Gossip Café vui khi câu chuyện có ích,
+              vui nhẹ, hoặc tử tế.
+              <span>
+                Warm room, sharp boundaries. Gossip Café works when the talk
+                stays useful, funny, or kind.
+              </span>
             </p>
           </div>
           <div className="rules-body">
@@ -1416,8 +1553,14 @@ export default function ChoNeoGossipPage() {
               ))}
             </ul>
             <div className="host-note">
-              <strong>Village host tools</strong>
-              <p>Report is available to everyone. Hide and Remove are host-only.</p>
+              <strong>
+                Dụng cụ host của làng
+                <span>Village host tools</span>
+              </strong>
+              <p>
+                Ai cũng có thể báo cáo. Ẩn và Gỡ chỉ dành cho host.
+                <span>Report is available to everyone. Hide and Remove are host-only.</span>
+              </p>
               <div>
                 {hostTools.map((tool) => (
                   <span key={tool}>{tool}</span>
@@ -1491,6 +1634,15 @@ export default function ChoNeoGossipPage() {
           text-transform: uppercase;
         }
 
+        .eyebrow span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 10px;
+          letter-spacing: 0.12em;
+          text-transform: none;
+        }
+
         h1 {
           margin: 0;
           font-size: clamp(42px, 7.6vw, 86px);
@@ -1499,12 +1651,29 @@ export default function ChoNeoGossipPage() {
           text-wrap: balance;
         }
 
+        h1 span {
+          display: block;
+          margin-top: 8px;
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 0.34em;
+          line-height: 1.08;
+          letter-spacing: 0;
+        }
+
         .subtitle {
           max-width: 780px;
           margin: 14px 0 0;
           color: rgba(255, 247, 237, 0.82);
           font-size: clamp(16px, 1.8vw, 21px);
           line-height: 1.5;
+        }
+
+        .subtitle span {
+          display: block;
+          margin-top: 8px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 0.88em;
+          line-height: 1.45;
         }
 
         .back-link {
@@ -1531,6 +1700,30 @@ export default function ChoNeoGossipPage() {
           letter-spacing: 0.16em;
           text-transform: uppercase;
           opacity: 0.68;
+        }
+
+        .back-link small,
+        button span,
+        .identity-nudge span,
+        .identity-picker h2 span,
+        .identity-picker p span,
+        .identity-form label span,
+        .posting-as span,
+        .identity-needed span,
+        .seat-person > span small,
+        .character-count span,
+        .rules-heading p span,
+        .house-rules h2 span,
+        .host-note strong span,
+        .host-note p span {
+          display: block;
+          margin-top: 3px;
+          font-size: 0.82em;
+          font-weight: 850;
+          line-height: 1.25;
+          letter-spacing: 0;
+          opacity: 0.68;
+          text-transform: none;
         }
 
         .identity-strip {
@@ -1591,6 +1784,14 @@ export default function ChoNeoGossipPage() {
           font-size: 13px;
         }
 
+        .current-identity div > span small {
+          display: block;
+          margin-top: 2px;
+          font-size: 11px;
+          font-weight: 850;
+          opacity: 0.68;
+        }
+
         .current-identity button,
         .identity-picker button {
           min-height: 38px;
@@ -1600,6 +1801,15 @@ export default function ChoNeoGossipPage() {
           background: #fde68a;
           font-size: 13px;
           font-weight: 950;
+        }
+
+        .current-identity button,
+        .identity-picker button,
+        .take-seat-button,
+        .identity-needed button,
+        .message-row button,
+        .leave-button {
+          line-height: 1.15;
         }
 
         .current-identity button {
@@ -1667,13 +1877,20 @@ export default function ChoNeoGossipPage() {
           border-radius: 18px !important;
         }
 
-        .avatar-choice span {
+        .avatar-choice > span {
           font-size: 30px;
         }
 
         .avatar-choice strong {
           font-size: 12px;
           line-height: 1.15;
+        }
+
+        .avatar-choice strong span,
+        .avatar-choice small span {
+          display: block;
+          margin-top: 2px;
+          opacity: 0.68;
         }
 
         .avatar-choice small {
@@ -1698,7 +1915,8 @@ export default function ChoNeoGossipPage() {
           font-size: 11px;
           font-weight: 950;
           letter-spacing: 0.14em;
-          text-transform: uppercase;
+          line-height: 1.35;
+          text-transform: none;
         }
 
         .identity-form input {
@@ -1813,6 +2031,13 @@ export default function ChoNeoGossipPage() {
           text-transform: uppercase;
         }
 
+        .counter strong span {
+          display: block;
+          margin-top: 2px;
+          font-size: 0.78em;
+          opacity: 0.68;
+        }
+
         .table-map {
           position: relative;
           z-index: 4;
@@ -1909,7 +2134,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .table-card::after {
-          content: "Tap anywhere to enter";
+          content: "Bấm vào đâu cũng vào bàn được\\A Tap anywhere to enter";
           display: block;
           margin-top: 12px;
           color: rgba(253, 230, 138, 0.76);
@@ -1917,6 +2142,7 @@ export default function ChoNeoGossipPage() {
           font-weight: 950;
           letter-spacing: 0.12em;
           text-transform: uppercase;
+          white-space: pre-line;
         }
 
         .room-scene-focused {
@@ -2405,6 +2631,7 @@ export default function ChoNeoGossipPage() {
           background: rgba(8, 13, 28, 0.28);
           font-size: 11px;
           font-weight: 900;
+          line-height: 1.15;
         }
 
         .moderation-row button:disabled {
@@ -2705,6 +2932,7 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.56);
           font-size: 12px;
           font-weight: 850;
+          line-height: 1.35;
         }
 
         .leave-button {
@@ -2910,7 +3138,7 @@ export default function ChoNeoGossipPage() {
           gap: 7px;
         }
 
-        .host-note span {
+        .host-note div span {
           padding: 6px 9px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 999px;
@@ -3227,6 +3455,109 @@ function getHostModerationNotice(action: FrontCounterModerationAction) {
 
 function getMeaningfulCharacterCount(value: string) {
   return value.replace(/\s/g, "").length;
+}
+
+function getTableActionCopy(action: string) {
+  if (action === "people listening") {
+    return {
+      vi: "người đang lắng nghe",
+      en: "people listening",
+    };
+  }
+
+  return {
+    vi: "người đang bàn chuyện",
+    en: "people talking",
+  };
+}
+
+function getTableNameCopy(tableName: string) {
+  if (tableName === "Front Counter") {
+    return {
+      vi: "Quầy Trước",
+      en: "Front Counter",
+    };
+  }
+
+  if (tableName === "Corner Table") {
+    return {
+      vi: "Bàn Góc",
+      en: "Corner Table",
+    };
+  }
+
+  if (tableName === "Window Seat") {
+    return {
+      vi: "Ghế Cửa Sổ",
+      en: "Window Seat",
+    };
+  }
+
+  if (tableName === "Big Table") {
+    return {
+      vi: "Bàn Lớn",
+      en: "Big Table",
+    };
+  }
+
+  if (tableName === "Quiet Table") {
+    return {
+      vi: "Bàn Yên",
+      en: "Quiet Table",
+    };
+  }
+
+  return {
+    vi: tableName,
+    en: tableName,
+  };
+}
+
+function getTableStatusCopy(status: string) {
+  if (status === "Open") {
+    return {
+      vi: "Mở",
+      en: "Open",
+    };
+  }
+
+  if (status === "Quiet") {
+    return {
+      vi: "Yên",
+      en: "Quiet",
+    };
+  }
+
+  if (status === "Listening") {
+    return {
+      vi: "Đang nghe",
+      en: "Listening",
+    };
+  }
+
+  return {
+    vi: "Rôm rả",
+    en: "Lively",
+  };
+}
+
+function getTableStatusHeading(status: string) {
+  const statusCopy = getTableStatusCopy(status);
+
+  if (status === "Lively") {
+    return "BÀN ĐANG RÔM RẢ";
+  }
+
+  return `BÀN ${statusCopy.vi.toUpperCase()}`;
+}
+
+function getGossipAvatarCopy(avatarId: string) {
+  return (
+    GOSSIP_AVATAR_COPY[avatarId] ?? {
+      name: getAvatarById(avatarId).name,
+      description: getAvatarById(avatarId).description,
+    }
+  );
 }
 
 function readReportedFrontCounterMessageIds() {
