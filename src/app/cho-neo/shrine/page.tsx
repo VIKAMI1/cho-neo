@@ -61,10 +61,10 @@ const EMPTY_XIN_XAM_MEMORY: XinXamMemory = {
 };
 
 const LUCK_LABELS: Record<XinXamLuck, string> = {
-  DAI_CAT: "Đại Cát",
+  DAI_CAT: "Đại cát",
   CAT: "Cát",
   BINH: "Bình",
-  HUNG: "Hung",
+  HUNG: "Quẻ nhắc nhở",
 };
 
 export default function ChoNeoShrinePage() {
