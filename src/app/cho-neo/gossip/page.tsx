@@ -822,15 +822,37 @@ export default function ChoNeoGossipPage() {
               <div className="detail-panel">
                 <div className="detail-heading">
                   <div>
-                    <p>{selectedTable.status} table</p>
-                    <h2>{selectedTable.name}</h2>
+                    <p>
+                      {isFrontCounter ? "BÀN ĐANG RÔM RẢ" : `${selectedTable.status} table`}
+                      {isFrontCounter ? <span>Lively Table</span> : null}
+                    </p>
+                    <h2>
+                      {isFrontCounter ? "Quầy Trước" : selectedTable.name}
+                      {isFrontCounter ? <span>Front Counter</span> : null}
+                    </h2>
                   </div>
                   <strong>
-                    {selectedTable.count} {selectedTable.action}
+                    {isFrontCounter ? (
+                      <>
+                        {selectedTable.count} người đang bàn chuyện
+                        <span>{selectedTable.count} people talking</span>
+                      </>
+                    ) : (
+                      `${selectedTable.count} ${selectedTable.action}`
+                    )}
                   </strong>
                 </div>
 
-                <p className="topic">Topic: “{selectedTable.topic}”</p>
+                <p className="topic">
+                  {isFrontCounter ? (
+                    <>
+                      Chủ đề: “{selectedTable.topic}”
+                      <span>Topic</span>
+                    </>
+                  ) : (
+                    <>Topic: “{selectedTable.topic}”</>
+                  )}
+                </p>
 
                 <div className="member-row detail-members" aria-label={`${selectedTable.name} seated members`}>
                   {selectedTable.initials.map((initial) => (
@@ -1017,7 +1039,10 @@ export default function ChoNeoGossipPage() {
                     </div>
 
                     <div className="front-counter-atmosphere">
-                      <strong>What people trade at this counter</strong>
+                      <strong>
+                        Mọi người hay bàn gì ở quầy này
+                        <span>What people trade at this counter</span>
+                      </strong>
                       <div>
                         {FRONT_COUNTER_TALK_EXAMPLES.map((example) => (
                           <span key={example}>{example}</span>
@@ -1216,7 +1241,8 @@ export default function ChoNeoGossipPage() {
                       </div>
                     )}
                     <label htmlFor="front-counter-message">
-                      Leave a Front Counter note
+                      ĐỂ LẠI MỘT GHI CHÚ Ở QUẦY TRƯỚC
+                      <span>Leave a Front Counter Note</span>
                     </label>
                     <p className="posting-helper">
                       Share one short village note: shop rhythm, product
@@ -1299,13 +1325,45 @@ export default function ChoNeoGossipPage() {
                   <div className="table-card">
                     <div className="table-heading">
                       <div>
-                        <p>{table.action}</p>
-                        <h2>{table.name}</h2>
+                        <p>
+                          {table.name === "Front Counter"
+                            ? "BÀN ĐANG RÔM RẢ"
+                            : table.action}
+                          {table.name === "Front Counter" ? (
+                            <span>Lively Table</span>
+                          ) : null}
+                        </p>
+                        <h2>
+                          {table.name === "Front Counter"
+                            ? "Quầy Trước"
+                            : table.name}
+                          {table.name === "Front Counter" ? (
+                            <span>Front Counter</span>
+                          ) : null}
+                        </h2>
                       </div>
-                      <span>{table.status}</span>
+                      <span>
+                        {table.name === "Front Counter" ? (
+                          <>
+                            Rôm rả
+                            <small>Lively</small>
+                          </>
+                        ) : (
+                          table.status
+                        )}
+                      </span>
                     </div>
 
-                    <p className="topic">Topic: “{table.topic}”</p>
+                    <p className="topic">
+                      {table.name === "Front Counter" ? (
+                        <>
+                          Chủ đề: “{table.topic}”
+                          <span>Topic</span>
+                        </>
+                      ) : (
+                        <>Topic: “{table.topic}”</>
+                      )}
+                    </p>
                     <p className="note">{table.note}</p>
 
                     <div className="member-row" aria-label={`${table.name} members`}>
@@ -1316,7 +1374,14 @@ export default function ChoNeoGossipPage() {
 
                     <div className="table-footer">
                       <strong>
-                        {table.count} {table.action}
+                        {table.name === "Front Counter" ? (
+                          <>
+                            {table.count} người đang bàn chuyện
+                            <span>{table.count} people talking</span>
+                          </>
+                        ) : (
+                          `${table.count} ${table.action}`
+                        )}
                       </strong>
                       <button
                         type="button"
@@ -1935,11 +2000,31 @@ export default function ChoNeoGossipPage() {
           text-transform: uppercase;
         }
 
+        .detail-heading p span,
+        .table-heading p span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 10px;
+          letter-spacing: 0.12em;
+          text-transform: none;
+        }
+
         .detail-heading h2 {
           margin: 0;
           font-size: clamp(36px, 5vw, 62px);
           line-height: 0.9;
           letter-spacing: -0.045em;
+        }
+
+        .detail-heading h2 span,
+        .table-heading h2 span {
+          display: block;
+          margin-top: 5px;
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 0.34em;
+          line-height: 1.1;
+          letter-spacing: 0;
         }
 
         .detail-heading strong {
@@ -1950,6 +2035,15 @@ export default function ChoNeoGossipPage() {
           background: rgba(253, 230, 138, 0.92);
           font-size: 12px;
           font-weight: 950;
+        }
+
+        .detail-heading strong span,
+        .table-footer strong span {
+          display: block;
+          margin-top: 2px;
+          font-size: 10px;
+          font-weight: 900;
+          opacity: 0.68;
         }
 
         .detail-members {
@@ -2041,13 +2135,21 @@ export default function ChoNeoGossipPage() {
           font-weight: 950;
         }
 
+        .front-counter-atmosphere strong span {
+          display: block;
+          margin-top: 4px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 12px;
+          line-height: 1.35;
+        }
+
         .front-counter-atmosphere div {
           display: flex;
           flex-wrap: wrap;
           gap: 7px;
         }
 
-        .front-counter-atmosphere span {
+        .front-counter-atmosphere div span {
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 999px;
           padding: 6px 9px;
@@ -2519,7 +2621,16 @@ export default function ChoNeoGossipPage() {
           font-size: 11px;
           font-weight: 950;
           letter-spacing: 0.14em;
-          text-transform: uppercase;
+          line-height: 1.35;
+          text-transform: none;
+        }
+
+        .conversation-form label span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 10px;
+          letter-spacing: 0.12em;
         }
 
         .posting-helper {
@@ -2641,12 +2752,28 @@ export default function ChoNeoGossipPage() {
           font-weight: 950;
         }
 
+        .table-heading > span small {
+          display: block;
+          margin-top: 1px;
+          font-size: 9px;
+          font-weight: 900;
+          opacity: 0.68;
+        }
+
         .topic {
           margin: 16px 0 0;
           color: #fff7ed;
           font-size: 15px;
           font-weight: 850;
           line-height: 1.35;
+        }
+
+        .topic span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.56);
+          font-size: 12px;
+          font-weight: 850;
         }
 
         .note {
