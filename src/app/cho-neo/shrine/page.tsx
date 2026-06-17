@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -81,6 +81,10 @@ export default function ChoNeoShrinePage() {
   const [vaultInput, setVaultInput] = useState("");
   const [vaultError, setVaultError] = useState("");
   const [locHistory, setLocHistory] = useState<LocHistoryEntry[]>([]);
+  const [blessing, setBlessing] = useState(false);
+  const blessingTimerRef = useRef<number | null>(null);
+  const [xamAnimating, setXamAnimating] = useState(false);
+  const xamAnimationTimerRef = useRef<number | null>(null);
   const [xinXamMemory, setXinXamMemory] = useState<XinXamMemory>(
     EMPTY_XIN_XAM_MEMORY
   );
@@ -173,6 +177,17 @@ export default function ChoNeoShrinePage() {
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (blessingTimerRef.current) {
+        window.clearTimeout(blessingTimerRef.current);
+      }
+      if (xamAnimationTimerRef.current) {
+        window.clearTimeout(xamAnimationTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!memoryReady) return;
     const existingDraw = getStoredDrawForTopic(xinXamMemory, selectedTopic);
     setActiveDraw(existingDraw);
@@ -206,12 +221,25 @@ export default function ChoNeoShrinePage() {
 
     setXinXamMemory(nextMemory);
     setActiveDraw(draw);
+    triggerXinXamAnimation();
 
     try {
       window.localStorage.setItem(XIN_XAM_MEMORY_KEY, JSON.stringify(nextMemory));
     } catch {
       // If storage is unavailable, keep the draw for this browser session only.
     }
+  }
+
+  function triggerXinXamAnimation() {
+    if (xamAnimationTimerRef.current) {
+      window.clearTimeout(xamAnimationTimerRef.current);
+    }
+
+    setXamAnimating(true);
+    xamAnimationTimerRef.current = window.setTimeout(() => {
+      setXamAnimating(false);
+      xamAnimationTimerRef.current = null;
+    }, 2500);
   }
 
   function handleWishSubmit() {
@@ -266,6 +294,19 @@ export default function ChoNeoShrinePage() {
     setVaultInput("");
     setVaultError("");
     saveLocMemories(nextMemories);
+    triggerOngDiaBlessing();
+  }
+
+  function triggerOngDiaBlessing() {
+    if (blessingTimerRef.current) {
+      window.clearTimeout(blessingTimerRef.current);
+    }
+
+    setBlessing(true);
+    blessingTimerRef.current = window.setTimeout(() => {
+      setBlessing(false);
+      blessingTimerRef.current = null;
+    }, 2500);
   }
 
   function handleUnlockVault() {
@@ -347,7 +388,15 @@ export default function ChoNeoShrinePage() {
           <div className="altar-panel">
             <div className="altar">
               <span className="altar-light" />
-              <div className="ong-dia-frame">
+              <div className={`ong-dia-frame ${blessing ? "blessing" : ""}`}>
+                {blessing ? (
+                  <>
+                    <span className="blessing-glow" aria-hidden="true" />
+                    <span className="sparkle sparkle-one" aria-hidden="true" />
+                    <span className="sparkle sparkle-two" aria-hidden="true" />
+                    <span className="sparkle sparkle-three" aria-hidden="true" />
+                  </>
+                ) : null}
                 <Image
                   src="/ong-dia.png"
                   alt="Ông Địa"
@@ -550,7 +599,16 @@ export default function ChoNeoShrinePage() {
                   trước đã.
                 </p>
               </div>
-              <div className="xin-xam-image">
+              <div className={`xin-xam-image ${xamAnimating ? "drawing" : ""}`}>
+                <span className="xam-cup-glow" aria-hidden="true" />
+                {xamAnimating ? (
+                  <>
+                    <span className="xam-rattle-stick xam-rattle-one" aria-hidden="true" />
+                    <span className="xam-rattle-stick xam-rattle-two" aria-hidden="true" />
+                    <span className="xam-rattle-stick xam-rattle-three" aria-hidden="true" />
+                    <span className="xam-jump-stick" aria-hidden="true" />
+                  </>
+                ) : null}
                 <Image
                   src="/Xin-Xam.png"
                   alt="Ống Xin Xăm"
@@ -594,7 +652,10 @@ export default function ChoNeoShrinePage() {
             </div>
 
             {activeDraw ? (
-              <article className="stick-result" aria-live="polite">
+              <article
+                className={`stick-result ${xamAnimating ? "stick-result-revealing" : ""}`}
+                aria-live="polite"
+              >
                 <div className="stick-meta">
                   <span className={`luck-pill ${activeDraw.luck.toLowerCase()}`}>
                     {LUCK_LABELS[activeDraw.luck]}
@@ -863,10 +924,79 @@ export default function ChoNeoShrinePage() {
             0 22px 60px rgba(0, 0, 0, 0.34);
         }
 
+        .ong-dia-frame.blessing {
+          overflow: visible;
+          animation: nod 0.6s ease-in-out;
+        }
+
         .ong-dia-frame img {
+          position: relative;
+          z-index: 2;
           width: 100%;
           height: 100%;
           object-fit: cover;
+          border-radius: 34px;
+        }
+
+        .blessing-glow {
+          position: absolute;
+          inset: -28px;
+          z-index: 0;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(253, 230, 138, 0.56), transparent 68%);
+          box-shadow:
+            0 0 44px rgba(251, 191, 36, 0.55),
+            0 0 96px rgba(245, 158, 11, 0.34);
+          animation: glow 2.5s ease-out forwards;
+          pointer-events: none;
+        }
+
+        .sparkle {
+          position: absolute;
+          z-index: 3;
+          width: 9px;
+          height: 9px;
+          border-radius: 999px;
+          background: #fde68a;
+          box-shadow:
+            0 0 10px rgba(253, 230, 138, 0.92),
+            0 0 22px rgba(251, 191, 36, 0.72);
+          animation: floatUp 2.5s ease-out forwards;
+          pointer-events: none;
+        }
+
+        .sparkle::before,
+        .sparkle::after {
+          content: "";
+          position: absolute;
+          inset: 50% auto auto 50%;
+          width: 17px;
+          height: 2px;
+          border-radius: 999px;
+          background: rgba(255, 247, 237, 0.88);
+          transform: translate(-50%, -50%);
+        }
+
+        .sparkle::after {
+          transform: translate(-50%, -50%) rotate(90deg);
+        }
+
+        .sparkle-one {
+          left: 18px;
+          bottom: 42px;
+          animation-delay: 0.05s;
+        }
+
+        .sparkle-two {
+          left: calc(50% - 4px);
+          bottom: 20px;
+          animation-delay: 0.2s;
+        }
+
+        .sparkle-three {
+          right: 20px;
+          bottom: 54px;
+          animation-delay: 0.34s;
         }
 
         .offering-row {
@@ -895,6 +1025,102 @@ export default function ChoNeoShrinePage() {
         .offering-row span:nth-child(1) { left: 28%; }
         .offering-row span:nth-child(2) { left: 50%; transform: translateX(-50%); }
         .offering-row span:nth-child(3) { right: 28%; }
+
+        @keyframes nod {
+          0% { transform: translateY(0) rotate(0deg); }
+          35% { transform: translateY(4px) rotate(1.5deg); }
+          70% { transform: translateY(-2px) rotate(-0.8deg); }
+          100% { transform: translateY(0) rotate(0deg); }
+        }
+
+        @keyframes glow {
+          0% {
+            opacity: 0;
+            transform: scale(0.78);
+          }
+          28% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.18);
+          }
+        }
+
+        @keyframes floatUp {
+          0% {
+            opacity: 0;
+            transform: translateY(0) scale(0.72);
+          }
+          20% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-74px) scale(1.08);
+          }
+        }
+
+        @keyframes cupShake {
+          0%, 100% { transform: rotate(0deg); }
+          18% { transform: rotate(-3deg); }
+          36% { transform: rotate(3deg); }
+          54% { transform: rotate(-2deg); }
+          72% { transform: rotate(2deg); }
+        }
+
+        @keyframes stickRattle {
+          0%, 100% {
+            opacity: 0.78;
+            transform: translateY(0) rotate(var(--stick-tilt, 0deg));
+          }
+          30% {
+            opacity: 1;
+            transform: translateY(-4px) rotate(calc(var(--stick-tilt, 0deg) - 5deg));
+          }
+          62% {
+            opacity: 0.9;
+            transform: translateY(2px) rotate(calc(var(--stick-tilt, 0deg) + 4deg));
+          }
+        }
+
+        @keyframes stickJump {
+          0% {
+            opacity: 0;
+            transform: translateY(0) rotate(1deg);
+          }
+          18% {
+            opacity: 1;
+          }
+          58% {
+            opacity: 1;
+            transform: translateY(-72px) rotate(-4deg);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-92px) rotate(-4deg);
+          }
+        }
+
+        @keyframes xamGlow {
+          0% { opacity: 0; transform: scale(0.86); }
+          24% { opacity: 1; transform: scale(1); }
+          100% { opacity: 0; transform: scale(1.12); }
+        }
+
+        @keyframes cardUnfold {
+          0% {
+            opacity: 0;
+            transform: translateY(-8px) scaleY(0.9);
+            box-shadow: 0 0 0 rgba(251, 191, 36, 0);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scaleY(1);
+            box-shadow: 0 0 34px rgba(251, 191, 36, 0.12);
+          }
+        }
 
         .daily-note,
         .loc-panel,
@@ -1175,21 +1401,90 @@ export default function ChoNeoShrinePage() {
         }
 
         .xin-xam-image {
+          position: relative;
           width: 104px;
           height: 138px;
           justify-self: end;
           display: grid;
           place-items: center;
-          overflow: hidden;
+          overflow: visible;
           border: 1px solid rgba(253, 230, 138, 0.18);
           border-radius: 20px;
           background: rgba(253, 230, 138, 0.1);
         }
 
+        .xin-xam-image.drawing {
+          animation: cupShake 0.72s ease-in-out;
+        }
+
         .xin-xam-image img {
+          position: relative;
+          z-index: 2;
           width: 100%;
           height: 100%;
           object-fit: cover;
+          border-radius: 20px;
+        }
+
+        .xam-cup-glow {
+          position: absolute;
+          inset: -16px;
+          z-index: 0;
+          border-radius: 28px;
+          background: radial-gradient(circle at 50% 58%, rgba(253, 230, 138, 0.22), transparent 70%);
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .xin-xam-image.drawing .xam-cup-glow {
+          animation: xamGlow 2.5s ease-out forwards;
+        }
+
+        .xam-rattle-stick,
+        .xam-jump-stick {
+          position: absolute;
+          z-index: 3;
+          width: 6px;
+          height: 62px;
+          border-radius: 999px;
+          background: linear-gradient(180deg, #fef3c7, #d97706);
+          box-shadow: 0 0 14px rgba(253, 230, 138, 0.58);
+          pointer-events: none;
+          transform-origin: 50% 100%;
+        }
+
+        .xam-rattle-stick {
+          top: 24px;
+          opacity: 0.78;
+          animation: stickRattle 0.72s ease-in-out;
+        }
+
+        .xam-rattle-one {
+          left: 34px;
+          --stick-tilt: -8deg;
+          transform: rotate(var(--stick-tilt));
+          animation-delay: 0.02s;
+        }
+
+        .xam-rattle-two {
+          left: 49px;
+          --stick-tilt: 2deg;
+          transform: rotate(var(--stick-tilt));
+          animation-delay: 0.1s;
+        }
+
+        .xam-rattle-three {
+          right: 34px;
+          --stick-tilt: 9deg;
+          transform: rotate(var(--stick-tilt));
+          animation-delay: 0.16s;
+        }
+
+        .xam-jump-stick {
+          left: calc(50% - 3px);
+          top: 30px;
+          opacity: 0;
+          animation: stickJump 1.35s ease-out 0.28s forwards;
         }
 
         .topic-grid {
@@ -1283,6 +1578,11 @@ export default function ChoNeoShrinePage() {
           border: 1px solid rgba(253, 230, 138, 0.18);
           border-radius: 22px;
           background: rgba(253, 230, 138, 0.08);
+        }
+
+        .stick-result-revealing {
+          transform-origin: top center;
+          animation: cardUnfold 1.05s ease-out 0.42s both;
         }
 
         .stick-meta {
