@@ -38,6 +38,7 @@ type DailyMessageMemory = {
 };
 
 type LocMemory = {
+  id: string;
   dayKey: string;
   wish: string;
   locNumber: string;
@@ -54,6 +55,7 @@ const DAILY_MESSAGE_KEY = "choNeo.ongDiaDailyMessage.v1";
 const LOC_MEMORY_KEY = "choNeo.ongDiaLocVault.v1";
 const LOC_HISTORY_KEY = "choNeo.ongDiaLocBook.v1";
 const XIN_XAM_MEMORY_KEY = "choNeo.xinXamSticky.v1";
+const MAX_DAILY_BLESSINGS = 3;
 
 const EMPTY_XIN_XAM_MEMORY: XinXamMemory = {
   drawsByTopicPeriod: {},
@@ -72,7 +74,8 @@ export default function ChoNeoShrinePage() {
   const [dailyMessage, setDailyMessage] = useState<OngDiaDailyMessage>(
     ONG_DIA_DAILY_MESSAGES[0]
   );
-  const [locMemory, setLocMemory] = useState<LocMemory | null>(null);
+  const [locMemories, setLocMemories] = useState<LocMemory[]>([]);
+  const [activeLocId, setActiveLocId] = useState<string | null>(null);
   const [wishDraft, setWishDraft] = useState("");
   const [vaultInput, setVaultInput] = useState("");
   const [vaultError, setVaultError] = useState("");
@@ -88,6 +91,18 @@ export default function ChoNeoShrinePage() {
     () => XIN_XAM_TOPICS.find((topic) => topic.key === selectedTopic),
     [selectedTopic]
   );
+
+  const locMemory = useMemo(() => {
+    if (locMemories.length === 0) return null;
+    return (
+      locMemories.find((memory) => memory.id === activeLocId) ??
+      locMemories[locMemories.length - 1] ??
+      null
+    );
+  }, [activeLocId, locMemories]);
+
+  const blessingsUsed = locMemories.length;
+  const hasBlessingsLeft = blessingsUsed < MAX_DAILY_BLESSINGS;
 
   const activeLocReading = useMemo(() => {
     if (!locMemory?.unlockedAt) return null;
@@ -132,10 +147,12 @@ export default function ChoNeoShrinePage() {
     const nextDailyMessage = loadOrCreateDailyMessage(todayKey);
     setDailyMessage(nextDailyMessage);
 
-    const storedLoc = loadLocMemory(todayKey);
-    setLocMemory(storedLoc);
-    setWishDraft(storedLoc?.wish ?? "");
-    setVaultInput(storedLoc?.unlockedAt ? storedLoc.locNumber : "");
+    const storedLocMemories = loadLocMemories(todayKey);
+    const latestLoc = storedLocMemories[storedLocMemories.length - 1] ?? null;
+    setLocMemories(storedLocMemories);
+    setActiveLocId(latestLoc?.id ?? null);
+    setWishDraft("");
+    setVaultInput(latestLoc?.unlockedAt ? latestLoc.locNumber : "");
     setLocHistory(loadLocHistory());
 
     try {
@@ -208,30 +225,40 @@ export default function ChoNeoShrinePage() {
     }
 
     const todayKey = getLocalDayKey(new Date());
-    const existing = loadLocMemory(todayKey);
+    const currentMemories = loadLocMemories(todayKey);
 
-    if (existing) {
-      setLocMemory(existing);
-      setWishDraft(existing.wish);
-      setVaultInput(existing.unlockedAt ? existing.locNumber : "");
-      setVaultError("");
+    if (currentMemories.length >= MAX_DAILY_BLESSINGS) {
+      setLocMemories(currentMemories);
+      setActiveLocId(currentMemories[currentMemories.length - 1]?.id ?? null);
+      setVaultInput(
+        currentMemories[currentMemories.length - 1]?.unlockedAt
+          ? currentMemories[currentMemories.length - 1].locNumber
+          : ""
+      );
+      setVaultError(
+        "Hôm nay con đã xin đủ 3 lời rồi. Ông Địa nghe rồi, mai ghé lại xin vía mới nha."
+      );
       return;
     }
 
-    const locNumber = createLocNumber(`${todayKey}:${wish}`);
-    const reading = chooseLocReading(`${todayKey}:${wish}:${locNumber}`);
+    const blessingNumber = currentMemories.length + 1;
+    const locNumber = createLocNumber(`${todayKey}:${blessingNumber}:${wish}`);
+    const reading = chooseLocReading(`${todayKey}:${blessingNumber}:${wish}:${locNumber}`);
     const nextLocMemory: LocMemory = {
+      id: createLocId(todayKey, blessingNumber, wish),
       dayKey: todayKey,
       wish,
       locNumber,
       readingId: reading.id,
     };
 
-    setLocMemory(nextLocMemory);
-    setWishDraft(wish);
+    const nextMemories = [...currentMemories, nextLocMemory];
+    setLocMemories(nextMemories);
+    setActiveLocId(nextLocMemory.id);
+    setWishDraft("");
     setVaultInput("");
     setVaultError("");
-    saveLocMemory(nextLocMemory);
+    saveLocMemories(nextMemories);
   }
 
   function handleUnlockVault() {
@@ -254,11 +281,15 @@ export default function ChoNeoShrinePage() {
       ...locMemory,
       unlockedAt: locMemory.unlockedAt ?? new Date().toISOString(),
     };
+    const nextMemories = locMemories.map((memory) =>
+      memory.id === nextLocMemory.id ? nextLocMemory : memory
+    );
 
-    setLocMemory(nextLocMemory);
+    setLocMemories(nextMemories);
+    setActiveLocId(nextLocMemory.id);
     setVaultInput(nextLocMemory.locNumber);
     setVaultError("");
-    saveLocMemory(nextLocMemory);
+    saveLocMemories(nextMemories);
     setLocHistory(saveLocHistory(nextLocMemory));
   }
 
@@ -269,9 +300,7 @@ export default function ChoNeoShrinePage() {
     : "Ông Địa đang dọn bàn cho con ngồi xuống một chút.";
 
   const drawButtonCopy = activeDraw
-    ? activeDraw.periodKind === "day"
-      ? "Xem lại quẻ hôm nay"
-      : "Xem lại quẻ tuần này"
+    ? "Xem lại quẻ 7 ngày"
     : "Xin một quẻ nhẹ";
 
   return (
@@ -352,21 +381,29 @@ export default function ChoNeoShrinePage() {
                 </p>
                 <h2 id="loc-title">Khấn một điều nhỏ, mở một lời nhắc.</h2>
                 <p>
-                  Viết một lời xin vía cho hôm nay. Ông Địa nghe rồi sẽ cho
-                  một lộc số để mở Kho Lộc. Lộc số là chìa khóa mở lời nhắc,
-                  không phải lời hứa tiền.
+                  Viết một lời xin vía cho hôm nay: khách, chìa khóa thất lạc,
+                  bài thi, bụng khó chịu, chuyện nhà, bình yên trong tiệm, tự
+                  tin, can đảm, hay chút may mắn trong ngày. Ông Địa nghe rồi
+                  sẽ cho một lộc số để mở Kho Lộc. Lộc số là chìa khóa mở lời
+                  nhắc, không phải lời hứa kết quả.
                 </p>
               </div>
               <div className="loc-number-card">
                 <span>Lộc số</span>
                 <strong>{locMemory?.locNumber ?? "--"}</strong>
+                <small>
+                  {blessingsUsed}/{MAX_DAILY_BLESSINGS} lời hôm nay
+                </small>
               </div>
             </div>
 
             <div className="wish-row">
               <label htmlFor="ong-dia-wish">
                 Lời khấn hôm nay
-                <span>Vietnamese, English, or Vietlish is welcome.</span>
+                <span>
+                  Tiếng Việt, English, hay Vietlish đều được. Mỗi ngày tối đa 3
+                  lời khấn nhỏ.
+                </span>
               </label>
               <div className="wish-controls">
                 <input
@@ -382,14 +419,20 @@ export default function ChoNeoShrinePage() {
                       handleWishSubmit();
                     }
                   }}
-                  disabled={!!locMemory}
+                  disabled={!hasBlessingsLeft}
                   maxLength={120}
-                  placeholder="Ví dụ: Today give me some big tips."
+                  placeholder="Ví dụ: Ông Địa ơi cho con bình tĩnh tìm chìa khóa."
                 />
                 <button type="button" onClick={handleWishSubmit}>
-                  {locMemory ? "Ông Địa nghe rồi" : "Gửi lời khấn"}
+                  {hasBlessingsLeft ? "Gửi lời khấn" : "Mai ghé lại"}
                 </button>
               </div>
+              {!hasBlessingsLeft && (
+                <p className="daily-limit-note">
+                  Hôm nay con đã xin đủ 3 lời rồi. Ông Địa nghe rồi, mai ghé
+                  lại xin vía mới nha.
+                </p>
+              )}
             </div>
 
             {locMemory && (
@@ -397,8 +440,8 @@ export default function ChoNeoShrinePage() {
                 <div>
                   <strong>Kho Lộc</strong>
                   <span>
-                    Nhập lộc số hôm nay để mở lời nhắc. Không quay lại lấy số
-                    khác trong cùng ngày.
+                    Nhập lộc số của lời khấn đang chọn để mở lời nhắc. Không
+                    đổi số, không quay lại lấy số khác cho cùng lời khấn.
                   </span>
                 </div>
                 <div className="vault-controls">
@@ -432,7 +475,7 @@ export default function ChoNeoShrinePage() {
                 <p>
                   Ông Địa nghe rồi. Lộc số hôm nay là{" "}
                   <strong>{locMemory.locNumber}</strong> — con số này để mở
-                  vía, không phải lời hứa tiền.
+                  vía, không phải lời hứa kết quả.
                 </p>
                 <blockquote>“{locMemory.wish}”</blockquote>
                 {activeLocReading ? (
@@ -465,8 +508,13 @@ export default function ChoNeoShrinePage() {
                         key={`${entry.dayKey}-${entry.locNumber}`}
                         type="button"
                         onClick={() => {
-                          setLocMemory(entry);
-                          setWishDraft(entry.wish);
+                          setLocMemories((current) =>
+                            current.some((memory) => memory.id === entry.id)
+                              ? current
+                              : [entry]
+                          );
+                          setActiveLocId(entry.id);
+                          setWishDraft("");
                           setVaultInput(entry.locNumber);
                           setVaultError("");
                         }}
@@ -490,9 +538,9 @@ export default function ChoNeoShrinePage() {
                 </p>
                 <h2 id="xin-xam-title">Chọn một chuyện, giữ một quẻ.</h2>
                 <p>
-                  Mỗi chủ đề chỉ xin một lần trong kỳ này trên trình duyệt này.
-                  Quay lại cùng ngày hoặc cùng tuần sẽ thấy lại quẻ cũ, không
-                  lắc tới lắc lui cho lòng thêm rối.
+                  Mỗi chủ đề chỉ xin một lần trong 7 ngày trên trình duyệt này.
+                  Quẻ này theo con 7 ngày. Đừng rút vội quẻ mới — nghe quẻ này
+                  trước đã.
                 </p>
               </div>
               <div className="xin-xam-image">
@@ -520,7 +568,7 @@ export default function ChoNeoShrinePage() {
                     <span>{topic.helper}</span>
                     {savedDraw && (
                       <small>
-                        Đã có quẻ {savedDraw.periodKind === "day" ? "hôm nay" : "tuần này"}
+                        Đã có quẻ 7 ngày
                       </small>
                     )}
                   </button>
@@ -545,7 +593,7 @@ export default function ChoNeoShrinePage() {
                     {LUCK_LABELS[activeDraw.luck]}
                   </span>
                   <span>
-                    {activeDraw.periodKind === "day" ? "Quẻ hôm nay" : "Quẻ tuần này"}
+                    Quẻ này theo con 7 ngày
                   </span>
                   <span>{activeDraw.periodKey}</span>
                 </div>
@@ -920,6 +968,7 @@ export default function ChoNeoShrinePage() {
 
         .loc-number-card span,
         .loc-number-card strong,
+        .loc-number-card small,
         .wish-row label,
         .wish-row label span,
         .vault-row strong,
@@ -940,6 +989,13 @@ export default function ChoNeoShrinePage() {
           color: #fde68a;
           font-size: 42px;
           line-height: 1;
+        }
+
+        .loc-number-card small {
+          margin-top: 8px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 11px;
+          font-weight: 800;
         }
 
         .wish-row,
@@ -1025,6 +1081,14 @@ export default function ChoNeoShrinePage() {
           margin: 10px 0 0;
           color: #fecdd3;
           font-size: 13px;
+          font-weight: 800;
+        }
+
+        .daily-limit-note {
+          margin: 10px 0 0;
+          color: rgba(253, 230, 138, 0.86);
+          font-size: 13px;
+          line-height: 1.45;
           font-weight: 800;
         }
 
@@ -1405,34 +1469,33 @@ function loadOrCreateDailyMessage(dayKey: string) {
   }
 }
 
-function loadLocMemory(dayKey: string) {
+function loadLocMemories(dayKey: string) {
   try {
     const stored = window.localStorage.getItem(LOC_MEMORY_KEY);
-    if (!stored) return null;
-    const parsed = JSON.parse(stored) as Partial<LocMemory>;
-    if (
-      parsed.dayKey !== dayKey ||
-      !parsed.wish ||
-      !parsed.locNumber ||
-      !parsed.readingId
-    ) {
-      return null;
+    if (!stored) return [];
+    const parsed = JSON.parse(stored) as unknown;
+
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((value, index) => normalizeLocMemory(value, index))
+        .filter((memory): memory is LocMemory => Boolean(memory))
+        .filter((memory) => memory.dayKey === dayKey)
+        .slice(0, MAX_DAILY_BLESSINGS);
     }
-    return {
-      dayKey: parsed.dayKey,
-      wish: parsed.wish,
-      locNumber: parsed.locNumber,
-      readingId: parsed.readingId,
-      unlockedAt: parsed.unlockedAt,
-    } satisfies LocMemory;
+
+    const migrated = normalizeLocMemory(parsed, 0);
+    return migrated?.dayKey === dayKey ? [migrated] : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-function saveLocMemory(memory: LocMemory) {
+function saveLocMemories(memories: LocMemory[]) {
   try {
-    window.localStorage.setItem(LOC_MEMORY_KEY, JSON.stringify(memory));
+    window.localStorage.setItem(
+      LOC_MEMORY_KEY,
+      JSON.stringify(memories.slice(0, MAX_DAILY_BLESSINGS))
+    );
   } catch {
     // Local lộc memory is intentionally browser-only and non-critical.
   }
@@ -1445,7 +1508,10 @@ function loadLocHistory() {
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .filter(isLocHistoryEntry)
+      .flatMap((value, index): LocHistoryEntry[] => {
+        const memory = normalizeLocMemory(value, index);
+        return memory?.unlockedAt ? [{ ...memory, unlockedAt: memory.unlockedAt }] : [];
+      })
       .slice(0, 7);
   } catch {
     return [];
@@ -1457,7 +1523,7 @@ function saveLocHistory(memory: LocMemory) {
 
   const nextHistory = [
     memory as LocHistoryEntry,
-    ...loadLocHistory().filter((entry) => entry.dayKey !== memory.dayKey),
+    ...loadLocHistory().filter((entry) => entry.id !== memory.id),
   ].slice(0, 7);
 
   try {
@@ -1469,21 +1535,34 @@ function saveLocHistory(memory: LocMemory) {
   return nextHistory;
 }
 
-function isLocHistoryEntry(value: unknown): value is LocHistoryEntry {
-  if (!value || typeof value !== "object") return false;
-  const entry = value as Partial<LocHistoryEntry>;
-  return Boolean(
-    entry.dayKey &&
-      entry.wish &&
-      entry.locNumber &&
-      entry.readingId &&
-      entry.unlockedAt
-  );
+function normalizeLocMemory(value: unknown, index: number): LocMemory | null {
+  if (!value || typeof value !== "object") return null;
+  const memory = value as Partial<LocMemory>;
+  if (
+    !memory.dayKey ||
+    !memory.wish ||
+    !memory.locNumber ||
+    !memory.readingId
+  ) {
+    return null;
+  }
+  return {
+    id: memory.id ?? createLocId(memory.dayKey, index + 1, memory.wish),
+    dayKey: memory.dayKey,
+    wish: memory.wish,
+    locNumber: memory.locNumber,
+    readingId: memory.readingId,
+    unlockedAt: memory.unlockedAt,
+  } satisfies LocMemory;
 }
 
 function createLocNumber(seed: string) {
   const value = (Math.abs(hashString(seed)) % 90) + 10;
   return `${value}`.padStart(2, "0");
+}
+
+function createLocId(dayKey: string, blessingNumber: number, wish: string) {
+  return `${dayKey}:${blessingNumber}:${Math.abs(hashString(wish))}`;
 }
 
 function chooseLocReading(seed: string): OngDiaLocReading {
@@ -1535,13 +1614,8 @@ function getLocalDayKey(date: Date) {
 
 function getLocalWeekKey(date: Date) {
   const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = localDate.getDay() || 7;
-  localDate.setDate(localDate.getDate() + 4 - day);
-  const yearStart = new Date(localDate.getFullYear(), 0, 1);
-  const week = Math.ceil(
-    ((localDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-  );
-  return `${localDate.getFullYear()}-W${`${week}`.padStart(2, "0")}`;
+  const sevenDayIndex = Math.floor(localDate.getTime() / (7 * 86400000));
+  return `7D-${sevenDayIndex}`;
 }
 
 function hashString(value: string) {

@@ -111,6 +111,34 @@ export const ONG_DIA_LOC_READINGS: OngDiaLocReading[] = [
     vibeLine: "Câu lấy vía: 'Để em coi lại cho hai bên đều nha.'",
     comebackLine: "Lộc nhỏ thường nằm ở chỗ mình không làm ẩu.",
   },
+  {
+    id: "tim-lai",
+    waterLine:
+      "Nước mở lộc: Mất gì thì đừng cuống. Quay lại chỗ cuối cùng còn bình tĩnh, nhìn thấp trước, nhìn túi áo sau.",
+    vibeLine: "Câu lấy vía: 'Con đi chậm lại, đồ cần gặp sẽ tự hiện ra.'",
+    comebackLine: "Ông Địa nhắc nhẹ: càng rối càng phải thở chậm.",
+  },
+  {
+    id: "giu-bung",
+    waterLine:
+      "Nước mở lộc: Bụng không yên thì ngày cũng nghiêng. Uống nước ấm, ăn nhẹ, bớt ôm việc nặng trong một nhịp.",
+    vibeLine: "Câu lấy vía: 'Thân con cũng là cái tiệm nhỏ cần chăm.'",
+    comebackLine: "Không chắc khỏe thì hỏi người có chuyên môn; còn hôm nay cứ nhẹ tay với mình.",
+  },
+  {
+    id: "thi-cu",
+    waterLine:
+      "Nước mở lộc: Chuyện thi cử hay giấy tờ cần đầu sáng hơn lòng nóng. Chia bài ra từng đoạn nhỏ, làm đoạn gần nhất trước.",
+    vibeLine: "Câu lấy vía: 'Con học phần trước mắt, đường sau tự mở thêm.'",
+    comebackLine: "Can đảm không phải hết run; can đảm là vẫn ngồi xuống làm.",
+  },
+  {
+    id: "yen-nha",
+    waterLine:
+      "Nước mở lộc: Chuyện nhà đừng đem hết ra đứng giữa tiệm. Chọn một câu mềm, một giờ yên, một người đáng tin để nói.",
+    vibeLine: "Câu lấy vía: 'Nhà có gió thì con đóng bớt cửa, không đóng lòng.'",
+    comebackLine: "Ông Địa nghe rồi. Giữ vía bình an trước, giải từng nút sau.",
+  },
 ];
 
 // Sticky V1 uses a small local seed subset only. The known legacy corpus has
@@ -184,7 +212,7 @@ export const LOCAL_XIN_XAM_SEED_STICKS: XinXamStick[] = [
     advice:
       "Nếu cần nhắn ai đó, nhắn ngắn thôi: mình đang nghĩ gì, mình cần gì, không kết tội.",
     comebackLine: "Hôm nay nói nhẹ. Mai lòng tự biết có yên hơn không.",
-    periodKind: "day",
+    periodKind: "week",
   },
   {
     id: "tinh-dung-doan-hung",
@@ -198,7 +226,7 @@ export const LOCAL_XIN_XAM_SEED_STICKS: XinXamStick[] = [
     advice:
       "Đừng quyết định lúc đang nóng. Uống nước, ngủ một giấc, rồi hỏi bằng một câu tử tế.",
     comebackLine: "Ông Địa nhắc nhẹ: đừng tự biên kịch rồi tự đau.",
-    periodKind: "day",
+    periodKind: "week",
   },
   {
     id: "ban-than-nghi-dung-cat",
@@ -212,7 +240,7 @@ export const LOCAL_XIN_XAM_SEED_STICKS: XinXamStick[] = [
     advice:
       "Chọn một khoảng nghỉ thật, không dọn kho, không trả tin nhắn, không tự trách.",
     comebackLine: "Mai quay lại, coi người mình có bớt căng không.",
-    periodKind: "day",
+    periodKind: "week",
   },
   {
     id: "ban-than-bot-om-binh",
@@ -226,6 +254,6 @@ export const LOCAL_XIN_XAM_SEED_STICKS: XinXamStick[] = [
     advice:
       "Hôm nay chọn một việc để nhờ, hoãn, hoặc nói 'để mai'. Không ai bền nếu cứ tự làm hết.",
     comebackLine: "Ông Địa để dành một ghế cho người biết thở.",
-    periodKind: "day",
+    periodKind: "week",
   },
 ];
