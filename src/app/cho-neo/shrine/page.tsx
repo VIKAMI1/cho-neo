@@ -8,6 +8,7 @@ import {
   ONG_DIA_DAILY_MESSAGES,
   ONG_DIA_LOC_READINGS,
   XIN_XAM_TOPICS,
+  type OngDiaLocCategory,
   type OngDiaDailyMessage,
   type OngDiaLocReading,
   type XinXamLuck,
@@ -52,8 +53,8 @@ type LocHistoryEntry = LocMemory & {
 
 const SHRINE_MEMORY_KEY = "choNeo.ongDiaShrine.v1";
 const DAILY_MESSAGE_KEY = "choNeo.ongDiaDailyMessage.v1";
-const LOC_MEMORY_KEY = "choNeo.ongDiaLocVault.v1";
-const LOC_HISTORY_KEY = "choNeo.ongDiaLocBook.v1";
+const LOC_MEMORY_KEY = "choNeo.ongDiaLocVault.v2";
+const LOC_HISTORY_KEY = "choNeo.ongDiaLocBook.v2";
 const XIN_XAM_MEMORY_KEY = "choNeo.xinXamSticky.v1";
 const MAX_DAILY_BLESSINGS = 3;
 
@@ -243,7 +244,13 @@ export default function ChoNeoShrinePage() {
 
     const blessingNumber = currentMemories.length + 1;
     const locNumber = createLocNumber(`${todayKey}:${blessingNumber}:${wish}`);
-    const reading = chooseLocReading(`${todayKey}:${blessingNumber}:${wish}:${locNumber}`);
+    const wishCategory = detectLocWishCategory(wish);
+    const preferredReadingId = detectPreferredLocReadingId(wish, wishCategory);
+    const reading = chooseLocReading(
+      wishCategory,
+      `${todayKey}:${blessingNumber}:${wish}:${locNumber}`,
+      preferredReadingId
+    );
     const nextLocMemory: LocMemory = {
       id: createLocId(todayKey, blessingNumber, wish),
       dayKey: todayKey,
@@ -1565,11 +1572,203 @@ function createLocId(dayKey: string, blessingNumber: number, wish: string) {
   return `${dayKey}:${blessingNumber}:${Math.abs(hashString(wish))}`;
 }
 
-function chooseLocReading(seed: string): OngDiaLocReading {
+const LOC_WISH_CATEGORY_KEYWORDS: Record<OngDiaLocCategory, string[]> = {
+  lost_keys: [
+    "chìa khóa",
+    "chia khoa",
+    "key",
+    "keys",
+    "lost key",
+    "lost keys",
+    "mất chìa",
+    "mat chia",
+    "mất đồ",
+    "mat do",
+    "thất lạc",
+    "that lac",
+  ],
+  exam_test: [
+    "thi",
+    "bài thi",
+    "bai thi",
+    "test",
+    "exam",
+    "driving test",
+    "road test",
+    "pass the driving test",
+    "pass test",
+    "license test",
+    "bằng lái",
+    "bang lai",
+    "thi lái xe",
+    "thi lai xe",
+    "thi bằng lái",
+    "thi bang lai",
+    "đậu bằng lái",
+    "dau bang lai",
+  ],
+  health_body: [
+    "đau bụng",
+    "dau bung",
+    "stomach",
+    "sick",
+    "mệt",
+    "met",
+    "health",
+    "sức khỏe",
+    "suc khoe",
+  ],
+  money_tip: [
+    "tip",
+    "tips",
+    "tiền",
+    "tien",
+    "khách",
+    "khach",
+    "sale",
+    "customers",
+  ],
+  shop_peace: [
+    "tiệm",
+    "tiem",
+    "salon",
+    "shop",
+    "nhân viên",
+    "nhan vien",
+    "khách khó",
+    "khach kho",
+    "bình yên",
+    "binh yen",
+  ],
+  family_home: [
+    "nhà",
+    "nha",
+    "family",
+    "gia đình",
+    "gia dinh",
+    "con cái",
+    "con cai",
+    "ba mẹ",
+    "ba me",
+    "cha mẹ",
+    "cha me",
+  ],
+  confidence: [
+    "tự tin",
+    "tu tin",
+    "confidence",
+    "can đảm",
+    "can dam",
+    "sợ",
+    "so",
+    "lo",
+    "worried",
+    "nervous",
+  ],
+  general_luck: [],
+};
+
+const LOC_WISH_CATEGORY_PRIORITY: OngDiaLocCategory[] = [
+  "lost_keys",
+  "exam_test",
+  "health_body",
+  "confidence",
+  "shop_peace",
+  "family_home",
+  "money_tip",
+];
+
+function detectLocWishCategory(wish: string): OngDiaLocCategory {
+  const normalizedWish = normalizeLocWishText(wish);
+
   return (
-    ONG_DIA_LOC_READINGS[
-      Math.abs(hashString(seed)) % ONG_DIA_LOC_READINGS.length
-    ] ?? ONG_DIA_LOC_READINGS[0]
+    LOC_WISH_CATEGORY_PRIORITY.find((category) =>
+      LOC_WISH_CATEGORY_KEYWORDS[category].some((keyword) =>
+        hasLocWishKeyword(normalizedWish, keyword)
+      )
+    ) ?? "general_luck"
+  );
+}
+
+function detectPreferredLocReadingId(
+  wish: string,
+  category: OngDiaLocCategory
+) {
+  if (category !== "exam_test") return null;
+
+  const normalizedWish = normalizeLocWishText(wish);
+  const drivingKeywords = [
+    "driving test",
+    "road test",
+    "pass the driving test",
+    "license test",
+    "bằng lái",
+    "bang lai",
+    "thi lái xe",
+    "thi lai xe",
+    "thi bằng lái",
+    "thi bang lai",
+    "đậu bằng lái",
+    "dau bang lai",
+  ];
+
+  return drivingKeywords.some((keyword) =>
+    hasLocWishKeyword(normalizedWish, keyword)
+  )
+    ? "thi-lai-xe"
+    : null;
+}
+
+function hasLocWishKeyword(normalizedWish: string, keyword: string) {
+  const normalizedKeyword = normalizeLocWishText(keyword);
+  if (!normalizedKeyword) return false;
+
+  if (normalizedKeyword.includes(" ")) {
+    return normalizedWish.includes(normalizedKeyword);
+  }
+
+  return normalizedWish.split(" ").includes(normalizedKeyword);
+}
+
+function normalizeLocWishText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function chooseLocReading(
+  category: OngDiaLocCategory,
+  seed: string,
+  preferredReadingId: string | null = null
+): OngDiaLocReading {
+  const categoryReadings = ONG_DIA_LOC_READINGS.filter(
+    (reading) => reading.category === category
+  );
+  const fallbackReadings = ONG_DIA_LOC_READINGS.filter(
+    (reading) => reading.category === "general_luck"
+  );
+  const readings = categoryReadings.length
+    ? categoryReadings
+    : fallbackReadings.length
+      ? fallbackReadings
+      : ONG_DIA_LOC_READINGS;
+  const preferredReading = preferredReadingId
+    ? readings.find((reading) => reading.id === preferredReadingId)
+    : null;
+
+  if (preferredReading) {
+    return preferredReading;
+  }
+
+  return (
+    readings[Math.abs(hashString(`${category}:${seed}`)) % readings.length] ??
+    readings[0] ??
+    ONG_DIA_LOC_READINGS[0]
   );
 }
 

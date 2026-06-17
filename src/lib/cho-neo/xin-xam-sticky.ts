@@ -2,6 +2,16 @@ export type XinXamTopic = "tiem" | "tien" | "tinh" | "ban-than";
 
 export type XinXamLuck = "DAI_CAT" | "CAT" | "BINH" | "HUNG";
 
+export type OngDiaLocCategory =
+  | "lost_keys"
+  | "exam_test"
+  | "health_body"
+  | "money_tip"
+  | "shop_peace"
+  | "family_home"
+  | "confidence"
+  | "general_luck";
+
 export type XinXamStick = {
   id: string;
   topic: XinXamTopic;
@@ -30,6 +40,7 @@ export type OngDiaDailyMessage = {
 
 export type OngDiaLocReading = {
   id: string;
+  category: OngDiaLocCategory;
   waterLine: string;
   vibeLine: string;
   comebackLine: string;
@@ -85,6 +96,7 @@ export const ONG_DIA_DAILY_MESSAGES: OngDiaDailyMessage[] = [
 export const ONG_DIA_LOC_READINGS: OngDiaLocReading[] = [
   {
     id: "duyen-truoc",
+    category: "money_tip",
     waterLine:
       "Nước mở lộc: Hôm nay đừng rượt tiền tip trước, rượt cái duyên trước. Chào khách ngọt, làm kỹ đoạn cuối, đừng nóng tay.",
     vibeLine: "Câu lấy vía: 'Màu này lên tay chị sạch và sang lắm.'",
@@ -92,6 +104,7 @@ export const ONG_DIA_LOC_READINGS: OngDiaLocReading[] = [
   },
   {
     id: "giu-ban",
+    category: "shop_peace",
     waterLine:
       "Nước mở lộc: Lau bàn cho sạch, dọn chai cho ngay, để khách thấy mình có tâm trước khi họ thấy màu.",
     vibeLine: "Câu lấy vía: 'Chị ngồi thoải mái nha, em làm kỹ cho đẹp.'",
@@ -99,6 +112,7 @@ export const ONG_DIA_LOC_READINGS: OngDiaLocReading[] = [
   },
   {
     id: "noi-ro",
+    category: "shop_peace",
     waterLine:
       "Nước mở lộc: Nói rõ giá, rõ giờ, rõ việc trước khi bắt đầu. Lòng rõ thì tay bớt run.",
     vibeLine: "Câu lấy vía: 'Mình làm kiểu này sẽ sạch và bền hơn nha chị.'",
@@ -106,6 +120,7 @@ export const ONG_DIA_LOC_READINGS: OngDiaLocReading[] = [
   },
   {
     id: "cham-cuoi",
+    category: "money_tip",
     waterLine:
       "Nước mở lộc: Đoạn cuối đừng vội. Một lớp dầu, một lời khen, một cái nhìn lại form có thể giữ duyên cả ngày.",
     vibeLine: "Câu lấy vía: 'Để em coi lại cho hai bên đều nha.'",
@@ -113,6 +128,7 @@ export const ONG_DIA_LOC_READINGS: OngDiaLocReading[] = [
   },
   {
     id: "tim-lai",
+    category: "lost_keys",
     waterLine:
       "Nước mở lộc: Mất gì thì đừng cuống. Quay lại chỗ cuối cùng còn bình tĩnh, nhìn thấp trước, nhìn túi áo sau.",
     vibeLine: "Câu lấy vía: 'Con đi chậm lại, đồ cần gặp sẽ tự hiện ra.'",
@@ -120,6 +136,7 @@ export const ONG_DIA_LOC_READINGS: OngDiaLocReading[] = [
   },
   {
     id: "giu-bung",
+    category: "health_body",
     waterLine:
       "Nước mở lộc: Bụng không yên thì ngày cũng nghiêng. Uống nước ấm, ăn nhẹ, bớt ôm việc nặng trong một nhịp.",
     vibeLine: "Câu lấy vía: 'Thân con cũng là cái tiệm nhỏ cần chăm.'",
@@ -127,17 +144,51 @@ export const ONG_DIA_LOC_READINGS: OngDiaLocReading[] = [
   },
   {
     id: "thi-cu",
+    category: "exam_test",
     waterLine:
       "Nước mở lộc: Chuyện thi cử hay giấy tờ cần đầu sáng hơn lòng nóng. Chia bài ra từng đoạn nhỏ, làm đoạn gần nhất trước.",
     vibeLine: "Câu lấy vía: 'Con học phần trước mắt, đường sau tự mở thêm.'",
     comebackLine: "Can đảm không phải hết run; can đảm là vẫn ngồi xuống làm.",
   },
   {
+    id: "thi-lai-xe",
+    category: "exam_test",
+    waterLine:
+      "Nước mở lộc: Thi thì đi chậm, nhìn kỹ, thở đều. Đừng cố thắng cái ngày; chỉ cần làm đúng từng bước trước mặt.",
+    vibeLine: "Câu lấy vía: 'Con kiểm tra gương, giữ khoảng cách, nghe luật hơn nghe run.'",
+    comebackLine: "Ông Địa nhắc nhẹ: bình tĩnh là một phần của tay lái.",
+  },
+  {
     id: "yen-nha",
+    category: "family_home",
     waterLine:
       "Nước mở lộc: Chuyện nhà đừng đem hết ra đứng giữa tiệm. Chọn một câu mềm, một giờ yên, một người đáng tin để nói.",
     vibeLine: "Câu lấy vía: 'Nhà có gió thì con đóng bớt cửa, không đóng lòng.'",
     comebackLine: "Ông Địa nghe rồi. Giữ vía bình an trước, giải từng nút sau.",
+  },
+  {
+    id: "binh-yen-tiem",
+    category: "shop_peace",
+    waterLine:
+      "Nước mở lộc: Tiệm muốn yên thì lời nói phải rõ, lịch phải nhẹ một chút, người trong tiệm phải biết nhường nhau một nhịp.",
+    vibeLine: "Câu lấy vía: 'Hôm nay mình làm chậm lại cho sạch, nói nhỏ lại cho êm.'",
+    comebackLine: "Ông Địa nghe rồi. Bình yên trong tiệm cũng là lộc.",
+  },
+  {
+    id: "tu-tin-noi",
+    category: "confidence",
+    waterLine:
+      "Nước mở lộc: Muốn tự tin thì đừng đợi hết sợ. Chọn một câu tử tế, nói vừa đủ rõ, rồi để tay nghề đứng bên cạnh mình.",
+    vibeLine: "Câu lấy vía: 'Con nói chậm thôi, nhưng nói cho ngay lòng.'",
+    comebackLine: "Can đảm là làm đúng dù giọng còn run.",
+  },
+  {
+    id: "loc-chung",
+    category: "general_luck",
+    waterLine:
+      "Nước mở lộc: Hôm nay giữ lòng ngay, tay sạch, lời mềm. Chuyện nào chưa rõ thì đi từng bước, đừng ép vía phải trả lời liền.",
+    vibeLine: "Câu lấy vía: 'Con làm phần con cho tử tế, phần còn lại để ngày tự mở.'",
+    comebackLine: "Có lộc thì nhận, chưa có thì giữ vía cho yên.",
   },
 ];
 
