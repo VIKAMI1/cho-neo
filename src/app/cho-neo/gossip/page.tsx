@@ -44,6 +44,7 @@ type ConversationMessage = {
   text: string;
 };
 
+type TableNotesByName = Record<string, ConversationMessage[]>;
 type FrontCounterMemoryMode = "local" | "shared";
 type FrontCounterModerationAction =
   | "hide"
@@ -53,6 +54,9 @@ type FrontCounterModerationAction =
 
 const FRONT_COUNTER_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS = 3;
+const TABLE_NOTE_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
+const TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS =
+  FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS;
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
 const FRONT_COUNTER_TALK_EXAMPLES = [
@@ -292,6 +296,9 @@ export default function ChoNeoGossipPage() {
   const [sharedFetchedMessageIds, setSharedFetchedMessageIds] = useState<string[]>(
     []
   );
+  const [tableNotesByName, setTableNotesByName] = useState<TableNotesByName>({});
+  const [tableNoteDraft, setTableNoteDraft] = useState("");
+  const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
   const selectedTable = useMemo(
     () => tables.find((table) => table.name === selectedTableName) ?? null,
     [selectedTableName]
@@ -300,7 +307,10 @@ export default function ChoNeoGossipPage() {
   const selectedMessages: Array<ConversationMessage | FrontCounterMessage> =
     isFrontCounter
       ? frontCounterMessages.filter(isVisibleFrontCounterMessage)
-      : selectedTable?.messages ?? [];
+      : [
+          ...(selectedTable?.messages ?? []),
+          ...(selectedTable ? tableNotesByName[selectedTable.name] ?? [] : []),
+        ];
   const remainingFrontCounterCharacters =
     FRONT_COUNTER_MESSAGE_LIMIT - frontCounterDraft.length;
   const frontCounterMeaningfulCharacters =
@@ -309,6 +319,14 @@ export default function ChoNeoGossipPage() {
     frontCounterDraft.trim().length > 0 &&
     frontCounterMeaningfulCharacters >= FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS &&
     !frontCounterPosting;
+  const remainingTableNoteCharacters =
+    TABLE_NOTE_MESSAGE_LIMIT - tableNoteDraft.length;
+  const tableNoteMeaningfulCharacters = getMeaningfulCharacterCount(tableNoteDraft);
+  const canSubmitTableNote =
+    !!selectedTable &&
+    !isFrontCounter &&
+    tableNoteDraft.trim().length > 0 &&
+    tableNoteMeaningfulCharacters >= TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS;
   const currentAvatar = identity ? getAvatarById(identity.avatarId) : null;
   const visibleSeats = dedupeSeats([
     ...seededFrontCounterMessages.slice(0, 4).map((message) => ({
@@ -462,6 +480,47 @@ export default function ChoNeoGossipPage() {
     setFrontCounterDraft("");
     setFrontCounterPostNotice(
       "Đã đăng ở Quầy Trước. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Front Counter. Thanks for keeping it useful."
+    );
+  }
+
+  function handleTableNoteSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedTable || isFrontCounter) {
+      return;
+    }
+
+    const text = tableNoteDraft.trim();
+
+    if (!text) {
+      setTableNoteNotice(
+        "Viết một ghi chú nhỏ trước khi góp chuyện. / Write a small note before joining in."
+      );
+      return;
+    }
+
+    if (getMeaningfulCharacterCount(text) < TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS) {
+      setTableNoteNotice(
+        "Viết thêm chút nữa để bàn hiểu ý bạn. / Add a little more so the table can understand."
+      );
+      return;
+    }
+
+    const nextMessage: ConversationMessage = {
+      name: identity?.nickname ?? "Bạn làng",
+      text,
+    };
+
+    setTableNotesByName((currentNotes) => ({
+      ...currentNotes,
+      [selectedTable.name]: [
+        ...(currentNotes[selectedTable.name] ?? []),
+        nextMessage,
+      ],
+    }));
+    setTableNoteDraft("");
+    setTableNoteNotice(
+      "Đã góp chuyện vào bàn. Cảm ơn bạn giữ câu chuyện có ích. / Added to the table. Thanks for keeping it useful."
     );
   }
 
@@ -744,6 +803,8 @@ export default function ChoNeoGossipPage() {
 
   function openTable(tableName: string) {
     setSelectedTableName(tableName);
+    setTableNoteDraft("");
+    setTableNoteNotice(null);
   }
 
   function handleTableKeyDown(
@@ -1441,7 +1502,61 @@ export default function ChoNeoGossipPage() {
                       </span>
                     </p>
                   </form>
-                ) : null}
+                ) : (
+                  <form
+                    className="conversation-form table-note-form"
+                    onSubmit={handleTableNoteSubmit}
+                  >
+                    <p className="prototype-note">
+                      Ghi chú ở bàn này ở lại trong phiên quán hiện tại. / This
+                      table note stays in the current café session.
+                    </p>
+                    <label htmlFor="table-note-message">
+                      Ngồi xuống góp chuyện
+                      <span>Take a seat and add a note</span>
+                    </label>
+                    <p className="posting-helper">
+                      Viết một câu có ích cho thợ, chủ tiệm, hoặc người đang
+                      học nghề. Không spam supplier, không “hi” trống, không
+                      công kích cá nhân.
+                      <span>
+                        Share one useful note for techs, owners, or learners.
+                        No supplier spam, empty hi posts, or personal attacks.
+                      </span>
+                    </p>
+                    <div className="message-row">
+                      <input
+                        id="table-note-message"
+                        maxLength={TABLE_NOTE_MESSAGE_LIMIT}
+                        onChange={(event) => {
+                          setTableNoteDraft(event.target.value);
+                          setTableNoteNotice(null);
+                        }}
+                        placeholder="Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience..."
+                        type="text"
+                        value={tableNoteDraft}
+                      />
+                      <button disabled={!canSubmitTableNote} type="submit">
+                        Góp chuyện
+                        <span>Add note</span>
+                      </button>
+                    </div>
+                    {tableNoteNotice ? (
+                      <p className="post-feedback">{tableNoteNotice}</p>
+                    ) : null}
+                    <p className="character-count">
+                      Còn {remainingTableNoteCharacters} /{" "}
+                      {TABLE_NOTE_MESSAGE_LIMIT} ký tự. Tối thiểu{" "}
+                      {TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS} ký tự có nghĩa.
+                      <span>
+                        {remainingTableNoteCharacters} of{" "}
+                        {TABLE_NOTE_MESSAGE_LIMIT} characters left. Minimum{" "}
+                        {TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS} meaningful
+                        characters.
+                      </span>
+                    </p>
+                  </form>
+                )}
 
                 <button
                   className="leave-button"
