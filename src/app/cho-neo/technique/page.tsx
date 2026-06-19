@@ -46,8 +46,8 @@ export default function ChoNeoTechniquePage() {
         <header className="technique-hero">
           <div>
             <p className="eyebrow">Cho Neo Village</p>
-            <h1 id="technique-title">Technique Hall</h1>
-            <p className="intro">Where the village learns the craft.</p>
+            <h1 id="technique-title">Góc Thợ Nail</h1>
+            <p className="intro">Nail Tech Corner, where the village learns the craft.</p>
           </div>
 
           <Link className="back-link" href="/cho-neo">
@@ -56,14 +56,14 @@ export default function ChoNeoTechniquePage() {
           </Link>
         </header>
 
-        <section className="workshop-room" aria-label="Technique Hall workshop">
+        <section className="workshop-room" aria-label="Nail Tech Corner workshop">
           <div className="bench-header">
             <div>
               <p className="eyebrow">Workshop Board</p>
               <h2>Hands steady. Notes useful. No supplier noise.</h2>
             </div>
             <p>
-              Technique Hall is for learning and craft. Product talk is allowed;
+              Góc Thợ Nail is for learning and craft. Product talk is allowed;
               supplier spam is not.
             </p>
           </div>
