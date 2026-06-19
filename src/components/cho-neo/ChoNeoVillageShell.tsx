@@ -1,11 +1,13 @@
 import { ChoNeoMusicOverlay } from "./ChoNeoMusicOverlay";
 import { ChoNeoBottomNav } from "./ChoNeoBottomNav";
+import { ChoNeoTimeAmbience, ChoNeoTimeMoodLabel } from "./ChoNeoTimeAmbience";
 import { ChoNeoVillageMap } from "./ChoNeoVillageMap";
 import { choNeoRooms, openChoNeoRooms, soonChoNeoRooms } from "@/lib/cho-neo/rooms";
 
 export function ChoNeoVillageShell() {
   return (
     <main className="cho-neo-village-shell">
+      <ChoNeoTimeAmbience />
       <div className="village-night-air" aria-hidden="true" />
 
       <section className="village-device" aria-labelledby="cho-neo-title">
@@ -33,8 +35,7 @@ export function ChoNeoVillageShell() {
             </div>
             <div className="status-card status-card-mood">
               <span>Village mood</span>
-              <strong>Đang ấm lên</strong>
-              <small>Warming up</small>
+              <ChoNeoTimeMoodLabel />
             </div>
           </div>
 
@@ -136,20 +137,14 @@ export function ChoNeoVillageShell() {
           position: relative;
           overflow-x: hidden;
           color: #fff7ed;
-          background:
-            radial-gradient(circle at 20% 12%, rgba(251, 191, 36, 0.22), transparent 20%),
-            radial-gradient(circle at 72% 8%, rgba(244, 114, 182, 0.2), transparent 22%),
-            radial-gradient(circle at 80% 86%, rgba(20, 184, 166, 0.15), transparent 30%),
-            linear-gradient(135deg, #02030a 0%, #081020 34%, #251426 70%, #04040a 100%);
+          background: var(--cho-neo-shell-background);
         }
 
         .village-night-air {
           position: fixed;
           inset: 0;
           pointer-events: none;
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 22%),
-            radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.36) 84%);
+          background: var(--cho-neo-air-background);
         }
 
         .village-device {
@@ -163,9 +158,7 @@ export function ChoNeoVillageShell() {
           overflow: hidden;
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 38px;
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
-            rgba(6, 10, 18, 0.82);
+          background: var(--cho-neo-device-background);
           box-shadow:
             0 30px 110px rgba(0, 0, 0, 0.62),
             inset 0 1px 0 rgba(255, 255, 255, 0.18);
@@ -187,6 +180,7 @@ export function ChoNeoVillageShell() {
           grid-template-columns: minmax(200px, 260px) 1fr auto;
           align-items: start;
           gap: 22px;
+          min-width: 0;
         }
 
         .village-brand p,
@@ -226,6 +220,7 @@ export function ChoNeoVillageShell() {
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 12px;
           align-items: stretch;
+          min-width: 0;
         }
 
         .status-card,
@@ -244,6 +239,7 @@ export function ChoNeoVillageShell() {
         }
 
         .status-card {
+          min-width: 0;
           min-height: 82px;
           padding: 13px 16px;
           border-radius: 22px;
@@ -508,14 +504,14 @@ export function ChoNeoVillageShell() {
           inset: -1px;
           z-index: 1;
           background-image:
-            linear-gradient(180deg, rgba(3, 7, 18, 0.18), rgba(3, 7, 18, 0.06) 40%, rgba(3, 7, 18, 0.32)),
-            radial-gradient(circle at 50% 44%, rgba(251, 191, 36, 0.13), transparent 34%),
+            var(--cho-neo-scene-wash),
+            var(--cho-neo-scene-radial),
             url("/images/cho-neo/village-map-v1.png"),
             url("/images/cho-neo/village-map-v1.webp"),
             url("/images/cho-neo/isometric-village-placeholder.png");
           background-size: cover;
           background-position: center;
-          filter: saturate(1.18) contrast(1.08) brightness(0.9);
+          filter: var(--cho-neo-scene-filter);
           transform: scale(1.04);
         }
 
@@ -524,10 +520,7 @@ export function ChoNeoVillageShell() {
           inset: 0;
           z-index: 2;
           pointer-events: none;
-          background:
-            linear-gradient(90deg, rgba(3, 7, 18, 0.2), transparent 20%, transparent 80%, rgba(3, 7, 18, 0.22)),
-            radial-gradient(circle at 50% 48%, transparent 0%, rgba(0, 0, 0, 0.2) 82%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 14%, rgba(0, 0, 0, 0.14));
+          background: var(--cho-neo-scene-vignette);
         }
 
         .room-hotspot {
@@ -797,7 +790,7 @@ export function ChoNeoVillageShell() {
             url("/images/cho-neo/isometric-village-placeholder.png");
           background-size: cover;
           background-position: center;
-          filter: saturate(0.72) brightness(0.82);
+          filter: var(--cho-neo-scene-filter);
         }
 
         .mini-map-pin {
@@ -1025,7 +1018,7 @@ export function ChoNeoVillageShell() {
           }
 
           .village-status-grid {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
           }
 
           .status-card {
@@ -1180,6 +1173,7 @@ export function ChoNeoVillageShell() {
             left: 10px;
             right: 10px;
             bottom: 10px;
+            max-width: calc(100vw - 20px);
             display: flex;
             overflow-x: auto;
             overscroll-behavior-x: contain;

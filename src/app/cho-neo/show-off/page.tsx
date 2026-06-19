@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
 
 const gallerySections = [
   {
@@ -31,6 +32,7 @@ const gallerySections = [
 export default function ChoNeoShowOffPage() {
   return (
     <main className="gallery-page">
+      <ChoNeoTimeAmbience />
       <div className="gallery-glow" />
       <div className="floor-grid" />
 
@@ -85,10 +87,7 @@ export default function ChoNeoShowOffPage() {
           position: relative;
           overflow-x: hidden;
           color: #fff7ed;
-          background:
-            radial-gradient(circle at 22% 18%, rgba(251, 191, 36, 0.22), transparent 30%),
-            radial-gradient(circle at 78% 14%, rgba(244, 114, 182, 0.16), transparent 28%),
-            linear-gradient(180deg, #101224 0%, #21162c 48%, #151015 100%);
+          background: var(--cho-neo-room-page-background);
         }
 
         .gallery-glow,
@@ -99,9 +98,7 @@ export default function ChoNeoShowOffPage() {
         }
 
         .gallery-glow {
-          background:
-            radial-gradient(ellipse at 50% 20%, rgba(253, 230, 138, 0.16), transparent 42%),
-            radial-gradient(ellipse at 50% 100%, rgba(251, 191, 36, 0.14), transparent 48%);
+          background: var(--cho-neo-room-glow-background);
         }
 
         .floor-grid {
@@ -113,7 +110,7 @@ export default function ChoNeoShowOffPage() {
             linear-gradient(90deg, rgba(253, 230, 138, 0.1) 1px, transparent 1px);
           background-size: 58px 58px;
           mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 100%);
-          opacity: 0.48;
+          opacity: var(--cho-neo-floor-opacity);
         }
 
         .gallery-shell {
@@ -348,11 +345,19 @@ export default function ChoNeoShowOffPage() {
 
         @media (max-width: 760px) {
           .gallery-shell {
+            max-width: 100vw;
+            overflow-x: hidden;
             padding: 16px 12px 22px;
           }
 
           .gallery-hero {
             flex-direction: column;
+          }
+
+          h1 {
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            font-size: clamp(38px, 12vw, 50px);
           }
 
           .back-link,
@@ -370,6 +375,10 @@ export default function ChoNeoShowOffPage() {
 
           .gallery-card {
             min-height: auto;
+          }
+
+          .frame {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

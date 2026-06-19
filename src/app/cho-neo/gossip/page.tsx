@@ -38,6 +38,7 @@ import {
   saveFrontCounterState,
   unhideSharedFrontCounterMessage,
 } from "@/lib/cho-neo/gossip-front-counter";
+import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
 
 type ConversationMessage = {
   name: string;
@@ -819,6 +820,7 @@ export default function ChoNeoGossipPage() {
 
   return (
     <main className="cafe-page">
+      <ChoNeoTimeAmbience />
       <div className="room-glow" />
       <div className="floor-grid" />
 
@@ -1692,10 +1694,7 @@ export default function ChoNeoGossipPage() {
           position: relative;
           overflow-x: hidden;
           color: #fff7ed;
-          background:
-            radial-gradient(circle at 16% 14%, rgba(251, 191, 36, 0.25), transparent 28%),
-            radial-gradient(circle at 84% 12%, rgba(244, 114, 182, 0.16), transparent 26%),
-            linear-gradient(180deg, #101224 0%, #21162c 42%, #321b29 72%, #151015 100%);
+          background: var(--cho-neo-room-page-background);
         }
 
         .room-glow,
@@ -1706,10 +1705,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .room-glow {
-          background:
-            radial-gradient(ellipse at 50% 20%, rgba(253, 230, 138, 0.16), transparent 42%),
-            radial-gradient(ellipse at 12% 76%, rgba(244, 114, 182, 0.12), transparent 34%),
-            radial-gradient(ellipse at 88% 78%, rgba(45, 212, 191, 0.1), transparent 34%);
+          background: var(--cho-neo-room-glow-background);
         }
 
         .floor-grid {
@@ -1721,7 +1717,7 @@ export default function ChoNeoGossipPage() {
             linear-gradient(90deg, rgba(253, 230, 138, 0.1) 1px, transparent 1px);
           background-size: 56px 56px;
           mask-image: linear-gradient(to bottom, transparent 0%, black 24%, black 100%);
-          opacity: 0.5;
+          opacity: var(--cho-neo-floor-opacity);
         }
 
         .cafe-shell {
@@ -3347,11 +3343,15 @@ export default function ChoNeoGossipPage() {
 
         @media (max-width: 720px) {
           .cafe-shell {
+            max-width: 100vw;
+            overflow-x: hidden;
             padding: 16px 12px 22px;
           }
 
           h1 {
-            font-size: clamp(38px, 13vw, 58px);
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            font-size: clamp(34px, 11vw, 46px);
           }
 
           .subtitle {
@@ -3409,7 +3409,7 @@ export default function ChoNeoGossipPage() {
 
           .avatar-grid,
           .seat-stage {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
           }
 
           .table-card,

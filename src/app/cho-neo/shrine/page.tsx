@@ -15,6 +15,7 @@ import {
   type XinXamStick,
   type XinXamTopic,
 } from "@/lib/cho-neo/xin-xam-sticky";
+import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
 
 type ShrineMemory = {
   firstVisitedAt: string;
@@ -353,6 +354,7 @@ export default function ChoNeoShrinePage() {
 
   return (
     <main className="shrine-page">
+      <ChoNeoTimeAmbience />
       <div className="lantern-glow" />
       <div className="floor-grid" />
 
@@ -719,10 +721,7 @@ export default function ChoNeoShrinePage() {
           position: relative;
           overflow-x: hidden;
           color: #fff7ed;
-          background:
-            radial-gradient(circle at 18% 14%, rgba(251, 191, 36, 0.24), transparent 28%),
-            radial-gradient(circle at 84% 16%, rgba(244, 114, 182, 0.12), transparent 26%),
-            linear-gradient(180deg, #101224 0%, #21162c 42%, #321b29 72%, #151015 100%);
+          background: var(--cho-neo-room-page-background);
         }
 
         .lantern-glow,
@@ -733,9 +732,7 @@ export default function ChoNeoShrinePage() {
         }
 
         .lantern-glow {
-          background:
-            radial-gradient(ellipse at 50% 18%, rgba(253, 230, 138, 0.18), transparent 42%),
-            radial-gradient(ellipse at 50% 100%, rgba(251, 191, 36, 0.16), transparent 48%);
+          background: var(--cho-neo-room-glow-background);
         }
 
         .floor-grid {
@@ -747,7 +744,7 @@ export default function ChoNeoShrinePage() {
             linear-gradient(90deg, rgba(253, 230, 138, 0.1) 1px, transparent 1px);
           background-size: 58px 58px;
           mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 100%);
-          opacity: 0.48;
+          opacity: var(--cho-neo-floor-opacity);
         }
 
         .shrine-shell {
@@ -1720,7 +1717,15 @@ export default function ChoNeoShrinePage() {
 
         @media (max-width: 640px) {
           .shrine-shell {
+            max-width: 100vw;
+            overflow-x: hidden;
             padding: 16px 12px 22px;
+          }
+
+          h1 {
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            font-size: clamp(40px, 13vw, 52px);
           }
 
           .back-link {
