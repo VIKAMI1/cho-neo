@@ -58,6 +58,7 @@ const FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS = 3;
 const TABLE_NOTE_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS =
   FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS;
+const QUAN_TAM_RULES_ACCEPTED_KEY = "quanTamRulesAcceptedV1";
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
 const FRONT_COUNTER_TALK_EXAMPLES = [
@@ -107,11 +108,11 @@ const tables = [
     name: "Front Counter",
     count: 5,
     action: "people talking",
-    topic: "Are chrome prices dropping?",
+    topic: "Một câu nhanh hôm nay trong tiệm.",
     status: "Lively",
     initials: ["Mai", "TN", "Vy", "KP", "An"],
     tone: "rose",
-    note: "Quick takes while someone is waiting on coffee and the next client.",
+    note: "General daily talk near the counter before the next client sits down.",
     messages: [
       { name: "Mai", text: "Chrome still sells, but clients ask price first now." },
       { name: "Bao", text: "Supply cost is not the only issue. Time is the killer." },
@@ -120,14 +121,14 @@ const tables = [
     ],
   },
   {
-    name: "Corner Table",
+    name: "Shop Talk",
     count: 3,
     action: "people talking",
-    topic: "Slow June in Calgary?",
+    topic: "Khách, giá, ngày bận, mẹo giữ tiệm chạy êm.",
     status: "Open",
     initials: ["MT", "Kim", "LD"],
     tone: "violet",
-    note: "Local shop rhythm, walk-ins, bookings, and the weather nobody asked for.",
+    note: "Salon life, clients, pricing, busy days, and work tips from people who get it.",
     messages: [
       { name: "MT", text: "June always feels sleepy until grad sets come in all at once." },
       { name: "Kim", text: "Walk-ins are slower, but regulars are still booking fills." },
@@ -135,28 +136,28 @@ const tables = [
     ],
   },
   {
-    name: "Window Seat",
+    name: "Color & Trend",
     count: 2,
     action: "people talking",
-    topic: "London salons hiring?",
+    topic: "Màu nào đang lên, mẫu nào làm lâu quá?",
     status: "Quiet",
     initials: ["Vy", "Han"],
     tone: "cyan",
-    note: "Smaller city check-ins, work leads, and soft advice from across the room.",
+    note: "Nail colors, designs, product talk, trend talk, and honest timing notes.",
     messages: [
       { name: "Vy", text: "Two salons near me are hiring, but everyone wants weekends covered." },
       { name: "Han", text: "Ask about product split before you agree. Learned that one." },
     ],
   },
   {
-    name: "Big Table",
+    name: "Vent Table",
     count: 6,
     action: "people talking",
-    topic: "Best builder gel right now?",
+    topic: "Xả nhẹ một câu, đừng làm độc cả bàn.",
     status: "Lively",
     initials: ["Anh", "Bao", "Nhi", "SL", "PQ", "TV"],
     tone: "gold",
-    note: "Product opinions, lamp gossip, application notes, and receipts if you have them.",
+    note: "Tired days, funny clients, after-work talk, and a little tea with boundaries.",
     messages: [
       { name: "Anh", text: "Builder gel depends on your prep. No magic bottle fixes lifting." },
       { name: "Bao", text: "The popular one is good, but the viscosity runs warm." },
@@ -168,11 +169,11 @@ const tables = [
     name: "Quiet Table",
     count: 2,
     action: "people listening",
-    topic: "Owner stress and staffing",
+    topic: "Nói nhỏ, nghĩ chậm, uống miếng trà.",
     status: "Listening",
     initials: ["Linh", "Duc"],
     tone: "green",
-    note: "Lower voices for owner pressure, team tension, and staying kind under load.",
+    note: "Softer talk, reflection, tea-table mood, and kindness after a long shift.",
     messages: [
       { name: "Linh", text: "Staffing gets heavy when everyone is tired but nobody says it." },
       { name: "Duc", text: "Clear schedule rules saved us more drama than any meeting." },
@@ -188,6 +189,14 @@ const rules = [
   "Không câu chuyện chính trị hay chửi theo quốc gia. / No political baiting or national-label insults.",
   "Không lộ thông tin riêng của khách hoặc nhân viên. / No doxxing or exposing private client/staff details.",
   "Nói về sản phẩm khi có ích, không quảng cáo ồn ào. / Product talk is allowed when useful, not blasted like an ad.",
+];
+
+const frontDoorRules = [
+  "Nói thật, nhưng đừng làm đau người khác.",
+  "Không bêu tên tiệm, khách, thợ, hay chủ tiệm ngoài đời.",
+  "Không chửi bới, kỳ thị, hăm dọa, hoặc kéo drama vào làng.",
+  "Chuyện nghề thì góp ý cho có tâm.",
+  "Vào đây để nhẹ lòng hơn, không phải để đốt nhà nhau.",
 ];
 
 const hostTools = ["báo cáo / report", "ẩn / hide", "gỡ / remove"];
@@ -297,6 +306,9 @@ export default function ChoNeoGossipPage() {
   const [sharedFetchedMessageIds, setSharedFetchedMessageIds] = useState<string[]>(
     []
   );
+  const [rulesGateOpen, setRulesGateOpen] = useState(true);
+  const [roomEntered, setRoomEntered] = useState(false);
+  const [roomSettled, setRoomSettled] = useState(false);
   const [tableNotesByName, setTableNotesByName] = useState<TableNotesByName>({});
   const [tableNoteDraft, setTableNoteDraft] = useState("");
   const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
@@ -349,8 +361,19 @@ export default function ChoNeoGossipPage() {
       setIdentity(savedIdentity);
       setIdentityAvatarId(savedIdentity.avatarId);
       setIdentityNicknameDraft(savedIdentity.nickname);
+    }
+
+    const rulesAccepted =
+      window.localStorage.getItem(QUAN_TAM_RULES_ACCEPTED_KEY) === "true";
+
+    if (rulesAccepted) {
+      setRulesGateOpen(false);
+      setRoomEntered(true);
+      window.setTimeout(() => setRoomSettled(true), 80);
     } else {
-      setIdentityPickerOpen(true);
+      setRulesGateOpen(true);
+      setRoomEntered(false);
+      setRoomSettled(false);
     }
 
     setHostToolsOpen(
@@ -802,6 +825,14 @@ export default function ChoNeoGossipPage() {
     saveFrontCounterSeat(nextSeat);
   }
 
+  function enterQuanTamRoom() {
+    window.localStorage.setItem(QUAN_TAM_RULES_ACCEPTED_KEY, "true");
+    setRulesGateOpen(false);
+    setRoomEntered(true);
+    setRoomSettled(false);
+    window.setTimeout(() => setRoomSettled(true), 700);
+  }
+
   function openTable(tableName: string) {
     setSelectedTableName(tableName);
     setTableNoteDraft("");
@@ -829,8 +860,8 @@ export default function ChoNeoGossipPage() {
           <div>
             <p className="eyebrow">Cho Neo Village</p>
             <h1 id="gossip-title">
-              Quán Tám — 18 người trong quán
-              <span>Gossip Café — 18 inside</span>
+              Quán Tám
+              <span>Gossip Café</span>
             </h1>
             <p className="subtitle">
               Chuyện tiệm nail, lời rỉ tai ngoài chợ, và câu chuyện của cộng
@@ -853,6 +884,48 @@ export default function ChoNeoGossipPage() {
           </Link>
         </header>
 
+        {rulesGateOpen ? (
+          <section
+            className={`quan-tam-rules-door ${
+              roomEntered ? "quan-tam-rules-door-overlay" : ""
+            }`}
+            aria-label="Nội Quy Quán Tám"
+          >
+            <div className="rules-door-card">
+              <div className="rules-door-sign" aria-hidden="true">
+                <strong>Quán Tám</strong>
+                <span>Gossip Café</span>
+              </div>
+              <p className="eyebrow">
+                Trước khi vào bàn
+                <span>Before entering</span>
+              </p>
+              <h2>Nội Quy Quán Tám</h2>
+              <p className="rules-door-subtitle">
+                Quán này để tám cho vui, xả cho nhẹ, giúp nhau cho đàng hoàng.
+              </p>
+              <ol>
+                {frontDoorRules.map((rule) => (
+                  <li key={rule}>{rule}</li>
+                ))}
+              </ol>
+              <p className="rules-door-helper">
+                Be real, be kind, protect privacy, and keep the room safe.
+              </p>
+              <div className="rules-door-actions">
+                <button type="button" onClick={enterQuanTamRoom}>
+                  Tôi hiểu — Vào Quán
+                </button>
+                <button type="button" onClick={enterQuanTamRoom}>
+                  Bỏ qua — Vào luôn
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {roomEntered ? (
+          <>
         <section className="identity-strip" aria-label="Cho Neo identity">
           {identity && currentAvatar ? (
             <div className="current-identity">
@@ -875,12 +948,7 @@ export default function ChoNeoGossipPage() {
                 <span>Change avatar</span>
               </button>
             </div>
-          ) : (
-            <p className="identity-nudge">
-              Tạo danh tính làng trước khi ngồi ở Quầy Trước.
-              <span>Create a village identity before taking a seat at the Front Counter.</span>
-            </p>
-          )}
+          ) : null}
 
           {identityPickerOpen ? (
             <div className="identity-picker">
@@ -970,7 +1038,9 @@ export default function ChoNeoGossipPage() {
         </section>
 
         <section
-          className={`room-scene ${selectedTable ? "room-scene-focused" : ""}`}
+          className={`room-scene ${selectedTable ? "room-scene-focused" : ""} ${
+            roomEntered ? "room-scene-entered" : ""
+          } ${roomSettled ? "room-scene-settled" : ""}`}
           aria-label="Gossip Café table clusters"
         >
           <div className="counter" aria-hidden="true">
@@ -1029,6 +1099,46 @@ export default function ChoNeoGossipPage() {
                     <span key={initial}>{initial}</span>
                   ))}
                 </div>
+
+                {isFrontCounter ? (
+                  <div
+                    className="front-counter-table-scene"
+                    aria-label="Front Counter café table scene"
+                  >
+                    <div className="front-counter-table-surface">
+                      <span className="table-prop table-prop-cup" aria-hidden="true" />
+                      <span className="table-prop table-prop-tea" aria-hidden="true" />
+                      <span className="table-prop table-prop-receipt" aria-hidden="true" />
+                      <span className="table-prop table-prop-swatches" aria-hidden="true" />
+                      <span className="table-prop table-prop-flowers" aria-hidden="true" />
+                      <span className="table-prop table-prop-phone" aria-hidden="true" />
+                      <div className="front-counter-scene-avatars">
+                        {visibleSeats.slice(0, 5).map((seat) => {
+                          const avatar = getAvatarById(seat.avatarId);
+                          const isCurrentSeat =
+                            identity?.nickname === seat.nickname &&
+                            identity?.avatarId === seat.avatarId;
+
+                          return (
+                            <span
+                              className={`scene-avatar-chip avatar-${avatar.tone} ${
+                                isCurrentSeat ? "scene-avatar-chip-current" : ""
+                              }`}
+                              key={`scene-${seat.avatarId}-${seat.nickname}`}
+                            >
+                              <span aria-hidden="true">{avatar.emoji}</span>
+                              <strong>{seat.nickname}</strong>
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <p>
+                        Ngồi xuống góp một câu.
+                        <span>Sit down and add one line.</span>
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
 
                 {isFrontCounter && hostToolsOpen ? (
                   <div className="host-tools-panel">
@@ -1571,75 +1681,100 @@ export default function ChoNeoGossipPage() {
               </div>
             </article>
           ) : (
-            <div className="table-map">
-              {tables.map((table) => (
-                <article
-                  aria-label={`Open ${table.name}`}
-                  className={`table-cluster table-${table.tone}`}
-                  key={table.name}
-                  onClick={() => openTable(table.name)}
-                  onKeyDown={(event) => handleTableKeyDown(event, table.name)}
-                  role="button"
-                  tabIndex={0}
+            <div className="gossip-image-lobby">
+              <div className="gossip-room-stage">
+                <img
+                  alt="Quán Tám isometric café room with five empty table zones, warm lanterns, a small espresso bar, and nail café details"
+                  className="gossip-room-image"
+                  src="/images/cho-neo/quan-tam-gossip-cafe-room-modern-warm-final.png"
+                />
+                <div className="gossip-room-scrim" aria-hidden="true" />
+                {/* Future approved café audio can hook in here; no audio element is rendered, so there is no autoplay. */}
+                <button
+                  className="room-rules-button"
+                  type="button"
+                  onClick={() => setRulesGateOpen(true)}
                 >
-                  <span className="table-glow" />
-                  <div className="table-plate" aria-hidden="true">
-                    {table.initials.map((initial, seatIndex) => (
-                      <span key={`${initial}-${seatIndex}`} />
-                    ))}
+                  Nội Quy
+                  <span>Rules</span>
+                </button>
+
+                {identity && currentAvatar ? (
+                  <div className="room-identity-chip">
+                    <span
+                      className={`room-identity-avatar avatar-${currentAvatar.tone}`}
+                      aria-hidden="true"
+                    >
+                      {currentAvatar.emoji}
+                    </span>
+                    <span>
+                      <strong>{identity.nickname}</strong>
+                      <small>
+                        {getGossipAvatarCopy(currentAvatar.id).name}
+                        {" / "}
+                        {currentAvatar.name}
+                      </small>
+                    </span>
+                    <button type="button" onClick={() => setIdentityPickerOpen(true)}>
+                      Đổi
+                      <span>Change</span>
+                    </button>
                   </div>
+                ) : (
+                  <button
+                    className="room-identity-chip room-identity-chip-button"
+                    type="button"
+                    onClick={() => setIdentityPickerOpen(true)}
+                  >
+                    <span className="room-identity-avatar" aria-hidden="true">
+                      ?
+                    </span>
+                    <span>
+                      <strong>Chọn mặt làng</strong>
+                      <small>Choose your village face</small>
+                    </span>
+                  </button>
+                )}
 
-                  <div className="table-card">
-                    <div className="table-heading">
-                      <div>
-                        <p>
-                          {getTableActionCopy(table.action).vi.toUpperCase()}
-                          <span>{getTableActionCopy(table.action).en}</span>
-                        </p>
-                        <h2>
-                          {getTableNameCopy(table.name).vi}
-                          <span>{getTableNameCopy(table.name).en}</span>
-                        </h2>
-                      </div>
-                      <span>
-                        {getTableStatusCopy(table.status).vi}
-                        <small>{getTableStatusCopy(table.status).en}</small>
-                      </span>
-                    </div>
+                <div className="gossip-hotspot-layer" aria-label="Quán Tám table zones">
+                  {tables.map((table, tableIndex) => {
+                    const tableNameCopy = getTableNameCopy(table.name);
 
-                    <p className="topic">
-                      Chủ đề: “{table.topic}”
-                      <span>Topic</span>
-                    </p>
-                    <p className="note">{table.note}</p>
-
-                    <div className="member-row" aria-label={`${table.name} members`}>
-                      {table.initials.map((initial) => (
-                        <span key={initial}>{initial}</span>
-                      ))}
-                    </div>
-
-                    <div className="table-footer">
-                      <strong>
-                        {table.count} {getTableActionCopy(table.action).vi}
-                        <span>
-                          {table.count} {getTableActionCopy(table.action).en}
-                        </span>
-                      </strong>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openTable(table.name);
-                        }}
+                    return (
+                      <article
+                        aria-label={`${tableNameCopy.vi} / ${tableNameCopy.en}`}
+                        className={`table-cluster table-hotspot table-hotspot-${
+                          tableIndex + 1
+                        } table-${table.tone}`}
+                        key={table.name}
+                        onClick={() => openTable(table.name)}
+                        onKeyDown={(event) => handleTableKeyDown(event, table.name)}
+                        role="button"
+                        tabIndex={0}
                       >
-                        Vào bàn
-                        <span>Join table</span>
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                        <span className="hotspot-glow" aria-hidden="true" />
+                        <div className="hotspot-label">
+                          <p>
+                            {tableNameCopy.vi}
+                            <span>{tableNameCopy.en}</span>
+                          </p>
+                          <strong>{table.topic}</strong>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openTable(table.name);
+                            }}
+                          >
+                            Góp một câu
+                            <span>Add one line</span>
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -1686,6 +1821,8 @@ export default function ChoNeoGossipPage() {
             </div>
           </div>
         </section>
+          </>
+        ) : null}
       </section>
 
       <style>{`
@@ -1813,6 +1950,210 @@ export default function ChoNeoGossipPage() {
           opacity: 0.68;
         }
 
+        .quan-tam-rules-door {
+          position: relative;
+          z-index: 30;
+          display: grid;
+          min-height: min(680px, calc(100vh - 210px));
+          place-items: center;
+          padding: 28px 0;
+          isolation: isolate;
+        }
+
+        .quan-tam-rules-door::before {
+          content: "";
+          position: absolute;
+          inset: 8% 4% 0;
+          z-index: -1;
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 50% 22%, rgba(251, 191, 36, 0.18), transparent 28%),
+            radial-gradient(circle at 42% 70%, rgba(147, 51, 83, 0.2), transparent 34%);
+          filter: blur(18px);
+          opacity: 0.82;
+          pointer-events: none;
+        }
+
+        .quan-tam-rules-door-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 100;
+          min-height: 100vh;
+          padding: 24px;
+          background:
+            radial-gradient(circle at 50% 20%, rgba(253, 230, 138, 0.18), transparent 34%),
+            rgba(7, 10, 24, 0.78);
+          backdrop-filter: blur(14px);
+        }
+
+        .rules-door-card {
+          width: min(640px, 100%);
+          padding: clamp(22px, 4vw, 36px);
+          border: 1px solid rgba(253, 230, 138, 0.34);
+          border-radius: 38px;
+          background:
+            linear-gradient(135deg, rgba(253, 230, 138, 0.16), transparent 28%),
+            radial-gradient(circle at 82% 4%, rgba(251, 191, 36, 0.18), transparent 32%),
+            radial-gradient(circle at 15% 92%, rgba(127, 29, 29, 0.22), transparent 34%),
+            linear-gradient(180deg, rgba(64, 39, 31, 0.9), rgba(23, 14, 24, 0.94)),
+            rgba(8, 13, 28, 0.92);
+          box-shadow:
+            0 34px 92px rgba(0, 0, 0, 0.48),
+            0 0 48px rgba(251, 191, 36, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            inset 0 0 0 8px rgba(253, 230, 138, 0.035);
+          backdrop-filter: blur(14px);
+        }
+
+        .rules-door-sign {
+          display: grid;
+          width: fit-content;
+          gap: 4px;
+          margin: -4px auto 22px;
+          padding: 12px 22px 11px;
+          border: 1px solid rgba(253, 230, 138, 0.34);
+          border-radius: 999px;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.12), rgba(255, 247, 237, 0.035)),
+            rgba(30, 18, 22, 0.68);
+          color: #fde68a;
+          text-align: center;
+          box-shadow:
+            0 0 28px rgba(251, 191, 36, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
+        }
+
+        .rules-door-sign strong {
+          font-size: clamp(32px, 6vw, 54px);
+          font-weight: 950;
+          line-height: 0.92;
+          letter-spacing: -0.05em;
+          text-shadow:
+            0 0 16px rgba(251, 191, 36, 0.28),
+            0 2px 0 rgba(0, 0, 0, 0.28);
+        }
+
+        .rules-door-sign span {
+          color: rgba(255, 247, 237, 0.7);
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+        }
+
+        .rules-door-card h2 {
+          margin: 0;
+          color: #fff7ed;
+          font-family: ui-serif, Georgia, "Times New Roman", serif;
+          font-size: clamp(38px, 7vw, 68px);
+          font-style: italic;
+          font-weight: 800;
+          line-height: 0.95;
+          letter-spacing: -0.055em;
+          text-align: center;
+          text-shadow: 0 0 24px rgba(251, 191, 36, 0.16);
+        }
+
+        .rules-door-subtitle {
+          max-width: 520px;
+          margin: 12px auto 0;
+          color: rgba(255, 247, 237, 0.84);
+          font-size: clamp(16px, 2vw, 20px);
+          font-weight: 850;
+          line-height: 1.45;
+          text-align: center;
+        }
+
+        .rules-door-card ol {
+          display: grid;
+          gap: 10px;
+          margin: 20px 0 0;
+          padding: 0;
+          list-style: none;
+          counter-reset: quan-tam-rule;
+        }
+
+        .rules-door-card li {
+          position: relative;
+          min-height: 42px;
+          padding: 12px 14px 12px 54px;
+          border: 1px solid rgba(253, 230, 138, 0.17);
+          border-radius: 20px;
+          background:
+            linear-gradient(90deg, rgba(253, 230, 138, 0.1), transparent 54%),
+            rgba(255, 247, 237, 0.07);
+          color: rgba(255, 247, 237, 0.82);
+          font-size: 14px;
+          font-weight: 850;
+          line-height: 1.35;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.09),
+            0 10px 22px rgba(0, 0, 0, 0.12);
+          counter-increment: quan-tam-rule;
+        }
+
+        .rules-door-card li::before {
+          content: counter(quan-tam-rule);
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          display: grid;
+          place-items: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 999px;
+          transform: translateY(-50%);
+          background:
+            radial-gradient(circle at 35% 25%, #fff7ed, transparent 32%),
+            linear-gradient(180deg, #fde68a, #f59e0b);
+          color: #111827;
+          font-size: 12px;
+          font-weight: 950;
+          box-shadow: 0 0 16px rgba(251, 191, 36, 0.24);
+        }
+
+        .rules-door-helper {
+          margin: 16px 0 0;
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 13px;
+          font-weight: 850;
+          line-height: 1.4;
+          text-align: center;
+        }
+
+        .rules-door-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 20px;
+        }
+
+        .rules-door-actions button {
+          min-height: 44px;
+          flex: 1 1 210px;
+          border: 0;
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 30% 20%, rgba(255, 247, 237, 0.75), transparent 28%),
+            linear-gradient(180deg, #fde68a, #fbbf24);
+          color: #111827;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 950;
+          box-shadow:
+            0 12px 24px rgba(0, 0, 0, 0.22),
+            0 0 20px rgba(251, 191, 36, 0.14);
+        }
+
+        .rules-door-actions button:hover,
+        .rules-door-actions button:focus-visible {
+          outline: none;
+          box-shadow:
+            0 12px 24px rgba(0, 0, 0, 0.22),
+            0 0 0 4px rgba(253, 230, 138, 0.16),
+            0 0 28px rgba(251, 191, 36, 0.26);
+        }
+
         .back-link small,
         button span,
         .identity-nudge span,
@@ -1841,6 +2182,10 @@ export default function ChoNeoGossipPage() {
           display: grid;
           gap: 12px;
           margin-top: 18px;
+        }
+
+        .identity-strip:empty {
+          display: none;
         }
 
         .current-identity,
@@ -2256,6 +2601,383 @@ export default function ChoNeoGossipPage() {
           white-space: pre-line;
         }
 
+        .room-scene:not(.room-scene-focused) .counter {
+          display: none;
+        }
+
+        .gossip-image-lobby {
+          position: relative;
+          z-index: 4;
+        }
+
+        .gossip-room-stage {
+          position: relative;
+          width: min(1120px, 100%);
+          aspect-ratio: 2048 / 1365;
+          margin: 0 auto;
+          overflow: hidden;
+          border: 1px solid rgba(253, 230, 138, 0.24);
+          border-radius: 36px;
+          background: rgba(8, 13, 28, 0.82);
+          box-shadow:
+            0 34px 92px rgba(0, 0, 0, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.16);
+        }
+
+        .room-scene-entered .gossip-room-stage {
+          animation: quanTamRoomFadeIn 700ms ease both;
+        }
+
+        .gossip-room-stage::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: 3;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 28% 38%, rgba(253, 230, 138, 0.28), transparent 18%),
+            radial-gradient(circle at 72% 40%, rgba(251, 191, 36, 0.2), transparent 21%),
+            radial-gradient(circle at 50% 70%, rgba(253, 230, 138, 0.14), transparent 25%);
+          opacity: 0;
+        }
+
+        .room-scene-entered .gossip-room-stage::after {
+          animation: quanTamCounterGlow 2500ms ease-out both;
+        }
+
+        .gossip-room-image,
+        .gossip-room-scrim {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+        }
+
+        .gossip-room-image {
+          object-fit: cover;
+          object-position: center;
+        }
+
+        .gossip-room-scrim {
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 26% 35%, rgba(253, 230, 138, 0.13), transparent 20%),
+            radial-gradient(circle at 72% 43%, rgba(251, 191, 36, 0.11), transparent 24%),
+            radial-gradient(circle at 50% 50%, transparent 0 44%, rgba(7, 10, 24, 0.1) 76%),
+            linear-gradient(180deg, rgba(253, 230, 138, 0.035), rgba(7, 10, 24, 0.16));
+        }
+
+        .room-rules-button {
+          position: absolute;
+          z-index: 12;
+          top: 18px;
+          right: 18px;
+          min-height: 38px;
+          padding: 7px 13px;
+          border: 1px solid rgba(253, 230, 138, 0.32);
+          border-radius: 999px;
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05)),
+            rgba(8, 13, 28, 0.72);
+          color: #fde68a;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 950;
+          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(14px);
+        }
+
+        .room-rules-button:hover,
+        .room-rules-button:focus-visible {
+          border-color: rgba(253, 230, 138, 0.64);
+          outline: none;
+          box-shadow:
+            0 16px 34px rgba(0, 0, 0, 0.3),
+            0 0 0 4px rgba(253, 230, 138, 0.14);
+        }
+
+        .room-identity-chip {
+          position: absolute;
+          z-index: 12;
+          top: 18px;
+          left: 18px;
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          max-width: min(360px, calc(100% - 36px));
+          padding: 9px 11px;
+          border: 1px solid rgba(253, 230, 138, 0.32);
+          border-radius: 999px;
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05)),
+            rgba(8, 13, 28, 0.72);
+          color: #fff7ed;
+          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(14px);
+        }
+
+        .room-identity-chip-button {
+          cursor: pointer;
+          font: inherit;
+          text-align: left;
+        }
+
+        .room-scene:not(.room-scene-settled) .room-identity-chip,
+        .room-scene:not(.room-scene-settled) .hotspot-label {
+          opacity: 0;
+          pointer-events: none;
+          transform: translate(-50%, calc(-50% + 8px));
+        }
+
+        .room-scene:not(.room-scene-settled) .room-identity-chip {
+          transform: translateY(8px);
+        }
+
+        .room-scene-settled .room-identity-chip,
+        .room-scene-settled .hotspot-label {
+          opacity: 1;
+          transition:
+            opacity 420ms ease,
+            transform 420ms ease,
+            border-color 160ms ease,
+            box-shadow 160ms ease;
+        }
+
+        .room-identity-chip-button:hover,
+        .room-identity-chip-button:focus-visible {
+          border-color: rgba(253, 230, 138, 0.64);
+          outline: none;
+          box-shadow:
+            0 16px 34px rgba(0, 0, 0, 0.3),
+            0 0 0 4px rgba(253, 230, 138, 0.16);
+        }
+
+        .room-identity-avatar {
+          display: grid;
+          place-items: center;
+          width: 34px;
+          height: 34px;
+          flex: 0 0 auto;
+          border-radius: 999px;
+          background: linear-gradient(180deg, #fde68a, #f59e0b);
+          color: #111827;
+          font-size: 16px;
+          font-weight: 950;
+        }
+
+        .room-identity-chip strong,
+        .room-identity-chip small {
+          display: block;
+        }
+
+        .room-identity-chip strong {
+          font-size: 13px;
+          font-weight: 950;
+          line-height: 1.1;
+        }
+
+        .room-identity-chip small {
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .room-identity-chip > button {
+          padding: 7px 10px;
+          border: 1px solid rgba(253, 230, 138, 0.32);
+          border-radius: 999px;
+          background: rgba(253, 230, 138, 0.12);
+          color: #fde68a;
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .room-identity-chip > button span {
+          display: block;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 0.8em;
+        }
+
+        .gossip-hotspot-layer {
+          position: absolute;
+          z-index: 10;
+          inset: 0;
+        }
+
+        .gossip-image-lobby .table-hotspot {
+          position: absolute;
+          width: 188px;
+          min-height: 118px;
+          cursor: pointer;
+          outline: none;
+          transform: translateZ(0);
+          transition: filter 160ms ease, transform 160ms ease;
+        }
+
+        .gossip-hotspot-layer:has(.table-hotspot:hover) .table-hotspot:not(:hover) .hotspot-label,
+        .gossip-hotspot-layer:has(.table-hotspot:focus-visible) .table-hotspot:not(:focus-visible) .hotspot-label {
+          opacity: 0.62;
+          transform: translate(-50%, -50%) scale(0.96);
+        }
+
+        .gossip-image-lobby .table-hotspot:hover,
+        .gossip-image-lobby .table-hotspot:focus-visible {
+          z-index: 4;
+          filter: drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42));
+          transform: translateY(-3px);
+        }
+
+        .gossip-image-lobby .table-hotspot:hover .hotspot-glow,
+        .gossip-image-lobby .table-hotspot:focus-visible .hotspot-glow {
+          opacity: 0.96;
+          transform: translate(-50%, -50%) scale(1.32);
+        }
+
+        .gossip-image-lobby .table-hotspot:hover .hotspot-label,
+        .gossip-image-lobby .table-hotspot:focus-visible .hotspot-label {
+          border-color: rgba(253, 230, 138, 0.5);
+          background:
+            radial-gradient(circle at 18% 0%, rgba(253, 230, 138, 0.18), transparent 30%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.13), rgba(255, 247, 237, 0.05)),
+            rgba(37, 22, 24, 0.58);
+          box-shadow:
+            0 10px 26px rgba(0, 0, 0, 0.3),
+            0 0 24px rgba(251, 191, 36, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+          transform: translate(-50%, -50%) scale(0.94);
+        }
+
+        .gossip-image-lobby .table-hotspot:focus-visible {
+          border-radius: 24px;
+          outline: 3px solid rgba(253, 230, 138, 0.9);
+          outline-offset: 6px;
+        }
+
+        .table-hotspot-1 { left: 18%; top: 26%; }
+        .table-hotspot-2 { left: 42%; top: 45%; }
+        .table-hotspot-3 { right: 15%; top: 27%; }
+        .table-hotspot-4 { left: 15%; top: 62%; }
+        .table-hotspot-5 { right: 16%; top: 62%; }
+
+        .hotspot-glow {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 36px;
+          height: 36px;
+          border-radius: 999px;
+          transform: translate(-50%, -50%);
+          background: rgba(253, 230, 138, 0.4);
+          box-shadow:
+            0 0 0 8px rgba(253, 230, 138, 0.1),
+            0 0 28px rgba(251, 191, 36, 0.38);
+          opacity: 0.7;
+          pointer-events: none;
+          transition:
+            opacity 180ms ease,
+            transform 180ms ease;
+        }
+
+        .hotspot-label {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          display: grid;
+          width: 184px;
+          gap: 7px;
+          padding: 10px;
+          border: 1px solid rgba(253, 230, 138, 0.3);
+          border-radius: 18px;
+          background:
+            radial-gradient(circle at 18% 0%, rgba(253, 230, 138, 0.16), transparent 30%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.16), rgba(255, 247, 237, 0.065)),
+            rgba(37, 22, 24, 0.7);
+          color: #fff7ed;
+          box-shadow:
+            0 14px 30px rgba(0, 0, 0, 0.3),
+            0 0 22px rgba(251, 191, 36, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
+          transform: translate(-50%, -50%);
+          backdrop-filter: blur(12px);
+          transition:
+            opacity 180ms ease,
+            transform 180ms ease,
+            border-color 180ms ease,
+            background 180ms ease,
+            box-shadow 180ms ease;
+        }
+
+        .hotspot-label p,
+        .hotspot-label strong {
+          margin: 0;
+        }
+
+        .hotspot-label p {
+          color: #fde68a;
+          font-size: 14px;
+          font-weight: 950;
+          line-height: 1.05;
+        }
+
+        .hotspot-label p span,
+        .hotspot-label button span {
+          display: block;
+        }
+
+        .hotspot-label p span {
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.64);
+          font-size: 10px;
+        }
+
+        .hotspot-label strong {
+          color: rgba(255, 247, 237, 0.74);
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 1.25;
+        }
+
+        .hotspot-label button {
+          min-height: 32px;
+          border: 0;
+          border-radius: 999px;
+          background: linear-gradient(180deg, #fde68a, #fbbf24);
+          color: #111827;
+          cursor: pointer;
+          font-size: 10px;
+          font-weight: 950;
+        }
+
+        .hotspot-label button span {
+          font-size: 0.82em;
+          opacity: 0.72;
+        }
+
+        @keyframes quanTamRoomFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.985);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes quanTamCounterGlow {
+          0% {
+            opacity: 0;
+          }
+          24% {
+            opacity: 0.9;
+          }
+          100% {
+            opacity: 0.32;
+          }
+        }
+
         .room-scene-focused {
           min-height: 650px;
           display: grid;
@@ -2387,10 +3109,189 @@ export default function ChoNeoGossipPage() {
           margin-top: 18px;
         }
 
+        .front-counter-table-scene {
+          position: relative;
+          margin: 18px 0 0;
+          padding: 18px;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 28px;
+          background:
+            radial-gradient(circle at 28% 20%, rgba(253, 230, 138, 0.16), transparent 28%),
+            linear-gradient(180deg, rgba(84, 48, 34, 0.72), rgba(35, 20, 28, 0.72));
+          box-shadow:
+            0 18px 44px rgba(0, 0, 0, 0.22),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+
+        .front-counter-table-surface {
+          position: relative;
+          min-height: 230px;
+          overflow: hidden;
+          border: 1px solid rgba(253, 230, 138, 0.22);
+          border-radius: 999px / 58%;
+          background:
+            radial-gradient(ellipse at 50% 42%, rgba(253, 230, 138, 0.18), transparent 42%),
+            linear-gradient(135deg, rgba(120, 72, 43, 0.98), rgba(62, 34, 35, 0.98));
+          box-shadow:
+            0 20px 46px rgba(0, 0, 0, 0.24),
+            inset 0 0 42px rgba(0, 0, 0, 0.24);
+        }
+
+        .table-prop {
+          position: absolute;
+          pointer-events: none;
+        }
+
+        .table-prop-cup {
+          left: 18%;
+          top: 34%;
+          width: 34px;
+          height: 34px;
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 50% 45%, #fff7ed 0 28%, #a16207 31% 45%, transparent 48%);
+          box-shadow: 0 0 18px rgba(253, 230, 138, 0.22);
+        }
+
+        .table-prop-tea {
+          right: 20%;
+          top: 30%;
+          width: 30px;
+          height: 30px;
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 50% 45%, #fef3c7 0 32%, #92400e 34% 52%, transparent 55%);
+        }
+
+        .table-prop-receipt {
+          left: 30%;
+          bottom: 22%;
+          width: 78px;
+          height: 34px;
+          border-radius: 8px;
+          background:
+            repeating-linear-gradient(180deg, #fff7ed 0 7px, #fde68a 8px 9px);
+          opacity: 0.9;
+          transform: rotate(-7deg);
+        }
+
+        .table-prop-swatches {
+          right: 28%;
+          bottom: 22%;
+          width: 88px;
+          height: 30px;
+          border-radius: 999px;
+          background:
+            linear-gradient(90deg, #fb7185 0 18%, #f59e0b 18% 36%, #22c55e 36% 54%, #38bdf8 54% 72%, #a78bfa 72% 100%);
+          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+          opacity: 0.86;
+        }
+
+        .table-prop-flowers {
+          left: 47%;
+          top: 30%;
+          width: 42px;
+          height: 42px;
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 30% 30%, #fecdd3 0 12%, transparent 13%),
+            radial-gradient(circle at 68% 38%, #f9a8d4 0 13%, transparent 14%),
+            radial-gradient(circle at 48% 68%, #86efac 0 12%, transparent 13%);
+        }
+
+        .table-prop-phone {
+          right: 17%;
+          bottom: 38%;
+          width: 22px;
+          height: 38px;
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          border-radius: 7px;
+          background: linear-gradient(180deg, #111827, #374151);
+          opacity: 0.55;
+          transform: rotate(8deg);
+        }
+
+        .front-counter-scene-avatars {
+          position: absolute;
+          inset: 12% 10%;
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          align-content: space-between;
+          gap: 16px 34px;
+        }
+
+        .scene-avatar-chip {
+          display: inline-flex;
+          align-items: center;
+          justify-self: center;
+          gap: 7px;
+          max-width: 130px;
+          padding: 7px 9px;
+          border: 1px solid rgba(253, 230, 138, 0.22);
+          border-radius: 999px;
+          background: rgba(8, 13, 28, 0.46);
+          color: #fff7ed;
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+          backdrop-filter: blur(10px);
+        }
+
+        .scene-avatar-chip > span {
+          display: grid;
+          place-items: center;
+          width: 26px;
+          height: 26px;
+          flex: 0 0 auto;
+          border-radius: 999px;
+          background: rgba(253, 230, 138, 0.18);
+        }
+
+        .scene-avatar-chip strong {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .scene-avatar-chip-current {
+          border-color: rgba(253, 230, 138, 0.62);
+          box-shadow:
+            0 0 0 3px rgba(253, 230, 138, 0.12),
+            0 12px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .front-counter-table-surface > p {
+          position: absolute;
+          left: 50%;
+          bottom: 18px;
+          margin: 0;
+          padding: 8px 12px;
+          border-radius: 999px;
+          background: rgba(253, 230, 138, 0.14);
+          color: #fde68a;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 950;
+          transform: translateX(-50%);
+        }
+
+        .front-counter-table-surface > p span {
+          display: block;
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.64);
+          font-size: 10px;
+        }
+
         .mock-thread {
           display: grid;
           gap: 12px;
           margin-top: 20px;
+          padding: 14px;
+          border: 1px solid rgba(253, 230, 138, 0.12);
+          border-radius: 24px;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.07), rgba(255, 247, 237, 0.035)),
+            rgba(8, 13, 28, 0.22);
         }
 
         .daily-table-talk {
@@ -2654,8 +3555,10 @@ export default function ChoNeoGossipPage() {
           position: relative;
           width: min(82%, 430px);
           padding: 12px 14px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 247, 237, 0.11);
+          border: 1px solid rgba(253, 230, 138, 0.15);
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.16), rgba(255, 247, 237, 0.08)),
+            rgba(54, 31, 35, 0.72);
           box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
         }
 
@@ -2684,7 +3587,9 @@ export default function ChoNeoGossipPage() {
         .thread-message-right {
           justify-self: end;
           border-radius: 18px 18px 6px 18px;
-          background: rgba(253, 230, 138, 0.16);
+          background:
+            linear-gradient(180deg, rgba(253, 230, 138, 0.2), rgba(253, 230, 138, 0.1)),
+            rgba(62, 39, 28, 0.72);
           border-color: rgba(253, 230, 138, 0.18);
         }
 
@@ -3292,6 +4197,28 @@ export default function ChoNeoGossipPage() {
             gap: 18px;
           }
 
+          .gossip-room-stage {
+            width: min(820px, 100%);
+            border-radius: 30px;
+          }
+
+          .gossip-image-lobby .table-hotspot {
+            position: absolute !important;
+            width: 164px !important;
+            min-height: 104px;
+          }
+
+          .table-hotspot-1 { left: 18% !important; top: 26% !important; right: auto !important; bottom: auto !important; }
+          .table-hotspot-2 { left: 42% !important; top: 45% !important; right: auto !important; bottom: auto !important; }
+          .table-hotspot-3 { right: 15% !important; top: 27% !important; left: auto !important; bottom: auto !important; }
+          .table-hotspot-4 { left: 15% !important; top: 62% !important; right: auto !important; bottom: auto !important; }
+          .table-hotspot-5 { right: 16% !important; top: 62% !important; left: auto !important; bottom: auto !important; }
+
+          .hotspot-label {
+            width: 162px;
+            padding: 9px;
+          }
+
           .table-cluster {
             min-width: 0;
           }
@@ -3358,6 +4285,48 @@ export default function ChoNeoGossipPage() {
             font-size: 15px;
           }
 
+          .quan-tam-rules-door {
+            min-height: auto;
+            padding: 20px 0;
+          }
+
+          .quan-tam-rules-door-overlay {
+            padding: 14px;
+            align-items: start;
+            overflow-y: auto;
+          }
+
+          .rules-door-card {
+            padding: 22px;
+            border-radius: 28px;
+          }
+
+          .rules-door-sign {
+            margin-bottom: 18px;
+            padding: 10px 18px;
+          }
+
+          .rules-door-card h2 {
+            font-size: clamp(36px, 12vw, 48px);
+          }
+
+          .rules-door-subtitle {
+            font-size: 16px;
+          }
+
+          .rules-door-card ol {
+            gap: 9px;
+          }
+
+          .rules-door-card li {
+            padding: 11px 12px 11px 50px;
+            font-size: 14px;
+          }
+
+          .rules-door-actions button {
+            flex-basis: 100%;
+          }
+
           .room-scene {
             margin-top: 16px;
             padding: 14px;
@@ -3389,6 +4358,76 @@ export default function ChoNeoGossipPage() {
           .table-map,
           .house-rules ul {
             grid-template-columns: 1fr;
+          }
+
+          .gossip-room-stage {
+            border-radius: 24px;
+          }
+
+          .room-identity-chip {
+            top: 12px;
+            left: 12px;
+            max-width: calc(100% - 24px);
+            padding: 7px 8px;
+          }
+
+          .room-identity-avatar {
+            width: 28px;
+            height: 28px;
+            font-size: 13px;
+          }
+
+          .room-identity-chip strong {
+            font-size: 11px;
+          }
+
+          .room-identity-chip small {
+            font-size: 9px;
+          }
+
+          .room-identity-chip > button {
+            padding: 6px 8px;
+            font-size: 10px;
+          }
+
+          .gossip-image-lobby .table-hotspot {
+            width: 106px !important;
+            min-height: 78px;
+          }
+
+          .table-hotspot-1 { left: 6% !important; top: 26% !important; right: auto !important; bottom: auto !important; }
+          .table-hotspot-2 { left: 36% !important; top: 45% !important; right: auto !important; bottom: auto !important; }
+          .table-hotspot-3 { right: 4% !important; top: 27% !important; left: auto !important; bottom: auto !important; }
+          .table-hotspot-4 { left: 7% !important; top: 61% !important; right: auto !important; bottom: auto !important; }
+          .table-hotspot-5 { right: 6% !important; top: 62% !important; left: auto !important; bottom: auto !important; }
+
+          .hotspot-glow {
+            width: 24px;
+            height: 24px;
+            box-shadow:
+              0 0 0 5px rgba(253, 230, 138, 0.08),
+              0 0 18px rgba(251, 191, 36, 0.32);
+          }
+
+          .hotspot-label {
+            width: 104px;
+            gap: 4px;
+            padding: 6px;
+            border-radius: 12px;
+          }
+
+          .hotspot-label p {
+            font-size: 10px;
+          }
+
+          .hotspot-label p span,
+          .hotspot-label strong {
+            font-size: 7px;
+          }
+
+          .hotspot-label button {
+            min-height: 24px;
+            font-size: 8px;
           }
 
           .back-link {
@@ -3448,6 +4487,48 @@ export default function ChoNeoGossipPage() {
 
           .detail-panel {
             padding: 18px;
+          }
+
+          .front-counter-table-scene {
+            padding: 12px;
+            border-radius: 22px;
+          }
+
+          .front-counter-table-surface {
+            min-height: 190px;
+            border-radius: 28px;
+          }
+
+          .front-counter-scene-avatars {
+            inset: 12% 6%;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+          }
+
+          .scene-avatar-chip {
+            max-width: 120px;
+            padding: 6px 8px;
+          }
+
+          .scene-avatar-chip strong {
+            font-size: 10px;
+          }
+
+          .table-prop-receipt {
+            left: 20%;
+            bottom: 20%;
+            transform: rotate(-5deg) scale(0.86);
+          }
+
+          .table-prop-swatches {
+            right: 18%;
+            bottom: 24%;
+            transform: scale(0.82);
+            transform-origin: right center;
+          }
+
+          .table-prop-phone {
+            display: none;
           }
 
           .table-heading,
@@ -3589,35 +4670,35 @@ function getTableActionCopy(action: string) {
 function getTableNameCopy(tableName: string) {
   if (tableName === "Front Counter") {
     return {
-      vi: "Quầy Trước",
+      vi: "Bàn Trước Quầy",
       en: "Front Counter",
     };
   }
 
-  if (tableName === "Corner Table") {
+  if (tableName === "Shop Talk") {
     return {
-      vi: "Bàn Góc",
-      en: "Corner Table",
+      vi: "Bàn Chuyện Nghề",
+      en: "Shop Talk",
     };
   }
 
-  if (tableName === "Window Seat") {
+  if (tableName === "Color & Trend") {
     return {
-      vi: "Ghế Cửa Sổ",
-      en: "Window Seat",
+      vi: "Bàn Màu & Trend",
+      en: "Color & Trend",
     };
   }
 
-  if (tableName === "Big Table") {
+  if (tableName === "Vent Table") {
     return {
-      vi: "Bàn Lớn",
-      en: "Big Table",
+      vi: "Bàn Xả Hơi",
+      en: "Vent Table",
     };
   }
 
   if (tableName === "Quiet Table") {
     return {
-      vi: "Bàn Yên",
+      vi: "Bàn Yên Tĩnh",
       en: "Quiet Table",
     };
   }
