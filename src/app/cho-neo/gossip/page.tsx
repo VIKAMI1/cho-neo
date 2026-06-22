@@ -2817,12 +2817,14 @@ export default function ChoNeoGossipPage() {
         }
 
         .gossip-hotspot-layer:has(.table-hotspot:hover) .table-hotspot:not(:hover) .hotspot-label,
+        .gossip-hotspot-layer:has(.table-hotspot:focus) .table-hotspot:not(:focus) .hotspot-label,
         .gossip-hotspot-layer:has(.table-hotspot:focus-visible) .table-hotspot:not(:focus-visible) .hotspot-label {
           opacity: 1;
           transform: translate(-50%, -50%) scale(1);
         }
 
         .gossip-image-lobby .table-hotspot:hover,
+        .gossip-image-lobby .table-hotspot:focus,
         .gossip-image-lobby .table-hotspot:focus-visible {
           z-index: 4;
           filter: drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42));
@@ -2830,11 +2832,14 @@ export default function ChoNeoGossipPage() {
         }
 
         .gossip-image-lobby .table-hotspot:hover .hotspot-glow,
+        .gossip-image-lobby .table-hotspot:focus .hotspot-glow,
         .gossip-image-lobby .table-hotspot:focus-visible .hotspot-glow {
           opacity: 0.96;
           transform: translate(-50%, -50%) scale(1.32);
         }
 
+        .gossip-image-lobby .table-hotspot:hover .hotspot-label,
+        .gossip-image-lobby .table-hotspot:focus .hotspot-label,
         .gossip-image-lobby .table-hotspot:focus-visible .hotspot-label {
           border-color: rgba(253, 230, 138, 0.5);
           background:
@@ -2849,9 +2854,25 @@ export default function ChoNeoGossipPage() {
         }
 
         @media (hover: hover) and (pointer: fine) {
-          .gossip-image-lobby .table-hotspot:hover .hotspot-label {
-            opacity: 0.18;
-            transform: translate(-50%, -50%) scale(0.78);
+          .gossip-image-lobby .hotspot-label {
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, -50%) scale(0.72);
+          }
+
+          .gossip-hotspot-layer:has(.table-hotspot:hover) .table-hotspot:not(:hover) .hotspot-label,
+          .gossip-hotspot-layer:has(.table-hotspot:focus) .table-hotspot:not(:focus) .hotspot-label,
+          .gossip-hotspot-layer:has(.table-hotspot:focus-visible) .table-hotspot:not(:focus-visible) .hotspot-label {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.72);
+          }
+
+          .gossip-image-lobby .table-hotspot:hover .hotspot-label,
+          .gossip-image-lobby .table-hotspot:focus .hotspot-label,
+          .gossip-image-lobby .table-hotspot:focus-visible .hotspot-label {
+            opacity: 1 !important;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) scale(0.94) !important;
           }
         }
 
@@ -2871,20 +2892,41 @@ export default function ChoNeoGossipPage() {
           position: absolute;
           left: 50%;
           top: 50%;
-          width: 36px;
-          height: 36px;
+          display: grid;
+          place-items: center;
+          width: 38px;
+          height: 38px;
           border-radius: 999px;
           transform: translate(-50%, -50%);
-          background: rgba(253, 230, 138, 0.4);
+          border: 1px solid rgba(253, 230, 138, 0.48);
+          background:
+            radial-gradient(circle at 35% 28%, rgba(255, 247, 237, 0.35), transparent 22%),
+            linear-gradient(180deg, rgba(253, 230, 138, 0.34), rgba(146, 64, 14, 0.34)),
+            rgba(37, 22, 24, 0.78);
+          color: #fde68a;
           box-shadow:
             0 0 0 8px rgba(253, 230, 138, 0.1),
-            0 0 28px rgba(251, 191, 36, 0.38);
-          opacity: 0.7;
+            0 0 28px rgba(251, 191, 36, 0.38),
+            inset 0 1px 0 rgba(255, 255, 255, 0.16);
+          opacity: 0.86;
           pointer-events: none;
           transition:
             opacity 180ms ease,
             transform 180ms ease;
         }
+
+        .hotspot-glow::after {
+          content: "";
+          font-size: 18px;
+          line-height: 1;
+          filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3));
+        }
+
+        .table-hotspot-1 .hotspot-glow::after { content: "☕"; }
+        .table-hotspot-2 .hotspot-glow::after { content: "▤"; }
+        .table-hotspot-3 .hotspot-glow::after { content: "◒"; }
+        .table-hotspot-4 .hotspot-glow::after { content: "🍵"; }
+        .table-hotspot-5 .hotspot-glow::after { content: "◌"; }
 
         .hotspot-label {
           position: absolute;
@@ -4413,6 +4455,10 @@ export default function ChoNeoGossipPage() {
             box-shadow:
               0 0 0 5px rgba(253, 230, 138, 0.08),
               0 0 18px rgba(251, 191, 36, 0.32);
+          }
+
+          .hotspot-glow::after {
+            font-size: 12px;
           }
 
           .hotspot-label {
