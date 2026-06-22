@@ -2818,8 +2818,8 @@ export default function ChoNeoGossipPage() {
 
         .gossip-hotspot-layer:has(.table-hotspot:hover) .table-hotspot:not(:hover) .hotspot-label,
         .gossip-hotspot-layer:has(.table-hotspot:focus-visible) .table-hotspot:not(:focus-visible) .hotspot-label {
-          opacity: 0.62;
-          transform: translate(-50%, -50%) scale(0.96);
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
         }
 
         .gossip-image-lobby .table-hotspot:hover,
@@ -2835,7 +2835,6 @@ export default function ChoNeoGossipPage() {
           transform: translate(-50%, -50%) scale(1.32);
         }
 
-        .gossip-image-lobby .table-hotspot:hover .hotspot-label,
         .gossip-image-lobby .table-hotspot:focus-visible .hotspot-label {
           border-color: rgba(253, 230, 138, 0.5);
           background:
@@ -2847,6 +2846,13 @@ export default function ChoNeoGossipPage() {
             0 0 24px rgba(251, 191, 36, 0.12),
             inset 0 1px 0 rgba(255, 255, 255, 0.12);
           transform: translate(-50%, -50%) scale(0.94);
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .gossip-image-lobby .table-hotspot:hover .hotspot-label {
+            opacity: 0.18;
+            transform: translate(-50%, -50%) scale(0.78);
+          }
         }
 
         .gossip-image-lobby .table-hotspot:focus-visible {
