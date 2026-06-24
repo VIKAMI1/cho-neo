@@ -192,11 +192,11 @@ const rules = [
 ];
 
 const frontDoorRules = [
-  "Nói thật, nhưng đừng làm đau người khác.",
+  "Nói thật, nói vừa nghe.",
   "Không bêu tên tiệm, khách, thợ, hay chủ tiệm ngoài đời.",
-  "Không chửi bới, kỳ thị, hăm dọa, hoặc kéo drama vào làng.",
-  "Chuyện nghề thì góp ý cho có tâm.",
-  "Vào đây để nhẹ lòng hơn, không phải để đốt nhà nhau.",
+  "Không chửi bới, kỳ thị, hăm dọa.",
+  "Chuyện nghề thì góp ý có tâm.",
+  "Vào đây để nhẹ lòng hơn.",
 ];
 
 const hostTools = ["báo cáo / report", "ẩn / hide", "gỡ / remove"];
@@ -902,7 +902,11 @@ export default function ChoNeoGossipPage() {
               </p>
               <h2>Nội Quy Quán Tám</h2>
               <p className="rules-door-subtitle">
-                Quán này để tám cho vui, xả cho nhẹ, giúp nhau cho đàng hoàng.
+                Ngồi xuống nói chuyện nhẹ nhàng: nói thật, đừng làm đau người
+                khác, giữ chuyện riêng của nhau.
+                <span>
+                  Sit down gently: be honest, be kind, protect privacy.
+                </span>
               </p>
               <ol>
                 {frontDoorRules.map((rule) => (
@@ -910,7 +914,7 @@ export default function ChoNeoGossipPage() {
                 ))}
               </ol>
               <p className="rules-door-helper">
-                Be real, be kind, protect privacy, and keep the room safe.
+                Cứ tám như người trong nghề, nhưng để ai rời bàn cũng nhẹ lòng hơn.
               </p>
               <div className="rules-door-actions">
                 <button type="button" onClick={enterQuanTamRoom}>
@@ -943,10 +947,6 @@ export default function ChoNeoGossipPage() {
                   <small>{currentAvatar.name}</small>
                 </span>
               </div>
-              <button type="button" onClick={() => setIdentityPickerOpen(true)}>
-                Đổi avatar
-                <span>Change avatar</span>
-              </button>
             </div>
           ) : null}
 
@@ -991,7 +991,17 @@ export default function ChoNeoGossipPage() {
                       }}
                       type="button"
                     >
-                      <span>{avatar.emoji}</span>
+                      <span
+                        className="avatar-choice-portrait avatar-choice-portrait-placeholder"
+                        data-avatar-id={avatar.id}
+                        aria-hidden="true"
+                      >
+                        <span className="avatar-choice-face">
+                          <span className="avatar-choice-eyes" />
+                          <span className="avatar-choice-smile" />
+                        </span>
+                        <span className="avatar-choice-charm">{avatar.emoji}</span>
+                      </span>
                       <strong>
                         {avatarCopy.name}
                         <span>{avatar.name}</span>
@@ -1060,7 +1070,11 @@ export default function ChoNeoGossipPage() {
                 ))}
               </div>
 
-              <div className="detail-panel">
+              <div
+                className={`detail-panel ${
+                  isFrontCounter ? "detail-panel-front-counter" : ""
+                }`}
+              >
                 <div className="detail-heading">
                   <div>
                     <p>
@@ -1105,34 +1119,71 @@ export default function ChoNeoGossipPage() {
                     className="front-counter-table-scene"
                     aria-label="Front Counter café table scene"
                   >
-                    <div className="front-counter-table-surface">
-                      <span className="table-prop table-prop-cup" aria-hidden="true" />
-                      <span className="table-prop table-prop-tea" aria-hidden="true" />
-                      <span className="table-prop table-prop-receipt" aria-hidden="true" />
-                      <span className="table-prop table-prop-swatches" aria-hidden="true" />
-                      <span className="table-prop table-prop-flowers" aria-hidden="true" />
-                      <span className="table-prop table-prop-phone" aria-hidden="true" />
-                      <div className="front-counter-scene-avatars">
-                        {visibleSeats.slice(0, 5).map((seat) => {
-                          const avatar = getAvatarById(seat.avatarId);
-                          const isCurrentSeat =
-                            identity?.nickname === seat.nickname &&
-                            identity?.avatarId === seat.avatarId;
+                    <div className="front-counter-focused-stage">
+                      <img
+                        alt="Warm Front Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
+                        className="front-counter-focused-image"
+                        src="/images/cho-neo/quan-tam-front-counter-focused-v1.png"
+                      />
+                      <div className="front-counter-focused-scrim" aria-hidden="true" />
+                      {identity && currentAvatar ? (
+                        <div className="front-counter-selected-chip">
+                          <span
+                            className={`front-counter-selected-avatar avatar-${currentAvatar.tone}`}
+                            aria-hidden="true"
+                          >
+                            {currentAvatar.emoji}
+                          </span>
+                          <strong>
+                            {identity.nickname}
+                            <span>{getGossipAvatarCopy(currentAvatar.id).name}</span>
+                          </strong>
+                        </div>
+                      ) : (
+                        <div className="front-counter-selected-chip front-counter-selected-chip-empty">
+                          <span aria-hidden="true">☕</span>
+                          <strong>
+                            Chọn gương mặt làng
+                            <span>Choose your village face</span>
+                          </strong>
+                        </div>
+                      )}
+                      <div
+                        className="front-counter-stage-bubbles"
+                        aria-label="Front Counter visible notes"
+                      >
+                        {selectedMessages.slice(-4).map((message, index) => {
+                          const frontCounterMessage =
+                            "avatarId" in message ? message : null;
+                          const conversationMessage =
+                            "name" in message ? message : null;
+                          const isRemoved = !!frontCounterMessage?.removedAt;
+                          const displayName = frontCounterMessage
+                            ? isRemoved
+                              ? "Village host"
+                              : frontCounterMessage.nickname
+                            : conversationMessage?.name ?? "";
 
                           return (
-                            <span
-                              className={`scene-avatar-chip avatar-${avatar.tone} ${
-                                isCurrentSeat ? "scene-avatar-chip-current" : ""
-                              }`}
-                              key={`scene-${seat.avatarId}-${seat.nickname}`}
+                            <div
+                              className={`front-counter-stage-bubble ${
+                                index % 2
+                                  ? "front-counter-stage-bubble-right"
+                                  : "front-counter-stage-bubble-left"
+                              } ${isRemoved ? "front-counter-stage-bubble-muted" : ""}`}
+                              key={
+                                "id" in message
+                                  ? `stage-${message.id}`
+                                  : `stage-${message.name}-${message.text}`
+                              }
                             >
-                              <span aria-hidden="true">{avatar.emoji}</span>
-                              <strong>{seat.nickname}</strong>
-                            </span>
+                              <small>{displayName}</small>
+                              <p>{message.text}</p>
+                            </div>
                           );
                         })}
                       </div>
-                      <p>
+                      <p className="front-counter-stage-cta">
                         Ngồi xuống góp một câu.
                         <span>Sit down and add one line.</span>
                       </p>
@@ -1143,10 +1194,9 @@ export default function ChoNeoGossipPage() {
                 {isFrontCounter && hostToolsOpen ? (
                   <div className="host-tools-panel">
                     <div>
-                      <strong>Host Review</strong>
+                      <strong>Host tools</strong>
                       <p>
-                        Review reported, hidden, and removed Front Counter
-                        messages.
+                        Báo cáo / Report · Ẩn / Hide · Gỡ / Remove
                       </p>
                     </div>
                     <input
@@ -1171,11 +1221,11 @@ export default function ChoNeoGossipPage() {
                           ? "Opening..."
                           : hostReviewUnlocked
                             ? "Refresh"
-                            : "Open review"}
+                            : "Open"}
                       </button>
                       {hostReviewUnlocked ? (
                         <button type="button" onClick={closeHostReview}>
-                          Close Host Review
+                          Close
                         </button>
                       ) : null}
                     </div>
@@ -1224,7 +1274,7 @@ export default function ChoNeoGossipPage() {
                                           }
                                           type="button"
                                         >
-                                          Unhide
+                                          Hiện lại
                                         </button>
                                       ) : null}
                                       {!isRemoved && !isHidden ? (
@@ -1238,7 +1288,8 @@ export default function ChoNeoGossipPage() {
                                           }
                                           type="button"
                                         >
-                                          Hide
+                                          Ẩn
+                                          <span>Hide</span>
                                         </button>
                                       ) : null}
                                       {hasReports ? (
@@ -1252,7 +1303,8 @@ export default function ChoNeoGossipPage() {
                                           }
                                           type="button"
                                         >
-                                          Mark reviewed
+                                          Báo cáo đã xem
+                                          <span>Report reviewed</span>
                                         </button>
                                       ) : null}
                                       {!isRemoved ? (
@@ -1266,7 +1318,8 @@ export default function ChoNeoGossipPage() {
                                           }
                                           type="button"
                                         >
-                                          Remove
+                                          Gỡ
+                                          <span>Remove</span>
                                         </button>
                                       ) : null}
                                     </div>
@@ -1429,7 +1482,8 @@ export default function ChoNeoGossipPage() {
                                     }
                                     type="button"
                                   >
-                                    Hide
+                                    Ẩn
+                                    <span>Hide</span>
                                   </button>
                                   <button
                                     disabled={
@@ -1444,7 +1498,8 @@ export default function ChoNeoGossipPage() {
                                     }
                                     type="button"
                                   >
-                                    Remove
+                                    Gỡ
+                                    <span>Remove</span>
                                   </button>
                                 </>
                               ) : null}
@@ -1954,23 +2009,42 @@ export default function ChoNeoGossipPage() {
           position: relative;
           z-index: 30;
           display: grid;
-          min-height: min(680px, calc(100vh - 210px));
+          min-height: min(560px, calc(100vh - 210px));
           place-items: center;
-          padding: 28px 0;
+          padding: 18px 0;
           isolation: isolate;
+          perspective: 1200px;
         }
 
         .quan-tam-rules-door::before {
           content: "";
           position: absolute;
-          inset: 8% 4% 0;
+          inset: 4% 3% 0;
           z-index: -1;
-          border-radius: 999px;
+          border-radius: 44px;
           background:
-            radial-gradient(circle at 50% 22%, rgba(251, 191, 36, 0.18), transparent 28%),
-            radial-gradient(circle at 42% 70%, rgba(147, 51, 83, 0.2), transparent 34%);
-          filter: blur(18px);
-          opacity: 0.82;
+            linear-gradient(90deg, rgba(120, 53, 15, 0.36), transparent 18% 82%, rgba(120, 53, 15, 0.32)),
+            radial-gradient(circle at 50% 18%, rgba(254, 243, 199, 0.24), transparent 22%),
+            radial-gradient(circle at 52% 84%, rgba(251, 191, 36, 0.2), transparent 38%),
+            linear-gradient(180deg, rgba(70, 35, 24, 0.46), rgba(18, 13, 20, 0.2));
+          filter: blur(14px);
+          opacity: 0.9;
+          pointer-events: none;
+        }
+
+        .quan-tam-rules-door::after {
+          content: "";
+          position: absolute;
+          inset: 12% 13% 8%;
+          z-index: -1;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 42px 42px 24px 24px;
+          background:
+            linear-gradient(90deg, rgba(253, 230, 138, 0.08), transparent 18% 82%, rgba(253, 230, 138, 0.08)),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.08), rgba(255, 247, 237, 0.02));
+          box-shadow:
+            inset 0 0 0 10px rgba(62, 32, 24, 0.18),
+            0 34px 80px rgba(0, 0, 0, 0.24);
           pointer-events: none;
         }
 
@@ -1982,26 +2056,26 @@ export default function ChoNeoGossipPage() {
           padding: 24px;
           background:
             radial-gradient(circle at 50% 20%, rgba(253, 230, 138, 0.18), transparent 34%),
-            rgba(7, 10, 24, 0.78);
+            radial-gradient(circle at 18% 88%, rgba(190, 24, 93, 0.12), transparent 32%),
+            rgba(31, 20, 18, 0.76);
           backdrop-filter: blur(14px);
         }
 
         .rules-door-card {
-          width: min(640px, 100%);
-          padding: clamp(22px, 4vw, 36px);
-          border: 1px solid rgba(253, 230, 138, 0.34);
-          border-radius: 38px;
+          width: min(620px, 100%);
+          padding: clamp(18px, 3vw, 28px);
+          border: 1px solid rgba(253, 230, 138, 0.26);
+          border-radius: 28px;
           background:
-            linear-gradient(135deg, rgba(253, 230, 138, 0.16), transparent 28%),
-            radial-gradient(circle at 82% 4%, rgba(251, 191, 36, 0.18), transparent 32%),
-            radial-gradient(circle at 15% 92%, rgba(127, 29, 29, 0.22), transparent 34%),
-            linear-gradient(180deg, rgba(64, 39, 31, 0.9), rgba(23, 14, 24, 0.94)),
-            rgba(8, 13, 28, 0.92);
+            linear-gradient(90deg, rgba(251, 191, 36, 0.09), transparent 30% 70%, rgba(244, 114, 182, 0.08)),
+            radial-gradient(circle at 86% 8%, rgba(254, 243, 199, 0.18), transparent 30%),
+            linear-gradient(180deg, rgba(96, 50, 34, 0.88), rgba(35, 22, 25, 0.94)),
+            rgba(8, 13, 28, 0.88);
           box-shadow:
-            0 34px 92px rgba(0, 0, 0, 0.48),
+            0 34px 92px rgba(0, 0, 0, 0.38),
             0 0 48px rgba(251, 191, 36, 0.1),
             inset 0 1px 0 rgba(255, 255, 255, 0.18),
-            inset 0 0 0 8px rgba(253, 230, 138, 0.035);
+            inset 0 0 0 1px rgba(255, 247, 237, 0.08);
           backdrop-filter: blur(14px);
         }
 
@@ -2009,13 +2083,13 @@ export default function ChoNeoGossipPage() {
           display: grid;
           width: fit-content;
           gap: 4px;
-          margin: -4px auto 22px;
-          padding: 12px 22px 11px;
-          border: 1px solid rgba(253, 230, 138, 0.34);
-          border-radius: 999px;
+          margin: -2px auto 16px;
+          padding: 9px 18px 8px;
+          border: 1px solid rgba(253, 230, 138, 0.28);
+          border-radius: 22px;
           background:
             linear-gradient(180deg, rgba(255, 247, 237, 0.12), rgba(255, 247, 237, 0.035)),
-            rgba(30, 18, 22, 0.68);
+            rgba(30, 18, 22, 0.54);
           color: #fde68a;
           text-align: center;
           box-shadow:
@@ -2024,10 +2098,11 @@ export default function ChoNeoGossipPage() {
         }
 
         .rules-door-sign strong {
-          font-size: clamp(32px, 6vw, 54px);
+          font-family: ui-serif, Georgia, "Times New Roman", serif;
+          font-size: clamp(28px, 5vw, 42px);
           font-weight: 950;
           line-height: 0.92;
-          letter-spacing: -0.05em;
+          letter-spacing: -0.035em;
           text-shadow:
             0 0 16px rgba(251, 191, 36, 0.28),
             0 2px 0 rgba(0, 0, 0, 0.28);
@@ -2035,7 +2110,7 @@ export default function ChoNeoGossipPage() {
 
         .rules-door-sign span {
           color: rgba(255, 247, 237, 0.7);
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 900;
           letter-spacing: 0.18em;
           text-transform: uppercase;
@@ -2045,29 +2120,39 @@ export default function ChoNeoGossipPage() {
           margin: 0;
           color: #fff7ed;
           font-family: ui-serif, Georgia, "Times New Roman", serif;
-          font-size: clamp(38px, 7vw, 68px);
+          font-size: clamp(28px, 5vw, 44px);
           font-style: italic;
           font-weight: 800;
-          line-height: 0.95;
-          letter-spacing: -0.055em;
+          line-height: 1;
+          letter-spacing: -0.035em;
           text-align: center;
           text-shadow: 0 0 24px rgba(251, 191, 36, 0.16);
         }
 
         .rules-door-subtitle {
-          max-width: 520px;
-          margin: 12px auto 0;
+          max-width: 500px;
+          margin: 10px auto 0;
           color: rgba(255, 247, 237, 0.84);
-          font-size: clamp(16px, 2vw, 20px);
-          font-weight: 850;
-          line-height: 1.45;
+          font-size: clamp(14px, 1.8vw, 17px);
+          font-weight: 760;
+          line-height: 1.4;
           text-align: center;
+        }
+
+        .rules-door-subtitle span,
+        .rules-door-helper span {
+          display: block;
+          margin-top: 4px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 0.84em;
+          font-weight: 750;
+          line-height: 1.35;
         }
 
         .rules-door-card ol {
           display: grid;
-          gap: 10px;
-          margin: 20px 0 0;
+          gap: 6px;
+          margin: 14px 0 0;
           padding: 0;
           list-style: none;
           counter-reset: quan-tam-rule;
@@ -2075,17 +2160,17 @@ export default function ChoNeoGossipPage() {
 
         .rules-door-card li {
           position: relative;
-          min-height: 42px;
-          padding: 12px 14px 12px 54px;
-          border: 1px solid rgba(253, 230, 138, 0.17);
-          border-radius: 20px;
+          min-height: 32px;
+          padding: 7px 10px 7px 40px;
+          border: 1px solid rgba(253, 230, 138, 0.12);
+          border-radius: 13px;
           background:
-            linear-gradient(90deg, rgba(253, 230, 138, 0.1), transparent 54%),
-            rgba(255, 247, 237, 0.07);
+            linear-gradient(90deg, rgba(253, 230, 138, 0.08), transparent 54%),
+            rgba(255, 247, 237, 0.045);
           color: rgba(255, 247, 237, 0.82);
-          font-size: 14px;
-          font-weight: 850;
-          line-height: 1.35;
+          font-size: 13px;
+          font-weight: 760;
+          line-height: 1.32;
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.09),
             0 10px 22px rgba(0, 0, 0, 0.12);
@@ -2099,25 +2184,26 @@ export default function ChoNeoGossipPage() {
           top: 50%;
           display: grid;
           place-items: center;
-          width: 28px;
-          height: 28px;
+          width: 21px;
+          height: 21px;
           border-radius: 999px;
           transform: translateY(-50%);
           background:
             radial-gradient(circle at 35% 25%, #fff7ed, transparent 32%),
             linear-gradient(180deg, #fde68a, #f59e0b);
           color: #111827;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 950;
           box-shadow: 0 0 16px rgba(251, 191, 36, 0.24);
         }
 
         .rules-door-helper {
-          margin: 16px 0 0;
-          color: rgba(255, 247, 237, 0.66);
-          font-size: 13px;
-          font-weight: 850;
-          line-height: 1.4;
+          max-width: 500px;
+          margin: 12px auto 0;
+          color: rgba(255, 247, 237, 0.76);
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.35;
           text-align: center;
         }
 
@@ -2125,11 +2211,11 @@ export default function ChoNeoGossipPage() {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
-          margin-top: 20px;
+          margin-top: 14px;
         }
 
         .rules-door-actions button {
-          min-height: 44px;
+          min-height: 40px;
           flex: 1 1 210px;
           border: 0;
           border-radius: 999px;
@@ -2138,7 +2224,7 @@ export default function ChoNeoGossipPage() {
             linear-gradient(180deg, #fde68a, #fbbf24);
           color: #111827;
           cursor: pointer;
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 950;
           box-shadow:
             0 12px 24px rgba(0, 0, 0, 0.22),
@@ -2204,7 +2290,7 @@ export default function ChoNeoGossipPage() {
 
         .current-identity {
           display: grid;
-          grid-template-columns: auto minmax(0, 1fr) auto;
+          grid-template-columns: auto minmax(0, 1fr);
           gap: 14px;
           align-items: center;
           padding: 14px;
@@ -2216,8 +2302,10 @@ export default function ChoNeoGossipPage() {
           width: 58px;
           height: 58px;
           border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 22px;
-          background: rgba(253, 230, 138, 0.12);
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 50% 30%, rgba(255, 247, 237, 0.2), transparent 34%),
+            rgba(253, 230, 138, 0.12);
           box-shadow: 0 0 28px rgba(251, 191, 36, 0.12);
         }
 
@@ -2282,8 +2370,8 @@ export default function ChoNeoGossipPage() {
 
         .identity-picker {
           display: grid;
-          gap: 14px;
-          padding: 16px;
+          gap: 12px;
+          padding: 14px;
         }
 
         .identity-picker-heading {
@@ -2295,9 +2383,9 @@ export default function ChoNeoGossipPage() {
 
         .identity-picker h2 {
           margin: 0;
-          font-size: clamp(28px, 4vw, 46px);
-          line-height: 0.96;
-          letter-spacing: -0.04em;
+          font-size: clamp(24px, 3.2vw, 36px);
+          line-height: 1;
+          letter-spacing: -0.025em;
         }
 
         .identity-picker p:not(.eyebrow) {
@@ -2317,29 +2405,142 @@ export default function ChoNeoGossipPage() {
 
         .avatar-grid {
           display: grid;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 10px;
         }
 
         .avatar-choice {
           display: grid;
-          gap: 8px;
+          position: relative;
+          gap: 7px;
           place-items: center;
-          min-height: 104px;
-          padding: 12px 8px;
+          min-height: 146px;
+          overflow: hidden;
+          padding: 10px 9px 11px;
           color: #fff7ed !important;
-          background: rgba(15, 23, 42, 0.62) !important;
-          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.15), transparent 34%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.09), rgba(255, 247, 237, 0.035)),
+            rgba(56, 32, 31, 0.58) !important;
+          border: 1px solid rgba(253, 230, 138, 0.15) !important;
           border-radius: 18px !important;
+          box-shadow:
+            0 14px 34px rgba(0, 0, 0, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.09);
+          isolation: isolate;
+          transition:
+            border-color 160ms ease,
+            box-shadow 160ms ease,
+            transform 160ms ease;
         }
 
-        .avatar-choice > span {
-          font-size: 30px;
+        .avatar-choice::before {
+          content: "";
+          position: absolute;
+          inset: 10px;
+          z-index: -1;
+          border-radius: 16px;
+          background:
+            linear-gradient(180deg, transparent 0 48%, rgba(253, 230, 138, 0.07) 48% 100%),
+            radial-gradient(circle at 50% 38%, rgba(255, 247, 237, 0.16), transparent 30%);
+          opacity: 0.8;
+        }
+
+        .avatar-choice:hover,
+        .avatar-choice:focus-visible {
+          border-color: rgba(253, 230, 138, 0.4) !important;
+          box-shadow:
+            0 18px 40px rgba(0, 0, 0, 0.22),
+            0 0 0 3px rgba(253, 230, 138, 0.08);
+          transform: translateY(-2px);
+        }
+
+        .avatar-choice:focus-visible {
+          outline: none;
+        }
+
+        .avatar-choice-portrait {
+          position: relative;
+          display: grid;
+          place-items: center;
+          width: 62px;
+          height: 62px;
+          border: 1px solid rgba(255, 247, 237, 0.22);
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 50% 30%, rgba(255, 247, 237, 0.6), transparent 28%),
+            linear-gradient(180deg, rgba(254, 243, 199, 0.94), rgba(217, 119, 6, 0.3)),
+            rgba(253, 230, 138, 0.22);
+          box-shadow:
+            0 16px 28px rgba(0, 0, 0, 0.2),
+            inset 0 -12px 18px rgba(120, 53, 15, 0.16);
+        }
+
+        .avatar-choice-face {
+          position: relative;
+          display: block;
+          width: 34px;
+          height: 40px;
+          border-radius: 44% 44% 48% 48%;
+          background:
+            radial-gradient(circle at 50% 96%, rgba(79, 34, 18, 0.32), transparent 18%),
+            linear-gradient(180deg, #f7cfa6, #c97850);
+          box-shadow:
+            0 13px 0 -5px rgba(92, 43, 30, 0.8),
+            0 16px 0 -6px rgba(253, 230, 138, 0.18);
+        }
+
+        .avatar-choice-eyes,
+        .avatar-choice-eyes::after {
+          position: absolute;
+          top: 17px;
+          width: 3px;
+          height: 3px;
+          border-radius: 999px;
+          background: #3f2418;
+          content: "";
+        }
+
+        .avatar-choice-eyes {
+          left: 10px;
+        }
+
+        .avatar-choice-eyes::after {
+          left: 12px;
+          top: 0;
+        }
+
+        .avatar-choice-smile {
+          position: absolute;
+          left: 50%;
+          bottom: 10px;
+          width: 12px;
+          height: 6px;
+          border-bottom: 2px solid rgba(63, 36, 24, 0.68);
+          border-radius: 0 0 999px 999px;
+          transform: translateX(-50%);
+        }
+
+        .avatar-choice-charm {
+          position: absolute;
+          right: -3px;
+          bottom: 0;
+          display: grid;
+          place-items: center;
+          width: 23px;
+          height: 23px;
+          border: 1px solid rgba(253, 230, 138, 0.36);
+          border-radius: 999px;
+          background: rgba(25, 16, 18, 0.86);
+          font-size: 13px;
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
         }
 
         .avatar-choice strong {
+          max-width: 100%;
           font-size: 12px;
           line-height: 1.15;
+          text-align: center;
         }
 
         .avatar-choice strong span,
@@ -2351,14 +2552,29 @@ export default function ChoNeoGossipPage() {
 
         .avatar-choice small {
           color: rgba(255, 247, 237, 0.62);
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 750;
-          line-height: 1.25;
+          line-height: 1.28;
+          text-align: center;
         }
 
         .avatar-choice-active {
           border-color: rgba(253, 230, 138, 0.58) !important;
-          box-shadow: 0 0 30px rgba(251, 191, 36, 0.16);
+          background:
+            radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.25), transparent 36%),
+            linear-gradient(180deg, rgba(253, 230, 138, 0.18), rgba(255, 247, 237, 0.06)),
+            rgba(76, 43, 31, 0.72) !important;
+          box-shadow:
+            0 0 0 3px rgba(253, 230, 138, 0.11),
+            0 18px 40px rgba(0, 0, 0, 0.24),
+            0 0 30px rgba(251, 191, 36, 0.18);
+        }
+
+        .avatar-choice-active .avatar-choice-portrait {
+          border-color: rgba(253, 230, 138, 0.7);
+          box-shadow:
+            0 0 0 5px rgba(253, 230, 138, 0.1),
+            0 16px 30px rgba(0, 0, 0, 0.24);
         }
 
         .identity-form {
@@ -3091,6 +3307,29 @@ export default function ChoNeoGossipPage() {
           backdrop-filter: blur(14px);
         }
 
+        .detail-panel-front-counter {
+          overflow: visible;
+          padding: clamp(12px, 2vw, 18px);
+          border-color: rgba(253, 230, 138, 0.1);
+          background:
+            radial-gradient(circle at 50% 12%, rgba(253, 230, 138, 0.1), transparent 32%),
+            linear-gradient(180deg, rgba(69, 40, 30, 0.38), rgba(26, 18, 20, 0.44));
+          box-shadow:
+            0 26px 78px rgba(0, 0, 0, 0.32),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .detail-panel-front-counter .detail-heading {
+          align-items: center;
+          margin: 0 4px 12px;
+          padding: 0;
+        }
+
+        .detail-panel-front-counter .topic,
+        .detail-panel-front-counter .detail-members {
+          display: none;
+        }
+
         .detail-heading {
           display: flex;
           align-items: flex-start;
@@ -3159,16 +3398,12 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-table-scene {
           position: relative;
-          margin: 18px 0 0;
-          padding: 18px;
-          border: 1px solid rgba(253, 230, 138, 0.2);
-          border-radius: 28px;
-          background:
-            radial-gradient(circle at 28% 20%, rgba(253, 230, 138, 0.16), transparent 28%),
-            linear-gradient(180deg, rgba(84, 48, 34, 0.72), rgba(35, 20, 28, 0.72));
-          box-shadow:
-            0 18px 44px rgba(0, 0, 0, 0.22),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+          margin: 6px -4px 0;
+          padding: 0;
+          border: 0;
+          border-radius: 30px;
+          background: transparent;
+          box-shadow: none;
         }
 
         .front-counter-table-surface {
@@ -3330,6 +3565,211 @@ export default function ChoNeoGossipPage() {
           font-size: 10px;
         }
 
+        .front-counter-focused-stage {
+          position: relative;
+          overflow: hidden;
+          min-height: clamp(470px, 58vw, 660px);
+          border: 1px solid rgba(253, 230, 138, 0.14);
+          border-radius: 30px;
+          background:
+            radial-gradient(circle at 52% 70%, rgba(253, 230, 138, 0.12), transparent 36%),
+            #2f2018;
+          box-shadow:
+            0 30px 76px rgba(0, 0, 0, 0.34),
+            inset 0 0 56px rgba(0, 0, 0, 0.24);
+        }
+
+        .front-counter-focused-stage::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: 2;
+          background:
+            linear-gradient(90deg, transparent 0 20%, rgba(31, 18, 15, 0.64) 29% 68%, transparent 78%),
+            radial-gradient(ellipse at 45% 54%, rgba(41, 24, 17, 0.92) 0 31%, rgba(41, 24, 17, 0.62) 45%, transparent 62%),
+            radial-gradient(ellipse at 84% 13%, rgba(24, 15, 15, 0.9) 0 18%, rgba(24, 15, 15, 0.52) 31%, transparent 46%),
+            linear-gradient(180deg, rgba(21, 13, 12, 0.06), rgba(21, 13, 12, 0.28) 58%, rgba(21, 13, 12, 0.96) 100%);
+          pointer-events: none;
+        }
+
+        .front-counter-focused-image {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: 50% 50%;
+          transform: scale(1.04);
+        }
+
+        .front-counter-focused-scrim {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          background:
+            linear-gradient(180deg, rgba(20, 12, 10, 0.02), rgba(20, 12, 10, 0.24) 54%, rgba(20, 12, 10, 0.58)),
+            linear-gradient(90deg, rgba(20, 12, 10, 0.42), transparent 24% 76%, rgba(20, 12, 10, 0.42)),
+            radial-gradient(circle at 50% 58%, transparent 0 34%, rgba(15, 9, 10, 0.24) 70%);
+          pointer-events: none;
+        }
+
+        .front-counter-focused-scrim::after {
+          content: "";
+          position: absolute;
+          left: 4%;
+          right: 4%;
+          bottom: 0;
+          height: 33%;
+          background:
+            linear-gradient(180deg, transparent, rgba(19, 12, 12, 0.8)),
+            radial-gradient(ellipse at 50% 100%, rgba(19, 12, 12, 0.92), transparent 70%);
+        }
+
+        .front-counter-selected-chip {
+          position: absolute;
+          z-index: 4;
+          left: clamp(14px, 3vw, 28px);
+          top: clamp(14px, 3vw, 28px);
+          display: inline-flex;
+          align-items: center;
+          gap: 9px;
+          max-width: min(280px, calc(100% - 32px));
+          padding: 9px 12px;
+          border: 1px solid rgba(253, 230, 138, 0.38);
+          border-radius: 999px;
+          background: rgba(30, 17, 15, 0.58);
+          color: #fff7ed;
+          box-shadow:
+            0 14px 30px rgba(0, 0, 0, 0.28),
+            0 0 0 4px rgba(253, 230, 138, 0.06);
+          backdrop-filter: blur(12px);
+        }
+
+        .front-counter-selected-avatar,
+        .front-counter-selected-chip-empty > span {
+          display: grid;
+          place-items: center;
+          width: 32px;
+          height: 32px;
+          flex: 0 0 auto;
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 50% 30%, rgba(255, 247, 237, 0.22), transparent 34%),
+            rgba(253, 230, 138, 0.2);
+        }
+
+        .front-counter-selected-chip strong {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .front-counter-selected-chip strong span {
+          display: block;
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .front-counter-stage-bubbles {
+          position: absolute;
+          z-index: 3;
+          left: clamp(18px, 5vw, 58px);
+          right: clamp(18px, 5vw, 58px);
+          bottom: clamp(62px, 10vw, 116px);
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px clamp(20px, 8vw, 90px);
+          align-items: end;
+          pointer-events: none;
+        }
+
+        .front-counter-stage-bubbles::before {
+          content: "";
+          position: absolute;
+          inset: -24px -18px;
+          z-index: -1;
+          border-radius: 28px;
+          background:
+            radial-gradient(ellipse at 50% 50%, rgba(33, 20, 16, 0.74), rgba(33, 20, 16, 0.34) 54%, transparent 72%);
+          filter: blur(2px);
+        }
+
+        .front-counter-stage-bubble {
+          max-width: 300px;
+          padding: 10px 12px;
+          border: 1px solid rgba(255, 247, 237, 0.5);
+          border-radius: 19px 19px 19px 7px;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(254, 243, 199, 0.92));
+          color: #3f2418;
+          box-shadow:
+            0 16px 30px rgba(0, 0, 0, 0.24),
+            inset 0 1px 0 rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(7px);
+        }
+
+        .front-counter-stage-bubble-right {
+          justify-self: end;
+          margin-top: 38px;
+          border-radius: 19px 19px 7px 19px;
+          background:
+            linear-gradient(180deg, rgba(253, 230, 138, 0.96), rgba(251, 191, 36, 0.9));
+        }
+
+        .front-counter-stage-bubble-muted {
+          opacity: 0.72;
+        }
+
+        .front-counter-stage-bubble small {
+          display: block;
+          margin-bottom: 3px;
+          color: rgba(63, 36, 24, 0.68);
+          font-size: 10px;
+          font-weight: 950;
+        }
+
+        .front-counter-stage-bubble p {
+          display: -webkit-box;
+          overflow: hidden;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+          margin: 0;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.35;
+        }
+
+        .front-counter-stage-cta {
+          position: absolute;
+          z-index: 4;
+          left: 50%;
+          bottom: 18px;
+          margin: 0;
+          padding: 8px 13px;
+          border-radius: 999px;
+          background: rgba(20, 12, 10, 0.56);
+          color: #fde68a;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 950;
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.26);
+          backdrop-filter: blur(10px);
+          transform: translateX(-50%);
+        }
+
+        .front-counter-stage-cta span {
+          display: block;
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.64);
+          font-size: 10px;
+        }
+
         .mock-thread {
           display: grid;
           gap: 12px;
@@ -3340,6 +3780,24 @@ export default function ChoNeoGossipPage() {
           background:
             linear-gradient(180deg, rgba(255, 247, 237, 0.07), rgba(255, 247, 237, 0.035)),
             rgba(8, 13, 28, 0.22);
+        }
+
+        .detail-panel-front-counter .mock-thread {
+          margin-top: 14px;
+          border-color: rgba(253, 230, 138, 0.14);
+          border-radius: 22px;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.1), transparent 30%),
+            rgba(24, 16, 18, 0.34);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-panel-front-counter .conversation-form {
+          margin-top: 14px;
+          border-color: rgba(253, 230, 138, 0.16);
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.09), rgba(255, 247, 237, 0.045)),
+            rgba(33, 22, 21, 0.5);
         }
 
         .daily-table-talk {
@@ -4334,45 +4792,94 @@ export default function ChoNeoGossipPage() {
           }
 
           .quan-tam-rules-door {
-            min-height: auto;
-            padding: 20px 0;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            min-height: 100svh;
+            align-items: center;
+            overflow-y: auto;
+            padding: 12px;
+            background:
+              radial-gradient(circle at 50% 18%, rgba(253, 230, 138, 0.16), transparent 34%),
+              rgba(31, 20, 18, 0.82);
+            backdrop-filter: blur(12px);
           }
 
           .quan-tam-rules-door-overlay {
-            padding: 14px;
+            padding: 10px;
             align-items: start;
             overflow-y: auto;
           }
 
+          .quan-tam-rules-door::after {
+            display: none;
+          }
+
           .rules-door-card {
-            padding: 22px;
-            border-radius: 28px;
+            align-self: center;
+            padding: 16px 14px 14px;
+            border-radius: 20px;
           }
 
           .rules-door-sign {
-            margin-bottom: 18px;
-            padding: 10px 18px;
+            display: none;
+          }
+
+          .rules-door-card .eyebrow {
+            margin-bottom: 7px;
+            font-size: 10px;
           }
 
           .rules-door-card h2 {
-            font-size: clamp(36px, 12vw, 48px);
+            font-size: clamp(25px, 8vw, 31px);
+            line-height: 1.04;
           }
 
           .rules-door-subtitle {
-            font-size: 16px;
+            margin-top: 7px;
+            font-size: 12px;
+            line-height: 1.28;
+          }
+
+          .rules-door-subtitle span {
+            margin-top: 3px;
+            font-size: 0.82em;
           }
 
           .rules-door-card ol {
-            gap: 9px;
+            gap: 5px;
+            margin-top: 9px;
           }
 
           .rules-door-card li {
-            padding: 11px 12px 11px 50px;
-            font-size: 14px;
+            min-height: 27px;
+            padding: 5px 8px 5px 32px;
+            font-size: 11px;
+            line-height: 1.22;
+          }
+
+          .rules-door-card li::before {
+            left: 8px;
+            width: 17px;
+            height: 17px;
+            font-size: 9px;
+          }
+
+          .rules-door-helper {
+            margin-top: 8px;
+            font-size: 10px;
+            line-height: 1.25;
+          }
+
+          .rules-door-actions {
+            gap: 8px;
+            margin-top: 9px;
           }
 
           .rules-door-actions button {
             flex-basis: 100%;
+            min-height: 36px;
+            font-size: 12px;
           }
 
           .room-scene {
@@ -4410,6 +4917,48 @@ export default function ChoNeoGossipPage() {
 
           .gossip-room-stage {
             border-radius: 24px;
+          }
+
+          .front-counter-focused-stage {
+            min-height: 520px;
+            border-radius: 24px;
+          }
+
+          .front-counter-focused-image {
+            object-position: 46% 50%;
+            transform: scale(1.1);
+          }
+
+          .front-counter-selected-chip {
+            left: 10px;
+            top: 10px;
+            max-width: calc(100% - 20px);
+            padding: 7px 9px;
+          }
+
+          .front-counter-stage-bubbles {
+            left: 12px;
+            right: 12px;
+            bottom: 150px;
+            grid-template-columns: 1fr;
+            gap: 8px;
+          }
+
+          .front-counter-stage-bubble {
+            max-width: min(250px, 84%);
+            padding: 8px 10px;
+          }
+
+          .front-counter-stage-bubble:nth-last-child(n+2) {
+            display: none;
+          }
+
+          .front-counter-stage-bubble-right {
+            justify-self: end;
+          }
+
+          .front-counter-stage-bubble p {
+            -webkit-line-clamp: 2;
           }
 
           .room-identity-chip {
@@ -4492,13 +5041,30 @@ export default function ChoNeoGossipPage() {
             grid-template-columns: 1fr;
           }
 
-          .current-identity button,
           .identity-picker-heading button,
           .identity-form div button {
             width: 100%;
           }
 
-          .avatar-grid,
+          .avatar-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+          }
+
+          .avatar-choice {
+            min-height: 136px;
+            padding: 9px 7px 10px;
+          }
+
+          .avatar-choice-portrait {
+            width: 58px;
+            height: 58px;
+          }
+
+          .avatar-choice small {
+            display: none;
+          }
+
           .seat-stage {
             grid-template-columns: 1fr;
           }
@@ -4542,8 +5108,9 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-table-scene {
-            padding: 12px;
-            border-radius: 22px;
+            margin-inline: -8px;
+            padding: 0;
+            border-radius: 24px;
           }
 
           .front-counter-table-surface {
