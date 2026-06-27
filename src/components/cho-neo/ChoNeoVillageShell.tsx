@@ -1216,7 +1216,7 @@ export function ChoNeoVillageShell() {
           }
 
           .village-scene {
-            min-height: 560px;
+            min-height: min(56vh, 480px);
           }
 
           .room-status-list {

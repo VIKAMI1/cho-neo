@@ -5663,25 +5663,27 @@ export default function ChoNeoGossipPage() {
           }
 
           .gossip-room-stage {
+            min-height: 300px;
             border-radius: 24px;
           }
 
           .front-counter-focused-stage {
-            aspect-ratio: 16 / 9;
-            min-height: 0;
+            aspect-ratio: unset;
+            min-height: clamp(300px, 54vh, 460px);
             border-radius: 24px;
           }
 
           .front-counter-focused-image {
+            object-fit: cover;
             object-position: center;
             transform: none;
           }
 
           .front-counter-stage-bubbles {
-            top: 42%;
-            right: 18%;
+            top: 36%;
+            right: 14%;
             bottom: auto;
-            left: 18%;
+            left: 14%;
             transform: translateY(-50%);
             grid-template-columns: 1fr;
             justify-items: center;
@@ -5689,11 +5691,11 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-stage-bubble {
-            max-width: min(220px, 100%);
+            max-width: min(240px, 100%);
             padding: 6px 8px;
           }
 
-          .front-counter-stage-bubble:nth-last-child(n+2) {
+          .front-counter-stage-bubble:nth-last-child(n+3) {
             display: none;
           }
 
