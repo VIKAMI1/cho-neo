@@ -182,15 +182,6 @@ const tables = [
   },
 ];
 
-const rules = [
-  "Bàn chuyện tiệm, chia sẻ receipts, giúp nhau khôn hơn. / Talk shop, share receipts, and help each other leave smarter.",
-  "Không spam bán hàng supplier. / No supplier spam.",
-  "Không công kích cá nhân. / No personal attacks.",
-  "Không câu chuyện chính trị hay chửi theo quốc gia. / No political baiting or national-label insults.",
-  "Không lộ thông tin riêng của khách hoặc nhân viên. / No doxxing or exposing private client/staff details.",
-  "Nói về sản phẩm khi có ích, không quảng cáo ồn ào. / Product talk is allowed when useful, not blasted like an ad.",
-];
-
 const frontDoorRules = [
   "Nói thật, nói vừa nghe.",
   "Không bêu tên tiệm, khách, thợ, hay chủ tiệm ngoài đời.",
@@ -198,8 +189,6 @@ const frontDoorRules = [
   "Chuyện nghề thì góp ý có tâm.",
   "Vào đây để nhẹ lòng hơn.",
 ];
-
-const hostTools = ["báo cáo / report", "ẩn / hide", "gỡ / remove"];
 
 const GOSSIP_AVATAR_COPY: Record<
   string,
@@ -295,6 +284,7 @@ export default function ChoNeoGossipPage() {
   const [moderationBusyMessageId, setModerationBusyMessageId] = useState<
     string | null
   >(null);
+  const [frontCounterDrawerOpen, setFrontCounterDrawerOpen] = useState(false);
   const [hostToolsOpen, setHostToolsOpen] = useState(false);
   const [hostKey, setHostKey] = useState("");
   const [hostReviewMessages, setHostReviewMessages] = useState<
@@ -864,25 +854,78 @@ export default function ChoNeoGossipPage() {
               <span>Gossip Café</span>
             </h1>
             <p className="subtitle">
-              Chuyện tiệm nail, lời rỉ tai ngoài chợ, và câu chuyện của cộng
-              đồng làm đẹp xa quê. Mọi người ghé từng bàn nhỏ, nói vừa đủ nghe,
-              không cần la qua cả phòng.
+              Vào quán, chọn một bàn, nói vừa đủ nghe.
               <span>
-                Salon talk, market whispers, and stories from the diaspora
-                beauty floor. People drift between small tables instead of
-                shouting across one big room.
+                Step in, choose a table, keep the room warm.
               </span>
             </p>
           </div>
 
-          <Link className="back-link" href="/cho-neo">
-            <span className="back-kicker">Cho Neo Village</span>
-            <span>
-              Về Sân Làng
-              <small>Back to Village Square</small>
-            </span>
-          </Link>
         </header>
+
+        {roomEntered ? (
+          <div className="cafe-stage-controls">
+            <nav className="cafe-control-row" aria-label="Quán Tám controls">
+              <Link className="cafe-control-pill" href="/cho-neo">
+                <span>Về Sân Làng</span>
+                <small>Village</small>
+              </Link>
+              {isFrontCounter ? (
+                <>
+                  <button
+                    className="cafe-control-pill"
+                    type="button"
+                    onClick={() => setSelectedTableName(null)}
+                  >
+                    <span>Về Quán Tám</span>
+                    <small>Café</small>
+                  </button>
+                  <button
+                    className="cafe-control-pill"
+                    type="button"
+                    onClick={() =>
+                      setFrontCounterDrawerOpen((isOpen) => !isOpen)
+                    }
+                  >
+                    <span>{frontCounterDrawerOpen ? "Đóng" : "Chuyện cũ"}</span>
+                    <small>{frontCounterDrawerOpen ? "Close" : "More"}</small>
+                  </button>
+                </>
+              ) : null}
+              <button
+                className="cafe-control-pill"
+                type="button"
+                onClick={() => setIdentityPickerOpen(true)}
+              >
+                <span>Đổi Avatar</span>
+                <small>Change</small>
+              </button>
+              <button
+                className="cafe-control-pill"
+                type="button"
+                onClick={() => setRulesGateOpen(true)}
+              >
+                <span>Nội Quy</span>
+                <small>Rules</small>
+              </button>
+            </nav>
+            {isFrontCounter ? (
+              <aside className="front-counter-topic-note" aria-label="Front Counter topic">
+                <strong>Chủ đề / Topic</strong>
+                <span>Chuyện nhanh trước khách tới ✨</span>
+              </aside>
+            ) : null}
+          </div>
+        ) : (
+          <div className="cafe-stage-controls">
+            <nav className="cafe-control-row" aria-label="Quán Tám controls">
+              <Link className="cafe-control-pill" href="/cho-neo">
+                <span>Về Sân Làng</span>
+                <small>Village</small>
+              </Link>
+            </nav>
+          </div>
+        )}
 
         {rulesGateOpen ? (
           <section
@@ -931,25 +974,6 @@ export default function ChoNeoGossipPage() {
         {roomEntered ? (
           <>
         <section className="identity-strip" aria-label="Cho Neo identity">
-          {identity && currentAvatar ? (
-            <div className="current-identity">
-              <div className={`avatar-token avatar-${currentAvatar.tone}`} aria-hidden="true">
-                <span>{currentAvatar.emoji}</span>
-              </div>
-              <div>
-                <p className="eyebrow">
-                  Danh tính làng
-                  <span>Village Identity</span>
-                </p>
-                <strong>{identity.nickname}</strong>
-                <span>
-                  {getGossipAvatarCopy(currentAvatar.id).name}
-                  <small>{currentAvatar.name}</small>
-                </span>
-              </div>
-            </div>
-          ) : null}
-
           {identityPickerOpen ? (
             <div className="identity-picker">
               <div className="identity-picker-heading">
@@ -1073,6 +1097,10 @@ export default function ChoNeoGossipPage() {
               <div
                 className={`detail-panel ${
                   isFrontCounter ? "detail-panel-front-counter" : ""
+                } ${
+                  isFrontCounter && frontCounterDrawerOpen
+                    ? "front-counter-drawer-open"
+                    : ""
                 }`}
               >
                 <div className="detail-heading">
@@ -1119,40 +1147,24 @@ export default function ChoNeoGossipPage() {
                     className="front-counter-table-scene"
                     aria-label="Front Counter café table scene"
                   >
-                    <div className="front-counter-focused-stage">
+                    <div
+                      className={`front-counter-focused-stage ${
+                        frontCounterDrawerOpen
+                          ? "front-counter-focused-stage-drawer-open"
+                          : ""
+                      }`}
+                    >
                       <img
                         alt="Warm Front Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
                         className="front-counter-focused-image"
-                        src="/images/cho-neo/quan-tam-front-counter-focused-v1.png"
+                        src="/images/cho-neo/quan-tam-front-counter-focused-clean-v3.png"
                       />
                       <div className="front-counter-focused-scrim" aria-hidden="true" />
-                      {identity && currentAvatar ? (
-                        <div className="front-counter-selected-chip">
-                          <span
-                            className={`front-counter-selected-avatar avatar-${currentAvatar.tone}`}
-                            aria-hidden="true"
-                          >
-                            {currentAvatar.emoji}
-                          </span>
-                          <strong>
-                            {identity.nickname}
-                            <span>{getGossipAvatarCopy(currentAvatar.id).name}</span>
-                          </strong>
-                        </div>
-                      ) : (
-                        <div className="front-counter-selected-chip front-counter-selected-chip-empty">
-                          <span aria-hidden="true">☕</span>
-                          <strong>
-                            Chọn gương mặt làng
-                            <span>Choose your village face</span>
-                          </strong>
-                        </div>
-                      )}
                       <div
                         className="front-counter-stage-bubbles"
                         aria-label="Front Counter visible notes"
                       >
-                        {selectedMessages.slice(-4).map((message, index) => {
+                        {selectedMessages.slice(-2).map((message, index) => {
                           const frontCounterMessage =
                             "avatarId" in message ? message : null;
                           const conversationMessage =
@@ -1163,6 +1175,16 @@ export default function ChoNeoGossipPage() {
                               ? "Village host"
                               : frontCounterMessage.nickname
                             : conversationMessage?.name ?? "";
+                          const messageAvatar = frontCounterMessage
+                            ? getAvatarById(frontCounterMessage.avatarId)
+                            : null;
+                          const messageAvatarCopy = frontCounterMessage
+                            ? getGossipAvatarCopy(frontCounterMessage.avatarId)
+                            : null;
+                          const displayInitials = getNicknameInitials(displayName);
+                          const shouldShowDisplayName =
+                            displayName.trim().toUpperCase() !== displayInitials;
+                          const shouldShowMore = message.text.length > 80;
 
                           return (
                             <div
@@ -1177,16 +1199,439 @@ export default function ChoNeoGossipPage() {
                                   : `stage-${message.name}-${message.text}`
                               }
                             >
-                              <small>{displayName}</small>
+                              <div className="front-counter-bubble-header">
+                                {messageAvatar ? (
+                                  <span
+                                    className={`front-counter-bubble-avatar avatar-${messageAvatar.tone}`}
+                                    aria-hidden="true"
+                                  >
+                                    {messageAvatar.emoji}
+                                  </span>
+                                ) : null}
+                                <div>
+                                  <strong>
+                                    {displayInitials}
+                                    {shouldShowDisplayName ? (
+                                      <span>{displayName}</span>
+                                    ) : null}
+                                  </strong>
+                                  {messageAvatar && messageAvatarCopy ? (
+                                    <small>{messageAvatarCopy.name}</small>
+                                  ) : null}
+                                </div>
+                              </div>
                               <p>{message.text}</p>
+                              {(frontCounterMessage && !isRemoved) ||
+                              shouldShowMore ? (
+                                <div className="front-counter-bubble-controls">
+                                  {frontCounterMessage && !isRemoved ? (
+                                    <button
+                                      disabled={
+                                        moderationBusyMessageId === frontCounterMessage.id ||
+                                        reportedMessageIds.includes(frontCounterMessage.id) ||
+                                        !identity ||
+                                        (frontCounterMemoryMode === "shared" &&
+                                          (!isSharedFrontCounterMessageId(frontCounterMessage.id) ||
+                                            !sharedFetchedMessageIds.includes(frontCounterMessage.id)))
+                                      }
+                                      onClick={() =>
+                                        reportFrontCounterMessage(frontCounterMessage)
+                                      }
+                                      type="button"
+                                    >
+                                      Báo cáo
+                                      <span>Report</span>
+                                    </button>
+                                  ) : null}
+                                  {shouldShowMore ? (
+                                    <button
+                                      onClick={() => setFrontCounterDrawerOpen(true)}
+                                      type="button"
+                                    >
+                                      Xem thêm
+                                      <span>More</span>
+                                    </button>
+                                  ) : null}
+                                </div>
+                              ) : null}
                             </div>
                           );
                         })}
                       </div>
-                      <p className="front-counter-stage-cta">
-                        Ngồi xuống góp một câu.
-                        <span>Sit down and add one line.</span>
-                      </p>
+                      <form
+                        className="front-counter-stage-form"
+                        onSubmit={handleFrontCounterSubmit}
+                      >
+                        <div className="front-counter-stage-message-row">
+                          {identity && currentAvatar ? (
+                            <button
+                              aria-label={`Posting as ${identity.nickname}`}
+                              className="front-counter-input-avatar"
+                              onClick={() => {
+                                if (!isCurrentIdentitySeated) {
+                                  takeFrontCounterSeat();
+                                }
+                              }}
+                              type="button"
+                            >
+                              <span
+                                className={`avatar-${currentAvatar.tone}`}
+                                aria-hidden="true"
+                              >
+                                {currentAvatar.emoji}
+                              </span>
+                              <strong>{getNicknameInitials(identity.nickname)}</strong>
+                            </button>
+                          ) : (
+                            <button
+                              aria-label="Choose your village face"
+                              className="front-counter-input-avatar"
+                              onClick={() => setIdentityPickerOpen(true)}
+                              type="button"
+                            >
+                              <span aria-hidden="true">☕</span>
+                              <strong>?</strong>
+                            </button>
+                          )}
+                          <input
+                            disabled={
+                              !identity ||
+                              !isCurrentIdentitySeated ||
+                              frontCounterPosting
+                            }
+                            id="front-counter-stage-message"
+                            maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
+                            onChange={(event) => {
+                              setFrontCounterDraft(event.target.value);
+                              setFrontCounterPostNotice(null);
+                            }}
+                            placeholder={
+                              "Góp một câu..."
+                            }
+                            type="text"
+                            value={frontCounterDraft}
+                          />
+                          <button
+                            disabled={
+                              !identity ||
+                              !isCurrentIdentitySeated ||
+                              !canSubmitFrontCounterMessage ||
+                              frontCounterPosting
+                            }
+                            type="submit"
+                          >
+                            {frontCounterPosting ? "Đang đăng..." : "Đăng"}
+                            <span>{frontCounterPosting ? "Posting..." : "Post"}</span>
+                          </button>
+                        </div>
+                        {frontCounterPostNotice ? (
+                          <p className="front-counter-stage-feedback">
+                            {frontCounterPostNotice}
+                          </p>
+                        ) : frontCounterDraft.length > 0 ||
+                          remainingFrontCounterCharacters <= 40 ? (
+                          <p className="front-counter-stage-count">
+                            Còn {remainingFrontCounterCharacters} ký tự
+                            <span>{remainingFrontCounterCharacters} left</span>
+                          </p>
+                        ) : null}
+                      </form>
+                      {frontCounterDrawerOpen ? (
+                        <div className="front-counter-stage-drawer">
+                          <div className="front-counter-stage-drawer-heading">
+                            <div>
+                              <strong>
+                                Chuyện ở bàn
+                                <span>Table thread</span>
+                              </strong>
+                              <p>
+                                Tin thật của làng, tin cũ hơn, và nội quy gọn.
+                                <span>
+                                  Real village notes, older messages, and compact etiquette.
+                                </span>
+                              </p>
+                            </div>
+                            <div className="front-counter-stage-drawer-actions">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setHostToolsOpen((isOpen) => !isOpen)
+                                }
+                              >
+                                Host
+                                <span>Tools</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFrontCounterDrawerOpen(false)}
+                              >
+                                Đóng
+                                <span>Close</span>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="front-counter-stage-etiquette">
+                            <strong>
+                              Nội quy nhỏ
+                              <span>Small etiquette</span>
+                            </strong>
+                            <ul>
+                              <li>Nói nhỏ. Nói thật. Giữ riêng tư.</li>
+                            </ul>
+                            <p>
+                              Talk softly. Be real. Keep privacy.
+                            </p>
+                          </div>
+                          {moderationNotice ? (
+                            <p className="front-counter-stage-drawer-notice">
+                              {moderationNotice}
+                            </p>
+                          ) : null}
+                          {hostToolsOpen ? (
+                            <div className="front-counter-stage-host-tools">
+                              <div>
+                                <strong>Host</strong>
+                                <p>Báo cáo / Report · Ẩn / Hide · Gỡ / Remove</p>
+                              </div>
+                              <input
+                                aria-label="Cho Neo host key"
+                                onChange={(event) => {
+                                  setHostKey(event.target.value);
+                                  setHostReviewMessages([]);
+                                  setHostReviewNotice(null);
+                                  setHostReviewUnlocked(false);
+                                }}
+                                placeholder="Host key"
+                                type="password"
+                                value={hostKey}
+                              />
+                              <div className="front-counter-stage-host-actions">
+                                <button
+                                  disabled={hostReviewLoading}
+                                  onClick={() => void loadHostReviewMessages()}
+                                  type="button"
+                                >
+                                  {hostReviewLoading
+                                    ? "Opening..."
+                                    : hostReviewUnlocked
+                                      ? "Refresh"
+                                      : "Open"}
+                                </button>
+                                {hostReviewUnlocked ? (
+                                  <button type="button" onClick={closeHostReview}>
+                                    Close
+                                  </button>
+                                ) : null}
+                              </div>
+                              {hostReviewNotice ? (
+                                <p className="front-counter-stage-drawer-notice">
+                                  {hostReviewNotice}
+                                </p>
+                              ) : null}
+                              {hostReviewUnlocked ? (
+                                <div className="front-counter-stage-host-review">
+                                  {hostReviewMessages.length ? (
+                                    hostReviewMessages.map((message) => {
+                                      const labels = getHostReviewLabels(message);
+                                      const isRemoved = !!message.removedAt;
+                                      const isHidden = !!message.hiddenAt;
+                                      const hasReports = (message.reportCount ?? 0) > 0;
+                                      const isBusy =
+                                        moderationBusyMessageId === message.id;
+
+                                      return (
+                                        <div
+                                          className="front-counter-stage-host-card"
+                                          key={`host-${message.id}`}
+                                        >
+                                          <small>{message.nickname}</small>
+                                          <p>{message.text}</p>
+                                          <div>
+                                            {labels.map((label) => (
+                                              <span key={label}>{label}</span>
+                                            ))}
+                                            {hasReports ? (
+                                              <span>
+                                                {message.reportCount} report
+                                                {message.reportCount === 1 ? "" : "s"}
+                                              </span>
+                                            ) : null}
+                                          </div>
+                                          {!isRemoved || hasReports ? (
+                                            <div className="front-counter-bubble-controls">
+                                              {!isRemoved && !isHidden ? (
+                                                <button
+                                                  disabled={isBusy}
+                                                  onClick={() =>
+                                                    moderateFrontCounterMessage(
+                                                      "hide",
+                                                      message
+                                                    )
+                                                  }
+                                                  type="button"
+                                                >
+                                                  Ẩn
+                                                  <span>Hide</span>
+                                                </button>
+                                              ) : null}
+                                              {!isRemoved ? (
+                                                <button
+                                                  disabled={isBusy}
+                                                  onClick={() =>
+                                                    moderateFrontCounterMessage(
+                                                      "remove",
+                                                      message
+                                                    )
+                                                  }
+                                                  type="button"
+                                                >
+                                                  Gỡ
+                                                  <span>Remove</span>
+                                                </button>
+                                              ) : null}
+                                            </div>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })
+                                  ) : (
+                                    <p className="front-counter-stage-drawer-notice">
+                                      No village host issues right now.
+                                    </p>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <div className="front-counter-stage-thread">
+                            {selectedMessages.length ? (
+                              selectedMessages.map((message, index) => {
+                                const frontCounterMessage =
+                                  "avatarId" in message ? message : null;
+                                const conversationMessage =
+                                  "name" in message ? message : null;
+                                const isRemoved = !!frontCounterMessage?.removedAt;
+                                const reportedByThisBrowser =
+                                  !!frontCounterMessage &&
+                                  reportedMessageIds.includes(frontCounterMessage.id);
+                                const isBusy =
+                                  !!frontCounterMessage &&
+                                  moderationBusyMessageId === frontCounterMessage.id;
+                                const hasSharedDatabaseId =
+                                  !!frontCounterMessage &&
+                                  isSharedFrontCounterMessageId(frontCounterMessage.id);
+                                const canModeratePersistedMessage =
+                                  frontCounterMemoryMode !== "shared" ||
+                                  (hasSharedDatabaseId &&
+                                    sharedFetchedMessageIds.includes(frontCounterMessage.id));
+                                const displayName = frontCounterMessage
+                                  ? isRemoved
+                                    ? "Village host"
+                                    : frontCounterMessage.nickname
+                                  : conversationMessage?.name ?? "";
+                                const messageAvatar = frontCounterMessage
+                                  ? getAvatarById(frontCounterMessage.avatarId)
+                                  : null;
+                                const messageAvatarCopy = frontCounterMessage
+                                  ? getGossipAvatarCopy(frontCounterMessage.avatarId)
+                                  : null;
+
+                                return (
+                                  <div
+                                    className={`front-counter-stage-thread-note ${
+                                      index % 2 ? "thread-note-warm" : ""
+                                    } ${isRemoved ? "thread-note-muted" : ""}`}
+                                    key={
+                                      "id" in message
+                                        ? `drawer-${message.id}`
+                                        : `drawer-${message.name}-${message.text}`
+                                    }
+                                  >
+                                    <div className="front-counter-bubble-header">
+                                      {messageAvatar ? (
+                                        <span
+                                          className={`front-counter-bubble-avatar avatar-${messageAvatar.tone}`}
+                                          aria-hidden="true"
+                                        >
+                                          {messageAvatar.emoji}
+                                        </span>
+                                      ) : null}
+                                      <div>
+                                        <strong>
+                                          {getNicknameInitials(displayName)}
+                                          <span>{displayName}</span>
+                                        </strong>
+                                        {messageAvatar && messageAvatarCopy ? (
+                                          <small>
+                                            {messageAvatarCopy.name}
+                                            <span>{messageAvatar.name}</span>
+                                          </small>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                    <p>{message.text}</p>
+                                    {frontCounterMessage && !isRemoved ? (
+                                      <div className="front-counter-bubble-controls">
+                                        <button
+                                          disabled={
+                                            isBusy ||
+                                            reportedByThisBrowser ||
+                                            !identity ||
+                                            !canModeratePersistedMessage
+                                          }
+                                          onClick={() =>
+                                            reportFrontCounterMessage(frontCounterMessage)
+                                          }
+                                          type="button"
+                                        >
+                                          {reportedByThisBrowser ? "Đã báo cáo" : "Báo cáo"}
+                                          <span>
+                                            {reportedByThisBrowser ? "Reported" : "Report"}
+                                          </span>
+                                        </button>
+                                        {hostReviewUnlocked ? (
+                                          <>
+                                            <button
+                                              disabled={isBusy || !canModeratePersistedMessage}
+                                              onClick={() =>
+                                                moderateFrontCounterMessage(
+                                                  "hide",
+                                                  frontCounterMessage
+                                                )
+                                              }
+                                              type="button"
+                                            >
+                                              Ẩn
+                                              <span>Hide</span>
+                                            </button>
+                                            <button
+                                              disabled={isBusy || !canModeratePersistedMessage}
+                                              onClick={() =>
+                                                moderateFrontCounterMessage(
+                                                  "remove",
+                                                  frontCounterMessage
+                                                )
+                                              }
+                                              type="button"
+                                            >
+                                              Gỡ
+                                              <span>Remove</span>
+                                            </button>
+                                          </>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <p className="front-counter-stage-drawer-notice">
+                                Quầy đang yên lúc này. / The counter is quiet right now.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ) : null}
@@ -1263,20 +1708,6 @@ export default function ChoNeoGossipPage() {
                                   </div>
                                   {!isRemoved || hasReports ? (
                                     <div className="moderation-row">
-                                      {!isRemoved && isHidden ? (
-                                        <button
-                                          disabled={isBusy}
-                                          onClick={() =>
-                                            moderateFrontCounterMessage(
-                                              "unhide",
-                                              message
-                                            )
-                                          }
-                                          type="button"
-                                        >
-                                          Hiện lại
-                                        </button>
-                                      ) : null}
                                       {!isRemoved && !isHidden ? (
                                         <button
                                           disabled={isBusy}
@@ -1290,21 +1721,6 @@ export default function ChoNeoGossipPage() {
                                         >
                                           Ẩn
                                           <span>Hide</span>
-                                        </button>
-                                      ) : null}
-                                      {hasReports ? (
-                                        <button
-                                          disabled={isBusy}
-                                          onClick={() =>
-                                            moderateFrontCounterMessage(
-                                              "markReviewed",
-                                              message
-                                            )
-                                          }
-                                          type="button"
-                                        >
-                                          Báo cáo đã xem
-                                          <span>Report reviewed</span>
                                         </button>
                                       ) : null}
                                       {!isRemoved ? (
@@ -1528,148 +1944,7 @@ export default function ChoNeoGossipPage() {
                   ) : null}
                 </div>
 
-                {isFrontCounter ? (
-                  <form
-                    className="conversation-form"
-                    onSubmit={handleFrontCounterSubmit}
-                  >
-                    <p className="prototype-note">
-                      {frontCounterMemoryMode === "shared"
-                        ? "Bàn này nhớ câu chuyện của làng. / This table remembers the village conversation."
-                        : "V1 này nhớ tin nhắn trên máy này. Bộ nhớ chung của làng sẽ đến sau. / This V1 remembers messages on this device. Shared village memory comes later."}
-                    </p>
-                    {frontCounterMemoryNotice ? (
-                      <p className="memory-notice">{frontCounterMemoryNotice}</p>
-                    ) : null}
-                    <div className="seat-stage" aria-label="Front Counter stools">
-                      {visibleSeats.map((seat) => {
-                        const avatar = getAvatarById(seat.avatarId);
-                        const isCurrentSeat =
-                          identity?.nickname === seat.nickname &&
-                          identity?.avatarId === seat.avatarId;
-
-                        return (
-                          <div
-                            className={`seat-person ${
-                              isCurrentSeat ? "seat-person-current" : ""
-                            }`}
-                            key={`${seat.avatarId}-${seat.nickname}`}
-                          >
-                            <div className={`avatar-token avatar-${avatar.tone}`}>
-                              <span>{avatar.emoji}</span>
-                            </div>
-                            <strong>{seat.nickname}</strong>
-                            <span>
-                              ghế
-                              <small>stool</small>
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {identity ? (
-                      isCurrentIdentitySeated ? (
-                        <p className="posting-as">
-                          Đang ngồi với tên <strong>{identity.nickname}</strong>
-                          <span>Seated as {identity.nickname}</span>
-                        </p>
-                      ) : (
-                        <button
-                          className="take-seat-button"
-                          type="button"
-                          onClick={takeFrontCounterSeat}
-                        >
-                          Ngồi xuống
-                          <span>Take a seat</span>
-                        </button>
-                      )
-                    ) : (
-                      <div className="identity-needed">
-                        <strong>
-                          Tạo danh tính làng trước.
-                          <span>Create your village identity first.</span>
-                        </strong>
-                        <p>
-                          Chọn avatar và tên trước khi vào Quầy Trước.
-                          <span>Pick an avatar and nickname before joining the Front Counter.</span>
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setIdentityPickerOpen(true)}
-                        >
-                          Tạo danh tính
-                          <span>Create identity</span>
-                        </button>
-                      </div>
-                    )}
-                    <label htmlFor="front-counter-message">
-                      ĐỂ LẠI MỘT GHI CHÚ Ở QUẦY TRƯỚC
-                      <span>Leave a Front Counter Note</span>
-                    </label>
-                    <p className="posting-helper">
-                      Share one short village note: shop rhythm, product
-                      receipts, price checks, booking weather, or a useful
-                      observation from the day.
-                    </p>
-                    <div className="message-row">
-                      <input
-                        disabled={
-                          !identity ||
-                          !isCurrentIdentitySeated ||
-                          frontCounterPosting
-                        }
-                        id="front-counter-message"
-                        maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
-                        onChange={(event) => {
-                          setFrontCounterDraft(event.target.value);
-                          setFrontCounterPostNotice(null);
-                        }}
-                        placeholder={
-                          identity && isCurrentIdentitySeated
-                            ? "Gửi một ghi chú tiệm nhanh cho làng..."
-                            : "Ngồi xuống để đăng..."
-                        }
-                        type="text"
-                        value={frontCounterDraft}
-                      />
-                      <button
-                        disabled={
-                          !identity ||
-                          !isCurrentIdentitySeated ||
-                          !canSubmitFrontCounterMessage ||
-                          frontCounterPosting
-                        }
-                        type="submit"
-                      >
-                        {frontCounterPosting ? (
-                          <>
-                            Đang đăng...
-                            <span>Posting...</span>
-                          </>
-                        ) : (
-                          <>
-                            Đăng
-                            <span>Post</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    {frontCounterPostNotice ? (
-                      <p className="post-feedback">{frontCounterPostNotice}</p>
-                    ) : null}
-                    <p className="character-count">
-                      Còn {remainingFrontCounterCharacters} /{" "}
-                      {FRONT_COUNTER_MESSAGE_LIMIT} ký tự. Tối thiểu{" "}
-                      {FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS} ký tự có nghĩa.
-                      <span>
-                        {remainingFrontCounterCharacters} of{" "}
-                        {FRONT_COUNTER_MESSAGE_LIMIT} characters left. Minimum{" "}
-                        {FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS} meaningful
-                        characters.
-                      </span>
-                    </p>
-                  </form>
-                ) : (
+                {!isFrontCounter ? (
                   <form
                     className="conversation-form table-note-form"
                     onSubmit={handleTableNoteSubmit}
@@ -1723,16 +1998,18 @@ export default function ChoNeoGossipPage() {
                       </span>
                     </p>
                   </form>
-                )}
+                ) : null}
 
-                <button
-                  className="leave-button"
-                  type="button"
-                  onClick={() => setSelectedTableName(null)}
-                >
-                  Về tất cả bàn
-                  <span>Back to all tables</span>
-                </button>
+                {!isFrontCounter ? (
+                  <button
+                    className="leave-button"
+                    type="button"
+                    onClick={() => setSelectedTableName(null)}
+                  >
+                    Về tất cả bàn
+                    <span>Back to all tables</span>
+                  </button>
+                ) : null}
               </div>
             </article>
           ) : (
@@ -1745,51 +2022,6 @@ export default function ChoNeoGossipPage() {
                 />
                 <div className="gossip-room-scrim" aria-hidden="true" />
                 {/* Future approved café audio can hook in here; no audio element is rendered, so there is no autoplay. */}
-                <button
-                  className="room-rules-button"
-                  type="button"
-                  onClick={() => setRulesGateOpen(true)}
-                >
-                  Nội Quy
-                  <span>Rules</span>
-                </button>
-
-                {identity && currentAvatar ? (
-                  <div className="room-identity-chip">
-                    <span
-                      className={`room-identity-avatar avatar-${currentAvatar.tone}`}
-                      aria-hidden="true"
-                    >
-                      {currentAvatar.emoji}
-                    </span>
-                    <span>
-                      <strong>{identity.nickname}</strong>
-                      <small>
-                        {getGossipAvatarCopy(currentAvatar.id).name}
-                        {" / "}
-                        {currentAvatar.name}
-                      </small>
-                    </span>
-                    <button type="button" onClick={() => setIdentityPickerOpen(true)}>
-                      Đổi
-                      <span>Change</span>
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    className="room-identity-chip room-identity-chip-button"
-                    type="button"
-                    onClick={() => setIdentityPickerOpen(true)}
-                  >
-                    <span className="room-identity-avatar" aria-hidden="true">
-                      ?
-                    </span>
-                    <span>
-                      <strong>Chọn mặt làng</strong>
-                      <small>Choose your village face</small>
-                    </span>
-                  </button>
-                )}
 
                 <div className="gossip-hotspot-layer" aria-label="Quán Tám table zones">
                   {tables.map((table, tableIndex) => {
@@ -1834,48 +2066,6 @@ export default function ChoNeoGossipPage() {
           )}
         </section>
 
-        <section className="house-rules" aria-label="Table etiquette">
-          <div className="rules-heading">
-            <p className="eyebrow">
-              Luật trong quán
-              <span>House Rules</span>
-            </p>
-            <h2>
-              Cách ngồi bàn
-              <span>Table Etiquette</span>
-            </h2>
-            <p>
-              Quán ấm, ranh giới rõ. Gossip Café vui khi câu chuyện có ích,
-              vui nhẹ, hoặc tử tế.
-              <span>
-                Warm room, sharp boundaries. Gossip Café works when the talk
-                stays useful, funny, or kind.
-              </span>
-            </p>
-          </div>
-          <div className="rules-body">
-            <ul>
-              {rules.map((rule) => (
-                <li key={rule}>{rule}</li>
-              ))}
-            </ul>
-            <div className="host-note">
-              <strong>
-                Dụng cụ host của làng
-                <span>Village host tools</span>
-              </strong>
-              <p>
-                Ai cũng có thể báo cáo. Ẩn và Gỡ chỉ dành cho host.
-                <span>Report is available to everyone. Hide and Remove are host-only.</span>
-              </p>
-              <div>
-                {hostTools.map((tool) => (
-                  <span key={tool}>{tool}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
           </>
         ) : null}
       </section>
@@ -1901,15 +2091,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .floor-grid {
-          top: 38%;
-          transform: perspective(620px) rotateX(62deg);
-          transform-origin: bottom center;
-          background-image:
-            linear-gradient(rgba(253, 230, 138, 0.13) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(253, 230, 138, 0.1) 1px, transparent 1px);
-          background-size: 56px 56px;
-          mask-image: linear-gradient(to bottom, transparent 0%, black 24%, black 100%);
-          opacity: var(--cho-neo-floor-opacity);
+          display: none;
         }
 
         .cafe-shell {
@@ -1917,7 +2099,7 @@ export default function ChoNeoGossipPage() {
           z-index: 1;
           width: min(1240px, 100%);
           margin: 0 auto;
-          padding: 24px;
+          padding: 16px 20px 22px;
         }
 
         .cafe-hero {
@@ -1925,7 +2107,7 @@ export default function ChoNeoGossipPage() {
           justify-content: space-between;
           align-items: flex-start;
           gap: 18px;
-          padding: 4px 2px 0;
+          padding: 0 2px;
         }
 
         .eyebrow {
@@ -1948,7 +2130,7 @@ export default function ChoNeoGossipPage() {
 
         h1 {
           margin: 0;
-          font-size: clamp(42px, 7.6vw, 86px);
+          font-size: clamp(34px, 5.6vw, 62px);
           line-height: 0.9;
           letter-spacing: -0.045em;
           text-wrap: balance;
@@ -1964,45 +2146,110 @@ export default function ChoNeoGossipPage() {
         }
 
         .subtitle {
-          max-width: 780px;
-          margin: 14px 0 0;
+          max-width: 520px;
+          margin: 8px 0 0;
           color: rgba(255, 247, 237, 0.82);
-          font-size: clamp(16px, 1.8vw, 21px);
-          line-height: 1.5;
+          font-size: clamp(13px, 1.35vw, 16px);
+          font-weight: 850;
+          line-height: 1.35;
         }
 
         .subtitle span {
           display: block;
-          margin-top: 8px;
+          margin-top: 3px;
           color: rgba(255, 247, 237, 0.62);
-          font-size: 0.88em;
-          line-height: 1.45;
+          font-size: 0.82em;
+          line-height: 1.25;
         }
 
-        .back-link {
-          flex: 0 0 auto;
+        .cafe-stage-controls {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          align-items: flex-end;
+          justify-content: space-between;
+          margin: 12px 2px 10px;
+        }
+
+        .cafe-control-row {
+          display: flex;
+          flex: 1 1 420px;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+          margin: 0;
+        }
+
+        .cafe-control-pill {
           display: inline-flex;
+          flex: 0 1 auto;
           flex-direction: column;
-          align-items: flex-start;
           justify-content: center;
-          min-height: 50px;
-          padding: 7px 15px;
+          min-height: 36px;
+          min-width: 0;
+          padding: 6px 12px;
+          border: 1px solid rgba(253, 230, 138, 0.24);
           border-radius: 999px;
-          color: #111827;
-          background: #fde68a;
-          font-size: 14px;
-          line-height: 1.1;
+          background: rgba(18, 18, 24, 0.58);
+          color: #fde68a;
+          cursor: pointer;
+          font: inherit;
+          font-size: 11px;
           font-weight: 950;
+          line-height: 1.05;
+          text-align: left;
           text-decoration: none;
-          box-shadow: 0 0 34px rgba(251, 191, 36, 0.2);
+          box-shadow: none;
+          backdrop-filter: blur(10px);
         }
 
-        .back-kicker {
+        .cafe-control-pill:hover,
+        .cafe-control-pill:focus-visible {
+          border-color: rgba(253, 230, 138, 0.54);
+          outline: none;
+          background: rgba(253, 230, 138, 0.12);
+        }
+
+        .cafe-control-pill small {
+          display: block;
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 0.78em;
+          font-weight: 850;
+        }
+
+        .front-counter-topic-note {
+          flex: 0 1 198px;
+          max-width: 100%;
+          padding: 7px 10px 8px;
+          border: 1px solid rgba(92, 54, 27, 0.34);
+          border-radius: 12px;
+          background:
+            radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.72), transparent 24%),
+            linear-gradient(180deg, #f5e4c9, #e7cda5);
+          color: #3d2417;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.42),
+            0 10px 24px rgba(0, 0, 0, 0.12);
+          transform: rotate(-0.4deg);
+        }
+
+        .front-counter-topic-note strong,
+        .front-counter-topic-note span {
+          display: block;
+        }
+
+        .front-counter-topic-note strong {
           font-size: 9px;
           font-weight: 950;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          opacity: 0.68;
+          line-height: 1.05;
+        }
+
+        .front-counter-topic-note span {
+          margin-top: 3px;
+          font-size: 11px;
+          font-weight: 850;
+          line-height: 1.18;
         }
 
         .quan-tam-rules-door {
@@ -2240,7 +2487,7 @@ export default function ChoNeoGossipPage() {
             0 0 28px rgba(251, 191, 36, 0.26);
         }
 
-        .back-link small,
+        .cafe-control-pill small,
         button span,
         .identity-nudge span,
         .identity-picker h2 span,
@@ -2267,7 +2514,7 @@ export default function ChoNeoGossipPage() {
         .identity-strip {
           display: grid;
           gap: 12px;
-          margin-top: 18px;
+          margin-top: 12px;
         }
 
         .identity-strip:empty {
@@ -2628,7 +2875,7 @@ export default function ChoNeoGossipPage() {
           position: relative;
           overflow: hidden;
           min-height: 720px;
-          margin-top: 22px;
+          margin-top: 14px;
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 34px;
           background:
@@ -2639,6 +2886,22 @@ export default function ChoNeoGossipPage() {
             0 24px 80px rgba(0, 0, 0, 0.38),
             inset 0 1px 0 rgba(255, 255, 255, 0.14);
           backdrop-filter: blur(12px);
+        }
+
+        .room-scene:not(.room-scene-focused) {
+          min-height: auto;
+          overflow: visible;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          backdrop-filter: none;
+        }
+
+        .room-scene:not(.room-scene-focused)::before,
+        .room-scene:not(.room-scene-focused)::after {
+          display: none;
         }
 
         .room-scene::before,
@@ -2883,73 +3146,12 @@ export default function ChoNeoGossipPage() {
             linear-gradient(180deg, rgba(253, 230, 138, 0.035), rgba(7, 10, 24, 0.16));
         }
 
-        .room-rules-button {
-          position: absolute;
-          z-index: 12;
-          top: 18px;
-          right: 18px;
-          min-height: 38px;
-          padding: 7px 13px;
-          border: 1px solid rgba(253, 230, 138, 0.32);
-          border-radius: 999px;
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05)),
-            rgba(8, 13, 28, 0.72);
-          color: #fde68a;
-          cursor: pointer;
-          font-size: 12px;
-          font-weight: 950;
-          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
-          backdrop-filter: blur(14px);
-        }
-
-        .room-rules-button:hover,
-        .room-rules-button:focus-visible {
-          border-color: rgba(253, 230, 138, 0.64);
-          outline: none;
-          box-shadow:
-            0 16px 34px rgba(0, 0, 0, 0.3),
-            0 0 0 4px rgba(253, 230, 138, 0.14);
-        }
-
-        .room-identity-chip {
-          position: absolute;
-          z-index: 12;
-          top: 18px;
-          left: 18px;
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          max-width: min(360px, calc(100% - 36px));
-          padding: 9px 11px;
-          border: 1px solid rgba(253, 230, 138, 0.32);
-          border-radius: 999px;
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05)),
-            rgba(8, 13, 28, 0.72);
-          color: #fff7ed;
-          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3);
-          backdrop-filter: blur(14px);
-        }
-
-        .room-identity-chip-button {
-          cursor: pointer;
-          font: inherit;
-          text-align: left;
-        }
-
-        .room-scene:not(.room-scene-settled) .room-identity-chip,
         .room-scene:not(.room-scene-settled) .hotspot-label {
           opacity: 0;
           pointer-events: none;
           transform: translate(-50%, calc(-50% + 8px));
         }
 
-        .room-scene:not(.room-scene-settled) .room-identity-chip {
-          transform: translateY(8px);
-        }
-
-        .room-scene-settled .room-identity-chip,
         .room-scene-settled .hotspot-label {
           opacity: 1;
           transition:
@@ -2957,63 +3159,6 @@ export default function ChoNeoGossipPage() {
             transform 420ms ease,
             border-color 160ms ease,
             box-shadow 160ms ease;
-        }
-
-        .room-identity-chip-button:hover,
-        .room-identity-chip-button:focus-visible {
-          border-color: rgba(253, 230, 138, 0.64);
-          outline: none;
-          box-shadow:
-            0 16px 34px rgba(0, 0, 0, 0.3),
-            0 0 0 4px rgba(253, 230, 138, 0.16);
-        }
-
-        .room-identity-avatar {
-          display: grid;
-          place-items: center;
-          width: 34px;
-          height: 34px;
-          flex: 0 0 auto;
-          border-radius: 999px;
-          background: linear-gradient(180deg, #fde68a, #f59e0b);
-          color: #111827;
-          font-size: 16px;
-          font-weight: 950;
-        }
-
-        .room-identity-chip strong,
-        .room-identity-chip small {
-          display: block;
-        }
-
-        .room-identity-chip strong {
-          font-size: 13px;
-          font-weight: 950;
-          line-height: 1.1;
-        }
-
-        .room-identity-chip small {
-          margin-top: 2px;
-          color: rgba(255, 247, 237, 0.68);
-          font-size: 10px;
-          font-weight: 850;
-        }
-
-        .room-identity-chip > button {
-          padding: 7px 10px;
-          border: 1px solid rgba(253, 230, 138, 0.32);
-          border-radius: 999px;
-          background: rgba(253, 230, 138, 0.12);
-          color: #fde68a;
-          cursor: pointer;
-          font-size: 11px;
-          font-weight: 950;
-        }
-
-        .room-identity-chip > button span {
-          display: block;
-          color: rgba(255, 247, 237, 0.58);
-          font-size: 0.8em;
         }
 
         .gossip-hotspot-layer {
@@ -3253,6 +3398,34 @@ export default function ChoNeoGossipPage() {
           opacity: 0.38;
         }
 
+        .cafe-page:has(.detail-panel-front-counter) {
+          background:
+            radial-gradient(circle at 50% 38%, rgba(253, 230, 138, 0.12), transparent 34%),
+            linear-gradient(180deg, #1c1211, #0d0b10 72%);
+        }
+
+        .cafe-page:has(.detail-panel-front-counter) .floor-grid,
+        .cafe-page:has(.detail-panel-front-counter) .cafe-hero,
+        .room-scene-focused:has(.detail-panel-front-counter)::before,
+        .room-scene-focused:has(.detail-panel-front-counter)::after,
+        .room-scene-focused:has(.detail-panel-front-counter) .counter {
+          display: none;
+        }
+
+        .cafe-page:has(.detail-panel-front-counter) .cafe-shell {
+          padding: clamp(10px, 2vw, 18px);
+        }
+
+        .room-scene-focused:has(.detail-panel-front-counter) {
+          min-height: auto;
+          padding: 0;
+          border: 0;
+          background:
+            radial-gradient(circle at 50% 48%, rgba(253, 230, 138, 0.11), transparent 34%),
+            rgba(20, 12, 12, 0.46);
+          box-shadow: none;
+        }
+
         .table-detail {
           position: relative;
           z-index: 5;
@@ -3309,24 +3482,29 @@ export default function ChoNeoGossipPage() {
 
         .detail-panel-front-counter {
           overflow: visible;
-          padding: clamp(12px, 2vw, 18px);
-          border-color: rgba(253, 230, 138, 0.1);
-          background:
-            radial-gradient(circle at 50% 12%, rgba(253, 230, 138, 0.1), transparent 32%),
-            linear-gradient(180deg, rgba(69, 40, 30, 0.38), rgba(26, 18, 20, 0.44));
-          box-shadow:
-            0 26px 78px rgba(0, 0, 0, 0.32),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
         }
 
         .detail-panel-front-counter .detail-heading {
-          align-items: center;
-          margin: 0 4px 12px;
-          padding: 0;
+          display: none;
         }
 
         .detail-panel-front-counter .topic,
         .detail-panel-front-counter .detail-members {
+          display: none;
+        }
+
+        .table-detail:has(.detail-panel-front-counter) {
+          width: min(1160px, 100%);
+          max-width: 100%;
+          margin-top: 0;
+        }
+
+        .table-detail:has(.detail-panel-front-counter) > .table-glow,
+        .table-detail:has(.detail-panel-front-counter) > .detail-table-plate {
           display: none;
         }
 
@@ -3398,7 +3576,9 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-table-scene {
           position: relative;
-          margin: 6px -4px 0;
+          width: 100%;
+          max-width: 100%;
+          margin: 0;
           padding: 0;
           border: 0;
           border-radius: 30px;
@@ -3568,15 +3748,16 @@ export default function ChoNeoGossipPage() {
         .front-counter-focused-stage {
           position: relative;
           overflow: hidden;
-          min-height: clamp(470px, 58vw, 660px);
-          border: 1px solid rgba(253, 230, 138, 0.14);
+          aspect-ratio: 16 / 9;
+          min-height: auto;
+          border: 1px solid rgba(253, 230, 138, 0.2);
           border-radius: 30px;
           background:
-            radial-gradient(circle at 52% 70%, rgba(253, 230, 138, 0.12), transparent 36%),
-            #2f2018;
+            radial-gradient(circle at 52% 70%, rgba(253, 230, 138, 0.2), transparent 38%),
+            linear-gradient(135deg, #1a1110, #4a2d1f 48%, #120d10);
           box-shadow:
-            0 30px 76px rgba(0, 0, 0, 0.34),
-            inset 0 0 56px rgba(0, 0, 0, 0.24);
+            0 30px 76px rgba(0, 0, 0, 0.28),
+            inset 0 0 36px rgba(255, 247, 237, 0.06);
         }
 
         .front-counter-focused-stage::before {
@@ -3585,10 +3766,10 @@ export default function ChoNeoGossipPage() {
           inset: 0;
           z-index: 2;
           background:
-            linear-gradient(90deg, transparent 0 20%, rgba(31, 18, 15, 0.64) 29% 68%, transparent 78%),
-            radial-gradient(ellipse at 45% 54%, rgba(41, 24, 17, 0.92) 0 31%, rgba(41, 24, 17, 0.62) 45%, transparent 62%),
-            radial-gradient(ellipse at 84% 13%, rgba(24, 15, 15, 0.9) 0 18%, rgba(24, 15, 15, 0.52) 31%, transparent 46%),
-            linear-gradient(180deg, rgba(21, 13, 12, 0.06), rgba(21, 13, 12, 0.28) 58%, rgba(21, 13, 12, 0.96) 100%);
+            radial-gradient(ellipse at 50% 58%, rgba(255, 247, 237, 0.12) 0 28%, transparent 58%),
+            radial-gradient(ellipse at 84% 14%, rgba(35, 21, 18, 0.22) 0 16%, rgba(35, 21, 18, 0.1) 31%, transparent 48%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.035), transparent 46%, rgba(34, 20, 18, 0.12) 78%, rgba(34, 20, 18, 0.3) 100%);
+          mix-blend-mode: soft-light;
           pointer-events: none;
         }
 
@@ -3599,9 +3780,10 @@ export default function ChoNeoGossipPage() {
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: cover;
-          object-position: 50% 50%;
-          transform: scale(1.04);
+          object-fit: contain;
+          object-position: center;
+          transform: none;
+          filter: saturate(1.04) brightness(1.03) contrast(0.98);
         }
 
         .front-counter-focused-scrim {
@@ -3609,9 +3791,8 @@ export default function ChoNeoGossipPage() {
           inset: 0;
           z-index: 1;
           background:
-            linear-gradient(180deg, rgba(20, 12, 10, 0.02), rgba(20, 12, 10, 0.24) 54%, rgba(20, 12, 10, 0.58)),
-            linear-gradient(90deg, rgba(20, 12, 10, 0.42), transparent 24% 76%, rgba(20, 12, 10, 0.42)),
-            radial-gradient(circle at 50% 58%, transparent 0 34%, rgba(15, 9, 10, 0.24) 70%);
+            linear-gradient(180deg, rgba(255, 247, 237, 0.025), transparent 48%, rgba(45, 25, 20, 0.32)),
+            linear-gradient(90deg, rgba(45, 25, 20, 0.16), transparent 24% 76%, rgba(45, 25, 20, 0.16));
           pointer-events: none;
         }
 
@@ -3623,151 +3804,622 @@ export default function ChoNeoGossipPage() {
           bottom: 0;
           height: 33%;
           background:
-            linear-gradient(180deg, transparent, rgba(19, 12, 12, 0.8)),
-            radial-gradient(ellipse at 50% 100%, rgba(19, 12, 12, 0.92), transparent 70%);
-        }
-
-        .front-counter-selected-chip {
-          position: absolute;
-          z-index: 4;
-          left: clamp(14px, 3vw, 28px);
-          top: clamp(14px, 3vw, 28px);
-          display: inline-flex;
-          align-items: center;
-          gap: 9px;
-          max-width: min(280px, calc(100% - 32px));
-          padding: 9px 12px;
-          border: 1px solid rgba(253, 230, 138, 0.38);
-          border-radius: 999px;
-          background: rgba(30, 17, 15, 0.58);
-          color: #fff7ed;
-          box-shadow:
-            0 14px 30px rgba(0, 0, 0, 0.28),
-            0 0 0 4px rgba(253, 230, 138, 0.06);
-          backdrop-filter: blur(12px);
-        }
-
-        .front-counter-selected-avatar,
-        .front-counter-selected-chip-empty > span {
-          display: grid;
-          place-items: center;
-          width: 32px;
-          height: 32px;
-          flex: 0 0 auto;
-          border-radius: 999px;
-          background:
-            radial-gradient(circle at 50% 30%, rgba(255, 247, 237, 0.22), transparent 34%),
-            rgba(253, 230, 138, 0.2);
-        }
-
-        .front-counter-selected-chip strong {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          font-size: 12px;
-          font-weight: 950;
-        }
-
-        .front-counter-selected-chip strong span {
-          display: block;
-          margin-top: 2px;
-          color: rgba(255, 247, 237, 0.66);
-          font-size: 10px;
-          font-weight: 850;
+            linear-gradient(180deg, transparent, rgba(37, 22, 18, 0.34)),
+            radial-gradient(ellipse at 50% 100%, rgba(37, 22, 18, 0.38), transparent 72%);
         }
 
         .front-counter-stage-bubbles {
           position: absolute;
           z-index: 3;
-          left: clamp(18px, 5vw, 58px);
-          right: clamp(18px, 5vw, 58px);
-          bottom: clamp(62px, 10vw, 116px);
+          left: clamp(120px, 17vw, 245px);
+          right: clamp(120px, 17vw, 245px);
+          bottom: clamp(200px, 22vw, 282px);
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px clamp(20px, 8vw, 90px);
+          grid-template-columns: repeat(2, minmax(0, 240px));
+          justify-content: center;
+          gap: 10px clamp(32px, 5vw, 76px);
           align-items: end;
-          pointer-events: none;
+          pointer-events: auto;
         }
 
         .front-counter-stage-bubbles::before {
           content: "";
           position: absolute;
-          inset: -24px -18px;
+          inset: -14px -12px;
           z-index: -1;
           border-radius: 28px;
           background:
-            radial-gradient(ellipse at 50% 50%, rgba(33, 20, 16, 0.74), rgba(33, 20, 16, 0.34) 54%, transparent 72%);
-          filter: blur(2px);
+            radial-gradient(ellipse at 50% 50%, rgba(255, 247, 237, 0.38), rgba(253, 230, 138, 0.15) 48%, rgba(120, 53, 15, 0.08) 66%, transparent 82%);
+          filter: blur(7px);
+          opacity: 0.7;
         }
 
         .front-counter-stage-bubble {
-          max-width: 300px;
-          padding: 10px 12px;
+          max-width: 240px;
+          padding: 7px 9px;
           border: 1px solid rgba(255, 247, 237, 0.5);
-          border-radius: 19px 19px 19px 7px;
+          border-radius: 15px 15px 15px 6px;
           background:
             linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(254, 243, 199, 0.92));
           color: #3f2418;
           box-shadow:
-            0 16px 30px rgba(0, 0, 0, 0.24),
+            0 10px 22px rgba(0, 0, 0, 0.2),
             inset 0 1px 0 rgba(255, 255, 255, 0.7);
           backdrop-filter: blur(7px);
         }
 
         .front-counter-stage-bubble-right {
           justify-self: end;
-          margin-top: 38px;
-          border-radius: 19px 19px 7px 19px;
+          margin-top: 22px;
+          border-radius: 15px 15px 6px 15px;
           background:
             linear-gradient(180deg, rgba(253, 230, 138, 0.96), rgba(251, 191, 36, 0.9));
+        }
+
+        .front-counter-stage-bubble-left {
+          margin-bottom: 34px;
         }
 
         .front-counter-stage-bubble-muted {
           opacity: 0.72;
         }
 
-        .front-counter-stage-bubble small {
-          display: block;
-          margin-bottom: 3px;
-          color: rgba(63, 36, 24, 0.68);
-          font-size: 10px;
+        .front-counter-bubble-header {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          min-width: 0;
+          margin-bottom: 4px;
+        }
+
+        .front-counter-bubble-avatar {
+          display: grid;
+          place-items: center;
+          width: 22px;
+          height: 22px;
+          flex: 0 0 auto;
+          border: 1px solid rgba(63, 36, 24, 0.12);
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 50% 28%, rgba(255, 247, 237, 0.4), transparent 42%),
+            rgba(255, 247, 237, 0.42);
+          font-size: 11px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
+        }
+
+        .front-counter-bubble-header > div {
+          min-width: 0;
+        }
+
+        .front-counter-bubble-header strong {
+          display: flex;
+          align-items: baseline;
+          gap: 4px;
+          min-width: 0;
+          color: #3f2418;
+          font-size: 9px;
           font-weight: 950;
+          line-height: 1.1;
+        }
+
+        .front-counter-bubble-header strong span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .front-counter-bubble-header strong span {
+          max-width: 104px;
+          color: rgba(63, 36, 24, 0.68);
+          font-size: 8px;
+        }
+
+        .front-counter-bubble-header small {
+          display: block;
+          margin-top: 2px;
+          color: rgba(63, 36, 24, 0.62);
+          font-size: 7px;
+          font-weight: 900;
+          line-height: 1.1;
         }
 
         .front-counter-stage-bubble p {
           display: -webkit-box;
           overflow: hidden;
           -webkit-box-orient: vertical;
-          -webkit-line-clamp: 2;
+          -webkit-line-clamp: 4;
           margin: 0;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 800;
+          line-height: 1.3;
+        }
+
+        .front-counter-bubble-controls {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+          margin-top: 6px;
+        }
+
+        .front-counter-bubble-controls button {
+          min-height: 21px;
+          padding: 3px 6px;
+          border: 1px solid rgba(63, 36, 24, 0.14);
+          border-radius: 999px;
+          color: #3f2418;
+          background: rgba(255, 247, 237, 0.5);
+          font: inherit;
+          font-size: 8px;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .front-counter-bubble-controls button span {
+          display: none;
+        }
+
+        .front-counter-bubble-controls button:disabled {
+          cursor: not-allowed;
+          opacity: 0.46;
+        }
+
+        .front-counter-stage-form {
+          position: absolute;
+          z-index: 4;
+          left: clamp(12px, 3vw, 28px);
+          right: clamp(12px, 3vw, 28px);
+          bottom: clamp(12px, 2.4vw, 24px);
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 6px;
+          align-items: center;
+          margin: 0;
+          padding: 8px;
+          border: 1px solid rgba(253, 230, 138, 0.24);
+          border-radius: 22px;
+          background:
+            linear-gradient(180deg, rgba(83, 47, 31, 0.72), rgba(45, 26, 21, 0.68));
+          box-shadow:
+            0 18px 34px rgba(0, 0, 0, 0.24),
+            inset 0 1px 0 rgba(255, 247, 237, 0.18);
+          backdrop-filter: blur(14px);
+        }
+
+        .front-counter-stage-form label,
+        .front-counter-stage-posting-as,
+        .front-counter-stage-feedback,
+        .front-counter-stage-count {
+          margin: 0;
+        }
+
+        .front-counter-stage-form label {
+          color: #fde68a;
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .front-counter-stage-form label span,
+        .front-counter-stage-posting-as span,
+        .front-counter-stage-feedback span,
+        .front-counter-stage-count span,
+        .front-counter-stage-seat-button span,
+        .front-counter-stage-message-row button span {
+          display: block;
+        }
+
+        .front-counter-stage-form label span {
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 8px;
+          letter-spacing: 0.04em;
+        }
+
+        .front-counter-stage-posting-as,
+        .front-counter-stage-feedback,
+        .front-counter-stage-count {
+          color: rgba(255, 247, 237, 0.72);
+          font-size: 10px;
+          font-weight: 850;
+          line-height: 1.25;
+        }
+
+        .front-counter-stage-posting-as strong {
+          color: #fde68a;
+        }
+
+        .front-counter-stage-seat-button,
+        .front-counter-stage-message-row button {
+          border: 0;
+          border-radius: 999px;
+          color: #3f2418;
+          background: #fde68a;
+          font: inherit;
+          font-size: 11px;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .front-counter-stage-seat-button {
+          min-height: 34px;
+          padding: 7px 10px;
+        }
+
+        .front-counter-stage-message-row {
+          grid-column: 1 / -1;
+          display: grid;
+          grid-template-columns: 38px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .front-counter-input-avatar {
+          display: grid;
+          grid-template-rows: 20px 10px;
+          place-items: center;
+          width: 38px;
+          min-width: 0;
+          height: 38px;
+          padding: 3px;
+          border: 1px solid rgba(253, 230, 138, 0.26);
+          border-radius: 999px;
+          color: #fde68a;
+          background: rgba(255, 247, 237, 0.1);
+          box-shadow: inset 0 1px 0 rgba(255, 247, 237, 0.12);
+        }
+
+        .front-counter-stage-message-row .front-counter-input-avatar span {
+          display: grid;
+          place-items: center;
+          width: 20px;
+          height: 20px;
+          border-radius: 999px;
+          background: rgba(253, 230, 138, 0.18);
+          font-size: 11px;
+        }
+
+        .front-counter-input-avatar strong {
+          max-width: 26px;
+          overflow: hidden;
+          color: #fff7ed;
+          font-size: 8px;
+          font-weight: 950;
+          line-height: 1;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .front-counter-stage-message-row input {
+          width: 100%;
+          min-width: 0;
+          border: 1px solid rgba(253, 230, 138, 0.22);
+          border-radius: 999px;
+          padding: 10px 12px;
+          color: #fff7ed;
+          background: rgba(28, 18, 18, 0.58);
+          font: inherit;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .front-counter-stage-message-row input::placeholder {
+          color: rgba(255, 247, 237, 0.48);
+        }
+
+        .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
+          min-width: 76px;
+          padding: 8px 12px;
+        }
+
+        .front-counter-stage-message-row input:disabled,
+        .front-counter-stage-message-row button:disabled {
+          cursor: not-allowed;
+          opacity: 0.58;
+        }
+
+        .front-counter-stage-feedback,
+        .front-counter-stage-count {
+          grid-column: 1 / -1;
+        }
+
+        .front-counter-stage-etiquette {
+          display: grid;
+          gap: 6px;
+          padding: 10px 11px;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 16px;
+          color: rgba(255, 247, 237, 0.78);
+          background: rgba(253, 230, 138, 0.07);
+        }
+
+        .front-counter-stage-etiquette strong {
+          display: block;
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .front-counter-stage-etiquette strong span {
+          display: block;
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 9px;
+        }
+
+        .front-counter-stage-etiquette ul {
+          display: grid;
+          gap: 2px;
+          margin: 7px 0 0;
+          padding: 0;
+          list-style: none;
+        }
+
+        .front-counter-stage-etiquette li,
+        .front-counter-stage-etiquette p {
+          margin: 0;
+          font-size: 10px;
+          font-weight: 850;
+          line-height: 1.25;
+        }
+
+        .front-counter-stage-etiquette p {
+          margin-top: 6px;
+          color: rgba(255, 247, 237, 0.56);
+        }
+
+        .front-counter-focused-stage-drawer-open .front-counter-stage-form {
+          display: none;
+        }
+
+        .front-counter-stage-drawer {
+          position: absolute;
+          z-index: 6;
+          left: clamp(12px, 2.6vw, 30px);
+          right: clamp(12px, 2.6vw, 30px);
+          bottom: clamp(12px, 2.6vw, 30px);
+          max-height: min(62%, 470px);
+          overflow: auto;
+          display: grid;
+          gap: 10px;
+          padding: 13px;
+          border: 1px solid rgba(253, 230, 138, 0.26);
+          border-radius: 22px;
+          background:
+            linear-gradient(180deg, rgba(34, 20, 18, 0.92), rgba(15, 10, 12, 0.9));
+          box-shadow:
+            0 26px 58px rgba(0, 0, 0, 0.38),
+            inset 0 1px 0 rgba(255, 247, 237, 0.1);
+          backdrop-filter: blur(18px);
+          animation: frontCounterDrawerIn 180ms ease-out;
+        }
+
+        .front-counter-stage-drawer-heading {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: flex-start;
+        }
+
+        .front-counter-stage-drawer-heading strong,
+        .front-counter-stage-drawer-heading p,
+        .front-counter-stage-drawer-heading button,
+        .front-counter-stage-drawer-notice {
+          margin: 0;
+        }
+
+        .front-counter-stage-drawer-heading strong {
+          display: block;
+          color: #fde68a;
+          font-size: 12px;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .front-counter-stage-drawer-heading strong span,
+        .front-counter-stage-drawer-heading p span,
+        .front-counter-stage-drawer-heading button span {
+          display: block;
+        }
+
+        .front-counter-stage-drawer-actions {
+          display: flex;
+          flex: 0 0 auto;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+
+        .front-counter-stage-drawer-heading strong span {
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.6);
+          font-size: 9px;
+        }
+
+        .front-counter-stage-drawer-heading p,
+        .front-counter-stage-drawer-notice {
+          margin-top: 6px;
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 11px;
+          font-weight: 850;
+          line-height: 1.3;
+        }
+
+        .front-counter-stage-drawer-heading button {
+          flex: 0 0 auto;
+          min-height: 30px;
+          padding: 6px 10px;
+          border: 1px solid rgba(253, 230, 138, 0.26);
+          border-radius: 999px;
+          color: #fde68a;
+          background: rgba(253, 230, 138, 0.08);
+          font: inherit;
+          font-size: 10px;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .front-counter-stage-thread {
+          display: grid;
+          gap: 8px;
+        }
+
+        .front-counter-stage-host-tools {
+          display: grid;
+          gap: 8px;
+          padding: 10px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 16px;
+          background: rgba(253, 230, 138, 0.08);
+        }
+
+        .front-counter-stage-host-tools strong,
+        .front-counter-stage-host-tools p,
+        .front-counter-stage-host-card p {
+          margin: 0;
+        }
+
+        .front-counter-stage-host-tools strong {
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .front-counter-stage-host-tools p {
+          color: rgba(255, 247, 237, 0.68);
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .front-counter-stage-host-tools input {
+          min-width: 0;
+          width: 100%;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 999px;
+          padding: 8px 10px;
+          color: #fff7ed;
+          background: rgba(8, 13, 28, 0.52);
+          font: inherit;
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .front-counter-stage-host-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .front-counter-stage-host-actions button {
+          min-height: 28px;
+          border: 0;
+          border-radius: 999px;
+          padding: 6px 10px;
+          color: #3f2418;
+          background: #fde68a;
+          font: inherit;
+          font-size: 10px;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .front-counter-stage-host-review {
+          display: grid;
+          gap: 8px;
+        }
+
+        .front-counter-stage-host-card {
+          display: grid;
+          gap: 5px;
+          padding: 8px;
+          border: 1px solid rgba(255, 247, 237, 0.12);
+          border-radius: 14px;
+          background: rgba(8, 13, 28, 0.24);
+        }
+
+        .front-counter-stage-host-card small {
+          color: #fde68a;
+          font-size: 10px;
+          font-weight: 950;
+        }
+
+        .front-counter-stage-host-card p {
+          color: rgba(255, 247, 237, 0.78);
+          font-size: 11px;
+          font-weight: 850;
           line-height: 1.35;
         }
 
-        .front-counter-stage-cta {
-          position: absolute;
-          z-index: 4;
-          left: 50%;
-          bottom: 18px;
-          margin: 0;
-          padding: 8px 13px;
-          border-radius: 999px;
-          background: rgba(20, 12, 10, 0.56);
-          color: #fde68a;
-          text-align: center;
-          font-size: 12px;
-          font-weight: 950;
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.26);
-          backdrop-filter: blur(10px);
-          transform: translateX(-50%);
+        .front-counter-stage-host-card > div:not(.front-counter-bubble-controls) {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
         }
 
-        .front-counter-stage-cta span {
-          display: block;
-          margin-top: 2px;
-          color: rgba(255, 247, 237, 0.64);
+        .front-counter-stage-host-card > div:not(.front-counter-bubble-controls) span {
+          border-radius: 999px;
+          padding: 3px 6px;
+          color: rgba(255, 247, 237, 0.72);
+          background: rgba(255, 255, 255, 0.08);
+          font-size: 9px;
+          font-weight: 900;
+        }
+
+        .front-counter-stage-thread-note {
+          display: grid;
+          gap: 4px;
+          justify-self: start;
+          width: min(520px, 88%);
+          padding: 9px 10px;
+          border: 1px solid rgba(255, 247, 237, 0.22);
+          border-radius: 16px 16px 16px 6px;
+          color: #3f2418;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.95), rgba(254, 243, 199, 0.88));
+        }
+
+        .front-counter-stage-thread-note.thread-note-warm {
+          justify-self: end;
+          border-radius: 16px 16px 6px 16px;
+          background:
+            linear-gradient(180deg, rgba(253, 230, 138, 0.96), rgba(251, 191, 36, 0.86));
+        }
+
+        .front-counter-stage-thread-note.thread-note-muted {
+          opacity: 0.68;
+        }
+
+        .front-counter-stage-thread-note small {
+          color: rgba(63, 36, 24, 0.64);
           font-size: 10px;
+          font-weight: 950;
+        }
+
+        .front-counter-stage-thread-note p {
+          margin: 0;
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.35;
+        }
+
+        .detail-panel-front-counter > .host-tools-panel,
+        .detail-panel-front-counter > .moderation-notice,
+        .detail-panel-front-counter > .daily-table-talk,
+        .detail-panel-front-counter > .front-counter-atmosphere,
+        .detail-panel-front-counter > .mock-thread {
+          display: none;
+        }
+
+        @keyframes frontCounterDrawerIn {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         .mock-thread {
@@ -3783,13 +4435,21 @@ export default function ChoNeoGossipPage() {
         }
 
         .detail-panel-front-counter .mock-thread {
-          margin-top: 14px;
+          max-height: 240px;
+          overflow: auto;
+          margin-top: 10px;
+          padding: 10px;
           border-color: rgba(253, 230, 138, 0.14);
-          border-radius: 22px;
+          border-radius: 18px;
           background:
             radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.1), transparent 30%),
-            rgba(24, 16, 18, 0.34);
+            rgba(24, 16, 18, 0.28);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-panel-front-counter .thread-message {
+          padding: 9px 10px;
+          border-radius: 16px;
         }
 
         .detail-panel-front-counter .conversation-form {
@@ -3802,11 +4462,11 @@ export default function ChoNeoGossipPage() {
 
         .daily-table-talk {
           display: grid;
-          gap: 8px;
-          margin-top: 18px;
-          padding: 14px;
+          gap: 6px;
+          margin-top: 10px;
+          padding: 10px 12px;
           border: 1px solid rgba(253, 230, 138, 0.2);
-          border-radius: 18px;
+          border-radius: 16px;
           background:
             linear-gradient(180deg, rgba(253, 230, 138, 0.12), rgba(255, 247, 237, 0.055)),
             rgba(8, 13, 28, 0.34);
@@ -3832,7 +4492,7 @@ export default function ChoNeoGossipPage() {
         .daily-table-talk strong {
           max-width: 760px;
           color: #fff7ed;
-          font-size: 17px;
+          font-size: 14px;
           line-height: 1.28;
         }
 
@@ -3840,14 +4500,14 @@ export default function ChoNeoGossipPage() {
           display: block;
           margin-top: 5px;
           color: rgba(255, 247, 237, 0.66);
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 850;
           line-height: 1.35;
         }
 
         .daily-table-talk > span {
           color: rgba(255, 247, 237, 0.68);
-          font-size: 13px;
+          font-size: 11px;
           font-weight: 850;
           line-height: 1.4;
         }
@@ -3856,17 +4516,17 @@ export default function ChoNeoGossipPage() {
           display: block;
           margin-top: 5px;
           color: rgba(255, 247, 237, 0.56);
-          font-size: 12px;
+          font-size: 10px;
           line-height: 1.4;
         }
 
         .front-counter-atmosphere {
           display: grid;
-          gap: 10px;
-          margin-top: 18px;
-          padding: 13px 14px;
+          gap: 7px;
+          margin-top: 10px;
+          padding: 10px 12px;
           border: 1px solid rgba(253, 230, 138, 0.16);
-          border-radius: 18px;
+          border-radius: 16px;
           background:
             radial-gradient(circle at 10% 0%, rgba(253, 230, 138, 0.12), transparent 34%),
             rgba(255, 247, 237, 0.07);
@@ -3896,10 +4556,10 @@ export default function ChoNeoGossipPage() {
         .front-counter-atmosphere div span {
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 999px;
-          padding: 6px 9px;
+          padding: 5px 8px;
           color: rgba(255, 247, 237, 0.76);
           background: rgba(8, 13, 28, 0.28);
-          font-size: 12px;
+          font-size: 10px;
           font-weight: 850;
         }
 
@@ -3907,7 +4567,7 @@ export default function ChoNeoGossipPage() {
         .front-counter-empty-state p {
           margin: 0;
           color: rgba(255, 247, 237, 0.68);
-          font-size: 13px;
+          font-size: 11px;
           line-height: 1.45;
         }
 
@@ -4595,6 +5255,10 @@ export default function ChoNeoGossipPage() {
           backdrop-filter: blur(12px);
         }
 
+        .house-rules-front-counter-hidden {
+          display: none;
+        }
+
         .rules-heading p:not(.eyebrow) {
           margin: 12px 0 0;
           color: rgba(255, 247, 237, 0.7);
@@ -4745,7 +5409,7 @@ export default function ChoNeoGossipPage() {
 
         @media (max-width: 980px) {
           .cafe-shell {
-            padding: 18px 14px;
+            padding: 14px 12px 18px;
           }
 
           .cafe-hero,
@@ -4755,6 +5419,16 @@ export default function ChoNeoGossipPage() {
 
           .cafe-hero {
             flex-direction: column;
+            gap: 10px;
+          }
+
+          .cafe-stage-controls {
+            align-items: stretch;
+          }
+
+          .front-counter-topic-note {
+            flex: 0 1 220px;
+            width: auto;
           }
 
           .room-scene {
@@ -4778,17 +5452,30 @@ export default function ChoNeoGossipPage() {
           .cafe-shell {
             max-width: 100vw;
             overflow-x: hidden;
-            padding: 16px 12px 22px;
+            padding: 10px 10px 18px;
           }
 
           h1 {
             max-width: 100%;
             overflow-wrap: anywhere;
-            font-size: clamp(34px, 11vw, 46px);
+            font-size: clamp(30px, 9.5vw, 40px);
           }
 
           .subtitle {
-            font-size: 15px;
+            margin-top: 6px;
+            font-size: 12px;
+            line-height: 1.3;
+          }
+
+          .cafe-control-row {
+            gap: 6px;
+            margin: 10px 0 8px;
+          }
+
+          .cafe-control-pill {
+            min-height: 34px;
+            padding: 5px 10px;
+            font-size: 10px;
           }
 
           .quan-tam-rules-door {
@@ -4817,8 +5504,8 @@ export default function ChoNeoGossipPage() {
 
           .rules-door-card {
             align-self: center;
-            padding: 16px 14px 14px;
-            border-radius: 20px;
+            padding: 13px 12px 12px;
+            border-radius: 18px;
           }
 
           .rules-door-sign {
@@ -4831,7 +5518,7 @@ export default function ChoNeoGossipPage() {
           }
 
           .rules-door-card h2 {
-            font-size: clamp(25px, 8vw, 31px);
+            font-size: clamp(22px, 7vw, 28px);
             line-height: 1.04;
           }
 
@@ -4854,7 +5541,7 @@ export default function ChoNeoGossipPage() {
           .rules-door-card li {
             min-height: 27px;
             padding: 5px 8px 5px 32px;
-            font-size: 11px;
+            font-size: 10px;
             line-height: 1.22;
           }
 
@@ -4878,14 +5565,74 @@ export default function ChoNeoGossipPage() {
 
           .rules-door-actions button {
             flex-basis: 100%;
-            min-height: 36px;
-            font-size: 12px;
+            min-height: 34px;
+            font-size: 11px;
+          }
+
+          .identity-picker {
+            gap: 10px;
+            padding: 12px;
+            border-radius: 22px;
+          }
+
+          .identity-picker-heading {
+            display: grid;
+            gap: 8px;
+          }
+
+          .identity-picker h2 {
+            font-size: clamp(22px, 7.5vw, 30px);
+            line-height: 1.02;
+          }
+
+          .identity-picker p:not(.eyebrow) {
+            margin-top: 6px;
+            font-size: 11px;
+            line-height: 1.32;
+          }
+
+          .identity-picker-heading button {
+            min-height: 34px;
+            width: 100%;
+            font-size: 11px;
+          }
+
+          .avatar-grid {
+            gap: 8px;
+          }
+
+          .avatar-choice {
+            min-height: 112px;
+            padding: 8px 7px;
+            border-radius: 16px !important;
+          }
+
+          .avatar-choice-portrait {
+            width: 50px;
+            height: 50px;
+          }
+
+          .avatar-choice-face {
+            width: 28px;
+            height: 33px;
+          }
+
+          .avatar-choice strong {
+            font-size: 10px;
+          }
+
+          .avatar-choice small {
+            display: none;
           }
 
           .room-scene {
-            margin-top: 16px;
-            padding: 14px;
+            margin-top: 10px;
+            padding: 12px;
             border-radius: 24px;
+          }
+
+          .room-scene:not(.room-scene-focused) {
+            padding: 0;
           }
 
           .room-scene::before {
@@ -4920,33 +5667,30 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-focused-stage {
-            min-height: 520px;
+            aspect-ratio: 16 / 9;
+            min-height: 0;
             border-radius: 24px;
           }
 
           .front-counter-focused-image {
-            object-position: 46% 50%;
-            transform: scale(1.1);
-          }
-
-          .front-counter-selected-chip {
-            left: 10px;
-            top: 10px;
-            max-width: calc(100% - 20px);
-            padding: 7px 9px;
+            object-position: center;
+            transform: none;
           }
 
           .front-counter-stage-bubbles {
-            left: 12px;
-            right: 12px;
-            bottom: 150px;
+            top: 42%;
+            right: 18%;
+            bottom: auto;
+            left: 18%;
+            transform: translateY(-50%);
             grid-template-columns: 1fr;
+            justify-items: center;
             gap: 8px;
           }
 
           .front-counter-stage-bubble {
-            max-width: min(250px, 84%);
-            padding: 8px 10px;
+            max-width: min(220px, 100%);
+            padding: 6px 8px;
           }
 
           .front-counter-stage-bubble:nth-last-child(n+2) {
@@ -4954,36 +5698,73 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-stage-bubble-right {
-            justify-self: end;
+            justify-self: center;
+          }
+
+          .front-counter-stage-bubble-left {
+            margin-bottom: 0;
           }
 
           .front-counter-stage-bubble p {
-            -webkit-line-clamp: 2;
+            font-size: 10px;
+            line-height: 1.24;
+            -webkit-line-clamp: 3;
           }
 
-          .room-identity-chip {
-            top: 12px;
-            left: 12px;
-            max-width: calc(100% - 24px);
-            padding: 7px 8px;
+          .front-counter-stage-etiquette ul {
+            grid-template-columns: 1fr 1fr;
+            gap: 2px 8px;
           }
 
-          .room-identity-avatar {
-            width: 28px;
-            height: 28px;
-            font-size: 13px;
-          }
-
-          .room-identity-chip strong {
-            font-size: 11px;
-          }
-
-          .room-identity-chip small {
+          .front-counter-stage-etiquette li,
+          .front-counter-stage-etiquette p {
             font-size: 9px;
           }
 
-          .room-identity-chip > button {
-            padding: 6px 8px;
+          .front-counter-bubble-controls {
+            gap: 4px;
+          }
+
+          .front-counter-bubble-controls button {
+            min-height: 22px;
+            padding: 4px 6px;
+            font-size: 8px;
+          }
+
+          .front-counter-stage-form {
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            grid-template-columns: 1fr;
+            gap: 6px;
+            padding: 9px;
+            border-radius: 18px;
+          }
+
+          .front-counter-stage-message-row {
+            grid-template-columns: 34px minmax(0, 1fr) 58px;
+            gap: 6px;
+          }
+
+          .front-counter-input-avatar {
+            width: 34px;
+            height: 34px;
+          }
+
+          .front-counter-stage-message-row .front-counter-input-avatar span {
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+          }
+
+          .front-counter-stage-message-row input {
+            padding: 9px 10px;
+            font-size: 11px;
+          }
+
+          .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
+            min-width: 0;
+            padding: 7px 8px;
             font-size: 10px;
           }
 
@@ -5031,8 +5812,9 @@ export default function ChoNeoGossipPage() {
             font-size: 8px;
           }
 
-          .back-link {
-            width: 100%;
+          .cafe-control-pill {
+            flex: 1 1 calc(33.333% - 6px);
+            min-width: 96px;
           }
 
           .current-identity,
@@ -5046,19 +5828,38 @@ export default function ChoNeoGossipPage() {
             width: 100%;
           }
 
+          .identity-picker {
+            padding: 12px;
+            border-radius: 22px;
+          }
+
+          .identity-picker h2 {
+            font-size: clamp(22px, 7.5vw, 30px);
+            line-height: 1.02;
+          }
+
+          .identity-picker p:not(.eyebrow) {
+            font-size: 11px;
+            line-height: 1.3;
+          }
+
           .avatar-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 9px;
+            gap: 8px;
           }
 
           .avatar-choice {
-            min-height: 136px;
-            padding: 9px 7px 10px;
+            min-height: 112px;
+            padding: 8px 7px;
           }
 
           .avatar-choice-portrait {
-            width: 58px;
-            height: 58px;
+            width: 50px;
+            height: 50px;
+          }
+
+          .avatar-choice strong {
+            font-size: 10px;
           }
 
           .avatar-choice small {
@@ -5108,7 +5909,7 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-table-scene {
-            margin-inline: -8px;
+            margin-inline: 0;
             padding: 0;
             border-radius: 24px;
           }
@@ -5373,6 +6174,22 @@ function getGossipAvatarCopy(avatarId: string) {
       description: getAvatarById(avatarId).description,
     }
   );
+}
+
+function getNicknameInitials(name: string) {
+  const cleanedName = name.trim();
+
+  if (!cleanedName) {
+    return "?";
+  }
+
+  const words = cleanedName.split(/\s+/).filter(Boolean);
+  const initials =
+    words.length > 1
+      ? `${words[0]?.[0] ?? ""}${words[words.length - 1]?.[0] ?? ""}`
+      : cleanedName.slice(0, 2);
+
+  return initials.toUpperCase();
 }
 
 function readReportedFrontCounterMessageIds() {
