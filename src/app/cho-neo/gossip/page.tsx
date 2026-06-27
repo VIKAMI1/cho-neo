@@ -1898,56 +1898,86 @@ export default function ChoNeoGossipPage() {
               </div>
             </article>
           ) : (
-            <div className="gossip-image-lobby">
-              <div className="gossip-room-stage">
-                <img
-                  alt="Quán Tám isometric café room with five empty table zones, warm lanterns, a small espresso bar, and nail café details"
-                  className="gossip-room-image"
-                  src="/images/cho-neo/quan-tam-gossip-cafe-room-modern-warm-final.png"
-                />
-                <div className="gossip-room-scrim" aria-hidden="true" />
-                {/* Future approved café audio can hook in here; no audio element is rendered, so there is no autoplay. */}
-
-                <div className="gossip-hotspot-layer" aria-label="Quán Tám table zones">
-                  {tables.map((table, tableIndex) => {
+            <>
+              <nav className="mobile-table-picker" aria-label="Chọn bàn Quán Tám">
+                <div className="mobile-table-picker-heading">
+                  <strong>Chọn bàn</strong>
+                  <span>Choose a table</span>
+                </div>
+                <div className="mobile-table-picker-grid">
+                  {tables.map((table) => {
                     const tableNameCopy = getTableNameCopy(table.name);
 
                     return (
-                      <article
-                        aria-label={`${tableNameCopy.vi} / ${tableNameCopy.en}`}
-                        className={`table-cluster table-hotspot table-hotspot-${
-                          tableIndex + 1
-                        } table-${table.tone}`}
-                        key={table.name}
+                      <button
+                        className={`mobile-table-card table-${table.tone}`}
+                        key={`mobile-${table.name}`}
                         onClick={() => openTable(table.name)}
-                        onKeyDown={(event) => handleTableKeyDown(event, table.name)}
-                        role="button"
-                        tabIndex={0}
+                        type="button"
                       >
-                        <span className="hotspot-glow" aria-hidden="true" />
-                        <div className="hotspot-label">
-                          <p>
-                            {tableNameCopy.vi}
-                            <span>{tableNameCopy.en}</span>
-                          </p>
-                          <strong>{table.topic}</strong>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openTable(table.name);
-                            }}
-                          >
-                            Góp một câu
-                            <span>Add one line</span>
-                          </button>
-                        </div>
-                      </article>
+                        <strong>
+                          {tableNameCopy.vi}
+                          <span>{tableNameCopy.en}</span>
+                        </strong>
+                        <small>{table.topic}</small>
+                        <em>Vào bàn / Enter</em>
+                      </button>
                     );
                   })}
                 </div>
+              </nav>
+
+              <div className="gossip-image-lobby">
+                <div className="gossip-room-stage">
+                  <img
+                    alt="Quán Tám isometric café room with five empty table zones, warm lanterns, a small espresso bar, and nail café details"
+                    className="gossip-room-image"
+                    src="/images/cho-neo/quan-tam-gossip-cafe-room-modern-warm-final.png"
+                  />
+                  <div className="gossip-room-scrim" aria-hidden="true" />
+                  {/* Future approved café audio can hook in here; no audio element is rendered, so there is no autoplay. */}
+
+                  <div className="gossip-hotspot-layer" aria-label="Quán Tám table zones">
+                    {tables.map((table, tableIndex) => {
+                      const tableNameCopy = getTableNameCopy(table.name);
+
+                      return (
+                        <article
+                          aria-label={`${tableNameCopy.vi} / ${tableNameCopy.en}`}
+                          className={`table-cluster table-hotspot table-hotspot-${
+                            tableIndex + 1
+                          } table-${table.tone}`}
+                          key={table.name}
+                          onClick={() => openTable(table.name)}
+                          onKeyDown={(event) => handleTableKeyDown(event, table.name)}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <span className="hotspot-glow" aria-hidden="true" />
+                          <div className="hotspot-label">
+                            <p>
+                              {tableNameCopy.vi}
+                              <span>{tableNameCopy.en}</span>
+                            </p>
+                            <strong>{table.topic}</strong>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openTable(table.name);
+                              }}
+                            >
+                              Góp một câu
+                              <span>Add one line</span>
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </section>
 
@@ -2135,6 +2165,10 @@ export default function ChoNeoGossipPage() {
           font-size: 11px;
           font-weight: 850;
           line-height: 1.18;
+        }
+
+        .mobile-table-picker {
+          display: none;
         }
 
         .quan-tam-rules-door {
@@ -5520,6 +5554,100 @@ export default function ChoNeoGossipPage() {
             padding: 0;
           }
 
+          .mobile-table-picker {
+            display: grid;
+            gap: 8px;
+            margin: 2px 0 10px;
+            max-width: 100%;
+            overflow: hidden;
+          }
+
+          .mobile-table-picker-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 0 2px;
+          }
+
+          .mobile-table-picker-heading strong {
+            color: #fde68a;
+            font-size: 12px;
+            font-weight: 950;
+          }
+
+          .mobile-table-picker-heading span {
+            color: rgba(255, 247, 237, 0.58);
+            font-size: 10px;
+            font-weight: 850;
+          }
+
+          .mobile-table-picker-grid {
+            display: flex;
+            gap: 8px;
+            max-width: 100%;
+            overflow-x: auto;
+            padding: 0 2px 6px;
+            scroll-padding: 2px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .mobile-table-card {
+            scroll-snap-align: start;
+            display: grid;
+            flex: 0 0 min(74vw, 238px);
+            gap: 5px;
+            min-height: 88px;
+            padding: 11px 12px;
+            border: 1px solid rgba(253, 230, 138, 0.22);
+            border-radius: 18px;
+            background:
+              radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.16), transparent 34%),
+              linear-gradient(180deg, rgba(255, 247, 237, 0.1), rgba(255, 247, 237, 0.045)),
+              rgba(28, 18, 18, 0.72);
+            color: #fff7ed;
+            font: inherit;
+            text-align: left;
+            box-shadow:
+              inset 0 1px 0 rgba(255, 255, 255, 0.1),
+              0 12px 24px rgba(0, 0, 0, 0.18);
+          }
+
+          .mobile-table-card strong {
+            display: block;
+            color: #fff7ed;
+            font-size: 14px;
+            font-weight: 950;
+            line-height: 1.08;
+          }
+
+          .mobile-table-card strong span {
+            display: block;
+            margin-top: 2px;
+            color: rgba(253, 230, 138, 0.72);
+            font-size: 10px;
+            font-weight: 900;
+          }
+
+          .mobile-table-card small {
+            display: -webkit-box;
+            overflow: hidden;
+            color: rgba(255, 247, 237, 0.68);
+            font-size: 10px;
+            font-weight: 800;
+            line-height: 1.25;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+          }
+
+          .mobile-table-card em {
+            color: #fde68a;
+            font-size: 10px;
+            font-style: normal;
+            font-weight: 950;
+          }
+
           .room-scene::before {
             bottom: -160px;
             height: 420px;
@@ -5554,21 +5682,29 @@ export default function ChoNeoGossipPage() {
 
           .front-counter-focused-stage {
             aspect-ratio: unset;
-            min-height: clamp(300px, 54vh, 460px);
+            min-height: auto;
+            padding-bottom: 94px;
             border-radius: 24px;
+            background:
+              radial-gradient(circle at 50% 50%, rgba(253, 230, 138, 0.14), transparent 44%),
+              #17100f;
           }
 
           .front-counter-focused-image {
-            object-fit: cover;
+            position: relative;
+            width: 100%;
+            height: auto;
+            min-height: 0;
+            object-fit: contain;
             object-position: center;
             transform: none;
           }
 
           .front-counter-stage-bubbles {
-            top: 36%;
-            right: 14%;
+            top: 34%;
+            right: 12%;
             bottom: auto;
-            left: 14%;
+            left: 12%;
             transform: translateY(-50%);
             grid-template-columns: 1fr;
             justify-items: center;
@@ -5624,35 +5760,37 @@ export default function ChoNeoGossipPage() {
             bottom: 10px;
             grid-template-columns: 1fr;
             gap: 6px;
-            padding: 9px;
-            border-radius: 18px;
+            padding: 10px;
+            border-radius: 20px;
           }
 
           .front-counter-stage-message-row {
-            grid-template-columns: 34px minmax(0, 1fr) 58px;
-            gap: 6px;
+            grid-template-columns: 40px minmax(0, 1fr) 68px;
+            gap: 8px;
           }
 
           .front-counter-input-avatar {
-            width: 34px;
-            height: 34px;
+            width: 40px;
+            height: 40px;
           }
 
           .front-counter-stage-message-row .front-counter-input-avatar span {
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
+            width: 21px;
+            height: 21px;
+            font-size: 11px;
           }
 
           .front-counter-stage-message-row input {
-            padding: 9px 10px;
-            font-size: 11px;
+            min-height: 40px;
+            padding: 10px 12px;
+            font-size: 12px;
           }
 
           .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
             min-width: 0;
-            padding: 7px 8px;
-            font-size: 10px;
+            min-height: 40px;
+            padding: 8px 9px;
+            font-size: 11px;
           }
 
           .gossip-image-lobby .table-hotspot {
