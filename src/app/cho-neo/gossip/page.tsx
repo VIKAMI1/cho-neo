@@ -68,46 +68,46 @@ const FRONT_COUNTER_TALK_EXAMPLES = [
   "Receipts, prices, and polite client notes",
   "Weather before booking the afternoon",
 ];
-const BIG_TABLE_IMAGE_SRC =
+const COLOR_TREND_STAGE_IMAGE_SRC =
   "/images/cho-neo/ban-lon-big-table.png";
-const BIG_TABLE_PROMPTS = [
+const COLOR_TREND_PROMPTS = [
   {
-    vi: "Màu này đang lên không?",
-    en: "Is this color trending?",
+    vi: "Màu này đang hot không?",
+    en: "Is this color hot right now?",
   },
   {
-    vi: "Giá này tính sao cho hợp lý?",
-    en: "How should this be priced?",
+    vi: "Khách đang hỏi mẫu nào?",
+    en: "What designs are clients asking for?",
   },
   {
-    vi: "Kỹ thuật này làm sao cho bền?",
-    en: "How do you make this technique last?",
+    vi: "Mùa này nên đẩy màu gì?",
+    en: "What colors fit this season?",
   },
   {
-    vi: "Sản phẩm này có đáng tin không?",
-    en: "Is this product trustworthy?",
+    vi: "Sản phẩm màu này lên đẹp không?",
+    en: "Does this color product apply well?",
   },
   {
-    vi: "Tiệm đông thì xử lý sao?",
-    en: "How do busy salons handle this?",
+    vi: "Trend này làm có lâu không?",
+    en: "Does this trend take too long?",
   },
   {
-    vi: "Có ai gặp lỗi này chưa?",
-    en: "Has anyone seen this problem?",
+    vi: "Giá mẫu này tính sao?",
+    en: "How should this design be priced?",
   },
   {
-    vi: "Nên làm kiểu này cho khách nào?",
-    en: "Which clients is this best for?",
+    vi: "Kiểu này hợp khách nào?",
+    en: "Which clients does this suit?",
   },
 ];
-const BIG_TABLE_BLOCKED_SHORT_POSTS = new Set(["hi", "hello", "test"]);
-const BIG_TABLE_AD_LANGUAGE = [
+const COLOR_TREND_BLOCKED_SHORT_POSTS = new Set(["hi", "hello", "test"]);
+const COLOR_TREND_AD_LANGUAGE = [
   "dm me",
   "message me to buy",
   "best price",
   "wholesale",
 ];
-const BIG_TABLE_UNSAFE_CLAIM_LANGUAGE = [
+const COLOR_TREND_UNSAFE_CLAIM_LANGUAGE = [
   "guaranteed cure",
   "medical advice",
   "legal advice",
@@ -184,17 +184,14 @@ const tables = [
   },
   {
     name: "Color & Trend",
-    count: 2,
+    count: 0,
     action: "people talking",
-    topic: "Màu nào đang lên, mẫu nào làm lâu quá?",
+    topic: "Màu nào đang hot, trend nào đang lên — đem ra bàn nói cho vui.",
     status: "Quiet",
-    initials: ["Vy", "Han"],
+    initials: [],
     tone: "cyan",
-    note: "Nail colors, designs, product talk, trend talk, and honest timing notes.",
-    messages: [
-      { name: "Vy", text: "Two salons near me are hiring, but everyone wants weekends covered." },
-      { name: "Han", text: "Ask about product split before you agree. Learned that one." },
-    ],
+    note: "Màu, mẫu, trend, sản phẩm màu, và khách đang hỏi gì trong tiệm.",
+    messages: [],
   },
   {
     name: "Vent Table",
@@ -226,17 +223,6 @@ const tables = [
       { name: "Duc", text: "Clear schedule rules saved us more drama than any meeting." },
       { name: "Linh", text: "I am trying to fix the system before blaming people." },
     ],
-  },
-  {
-    name: "Big Table",
-    count: 0,
-    action: "people talking",
-    topic: "Chuyện nghề, màu, giá, sản phẩm, kỹ thuật — đem lên bàn nói cho rõ.",
-    status: "Open",
-    initials: [],
-    tone: "violet",
-    note: "Ngồi Bàn Lớn để hỏi và chia sẻ chuyện nghề: màu đang lên, sản phẩm có đáng tin không, kỹ thuật làm sao cho bền, giá nên tính thế nào, tiệm vận hành ra sao, và những câu hỏi lớn nhỏ trong nghề nail.",
-    messages: [],
   },
   {
     name: "Private Table",
@@ -377,10 +363,14 @@ export default function ChoNeoGossipPage() {
     [selectedTableName]
   );
   const isFrontCounter = selectedTable?.name === "Front Counter";
-  const isBigTable = selectedTable?.name === "Big Table";
+  const isTrendTable = selectedTable?.name === "Color & Trend";
   const selectedMessages: Array<ConversationMessage | FrontCounterMessage> =
     isFrontCounter
       ? frontCounterMessages.filter(isVisibleFrontCounterMessage)
+      : isTrendTable
+        ? selectedTable
+          ? tableNotesByName[selectedTable.name] ?? []
+          : []
       : [
           ...(selectedTable?.messages ?? []),
           ...(selectedTable ? tableNotesByName[selectedTable.name] ?? [] : []),
@@ -610,8 +600,8 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
-    if (isBigTable) {
-      const bigTableNotice = getBigTableNoteBlockNotice(text);
+    if (isTrendTable) {
+      const bigTableNotice = getTrendTableNoteBlockNotice(text);
 
       if (bigTableNotice) {
         setTableNoteNotice(bigTableNotice);
@@ -633,13 +623,13 @@ export default function ChoNeoGossipPage() {
     }));
     setTableNoteDraft("");
     setTableNoteNotice(
-      isBigTable
-        ? "Đã đặt lên Bàn Lớn. Cảm ơn bạn chia sẻ chuyện nghề có ích. / Put on the Big Table. Thanks for sharing useful work talk."
+      isTrendTable
+        ? "Đã đặt lên Bàn Màu. Cảm ơn bạn chia sẻ trend có ích. / Put on the Trend Table. Thanks for sharing a useful trend note."
         : "Đã góp chuyện vào bàn. Cảm ơn bạn giữ câu chuyện có ích. / Added to the table. Thanks for keeping it useful."
     );
   }
 
-  function useBigTablePrompt(prompt: { vi: string; en: string }) {
+  function useTrendTablePrompt(prompt: { vi: string; en: string }) {
     setTableNoteDraft((currentDraft) => {
       const nextPrompt = `${prompt.vi} / ${prompt.en} `;
 
@@ -957,6 +947,10 @@ export default function ChoNeoGossipPage() {
     setSelectedTableName(tableName);
     setTableNoteDraft("");
     setTableNoteNotice(null);
+
+    if (tableName === "Color & Trend") {
+      window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+    }
   }
 
   function handleTableKeyDown(
@@ -1256,13 +1250,24 @@ export default function ChoNeoGossipPage() {
                 className={`detail-panel ${
                   isFrontCounter ? "detail-panel-front-counter" : ""
                 } ${
-                  isBigTable ? "detail-panel-big-table" : ""
+                  isTrendTable ? "detail-panel-trend-table" : ""
                 } ${
                   isFrontCounter && frontCounterDrawerOpen
                     ? "front-counter-drawer-open"
                     : ""
                 }`}
               >
+                {isTrendTable ? (
+                  <button
+                    className="trend-table-back"
+                    onClick={() => setSelectedTableName(null)}
+                    type="button"
+                  >
+                    ← Về Quán Tám
+                    <span>Back to Gossip Café</span>
+                  </button>
+                ) : null}
+
                 <div className="detail-heading">
                   <div>
                     <p>
@@ -1274,7 +1279,7 @@ export default function ChoNeoGossipPage() {
                       <span>{getTableNameCopy(selectedTable.name).en}</span>
                     </h2>
                   </div>
-                  {!isBigTable ? (
+                  {!isTrendTable ? (
                     <strong>
                     {isFrontCounter ? (
                       <>
@@ -1293,13 +1298,13 @@ export default function ChoNeoGossipPage() {
                   ) : null}
                 </div>
 
-                {isBigTable ? (
-                  <p className="big-table-subtitle">
-                    Chuyện nghề, màu, giá, sản phẩm, kỹ thuật — đem lên bàn nói
-                    cho rõ.
+                {isTrendTable ? (
+                  <p className="trend-table-subtitle">
+                    Màu nào đang hot, trend nào đang lên — đem ra bàn nói cho
+                    vui.
                     <span>
-                      Work, color, pricing, products, technique — bring it to
-                      the table and make it clear.
+                      Hot colors, rising trends, client requests, and product
+                      buzz — bring it to the table.
                     </span>
                   </p>
                 ) : (
@@ -1809,19 +1814,19 @@ export default function ChoNeoGossipPage() {
                   </div>
                 ) : null}
 
-                {isBigTable ? (
-                  <div className="big-table-scene" aria-label="Bàn Lớn visual table">
-                    <div className="big-table-stage">
+                {isTrendTable ? (
+                  <div className="trend-table-scene" aria-label="Bàn Màu visual table">
+                    <div className="trend-table-stage">
                       <img
-                        alt="Warm Big Table inside Quán Tám for nail work, color, pricing, product, technique, and community discussion"
-                        src={BIG_TABLE_IMAGE_SRC}
+                        alt="Warm Trend Table inside Quán Tám for nail color, style ideas, product colors, seasonal looks, and client requests"
+                        src={COLOR_TREND_STAGE_IMAGE_SRC}
                       />
                     </div>
-                    <div className="big-table-prompts" aria-label="Bàn Lớn prompts">
-                      {BIG_TABLE_PROMPTS.map((prompt) => (
+                    <div className="trend-table-prompts" aria-label="Bàn Màu prompts">
+                      {COLOR_TREND_PROMPTS.map((prompt) => (
                         <button
                           key={prompt.vi}
-                          onClick={() => useBigTablePrompt(prompt)}
+                          onClick={() => useTrendTablePrompt(prompt)}
                           type="button"
                         >
                           {prompt.vi}
@@ -2022,20 +2027,12 @@ export default function ChoNeoGossipPage() {
                         </span>
                       </p>
                     </div>
-                  ) : isBigTable ? (
-                    <div className="big-table-empty-state">
+                  ) : isTrendTable ? (
+                    <div className="trend-table-empty-state">
                       <strong>
-                        Bàn Lớn chưa có chuyện nào đặt lên.
-                        <span>Nothing has been put on the Big Table yet.</span>
+                        Bàn còn đang chờ trend mới.
+                        <span>The table is waiting for the next good trend.</span>
                       </strong>
-                      <p>
-                        Hỏi một câu thật sự hữu ích cho nghề, hoặc chia sẻ điều
-                        bạn đã thấy trong tiệm.
-                        <span>
-                          Ask something useful for the work, or share something
-                          you have seen in the salon.
-                        </span>
-                      </p>
                     </div>
                   ) : null}
                 </div>
@@ -2045,27 +2042,26 @@ export default function ChoNeoGossipPage() {
                     className="conversation-form table-note-form"
                     onSubmit={handleTableNoteSubmit}
                   >
-                    {!isBigTable ? (
+                    {!isTrendTable ? (
                       <p className="prototype-note">
                         Ghi chú ở bàn này ở lại trong phiên quán hiện tại. / This
                         table note stays in the current café session.
                       </p>
                     ) : null}
                     <label htmlFor="table-note-message">
-                      {isBigTable ? "Đặt lên Bàn Lớn" : "Ngồi xuống góp chuyện"}
+                      {isTrendTable ? "Có màu, mẫu, trend, hay sản phẩm nào muốn hỏi?" : "Ngồi xuống góp chuyện"}
                       <span>
-                        {isBigTable ? "Put it on the Big Table" : "Take a seat and add a note"}
+                        {isTrendTable ? "Got a color, design, trend, or product you want to ask about?" : "Take a seat and add a note"}
                       </span>
                     </label>
                     <p className="posting-helper">
-                      {isBigTable ? (
+                      {isTrendTable ? (
                         <>
-                          Nói rõ bạn đang hỏi về màu, sản phẩm, kỹ thuật, giá,
-                          vận hành, hay kinh nghiệm trong tiệm.
+                          Màu, mẫu, giá, sản phẩm, hay khách đang hỏi gì — nói
+                          rõ để mọi người dễ góp ý.
                           <span>
-                            Say clearly whether you are asking about color,
-                            products, technique, pricing, operations, or salon
-                            experience.
+                            Color, design, pricing, products, or what clients
+                            are asking for — be clear so people can respond well.
                           </span>
                         </>
                       ) : (
@@ -2089,8 +2085,8 @@ export default function ChoNeoGossipPage() {
                           setTableNoteNotice(null);
                         }}
                         placeholder={
-                          isBigTable
-                            ? "Bạn muốn hỏi hoặc chia sẻ chuyện nghề gì? / What work question or experience do you want to share?"
+                          isTrendTable
+                            ? "Bạn muốn hỏi hoặc chia sẻ trend gì? / What trend question or idea do you want to share?"
                             : "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience..."
                         }
                         ref={tableNoteInputRef}
@@ -2098,8 +2094,8 @@ export default function ChoNeoGossipPage() {
                         value={tableNoteDraft}
                       />
                       <button disabled={!canSubmitTableNote} type="submit">
-                        {isBigTable ? "Đặt lên bàn" : "Góp chuyện"}
-                        <span>{isBigTable ? "Put it on the table" : "Add note"}</span>
+                        {isTrendTable ? "Đặt lên bàn" : "Góp chuyện"}
+                        <span>{isTrendTable ? "Put it on the table" : "Add note"}</span>
                       </button>
                     </div>
                     {tableNoteNotice ? (
@@ -2206,8 +2202,8 @@ export default function ChoNeoGossipPage() {
                           </strong>
                           <small>{table.topic}</small>
                         <em>
-                          {table.name === "Big Table"
-                            ? "Vào Bàn Lớn / Enter Big Table"
+                          {table.name === "Color & Trend"
+                            ? "Vào Bàn Màu / Enter Trend Table"
                             : "Vào bàn / Enter"}
                         </em>
                       </button>
@@ -3618,6 +3614,15 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
+        .cafe-page:has(.detail-panel-trend-table) .floor-grid,
+        .cafe-page:has(.detail-panel-trend-table) .cafe-hero,
+        .cafe-page:has(.detail-panel-trend-table) .cafe-stage-controls,
+        .room-scene-focused:has(.detail-panel-trend-table)::before,
+        .room-scene-focused:has(.detail-panel-trend-table)::after,
+        .room-scene-focused:has(.detail-panel-trend-table) .counter {
+          display: none;
+        }
+
         .cafe-page:has(.detail-panel-front-counter) .cafe-shell {
           padding: clamp(10px, 2vw, 18px);
         }
@@ -3694,7 +3699,7 @@ export default function ChoNeoGossipPage() {
           box-shadow: none;
         }
 
-        .detail-panel-big-table {
+        .detail-panel-trend-table {
           display: flex;
           flex-direction: column;
           padding: clamp(18px, 3vw, 28px);
@@ -3705,31 +3710,58 @@ export default function ChoNeoGossipPage() {
             rgba(24, 16, 16, 0.84);
         }
 
-        .detail-panel-big-table .detail-heading {
+        .trend-table-back {
+          order: 0;
+          justify-self: start;
+          width: fit-content;
+          min-height: 38px;
+          margin: 0 0 14px;
+          padding: 7px 12px;
+          border: 1px solid rgba(253, 230, 138, 0.22);
+          border-radius: 999px;
+          color: #fff7ed;
+          background: rgba(255, 247, 237, 0.08);
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .trend-table-back span {
+          display: block;
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .detail-panel-trend-table .detail-heading {
           order: 1;
         }
 
-        .detail-panel-big-table .big-table-subtitle {
-          order: 2;
-        }
-
-        .detail-panel-big-table .detail-members {
+        .detail-panel-trend-table .detail-heading p {
           display: none;
         }
 
-        .detail-panel-big-table .big-table-scene {
+        .detail-panel-trend-table .trend-table-subtitle {
+          order: 2;
+        }
+
+        .detail-panel-trend-table .detail-members {
+          display: none;
+        }
+
+        .detail-panel-trend-table .trend-table-scene {
           order: 3;
         }
 
-        .detail-panel-big-table .table-note-form {
+        .detail-panel-trend-table .mock-thread {
           order: 4;
         }
 
-        .detail-panel-big-table .mock-thread {
+        .detail-panel-trend-table .table-note-form {
           order: 5;
         }
 
-        .detail-panel-big-table .leave-button {
+        .detail-panel-trend-table .leave-button {
           order: 6;
         }
 
@@ -3753,18 +3785,13 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
-        .table-detail:has(.detail-panel-big-table) {
+        .table-detail:has(.detail-panel-trend-table) {
           width: min(980px, 100%);
-          margin-top: 62px;
+          margin-top: 0;
         }
 
-        .table-detail:has(.detail-panel-big-table) > .detail-table-plate {
-          width: min(360px, 72vw);
-          height: 132px;
-          margin-bottom: -42px;
-          background:
-            radial-gradient(circle at 50% 42%, rgba(253, 230, 138, 0.24), transparent 46%),
-            linear-gradient(135deg, rgba(72, 40, 28, 0.96), rgba(98, 62, 42, 0.9));
+        .table-detail:has(.detail-panel-trend-table) > .detail-table-plate {
+          display: none;
         }
 
         .detail-heading {
@@ -3829,7 +3856,7 @@ export default function ChoNeoGossipPage() {
           opacity: 0.68;
         }
 
-        .big-table-subtitle {
+        .trend-table-subtitle {
           max-width: 760px;
           margin: 12px 0 0;
           color: rgba(255, 247, 237, 0.84);
@@ -3838,7 +3865,7 @@ export default function ChoNeoGossipPage() {
           line-height: 1.4;
         }
 
-        .big-table-subtitle span {
+        .trend-table-subtitle span {
           display: block;
           margin-top: 5px;
           color: rgba(255, 247, 237, 0.54);
@@ -3850,13 +3877,13 @@ export default function ChoNeoGossipPage() {
           margin-top: 18px;
         }
 
-        .big-table-scene {
+        .trend-table-scene {
           display: grid;
           gap: 14px;
           margin-top: 18px;
         }
 
-        .big-table-stage {
+        .trend-table-stage {
           position: relative;
           overflow: hidden;
           aspect-ratio: 1672 / 941;
@@ -3870,7 +3897,7 @@ export default function ChoNeoGossipPage() {
             inset 0 1px 0 rgba(255, 247, 237, 0.08);
         }
 
-        .big-table-stage img {
+        .trend-table-stage img {
           display: block;
           width: 100%;
           height: 100%;
@@ -3879,13 +3906,13 @@ export default function ChoNeoGossipPage() {
           filter: saturate(1.03) brightness(1.02);
         }
 
-        .big-table-prompts {
+        .trend-table-prompts {
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
         }
 
-        .big-table-prompts button {
+        .trend-table-prompts button {
           min-height: 38px;
           padding: 7px 10px;
           border: 1px solid rgba(253, 230, 138, 0.2);
@@ -3897,21 +3924,21 @@ export default function ChoNeoGossipPage() {
           text-align: left;
         }
 
-        .big-table-prompts button span {
+        .trend-table-prompts button span {
           display: block;
           margin-top: 2px;
           color: rgba(255, 247, 237, 0.58);
           font-size: 10px;
         }
 
-        .big-table-prompts button:hover,
-        .big-table-prompts button:focus-visible {
+        .trend-table-prompts button:hover,
+        .trend-table-prompts button:focus-visible {
           outline: none;
           border-color: rgba(253, 230, 138, 0.42);
           background: rgba(253, 230, 138, 0.14);
         }
 
-        .big-table-empty-state {
+        .trend-table-empty-state {
           width: min(100%, 620px);
           padding: 16px;
           border: 1px dashed rgba(253, 230, 138, 0.26);
@@ -3921,18 +3948,18 @@ export default function ChoNeoGossipPage() {
             rgba(255, 247, 237, 0.06);
         }
 
-        .big-table-empty-state strong,
-        .big-table-empty-state span {
+        .trend-table-empty-state strong,
+        .trend-table-empty-state span {
           display: block;
         }
 
-        .big-table-empty-state strong {
+        .trend-table-empty-state strong {
           color: #fde68a;
           font-size: 15px;
           font-weight: 950;
         }
 
-        .big-table-empty-state p {
+        .trend-table-empty-state p {
           margin: 8px 0 0;
           color: rgba(255, 247, 237, 0.74);
           font-size: 13px;
@@ -3940,7 +3967,7 @@ export default function ChoNeoGossipPage() {
           line-height: 1.45;
         }
 
-        .big-table-empty-state span {
+        .trend-table-empty-state span {
           margin-top: 3px;
           color: rgba(255, 247, 237, 0.52);
           font-size: 11px;
@@ -6152,42 +6179,42 @@ export default function ChoNeoGossipPage() {
             display: none;
           }
 
-          .table-detail:has(.detail-panel-big-table) {
+          .table-detail:has(.detail-panel-trend-table) {
             width: 100%;
             margin-top: 36px;
           }
 
-          .detail-panel-big-table {
+          .detail-panel-trend-table {
             padding: 14px;
             border-radius: 24px;
           }
 
-          .detail-panel-big-table .detail-heading {
+          .detail-panel-trend-table .detail-heading {
             display: grid;
             gap: 4px;
           }
 
-          .big-table-subtitle {
+          .trend-table-subtitle {
             margin-top: 8px;
             font-size: 12px;
             line-height: 1.42;
           }
 
-          .big-table-stage {
+          .trend-table-stage {
             border-radius: 20px;
           }
 
-          .big-table-prompts {
+          .trend-table-prompts {
             display: grid;
             grid-template-columns: 1fr;
             gap: 7px;
           }
 
-          .big-table-prompts button {
+          .trend-table-prompts button {
             min-height: 42px;
           }
 
-          .big-table-empty-state {
+          .trend-table-empty-state {
             padding: 13px;
           }
 
@@ -6610,10 +6637,10 @@ function getMeaningfulCharacterCount(value: string) {
   return value.replace(/\s/g, "").length;
 }
 
-function getBigTableNoteBlockNotice(value: string) {
+function getTrendTableNoteBlockNotice(value: string) {
   const normalized = value.trim().toLowerCase();
 
-  if (BIG_TABLE_BLOCKED_SHORT_POSTS.has(normalized)) {
+  if (COLOR_TREND_BLOCKED_SHORT_POSTS.has(normalized)) {
     return "Hỏi hoặc chia sẻ cụ thể hơn một chút. / Ask or share something a little more specific.";
   }
 
@@ -6622,15 +6649,15 @@ function getBigTableNoteBlockNotice(value: string) {
   }
 
   if (normalized.length < 12) {
-    return "Nói rõ hơn bạn đang hỏi chuyện nghề gì. / Say more clearly what work question you are asking.";
+    return "Nói rõ hơn bạn đang hỏi màu, mẫu, hay trend gì. / Say more clearly what color, design, or trend you are asking about.";
   }
 
-  if (BIG_TABLE_AD_LANGUAGE.some((phrase) => normalized.includes(phrase))) {
-    return "Bàn Lớn để hỏi chuyện nghề thật, không rao bán. / The Big Table is for real work talk, not selling.";
+  if (COLOR_TREND_AD_LANGUAGE.some((phrase) => normalized.includes(phrase))) {
+    return "Bàn Màu để nói trend thật, không rao bán. / The Trend Table is for real trend talk, not selling.";
   }
 
-  if (BIG_TABLE_UNSAFE_CLAIM_LANGUAGE.some((phrase) => normalized.includes(phrase))) {
-    return "Đừng đưa lời khẳng định y tế hoặc pháp lý ở Bàn Lớn. / Do not make medical or legal claims at the Big Table.";
+  if (COLOR_TREND_UNSAFE_CLAIM_LANGUAGE.some((phrase) => normalized.includes(phrase))) {
+    return "Đừng đưa lời khẳng định y tế hoặc pháp lý ở Bàn Màu. / Do not make medical or legal claims at the Trend Table.";
   }
 
   return null;
@@ -6667,8 +6694,8 @@ function getTableNameCopy(tableName: string) {
 
   if (tableName === "Color & Trend") {
     return {
-      vi: "Bàn Màu & Trend",
-      en: "Color & Trend",
+      vi: "Bàn Màu",
+      en: "Trend Table",
     };
   }
 
@@ -6683,13 +6710,6 @@ function getTableNameCopy(tableName: string) {
     return {
       vi: "Bàn Yên",
       en: "Quiet Table",
-    };
-  }
-
-  if (tableName === "Big Table") {
-    return {
-      vi: "Bàn Lớn",
-      en: "Big Table",
     };
   }
 
