@@ -12,12 +12,6 @@ export function ChoNeoVillageMap() {
         <ChoNeoRoomHotspot key={room.id} room={room} />
       ))}
 
-      <div className="scene-panel scene-panel-open">
-        <p>Đang mở</p>
-        <strong>3 cửa đầu</strong>
-        <span>3 open rooms</span>
-      </div>
-
       <div className="mobile-room-drawer">
         <div>
           <p>Đang mở / Open</p>

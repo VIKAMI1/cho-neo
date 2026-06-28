@@ -180,6 +180,28 @@ const tables = [
       { name: "Linh", text: "I am trying to fix the system before blaming people." },
     ],
   },
+  {
+    name: "Big Table",
+    count: 0,
+    action: "people talking",
+    topic: "Bàn rộng cho chuyện chung của cả làng.",
+    status: "Open",
+    initials: [],
+    tone: "violet",
+    note: "A larger village table for shared questions, broad shop talk, and group notes.",
+    messages: [],
+  },
+  {
+    name: "Private Table",
+    count: 0,
+    action: "people listening",
+    topic: "Nói nhỏ hơn, giữ chuyện gọn hơn.",
+    status: "Quiet",
+    initials: [],
+    tone: "green",
+    note: "A quieter corner for smaller conversations that still follow the café rules.",
+    messages: [],
+  },
 ];
 
 const frontDoorRules = [
@@ -343,6 +365,7 @@ export default function ChoNeoGossipPage() {
     !!seatedIdentity &&
     seatedIdentity.avatarId === identity.avatarId &&
     seatedIdentity.nickname === identity.nickname;
+
   useEffect(() => {
     let cancelled = false;
     const savedIdentity = getChoNeoIdentity();
@@ -351,6 +374,24 @@ export default function ChoNeoGossipPage() {
       setIdentity(savedIdentity);
       setIdentityAvatarId(savedIdentity.avatarId);
       setIdentityNicknameDraft(savedIdentity.nickname);
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const enterByFallback = searchParams.get("enter") === "1";
+
+    if (enterByFallback) {
+      try {
+        window.localStorage.setItem(QUAN_TAM_RULES_ACCEPTED_KEY, "true");
+      } catch {
+        // Storage-restricted sessions should still be able to enter via fallback.
+      }
+
+      setRulesGateOpen(false);
+      setRoomEntered(true);
+      setRoomSettled(false);
+      window.setTimeout(() => setRoomSettled(true), 700);
+      window.history.replaceState(null, "", "/cho-neo/gossip");
+      return;
     }
 
     const rulesAccepted =
@@ -367,7 +408,7 @@ export default function ChoNeoGossipPage() {
     }
 
     setHostToolsOpen(
-      new URLSearchParams(window.location.search).get("hostTools") === "1"
+      searchParams.get("hostTools") === "1"
     );
     setReportedMessageIds(readReportedFrontCounterMessageIds());
 
@@ -816,11 +857,24 @@ export default function ChoNeoGossipPage() {
   }
 
   function enterQuanTamRoom() {
-    window.localStorage.setItem(QUAN_TAM_RULES_ACCEPTED_KEY, "true");
+    try {
+      window.localStorage.setItem(QUAN_TAM_RULES_ACCEPTED_KEY, "true");
+    } catch {
+      // Safari private/storage-restricted sessions should still be able to enter.
+    }
+
     setRulesGateOpen(false);
     setRoomEntered(true);
     setRoomSettled(false);
     window.setTimeout(() => setRoomSettled(true), 700);
+  }
+
+  function closeRulesOverlay() {
+    if (!roomEntered) {
+      return;
+    }
+
+    setRulesGateOpen(false);
   }
 
   function openTable(tableName: string) {
@@ -933,8 +987,23 @@ export default function ChoNeoGossipPage() {
               roomEntered ? "quan-tam-rules-door-overlay" : ""
             }`}
             aria-label="Nội Quy Quán Tám"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                closeRulesOverlay();
+              }
+            }}
           >
             <div className="rules-door-card">
+              {roomEntered ? (
+                <button
+                  className="rules-door-close"
+                  type="button"
+                  onClick={closeRulesOverlay}
+                >
+                  <span>Đóng</span>
+                  <small>Close</small>
+                </button>
+              ) : null}
               <div className="rules-door-sign" aria-hidden="true">
                 <strong>Quán Tám</strong>
                 <span>Gossip Café</span>
@@ -960,12 +1029,25 @@ export default function ChoNeoGossipPage() {
                 Cứ tám như người trong nghề, nhưng để ai rời bàn cũng nhẹ lòng hơn.
               </p>
               <div className="rules-door-actions">
-                <button type="button" onClick={enterQuanTamRoom}>
-                  Tôi hiểu — Vào Quán
-                </button>
-                <button type="button" onClick={enterQuanTamRoom}>
-                  Bỏ qua — Vào luôn
-                </button>
+                {roomEntered ? (
+                  <button type="button" onClick={closeRulesOverlay}>
+                    Quay lại Quán Tám / Back
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      data-testid="quan-tam-enter-button"
+                      type="button"
+                      onPointerDown={enterQuanTamRoom}
+                    >
+                      Đồng ý vào Quán Tám / Agree & Enter
+                    </button>
+                    <a href="/cho-neo/gossip?enter=1">
+                      Không vào được? Mở Quán Tám bằng đường phụ
+                      <span>Still stuck? Open Quán Tám another way</span>
+                    </a>
+                  </>
+                )}
               </div>
             </div>
           </section>
@@ -1899,34 +1981,6 @@ export default function ChoNeoGossipPage() {
             </article>
           ) : (
             <>
-              <nav className="mobile-table-picker" aria-label="Chọn bàn Quán Tám">
-                <div className="mobile-table-picker-heading">
-                  <strong>Chọn bàn</strong>
-                  <span>Choose a table</span>
-                </div>
-                <div className="mobile-table-picker-grid">
-                  {tables.map((table) => {
-                    const tableNameCopy = getTableNameCopy(table.name);
-
-                    return (
-                      <button
-                        className={`mobile-table-card table-${table.tone}`}
-                        key={`mobile-${table.name}`}
-                        onClick={() => openTable(table.name)}
-                        type="button"
-                      >
-                        <strong>
-                          {tableNameCopy.vi}
-                          <span>{tableNameCopy.en}</span>
-                        </strong>
-                        <small>{table.topic}</small>
-                        <em>Vào bàn / Enter</em>
-                      </button>
-                    );
-                  })}
-                </div>
-              </nav>
-
               <div className="gossip-image-lobby">
                 <div className="gossip-room-stage">
                   <img
@@ -1938,7 +1992,7 @@ export default function ChoNeoGossipPage() {
                   {/* Future approved café audio can hook in here; no audio element is rendered, so there is no autoplay. */}
 
                   <div className="gossip-hotspot-layer" aria-label="Quán Tám table zones">
-                    {tables.map((table, tableIndex) => {
+                    {tables.slice(0, 5).map((table, tableIndex) => {
                       const tableNameCopy = getTableNameCopy(table.name);
 
                       return (
@@ -1977,6 +2031,34 @@ export default function ChoNeoGossipPage() {
                   </div>
                 </div>
               </div>
+
+              <nav className="mobile-table-picker" aria-label="Chọn bàn Quán Tám">
+                <div className="mobile-table-picker-heading">
+                  <strong>Chọn bàn</strong>
+                  <span>Choose a table</span>
+                </div>
+                <div className="mobile-table-picker-grid">
+                  {tables.map((table) => {
+                    const tableNameCopy = getTableNameCopy(table.name);
+
+                    return (
+                      <button
+                        className={`mobile-table-card table-${table.tone}`}
+                        key={`mobile-${table.name}`}
+                        onClick={() => openTable(table.name)}
+                        type="button"
+                      >
+                        <strong>
+                          {tableNameCopy.vi}
+                          <span>{tableNameCopy.en}</span>
+                        </strong>
+                        <small>{table.topic}</small>
+                        <em>Vào bàn / Enter</em>
+                      </button>
+                    );
+                  })}
+                </div>
+              </nav>
             </>
           )}
         </section>
@@ -2172,14 +2254,24 @@ export default function ChoNeoGossipPage() {
         }
 
         .quan-tam-rules-door {
-          position: relative;
-          z-index: 30;
+          position: fixed;
+          inset: 0;
+          z-index: 100;
           display: grid;
-          min-height: min(560px, calc(100vh - 210px));
-          place-items: center;
-          padding: 18px 0;
+          max-height: none;
+          min-height: 100vh;
+          align-items: start;
+          justify-items: center;
+          overflow-y: auto;
+          padding: 24px;
           isolation: isolate;
           perspective: 1200px;
+          -webkit-overflow-scrolling: touch;
+          background:
+            radial-gradient(circle at 50% 20%, rgba(253, 230, 138, 0.18), transparent 34%),
+            radial-gradient(circle at 18% 88%, rgba(190, 24, 93, 0.12), transparent 32%),
+            rgba(31, 20, 18, 0.76);
+          backdrop-filter: blur(14px);
         }
 
         .quan-tam-rules-door::before {
@@ -2215,21 +2307,13 @@ export default function ChoNeoGossipPage() {
         }
 
         .quan-tam-rules-door-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 100;
-          min-height: 100vh;
           padding: 24px;
-          background:
-            radial-gradient(circle at 50% 20%, rgba(253, 230, 138, 0.18), transparent 34%),
-            radial-gradient(circle at 18% 88%, rgba(190, 24, 93, 0.12), transparent 32%),
-            rgba(31, 20, 18, 0.76);
-          backdrop-filter: blur(14px);
         }
 
         .rules-door-card {
+          position: relative;
           width: min(620px, 100%);
-          padding: clamp(18px, 3vw, 28px);
+          padding: clamp(18px, 3vw, 28px) clamp(18px, 3vw, 28px) clamp(24px, 3.2vw, 34px);
           border: 1px solid rgba(253, 230, 138, 0.26);
           border-radius: 28px;
           background:
@@ -2243,6 +2327,53 @@ export default function ChoNeoGossipPage() {
             inset 0 1px 0 rgba(255, 255, 255, 0.18),
             inset 0 0 0 1px rgba(255, 247, 237, 0.08);
           backdrop-filter: blur(14px);
+        }
+
+        .rules-door-close {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          display: grid;
+          place-items: center;
+          min-width: 74px;
+          min-height: 38px;
+          padding: 6px 12px;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 999px;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.13), rgba(255, 247, 237, 0.05)),
+            rgba(42, 24, 23, 0.72);
+          color: #fff7ed;
+          cursor: pointer;
+          font-weight: 950;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 12px 22px rgba(0, 0, 0, 0.18);
+        }
+
+        .rules-door-close span,
+        .rules-door-close small {
+          display: block;
+          line-height: 1;
+        }
+
+        .rules-door-close span {
+          font-size: 12px;
+        }
+
+        .rules-door-close small {
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 9px;
+        }
+
+        .rules-door-close:hover,
+        .rules-door-close:focus-visible {
+          outline: none;
+          border-color: rgba(253, 230, 138, 0.42);
+          box-shadow:
+            0 0 0 4px rgba(253, 230, 138, 0.14),
+            0 14px 26px rgba(0, 0, 0, 0.22);
         }
 
         .rules-door-sign {
@@ -5401,10 +5532,12 @@ export default function ChoNeoGossipPage() {
             position: fixed;
             inset: 0;
             z-index: 100;
+            display: block;
+            max-height: none;
             min-height: 100svh;
-            align-items: center;
             overflow-y: auto;
-            padding: 12px;
+            padding: max(10px, env(safe-area-inset-top)) 10px max(20px, env(safe-area-inset-bottom));
+            -webkit-overflow-scrolling: touch;
             background:
               radial-gradient(circle at 50% 18%, rgba(253, 230, 138, 0.16), transparent 34%),
               rgba(31, 20, 18, 0.82);
@@ -5413,8 +5546,8 @@ export default function ChoNeoGossipPage() {
 
           .quan-tam-rules-door-overlay {
             padding: 10px;
-            align-items: start;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
           }
 
           .quan-tam-rules-door::after {
@@ -5422,9 +5555,22 @@ export default function ChoNeoGossipPage() {
           }
 
           .rules-door-card {
-            align-self: center;
-            padding: 13px 12px 12px;
+            align-self: start;
+            width: 100%;
+            padding: 13px 12px max(28px, calc(16px + env(safe-area-inset-bottom)));
             border-radius: 18px;
+          }
+
+          .rules-door-card:has(.rules-door-close) {
+            padding-top: 48px;
+          }
+
+          .rules-door-close {
+            top: 9px;
+            right: 9px;
+            min-width: 70px;
+            min-height: 34px;
+            padding: 5px 10px;
           }
 
           .rules-door-sign {
@@ -5478,14 +5624,18 @@ export default function ChoNeoGossipPage() {
           }
 
           .rules-door-actions {
+            position: static;
             gap: 8px;
             margin-top: 9px;
+            padding: 8px 0 0;
+            background: transparent;
           }
 
           .rules-door-actions button {
             flex-basis: 100%;
-            min-height: 34px;
-            font-size: 11px;
+            min-height: 44px;
+            font-size: 12px;
+            touch-action: manipulation;
           }
 
           .identity-picker {
@@ -5557,7 +5707,7 @@ export default function ChoNeoGossipPage() {
           .mobile-table-picker {
             display: grid;
             gap: 8px;
-            margin: 2px 0 10px;
+            margin: 10px 0 0;
             max-width: 100%;
             overflow: hidden;
           }
@@ -5583,22 +5733,18 @@ export default function ChoNeoGossipPage() {
           }
 
           .mobile-table-picker-grid {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr;
             gap: 8px;
             max-width: 100%;
-            overflow-x: auto;
-            padding: 0 2px 6px;
-            scroll-padding: 2px;
-            scroll-snap-type: x mandatory;
-            -webkit-overflow-scrolling: touch;
+            overflow: visible;
+            padding: 0 2px 2px;
           }
 
           .mobile-table-card {
-            scroll-snap-align: start;
             display: grid;
-            flex: 0 0 min(74vw, 238px);
             gap: 5px;
-            min-height: 88px;
+            min-height: 76px;
             padding: 11px 12px;
             border: 1px solid rgba(253, 230, 138, 0.22);
             border-radius: 18px;
@@ -5680,18 +5826,23 @@ export default function ChoNeoGossipPage() {
             border-radius: 24px;
           }
 
+          .gossip-hotspot-layer {
+            display: none;
+          }
+
           .front-counter-focused-stage {
             aspect-ratio: unset;
-            min-height: auto;
-            padding-bottom: 94px;
+            min-height: clamp(430px, 70svh, 620px);
+            padding-bottom: 102px;
             border-radius: 24px;
             background:
-              radial-gradient(circle at 50% 50%, rgba(253, 230, 138, 0.14), transparent 44%),
-              #17100f;
+              radial-gradient(circle at 50% 44%, rgba(253, 230, 138, 0.14), transparent 42%),
+              linear-gradient(180deg, #17100f 0%, #2b1914 62%, #160f10 100%);
           }
 
           .front-counter-focused-image {
-            position: relative;
+            position: absolute;
+            inset: 0 0 auto;
             width: 100%;
             height: auto;
             min-height: 0;
@@ -5701,7 +5852,7 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-stage-bubbles {
-            top: 34%;
+            top: min(46%, 270px);
             right: 12%;
             bottom: auto;
             left: 12%;
@@ -6143,8 +6294,22 @@ function getTableNameCopy(tableName: string) {
 
   if (tableName === "Quiet Table") {
     return {
-      vi: "Bàn Yên Tĩnh",
+      vi: "Bàn Yên",
       en: "Quiet Table",
+    };
+  }
+
+  if (tableName === "Big Table") {
+    return {
+      vi: "Bàn Lớn",
+      en: "Big Table",
+    };
+  }
+
+  if (tableName === "Private Table") {
+    return {
+      vi: "Bàn Riêng",
+      en: "Private Table",
     };
   }
 
