@@ -1290,37 +1290,24 @@ export default function ChoNeoGossipPage() {
                       </>
                     )}
                     </strong>
-                  ) : (
-                    <strong className="big-table-question">
-                      Chuyện nghề, màu, giá, sản phẩm, kỹ thuật — đem lên bàn
-                      nói cho rõ.
-                      <span>
-                        Work, color, pricing, products, technique — bring it to
-                        the table and make it clear.
-                      </span>
-                    </strong>
-                  )}
+                  ) : null}
                 </div>
 
-                <p className="topic">
-                  Chủ đề: “{selectedTable.topic}”
-                  <span>Topic</span>
-                </p>
-
                 {isBigTable ? (
-                  <p className="big-table-description">
-                    Ngồi Bàn Lớn để hỏi và chia sẻ chuyện nghề: màu đang lên,
-                    sản phẩm có đáng tin không, kỹ thuật làm sao cho bền, giá
-                    nên tính thế nào, tiệm vận hành ra sao, và những câu hỏi
-                    lớn nhỏ trong nghề nail.
+                  <p className="big-table-subtitle">
+                    Chuyện nghề, màu, giá, sản phẩm, kỹ thuật — đem lên bàn nói
+                    cho rõ.
                     <span>
-                      Sit at the Big Table to ask and share work talk: rising
-                      colors, whether products are trustworthy, how to make
-                      techniques last, how pricing should be handled, how salons
-                      operate, and the big and small questions in nail work.
+                      Work, color, pricing, products, technique — bring it to
+                      the table and make it clear.
                     </span>
                   </p>
-                ) : null}
+                ) : (
+                  <p className="topic">
+                    Chủ đề: “{selectedTable.topic}”
+                    <span>Topic</span>
+                  </p>
+                )}
 
                 <div className="member-row detail-members" aria-label={`${selectedTable.name} seated members`}>
                   {selectedTable.initials.map((initial) => (
@@ -1829,20 +1816,6 @@ export default function ChoNeoGossipPage() {
                         alt="Warm Big Table inside Quán Tám for nail work, color, pricing, product, technique, and community discussion"
                         src={BIG_TABLE_IMAGE_SRC}
                       />
-                      <div className="big-table-stage-note">
-                        <strong>
-                          Bàn Lớn
-                          <span>Big Table</span>
-                        </strong>
-                        <p>
-                          Chuyện nghề, màu, giá, sản phẩm, kỹ thuật — đem lên
-                          bàn nói cho rõ.
-                          <span>
-                            Work, color, pricing, products, technique — bring it
-                            to the table and make it clear.
-                          </span>
-                        </p>
-                      </div>
                     </div>
                     <div className="big-table-prompts" aria-label="Bàn Lớn prompts">
                       {BIG_TABLE_PROMPTS.map((prompt) => (
@@ -3826,27 +3799,21 @@ export default function ChoNeoGossipPage() {
           opacity: 0.68;
         }
 
-        .detail-heading .big-table-question {
-          max-width: 230px;
-          color: #4a250f;
-          background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.92), rgba(253, 230, 138, 0.88));
-        }
-
-        .big-table-description {
+        .big-table-subtitle {
+          max-width: 760px;
           margin: 12px 0 0;
-          color: rgba(255, 247, 237, 0.78);
-          font-size: 14px;
-          font-weight: 750;
-          line-height: 1.5;
+          color: rgba(255, 247, 237, 0.84);
+          font-size: clamp(14px, 1.8vw, 17px);
+          font-weight: 850;
+          line-height: 1.4;
         }
 
-        .big-table-description span {
+        .big-table-subtitle span {
           display: block;
           margin-top: 5px;
           color: rgba(255, 247, 237, 0.54);
           font-size: 12px;
-          font-weight: 750;
+          font-weight: 800;
         }
 
         .detail-members {
@@ -3880,46 +3847,6 @@ export default function ChoNeoGossipPage() {
           object-fit: contain;
           object-position: center;
           filter: saturate(1.03) brightness(1.02);
-        }
-
-        .big-table-stage-note {
-          position: absolute;
-          left: clamp(12px, 2vw, 22px);
-          bottom: clamp(12px, 2vw, 22px);
-          max-width: min(320px, calc(100% - 24px));
-          padding: 12px 14px;
-          border: 1px solid rgba(253, 230, 138, 0.28);
-          border-radius: 18px;
-          background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.92), rgba(253, 230, 138, 0.82));
-          color: #3b1d0c;
-          box-shadow: 0 16px 32px rgba(0, 0, 0, 0.22);
-        }
-
-        .big-table-stage-note strong,
-        .big-table-stage-note p {
-          margin: 0;
-        }
-
-        .big-table-stage-note strong {
-          display: block;
-          font-size: 18px;
-          font-weight: 950;
-          line-height: 1;
-        }
-
-        .big-table-stage-note p {
-          margin-top: 7px;
-          font-size: 13px;
-          font-weight: 850;
-          line-height: 1.25;
-        }
-
-        .big-table-stage-note span {
-          display: block;
-          margin-top: 3px;
-          font-size: 11px;
-          opacity: 0.72;
         }
 
         .big-table-prompts {
@@ -6207,38 +6134,17 @@ export default function ChoNeoGossipPage() {
 
           .detail-panel-big-table .detail-heading {
             display: grid;
-            gap: 10px;
+            gap: 4px;
           }
 
-          .detail-heading .big-table-question {
-            max-width: 100%;
-            width: fit-content;
-          }
-
-          .big-table-description {
+          .big-table-subtitle {
+            margin-top: 8px;
             font-size: 12px;
             line-height: 1.42;
           }
 
           .big-table-stage {
             border-radius: 20px;
-          }
-
-          .big-table-stage-note {
-            left: 9px;
-            right: 9px;
-            bottom: 9px;
-            max-width: none;
-            padding: 9px 10px;
-            border-radius: 15px;
-          }
-
-          .big-table-stage-note strong {
-            font-size: 15px;
-          }
-
-          .big-table-stage-note p {
-            font-size: 11px;
           }
 
           .big-table-prompts {
