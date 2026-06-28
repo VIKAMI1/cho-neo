@@ -3695,12 +3695,42 @@ export default function ChoNeoGossipPage() {
         }
 
         .detail-panel-big-table {
+          display: flex;
+          flex-direction: column;
           padding: clamp(18px, 3vw, 28px);
           border-color: rgba(253, 230, 138, 0.22);
           background:
             radial-gradient(circle at 82% 8%, rgba(253, 230, 138, 0.16), transparent 28%),
             linear-gradient(180deg, rgba(255, 247, 237, 0.12), rgba(255, 247, 237, 0.045)),
             rgba(24, 16, 16, 0.84);
+        }
+
+        .detail-panel-big-table .detail-heading {
+          order: 1;
+        }
+
+        .detail-panel-big-table .big-table-subtitle {
+          order: 2;
+        }
+
+        .detail-panel-big-table .detail-members {
+          display: none;
+        }
+
+        .detail-panel-big-table .big-table-scene {
+          order: 3;
+        }
+
+        .detail-panel-big-table .table-note-form {
+          order: 4;
+        }
+
+        .detail-panel-big-table .mock-thread {
+          order: 5;
+        }
+
+        .detail-panel-big-table .leave-button {
+          order: 6;
         }
 
         .detail-panel-front-counter .detail-heading {
