@@ -67,6 +67,45 @@ const FRONT_COUNTER_TALK_EXAMPLES = [
   "Receipts, prices, and polite client notes",
   "Weather before booking the afternoon",
 ];
+const BIG_TABLE_IMAGE_SRC =
+  "/images/cho-neo/ban-lon-big-table.png";
+const BIG_TABLE_PROMPTS = [
+  {
+    vi: "Ai xài rồi?",
+    en: "Has anyone used this?",
+  },
+  {
+    vi: "Có bền trên khách không?",
+    en: "Does it last on clients?",
+  },
+  {
+    vi: "Có bị vàng không?",
+    en: "Does it yellow?",
+  },
+  {
+    vi: "Đèn này cure đều không?",
+    en: "Does this lamp cure evenly?",
+  },
+  {
+    vi: "Mũi khoan này có nóng không?",
+    en: "Does this drill bit get hot?",
+  },
+  {
+    vi: "Có đáng mua lại không?",
+    en: "Would you buy it again?",
+  },
+  {
+    vi: "Có lỗi gì cần biết không?",
+    en: "Any problems to know?",
+  },
+];
+const BIG_TABLE_BLOCKED_SHORT_POSTS = new Set(["hi", "hello", "test"]);
+const BIG_TABLE_AD_LANGUAGE = [
+  "dm me",
+  "message me to buy",
+  "best price",
+  "wholesale",
+];
 
 const seededFrontCounterMessages: FrontCounterMessage[] = [
   {
@@ -184,11 +223,11 @@ const tables = [
     name: "Big Table",
     count: 0,
     action: "people talking",
-    topic: "Bàn rộng cho chuyện chung của cả làng.",
+    topic: "Ai xài rồi? Có đáng tin không?",
     status: "Open",
     initials: [],
     tone: "violet",
-    note: "A larger village table for shared questions, broad shop talk, and group notes.",
+    note: "Ngồi Bàn Lớn để hỏi và chia sẻ kinh nghiệm thật về sản phẩm, dụng cụ, đèn, gel, top coat, mũi khoan, máy hút bụi, và những thứ ảnh hưởng tới tay nghề mỗi ngày.",
     messages: [],
   },
   {
@@ -329,6 +368,7 @@ export default function ChoNeoGossipPage() {
     [selectedTableName]
   );
   const isFrontCounter = selectedTable?.name === "Front Counter";
+  const isBigTable = selectedTable?.name === "Big Table";
   const selectedMessages: Array<ConversationMessage | FrontCounterMessage> =
     isFrontCounter
       ? frontCounterMessages.filter(isVisibleFrontCounterMessage)
@@ -561,6 +601,15 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
+    if (isBigTable) {
+      const bigTableNotice = getBigTableNoteBlockNotice(text);
+
+      if (bigTableNotice) {
+        setTableNoteNotice(bigTableNotice);
+        return;
+      }
+    }
+
     const nextMessage: ConversationMessage = {
       name: identity?.nickname ?? "Bạn làng",
       text,
@@ -575,8 +624,23 @@ export default function ChoNeoGossipPage() {
     }));
     setTableNoteDraft("");
     setTableNoteNotice(
-      "Đã góp chuyện vào bàn. Cảm ơn bạn giữ câu chuyện có ích. / Added to the table. Thanks for keeping it useful."
+      isBigTable
+        ? "Đã đặt lên Bàn Lớn. Cảm ơn bạn chia sẻ kinh nghiệm thật. / Put on the Big Table. Thanks for sharing real experience."
+        : "Đã góp chuyện vào bàn. Cảm ơn bạn giữ câu chuyện có ích. / Added to the table. Thanks for keeping it useful."
     );
+  }
+
+  function useBigTablePrompt(prompt: { vi: string; en: string }) {
+    setTableNoteDraft((currentDraft) => {
+      const nextPrompt = `${prompt.vi} / ${prompt.en}`;
+
+      if (!currentDraft.trim()) {
+        return nextPrompt;
+      }
+
+      return `${currentDraft.trim()} ${nextPrompt}`.slice(0, TABLE_NOTE_MESSAGE_LIMIT);
+    });
+    setTableNoteNotice(null);
   }
 
   async function reportFrontCounterMessage(message: FrontCounterMessage) {
@@ -1180,6 +1244,8 @@ export default function ChoNeoGossipPage() {
                 className={`detail-panel ${
                   isFrontCounter ? "detail-panel-front-counter" : ""
                 } ${
+                  isBigTable ? "detail-panel-big-table" : ""
+                } ${
                   isFrontCounter && frontCounterDrawerOpen
                     ? "front-counter-drawer-open"
                     : ""
@@ -1196,7 +1262,8 @@ export default function ChoNeoGossipPage() {
                       <span>{getTableNameCopy(selectedTable.name).en}</span>
                     </h2>
                   </div>
-                  <strong>
+                  {!isBigTable ? (
+                    <strong>
                     {isFrontCounter ? (
                       <>
                         {selectedTable.count} người đang bàn chuyện
@@ -1210,13 +1277,32 @@ export default function ChoNeoGossipPage() {
                         </span>
                       </>
                     )}
-                  </strong>
+                    </strong>
+                  ) : (
+                    <strong className="big-table-question">
+                      Ai xài rồi? Có đáng tin không?
+                      <span>Who has used it? Is it trustworthy?</span>
+                    </strong>
+                  )}
                 </div>
 
                 <p className="topic">
                   Chủ đề: “{selectedTable.topic}”
                   <span>Topic</span>
                 </p>
+
+                {isBigTable ? (
+                  <p className="big-table-description">
+                    Ngồi Bàn Lớn để hỏi và chia sẻ kinh nghiệm thật về sản phẩm,
+                    dụng cụ, đèn, gel, top coat, mũi khoan, máy hút bụi, và
+                    những thứ ảnh hưởng tới tay nghề mỗi ngày.
+                    <span>
+                      Sit at the Big Table to ask and share real experience about
+                      products, tools, lamps, gel, top coat, drill bits, dust
+                      collectors, and the things that affect daily salon work.
+                    </span>
+                  </p>
+                ) : null}
 
                 <div className="member-row detail-members" aria-label={`${selectedTable.name} seated members`}>
                   {selectedTable.initials.map((initial) => (
@@ -1718,6 +1804,39 @@ export default function ChoNeoGossipPage() {
                   </div>
                 ) : null}
 
+                {isBigTable ? (
+                  <div className="big-table-scene" aria-label="Bàn Lớn visual table">
+                    <div className="big-table-stage">
+                      <img
+                        alt="Warm Big Table inside Quán Tám for real salon product and tool experience"
+                        src={BIG_TABLE_IMAGE_SRC}
+                      />
+                      <div className="big-table-stage-note">
+                        <strong>
+                          Bàn Lớn
+                          <span>Big Table</span>
+                        </strong>
+                        <p>
+                          Ai xài rồi? Có đáng tin không?
+                          <span>Who has used it? Is it trustworthy?</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="big-table-prompts" aria-label="Bàn Lớn prompts">
+                      {BIG_TABLE_PROMPTS.map((prompt) => (
+                        <button
+                          key={prompt.vi}
+                          onClick={() => useBigTablePrompt(prompt)}
+                          type="button"
+                        >
+                          {prompt.vi}
+                          <span>{prompt.en}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
 
                 {isFrontCounter && moderationNotice ? (
                   <p className="moderation-notice">{moderationNotice}</p>
@@ -1908,6 +2027,19 @@ export default function ChoNeoGossipPage() {
                         </span>
                       </p>
                     </div>
+                  ) : isBigTable ? (
+                    <div className="big-table-empty-state">
+                      <strong>
+                        Bàn Lớn chưa có món nào đặt lên.
+                        <span>Nothing has been put on the Big Table yet.</span>
+                      </strong>
+                      <p>
+                        Hỏi về một sản phẩm hoặc dụng cụ bạn thật sự muốn biết.
+                        <span>
+                          Ask about a product or tool you truly want to understand.
+                        </span>
+                      </p>
+                    </div>
                   ) : null}
                 </div>
 
@@ -1916,22 +2048,37 @@ export default function ChoNeoGossipPage() {
                     className="conversation-form table-note-form"
                     onSubmit={handleTableNoteSubmit}
                   >
-                    <p className="prototype-note">
-                      Ghi chú ở bàn này ở lại trong phiên quán hiện tại. / This
-                      table note stays in the current café session.
-                    </p>
+                    {!isBigTable ? (
+                      <p className="prototype-note">
+                        Ghi chú ở bàn này ở lại trong phiên quán hiện tại. / This
+                        table note stays in the current café session.
+                      </p>
+                    ) : null}
                     <label htmlFor="table-note-message">
-                      Ngồi xuống góp chuyện
-                      <span>Take a seat and add a note</span>
+                      {isBigTable ? "Đặt lên Bàn Lớn" : "Ngồi xuống góp chuyện"}
+                      <span>
+                        {isBigTable ? "Put it on the Big Table" : "Take a seat and add a note"}
+                      </span>
                     </label>
                     <p className="posting-helper">
-                      Viết một câu có ích cho thợ, chủ tiệm, hoặc người đang
-                      học nghề. Không spam supplier, không “hi” trống, không
-                      công kích cá nhân.
-                      <span>
-                        Share one useful note for techs, owners, or learners.
-                        No supplier spam, empty hi posts, or personal attacks.
-                      </span>
+                      {isBigTable ? (
+                        <>
+                          Nói rõ bạn dùng gì, thấy gì, và trong hoàn cảnh nào.
+                          <span>
+                            Say what you used, what you saw, and in what situation.
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          Viết một câu có ích cho thợ, chủ tiệm, hoặc người đang
+                          học nghề. Không spam supplier, không “hi” trống, không
+                          công kích cá nhân.
+                          <span>
+                            Share one useful note for techs, owners, or learners.
+                            No supplier spam, empty hi posts, or personal attacks.
+                          </span>
+                        </>
+                      )}
                     </p>
                     <div className="message-row">
                       <input
@@ -1941,13 +2088,17 @@ export default function ChoNeoGossipPage() {
                           setTableNoteDraft(event.target.value);
                           setTableNoteNotice(null);
                         }}
-                        placeholder="Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience..."
+                        placeholder={
+                          isBigTable
+                            ? "Bạn muốn hỏi hoặc chia sẻ kinh nghiệm gì? / What experience do you want to ask about or share?"
+                            : "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience..."
+                        }
                         type="text"
                         value={tableNoteDraft}
                       />
                       <button disabled={!canSubmitTableNote} type="submit">
-                        Góp chuyện
-                        <span>Add note</span>
+                        {isBigTable ? "Đặt lên bàn" : "Góp chuyện"}
+                        <span>{isBigTable ? "Put it on the table" : "Add note"}</span>
                       </button>
                     </div>
                     {tableNoteNotice ? (
@@ -2047,13 +2198,17 @@ export default function ChoNeoGossipPage() {
                         key={`mobile-${table.name}`}
                         onClick={() => openTable(table.name)}
                         type="button"
-                      >
-                        <strong>
-                          {tableNameCopy.vi}
-                          <span>{tableNameCopy.en}</span>
-                        </strong>
-                        <small>{table.topic}</small>
-                        <em>Vào bàn / Enter</em>
+                        >
+                          <strong>
+                            {tableNameCopy.vi}
+                            <span>{tableNameCopy.en}</span>
+                          </strong>
+                          <small>{table.topic}</small>
+                        <em>
+                          {table.name === "Big Table"
+                            ? "Vào Bàn Lớn / Enter Big Table"
+                            : "Vào bàn / Enter"}
+                        </em>
                       </button>
                     );
                   })}
@@ -3538,6 +3693,15 @@ export default function ChoNeoGossipPage() {
           box-shadow: none;
         }
 
+        .detail-panel-big-table {
+          padding: clamp(18px, 3vw, 28px);
+          border-color: rgba(253, 230, 138, 0.22);
+          background:
+            radial-gradient(circle at 82% 8%, rgba(253, 230, 138, 0.16), transparent 28%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.12), rgba(255, 247, 237, 0.045)),
+            rgba(24, 16, 16, 0.84);
+        }
+
         .detail-panel-front-counter .detail-heading {
           display: none;
         }
@@ -3556,6 +3720,20 @@ export default function ChoNeoGossipPage() {
         .table-detail:has(.detail-panel-front-counter) > .table-glow,
         .table-detail:has(.detail-panel-front-counter) > .detail-table-plate {
           display: none;
+        }
+
+        .table-detail:has(.detail-panel-big-table) {
+          width: min(980px, 100%);
+          margin-top: 62px;
+        }
+
+        .table-detail:has(.detail-panel-big-table) > .detail-table-plate {
+          width: min(360px, 72vw);
+          height: 132px;
+          margin-bottom: -42px;
+          background:
+            radial-gradient(circle at 50% 42%, rgba(253, 230, 138, 0.24), transparent 46%),
+            linear-gradient(135deg, rgba(72, 40, 28, 0.96), rgba(98, 62, 42, 0.9));
         }
 
         .detail-heading {
@@ -3620,8 +3798,167 @@ export default function ChoNeoGossipPage() {
           opacity: 0.68;
         }
 
+        .detail-heading .big-table-question {
+          max-width: 230px;
+          color: #4a250f;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.92), rgba(253, 230, 138, 0.88));
+        }
+
+        .big-table-description {
+          margin: 12px 0 0;
+          color: rgba(255, 247, 237, 0.78);
+          font-size: 14px;
+          font-weight: 750;
+          line-height: 1.5;
+        }
+
+        .big-table-description span {
+          display: block;
+          margin-top: 5px;
+          color: rgba(255, 247, 237, 0.54);
+          font-size: 12px;
+          font-weight: 750;
+        }
+
         .detail-members {
           margin-top: 18px;
+        }
+
+        .big-table-scene {
+          display: grid;
+          gap: 14px;
+          margin-top: 18px;
+        }
+
+        .big-table-stage {
+          position: relative;
+          overflow: hidden;
+          aspect-ratio: 1672 / 941;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 26px;
+          background:
+            radial-gradient(circle at 50% 68%, rgba(253, 230, 138, 0.16), transparent 38%),
+            linear-gradient(135deg, #1c1110, #4b2b1c 52%, #120c0d);
+          box-shadow:
+            0 22px 54px rgba(0, 0, 0, 0.28),
+            inset 0 1px 0 rgba(255, 247, 237, 0.08);
+        }
+
+        .big-table-stage img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+          filter: saturate(1.03) brightness(1.02);
+        }
+
+        .big-table-stage-note {
+          position: absolute;
+          left: clamp(12px, 2vw, 22px);
+          bottom: clamp(12px, 2vw, 22px);
+          max-width: min(320px, calc(100% - 24px));
+          padding: 12px 14px;
+          border: 1px solid rgba(253, 230, 138, 0.28);
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.92), rgba(253, 230, 138, 0.82));
+          color: #3b1d0c;
+          box-shadow: 0 16px 32px rgba(0, 0, 0, 0.22);
+        }
+
+        .big-table-stage-note strong,
+        .big-table-stage-note p {
+          margin: 0;
+        }
+
+        .big-table-stage-note strong {
+          display: block;
+          font-size: 18px;
+          font-weight: 950;
+          line-height: 1;
+        }
+
+        .big-table-stage-note p {
+          margin-top: 7px;
+          font-size: 13px;
+          font-weight: 850;
+          line-height: 1.25;
+        }
+
+        .big-table-stage-note span {
+          display: block;
+          margin-top: 3px;
+          font-size: 11px;
+          opacity: 0.72;
+        }
+
+        .big-table-prompts {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .big-table-prompts button {
+          min-height: 38px;
+          padding: 7px 10px;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 999px;
+          color: #fff7ed;
+          background: rgba(255, 247, 237, 0.08);
+          font-size: 12px;
+          font-weight: 900;
+          text-align: left;
+        }
+
+        .big-table-prompts button span {
+          display: block;
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 10px;
+        }
+
+        .big-table-prompts button:hover,
+        .big-table-prompts button:focus-visible {
+          outline: none;
+          border-color: rgba(253, 230, 138, 0.42);
+          background: rgba(253, 230, 138, 0.14);
+        }
+
+        .big-table-empty-state {
+          width: min(100%, 620px);
+          padding: 16px;
+          border: 1px dashed rgba(253, 230, 138, 0.26);
+          border-radius: 20px;
+          background:
+            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.12), transparent 36%),
+            rgba(255, 247, 237, 0.06);
+        }
+
+        .big-table-empty-state strong,
+        .big-table-empty-state span {
+          display: block;
+        }
+
+        .big-table-empty-state strong {
+          color: #fde68a;
+          font-size: 15px;
+          font-weight: 950;
+        }
+
+        .big-table-empty-state p {
+          margin: 8px 0 0;
+          color: rgba(255, 247, 237, 0.74);
+          font-size: 13px;
+          font-weight: 750;
+          line-height: 1.45;
+        }
+
+        .big-table-empty-state span {
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.52);
+          font-size: 11px;
         }
 
         .front-counter-table-scene {
@@ -5830,6 +6167,66 @@ export default function ChoNeoGossipPage() {
             display: none;
           }
 
+          .table-detail:has(.detail-panel-big-table) {
+            width: 100%;
+            margin-top: 36px;
+          }
+
+          .detail-panel-big-table {
+            padding: 14px;
+            border-radius: 24px;
+          }
+
+          .detail-panel-big-table .detail-heading {
+            display: grid;
+            gap: 10px;
+          }
+
+          .detail-heading .big-table-question {
+            max-width: 100%;
+            width: fit-content;
+          }
+
+          .big-table-description {
+            font-size: 12px;
+            line-height: 1.42;
+          }
+
+          .big-table-stage {
+            border-radius: 20px;
+          }
+
+          .big-table-stage-note {
+            left: 9px;
+            right: 9px;
+            bottom: 9px;
+            max-width: none;
+            padding: 9px 10px;
+            border-radius: 15px;
+          }
+
+          .big-table-stage-note strong {
+            font-size: 15px;
+          }
+
+          .big-table-stage-note p {
+            font-size: 11px;
+          }
+
+          .big-table-prompts {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 7px;
+          }
+
+          .big-table-prompts button {
+            min-height: 42px;
+          }
+
+          .big-table-empty-state {
+            padding: 13px;
+          }
+
           .front-counter-focused-stage {
             aspect-ratio: unset;
             min-height: clamp(430px, 70svh, 620px);
@@ -6247,6 +6644,28 @@ function getHostModerationNotice(action: FrontCounterModerationAction) {
 
 function getMeaningfulCharacterCount(value: string) {
   return value.replace(/\s/g, "").length;
+}
+
+function getBigTableNoteBlockNotice(value: string) {
+  const normalized = value.trim().toLowerCase();
+
+  if (BIG_TABLE_BLOCKED_SHORT_POSTS.has(normalized)) {
+    return "Hỏi hoặc chia sẻ cụ thể hơn một chút. / Ask or share something a little more specific.";
+  }
+
+  if (!/[\p{L}\p{N}]/u.test(normalized)) {
+    return "Viết bằng chữ một chút để mọi người hiểu. / Add words so people can understand.";
+  }
+
+  if (normalized.length < 12) {
+    return "Nói rõ hơn món gì và bạn muốn biết điều gì. / Say which item and what you want to understand.";
+  }
+
+  if (BIG_TABLE_AD_LANGUAGE.some((phrase) => normalized.includes(phrase))) {
+    return "Bàn Lớn để hỏi kinh nghiệm thật, không rao bán. / The Big Table is for real experience, not selling.";
+  }
+
+  return null;
 }
 
 function getTableActionCopy(action: string) {
