@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type KeyboardEvent,
@@ -71,32 +72,32 @@ const BIG_TABLE_IMAGE_SRC =
   "/images/cho-neo/ban-lon-big-table.png";
 const BIG_TABLE_PROMPTS = [
   {
-    vi: "Ai xài rồi?",
-    en: "Has anyone used this?",
+    vi: "Màu này đang lên không?",
+    en: "Is this color trending?",
   },
   {
-    vi: "Có bền trên khách không?",
-    en: "Does it last on clients?",
+    vi: "Giá này tính sao cho hợp lý?",
+    en: "How should this be priced?",
   },
   {
-    vi: "Có bị vàng không?",
-    en: "Does it yellow?",
+    vi: "Kỹ thuật này làm sao cho bền?",
+    en: "How do you make this technique last?",
   },
   {
-    vi: "Đèn này cure đều không?",
-    en: "Does this lamp cure evenly?",
+    vi: "Sản phẩm này có đáng tin không?",
+    en: "Is this product trustworthy?",
   },
   {
-    vi: "Mũi khoan này có nóng không?",
-    en: "Does this drill bit get hot?",
+    vi: "Tiệm đông thì xử lý sao?",
+    en: "How do busy salons handle this?",
   },
   {
-    vi: "Có đáng mua lại không?",
-    en: "Would you buy it again?",
+    vi: "Có ai gặp lỗi này chưa?",
+    en: "Has anyone seen this problem?",
   },
   {
-    vi: "Có lỗi gì cần biết không?",
-    en: "Any problems to know?",
+    vi: "Nên làm kiểu này cho khách nào?",
+    en: "Which clients is this best for?",
   },
 ];
 const BIG_TABLE_BLOCKED_SHORT_POSTS = new Set(["hi", "hello", "test"]);
@@ -105,6 +106,13 @@ const BIG_TABLE_AD_LANGUAGE = [
   "message me to buy",
   "best price",
   "wholesale",
+];
+const BIG_TABLE_UNSAFE_CLAIM_LANGUAGE = [
+  "guaranteed cure",
+  "medical advice",
+  "legal advice",
+  "chữa nấm",
+  "trị nấm",
 ];
 
 const seededFrontCounterMessages: FrontCounterMessage[] = [
@@ -223,11 +231,11 @@ const tables = [
     name: "Big Table",
     count: 0,
     action: "people talking",
-    topic: "Ai xài rồi? Có đáng tin không?",
+    topic: "Chuyện nghề, màu, giá, sản phẩm, kỹ thuật — đem lên bàn nói cho rõ.",
     status: "Open",
     initials: [],
     tone: "violet",
-    note: "Ngồi Bàn Lớn để hỏi và chia sẻ kinh nghiệm thật về sản phẩm, dụng cụ, đèn, gel, top coat, mũi khoan, máy hút bụi, và những thứ ảnh hưởng tới tay nghề mỗi ngày.",
+    note: "Ngồi Bàn Lớn để hỏi và chia sẻ chuyện nghề: màu đang lên, sản phẩm có đáng tin không, kỹ thuật làm sao cho bền, giá nên tính thế nào, tiệm vận hành ra sao, và những câu hỏi lớn nhỏ trong nghề nail.",
     messages: [],
   },
   {
@@ -363,6 +371,7 @@ export default function ChoNeoGossipPage() {
   const [tableNotesByName, setTableNotesByName] = useState<TableNotesByName>({});
   const [tableNoteDraft, setTableNoteDraft] = useState("");
   const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
+  const tableNoteInputRef = useRef<HTMLInputElement | null>(null);
   const selectedTable = useMemo(
     () => tables.find((table) => table.name === selectedTableName) ?? null,
     [selectedTableName]
@@ -625,14 +634,14 @@ export default function ChoNeoGossipPage() {
     setTableNoteDraft("");
     setTableNoteNotice(
       isBigTable
-        ? "Đã đặt lên Bàn Lớn. Cảm ơn bạn chia sẻ kinh nghiệm thật. / Put on the Big Table. Thanks for sharing real experience."
+        ? "Đã đặt lên Bàn Lớn. Cảm ơn bạn chia sẻ chuyện nghề có ích. / Put on the Big Table. Thanks for sharing useful work talk."
         : "Đã góp chuyện vào bàn. Cảm ơn bạn giữ câu chuyện có ích. / Added to the table. Thanks for keeping it useful."
     );
   }
 
   function useBigTablePrompt(prompt: { vi: string; en: string }) {
     setTableNoteDraft((currentDraft) => {
-      const nextPrompt = `${prompt.vi} / ${prompt.en}`;
+      const nextPrompt = `${prompt.vi} / ${prompt.en} `;
 
       if (!currentDraft.trim()) {
         return nextPrompt;
@@ -641,6 +650,9 @@ export default function ChoNeoGossipPage() {
       return `${currentDraft.trim()} ${nextPrompt}`.slice(0, TABLE_NOTE_MESSAGE_LIMIT);
     });
     setTableNoteNotice(null);
+    window.requestAnimationFrame(() => {
+      tableNoteInputRef.current?.focus();
+    });
   }
 
   async function reportFrontCounterMessage(message: FrontCounterMessage) {
@@ -1280,8 +1292,12 @@ export default function ChoNeoGossipPage() {
                     </strong>
                   ) : (
                     <strong className="big-table-question">
-                      Ai xài rồi? Có đáng tin không?
-                      <span>Who has used it? Is it trustworthy?</span>
+                      Chuyện nghề, màu, giá, sản phẩm, kỹ thuật — đem lên bàn
+                      nói cho rõ.
+                      <span>
+                        Work, color, pricing, products, technique — bring it to
+                        the table and make it clear.
+                      </span>
                     </strong>
                   )}
                 </div>
@@ -1293,13 +1309,15 @@ export default function ChoNeoGossipPage() {
 
                 {isBigTable ? (
                   <p className="big-table-description">
-                    Ngồi Bàn Lớn để hỏi và chia sẻ kinh nghiệm thật về sản phẩm,
-                    dụng cụ, đèn, gel, top coat, mũi khoan, máy hút bụi, và
-                    những thứ ảnh hưởng tới tay nghề mỗi ngày.
+                    Ngồi Bàn Lớn để hỏi và chia sẻ chuyện nghề: màu đang lên,
+                    sản phẩm có đáng tin không, kỹ thuật làm sao cho bền, giá
+                    nên tính thế nào, tiệm vận hành ra sao, và những câu hỏi
+                    lớn nhỏ trong nghề nail.
                     <span>
-                      Sit at the Big Table to ask and share real experience about
-                      products, tools, lamps, gel, top coat, drill bits, dust
-                      collectors, and the things that affect daily salon work.
+                      Sit at the Big Table to ask and share work talk: rising
+                      colors, whether products are trustworthy, how to make
+                      techniques last, how pricing should be handled, how salons
+                      operate, and the big and small questions in nail work.
                     </span>
                   </p>
                 ) : null}
@@ -1808,7 +1826,7 @@ export default function ChoNeoGossipPage() {
                   <div className="big-table-scene" aria-label="Bàn Lớn visual table">
                     <div className="big-table-stage">
                       <img
-                        alt="Warm Big Table inside Quán Tám for real salon product and tool experience"
+                        alt="Warm Big Table inside Quán Tám for nail work, color, pricing, product, technique, and community discussion"
                         src={BIG_TABLE_IMAGE_SRC}
                       />
                       <div className="big-table-stage-note">
@@ -1817,8 +1835,12 @@ export default function ChoNeoGossipPage() {
                           <span>Big Table</span>
                         </strong>
                         <p>
-                          Ai xài rồi? Có đáng tin không?
-                          <span>Who has used it? Is it trustworthy?</span>
+                          Chuyện nghề, màu, giá, sản phẩm, kỹ thuật — đem lên
+                          bàn nói cho rõ.
+                          <span>
+                            Work, color, pricing, products, technique — bring it
+                            to the table and make it clear.
+                          </span>
                         </p>
                       </div>
                     </div>
@@ -2030,13 +2052,15 @@ export default function ChoNeoGossipPage() {
                   ) : isBigTable ? (
                     <div className="big-table-empty-state">
                       <strong>
-                        Bàn Lớn chưa có món nào đặt lên.
+                        Bàn Lớn chưa có chuyện nào đặt lên.
                         <span>Nothing has been put on the Big Table yet.</span>
                       </strong>
                       <p>
-                        Hỏi về một sản phẩm hoặc dụng cụ bạn thật sự muốn biết.
+                        Hỏi một câu thật sự hữu ích cho nghề, hoặc chia sẻ điều
+                        bạn đã thấy trong tiệm.
                         <span>
-                          Ask about a product or tool you truly want to understand.
+                          Ask something useful for the work, or share something
+                          you have seen in the salon.
                         </span>
                       </p>
                     </div>
@@ -2063,9 +2087,12 @@ export default function ChoNeoGossipPage() {
                     <p className="posting-helper">
                       {isBigTable ? (
                         <>
-                          Nói rõ bạn dùng gì, thấy gì, và trong hoàn cảnh nào.
+                          Nói rõ bạn đang hỏi về màu, sản phẩm, kỹ thuật, giá,
+                          vận hành, hay kinh nghiệm trong tiệm.
                           <span>
-                            Say what you used, what you saw, and in what situation.
+                            Say clearly whether you are asking about color,
+                            products, technique, pricing, operations, or salon
+                            experience.
                           </span>
                         </>
                       ) : (
@@ -2090,9 +2117,10 @@ export default function ChoNeoGossipPage() {
                         }}
                         placeholder={
                           isBigTable
-                            ? "Bạn muốn hỏi hoặc chia sẻ kinh nghiệm gì? / What experience do you want to ask about or share?"
+                            ? "Bạn muốn hỏi hoặc chia sẻ chuyện nghề gì? / What work question or experience do you want to share?"
                             : "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience..."
                         }
+                        ref={tableNoteInputRef}
                         type="text"
                         value={tableNoteDraft}
                       />
@@ -6658,11 +6686,15 @@ function getBigTableNoteBlockNotice(value: string) {
   }
 
   if (normalized.length < 12) {
-    return "Nói rõ hơn món gì và bạn muốn biết điều gì. / Say which item and what you want to understand.";
+    return "Nói rõ hơn bạn đang hỏi chuyện nghề gì. / Say more clearly what work question you are asking.";
   }
 
   if (BIG_TABLE_AD_LANGUAGE.some((phrase) => normalized.includes(phrase))) {
-    return "Bàn Lớn để hỏi kinh nghiệm thật, không rao bán. / The Big Table is for real experience, not selling.";
+    return "Bàn Lớn để hỏi chuyện nghề thật, không rao bán. / The Big Table is for real work talk, not selling.";
+  }
+
+  if (BIG_TABLE_UNSAFE_CLAIM_LANGUAGE.some((phrase) => normalized.includes(phrase))) {
+    return "Đừng đưa lời khẳng định y tế hoặc pháp lý ở Bàn Lớn. / Do not make medical or legal claims at the Big Table.";
   }
 
   return null;
