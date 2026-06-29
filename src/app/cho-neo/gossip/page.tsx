@@ -69,35 +69,87 @@ const FRONT_COUNTER_TALK_EXAMPLES = [
   "Weather before booking the afternoon",
 ];
 const COLOR_TREND_STAGE_IMAGE_SRC =
-  "/images/cho-neo/ban-lon-big-table.png";
-const COLOR_TREND_PROMPTS = [
+  "/images/cho-neo/Ban-Mau-Trend.png";
+const COLOR_TREND_TOPIC_CHIPS = [
   {
-    vi: "Màu này đang hot không?",
-    en: "Is this color hot right now?",
+    vi: "Khách hỏi hoài",
+    en: "Clients keep asking",
+    insert: "Khách hỏi gì hoài?",
+    tone: "marigold",
   },
   {
-    vi: "Khách đang hỏi mẫu nào?",
-    en: "What designs are clients asking for?",
+    vi: "Hot bất ngờ",
+    en: "Surprisingly hot",
+    insert: "Món nào hot bất ngờ?",
+    tone: "sky",
   },
   {
-    vi: "Mùa này nên đẩy màu gì?",
-    en: "What colors fit this season?",
+    vi: "Khách chuộng",
+    en: "Surprisingly loved",
+    insert: "Khách chuộng gì bất ngờ?",
+    tone: "coral",
   },
   {
-    vi: "Sản phẩm màu này lên đẹp không?",
-    en: "Does this color product apply well?",
+    vi: "Bling lên",
+    en: "Bling is rising",
+    insert: "Bling nào đang lên?",
+    tone: "magenta",
   },
   {
-    vi: "Trend này làm có lâu không?",
-    en: "Does this trend take too long?",
+    vi: "Làm đẹp nhưng lâu",
+    en: "Pretty but slow",
+    insert: "Design nào đẹp nhưng lâu?",
+    tone: "orange",
   },
   {
-    vi: "Giá mẫu này tính sao?",
-    en: "How should this design be priced?",
+    vi: "Món đáng chuẩn bị",
+    en: "Worth preparing",
+    insert: "Món nào đáng chuẩn bị?",
+    tone: "turquoise",
   },
   {
-    vi: "Kiểu này hợp khách nào?",
-    en: "Which clients does this suit?",
+    vi: "Gel / dip / acrylic",
+    en: "Gel / dip / acrylic looks",
+    insert: "Gel/dip/acrylic look nào hot?",
+    tone: "purple",
+  },
+  {
+    vi: "Da & undertone",
+    en: "Skin tone & undertone",
+    insert: "Màu nào hợp da/undertone?",
+    tone: "lavender",
+  },
+];
+const COLOR_TREND_CONVERSATION_STARTERS = [
+  {
+    vi: "Khách hỏi màu gì?",
+    en: "",
+  },
+  {
+    vi: "Trend nào lên?",
+    en: "",
+  },
+  {
+    vi: "Bling nào hot?",
+    en: "",
+  },
+];
+const COLOR_TREND_RULES = [
+  {
+    vi: "Chia sẻ để học hỏi",
+    en: "Share to learn",
+  },
+  {
+    vi: "Khen gu, không chê người",
+    en: "Compliment taste, not people",
+  },
+  {
+    vi: "Không spam bán hàng",
+    en: "No sales spam",
+  },
+  {
+    vi: "Giữ bàn vui vẻ",
+    en: "Keep it friendly",
   },
 ];
 const COLOR_TREND_BLOCKED_SHORT_POSTS = new Set(["hi", "hello", "test"]);
@@ -152,14 +204,30 @@ const seededFrontCounterMessages: FrontCounterMessage[] = [
 
 const tables = [
   {
+    id: "front-counter",
+    legacyName: "Front Counter",
     name: "Front Counter",
+    viTitle: "Quầy Xã Giao",
+    enTitle: "Social Counter",
     count: 5,
     action: "people talking",
     topic: "Một câu nhanh hôm nay trong tiệm.",
-    status: "Lively",
+    subtitle: "Một câu nhanh hôm nay trong tiệm.",
+    status: "active",
+    tableStatus: "Lively",
     initials: ["Mai", "TN", "Vy", "KP", "An"],
     tone: "rose",
     note: "General daily talk near the counter before the next client sits down.",
+    artwork: "/images/cho-neo/Quay-Xa-Giao.png",
+    topicChips: [],
+    emptyState: {
+      viTitle: "Quầy đang yên lúc này.",
+      enTitle: "The counter is quiet right now.",
+    },
+    rules: [],
+    composerPlaceholder: "Góp một câu...",
+    reactionStyle: "front-counter",
+    mode: "shared-front-counter",
     messages: [
       { name: "Mai", text: "Chrome still sells, but clients ask price first now." },
       { name: "Bao", text: "Supply cost is not the only issue. Time is the killer." },
@@ -168,14 +236,28 @@ const tables = [
     ],
   },
   {
+    id: "shop-talk",
+    legacyName: "Shop Talk",
     name: "Shop Talk",
+    viTitle: "Bàn Chuyện Nghề",
+    enTitle: "Shop Talk",
     count: 3,
     action: "people talking",
     topic: "Khách, giá, ngày bận, mẹo giữ tiệm chạy êm.",
-    status: "Open",
+    subtitle: "Khách, giá, ngày bận, mẹo giữ tiệm chạy êm.",
+    status: "active",
+    tableStatus: "Open",
     initials: ["MT", "Kim", "LD"],
     tone: "violet",
     note: "Salon life, clients, pricing, busy days, and work tips from people who get it.",
+    artwork: "/images/cho-neo/Ban-Chuyen-Nghe.png",
+    topicChips: [],
+    emptyState: null,
+    rules: [],
+    composerPlaceholder:
+      "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience...",
+    reactionStyle: "generic",
+    mode: "local-session",
     messages: [
       { name: "MT", text: "June always feels sleepy until grad sets come in all at once." },
       { name: "Kim", text: "Walk-ins are slower, but regulars are still booking fills." },
@@ -183,25 +265,57 @@ const tables = [
     ],
   },
   {
+    id: "color-trend",
+    legacyName: "Color & Trend",
     name: "Color & Trend",
+    viTitle: "Bàn Màu",
+    enTitle: "The Color Table",
     count: 0,
     action: "people talking",
-    topic: "Màu nào đang hot, trend nào đang lên — đem ra bàn nói cho vui.",
-    status: "Quiet",
+    topic:
+      "Màu, trend, design, bling nào khách đang hỏi nhiều?",
+    subtitle: "Màu, trend, design, bling nào khách đang hỏi nhiều?",
+    status: "active",
+    tableStatus: "Quiet",
     initials: [],
     tone: "cyan",
-    note: "Màu, mẫu, trend, sản phẩm màu, và khách đang hỏi gì trong tiệm.",
+    note:
+      "Client-requested colors, rising trends, best-selling designs, gel/dip/acrylic looks, bling, charms, and product ideas.",
+    artwork: COLOR_TREND_STAGE_IMAGE_SRC,
+    topicChips: COLOR_TREND_TOPIC_CHIPS,
+    emptyState: {
+      viTitle: "Chưa có chuyện mới.",
+      enTitle: "No talk yet.",
+    },
+    rules: COLOR_TREND_RULES,
+    composerPlaceholder: "Khách đang hỏi gì?",
+    reactionStyle: "none",
+    mode: "local-session-with-chips",
     messages: [],
   },
   {
+    id: "vent-table",
+    legacyName: "Vent Table",
     name: "Vent Table",
+    viTitle: "Bàn Xả Hơi",
+    enTitle: "Vent Table",
     count: 6,
     action: "people talking",
     topic: "Xả nhẹ một câu, đừng làm độc cả bàn.",
-    status: "Lively",
+    subtitle: "Xả nhẹ một câu, đừng làm độc cả bàn.",
+    status: "active",
+    tableStatus: "Lively",
     initials: ["Anh", "Bao", "Nhi", "SL", "PQ", "TV"],
     tone: "gold",
     note: "Tired days, funny clients, after-work talk, and a little tea with boundaries.",
+    artwork: "/images/cho-neo/Ban-Xa-Hoi.png",
+    topicChips: [],
+    emptyState: null,
+    rules: [],
+    composerPlaceholder:
+      "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience...",
+    reactionStyle: "generic",
+    mode: "local-session",
     messages: [
       { name: "Anh", text: "Builder gel depends on your prep. No magic bottle fixes lifting." },
       { name: "Bao", text: "The popular one is good, but the viscosity runs warm." },
@@ -210,14 +324,28 @@ const tables = [
     ],
   },
   {
+    id: "quiet-table",
+    legacyName: "Quiet Table",
     name: "Quiet Table",
+    viTitle: "Bàn Yên",
+    enTitle: "Quiet Table",
     count: 2,
     action: "people listening",
     topic: "Nói nhỏ, nghĩ chậm, uống miếng trà.",
-    status: "Listening",
+    subtitle: "Nói nhỏ, nghĩ chậm, uống miếng trà.",
+    status: "active",
+    tableStatus: "Listening",
     initials: ["Linh", "Duc"],
     tone: "green",
     note: "Softer talk, reflection, tea-table mood, and kindness after a long shift.",
+    artwork: "/images/cho-neo/Ban-Yen.png",
+    topicChips: [],
+    emptyState: null,
+    rules: [],
+    composerPlaceholder:
+      "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience...",
+    reactionStyle: "generic",
+    mode: "local-session",
     messages: [
       { name: "Linh", text: "Staffing gets heavy when everyone is tired but nobody says it." },
       { name: "Duc", text: "Clear schedule rules saved us more drama than any meeting." },
@@ -225,17 +353,32 @@ const tables = [
     ],
   },
   {
+    id: "private-table",
+    legacyName: "Private Table",
     name: "Private Table",
+    viTitle: "Bàn Riêng",
+    enTitle: "Private Table",
     count: 0,
     action: "people listening",
     topic: "Nói nhỏ hơn, giữ chuyện gọn hơn.",
-    status: "Quiet",
+    subtitle: "Nói nhỏ hơn, giữ chuyện gọn hơn.",
+    status: "inactive",
+    tableStatus: "Quiet",
     initials: [],
     tone: "green",
     note: "A quieter corner for smaller conversations that still follow the café rules.",
+    artwork: null,
+    topicChips: [],
+    emptyState: null,
+    rules: [],
+    composerPlaceholder:
+      "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience...",
+    reactionStyle: "none",
+    mode: "inactive-private",
     messages: [],
   },
 ];
+const activeTables = tables.filter((table) => table.status === "active");
 
 const frontDoorRules = [
   "Nói thật, nói vừa nghe.",
@@ -329,6 +472,7 @@ export default function ChoNeoGossipPage() {
   const [frontCounterPostNotice, setFrontCounterPostNotice] = useState<
     string | null
   >(null);
+  const [frontCounterMusicOn, setFrontCounterMusicOn] = useState(false);
   const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
   const [identityPickerOpen, setIdentityPickerOpen] = useState(false);
   const [identityAvatarId, setIdentityAvatarId] = useState(CHO_NEO_AVATARS[0].id);
@@ -357,13 +501,14 @@ export default function ChoNeoGossipPage() {
   const [tableNotesByName, setTableNotesByName] = useState<TableNotesByName>({});
   const [tableNoteDraft, setTableNoteDraft] = useState("");
   const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
+  const frontCounterInputRef = useRef<HTMLInputElement | null>(null);
   const tableNoteInputRef = useRef<HTMLInputElement | null>(null);
   const selectedTable = useMemo(
-    () => tables.find((table) => table.name === selectedTableName) ?? null,
+    () => activeTables.find((table) => table.legacyName === selectedTableName) ?? null,
     [selectedTableName]
   );
-  const isFrontCounter = selectedTable?.name === "Front Counter";
-  const isTrendTable = selectedTable?.name === "Color & Trend";
+  const isFrontCounter = selectedTable?.id === "front-counter";
+  const isTrendTable = selectedTable?.id === "color-trend";
   const selectedMessages: Array<ConversationMessage | FrontCounterMessage> =
     isFrontCounter
       ? frontCounterMessages.filter(isVisibleFrontCounterMessage)
@@ -536,7 +681,7 @@ export default function ChoNeoGossipPage() {
         setFrontCounterDraft("");
         setFrontCounterMemoryNotice(null);
         setFrontCounterPostNotice(
-          "Đã đăng ở Quầy Trước. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Front Counter. Thanks for keeping it useful."
+          "Đã đăng ở Quầy Xã Giao. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Social Counter. Thanks for keeping it useful."
         );
         return;
       } catch {
@@ -573,7 +718,7 @@ export default function ChoNeoGossipPage() {
     });
     setFrontCounterDraft("");
     setFrontCounterPostNotice(
-      "Đã đăng ở Quầy Trước. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Front Counter. Thanks for keeping it useful."
+      "Đã đăng ở Quầy Xã Giao. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Social Counter. Thanks for keeping it useful."
     );
   }
 
@@ -629,9 +774,10 @@ export default function ChoNeoGossipPage() {
     );
   }
 
-  function useTrendTablePrompt(prompt: { vi: string; en: string }) {
+  function useTrendTablePrompt(prompt: { en: string; insert?: string; vi: string }) {
     setTableNoteDraft((currentDraft) => {
-      const nextPrompt = `${prompt.vi} / ${prompt.en} `;
+      const starterText = prompt.insert ?? prompt.vi;
+      const nextPrompt = `${starterText} `;
 
       if (!currentDraft.trim()) {
         return nextPrompt;
@@ -922,6 +1068,24 @@ export default function ChoNeoGossipPage() {
     saveFrontCounterSeat(nextSeat);
   }
 
+  function enterFrontCounterTable() {
+    if (!identity) {
+      setIdentityPickerOpen(true);
+    } else if (!isCurrentIdentitySeated) {
+      const nextSeat = createFrontCounterSeat(identity);
+      setSeatedIdentity(nextSeat);
+      saveFrontCounterSeat(nextSeat);
+    }
+
+    window.setTimeout(() => {
+      frontCounterInputRef.current?.scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
+      frontCounterInputRef.current?.focus();
+    }, 80);
+  }
+
   function enterQuanTamRoom() {
     try {
       window.localStorage.setItem(QUAN_TAM_RULES_ACCEPTED_KEY, "true");
@@ -948,7 +1112,7 @@ export default function ChoNeoGossipPage() {
     setTableNoteDraft("");
     setTableNoteNotice(null);
 
-    if (tableName === "Color & Trend") {
+    if (tables.find((table) => table.legacyName === tableName)?.id === "color-trend") {
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
     }
   }
@@ -1017,26 +1181,81 @@ export default function ChoNeoGossipPage() {
                 </>
               ) : null}
               <button
-                className="cafe-control-pill"
+                className={`cafe-control-pill ${
+                  isFrontCounter && !isCurrentIdentitySeated
+                    ? "cafe-control-pill-primary"
+                    : ""
+                } ${
+                  isFrontCounter && isCurrentIdentitySeated
+                    ? "cafe-control-pill-seated"
+                    : ""
+                }`}
                 type="button"
-                onClick={() => setIdentityPickerOpen(true)}
+                onClick={
+                  isFrontCounter
+                    ? enterFrontCounterTable
+                    : () => setIdentityPickerOpen(true)
+                }
+                aria-label={
+                  isFrontCounter
+                    ? isCurrentIdentitySeated
+                      ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
+                      : "Vào bàn / Take a seat"
+                    : undefined
+                }
               >
-                <span>Đổi Avatar</span>
-                <small>Change</small>
+                <span>
+                  {isFrontCounter
+                    ? isCurrentIdentitySeated
+                      ? "Đang ngồi"
+                      : "Vào bàn"
+                    : "Đổi Avatar"}
+                </span>
+                <small>
+                  {isFrontCounter
+                    ? isCurrentIdentitySeated
+                      ? "Seated"
+                      : "Take a seat"
+                    : "Change"}
+                </small>
               </button>
+              {isFrontCounter ? (
+                <span className="front-counter-count-pill">
+                  👥 {selectedTable.count} người đang ngồi đây
+                  <small>{selectedTable.count} seated here</small>
+                </span>
+              ) : null}
               <button
-                className="cafe-control-pill"
+                className={`cafe-control-pill ${
+                  isFrontCounter ? "cafe-control-pill-secondary" : ""
+                }`}
                 type="button"
-                onClick={() => setRulesGateOpen(true)}
+                onClick={
+                  isFrontCounter
+                    ? () => setFrontCounterMusicOn((isOn) => !isOn)
+                    : () => setRulesGateOpen(true)
+                }
+                aria-pressed={isFrontCounter ? frontCounterMusicOn : undefined}
               >
-                <span>Nội Quy</span>
-                <small>Rules</small>
+                <span>
+                  {isFrontCounter
+                    ? frontCounterMusicOn
+                      ? "🎵 Tắt nhạc"
+                      : "🎵 Mở nhạc"
+                    : "Nội Quy"}
+                </span>
+                <small>
+                  {isFrontCounter
+                    ? frontCounterMusicOn
+                      ? "Music Off"
+                      : "Music On"
+                    : "Rules"}
+                </small>
               </button>
             </nav>
             {isFrontCounter ? (
-              <aside className="front-counter-topic-note" aria-label="Front Counter topic">
-                <strong>Chủ đề / Topic</strong>
-                <span>Chuyện nhanh trước khách tới ✨</span>
+              <aside className="front-counter-topic-note" aria-label="Social Counter topic">
+                <span>☕ Chào hỏi • Xã giao</span>
               </aside>
             ) : null}
           </div>
@@ -1271,8 +1490,8 @@ export default function ChoNeoGossipPage() {
                 <div className="detail-heading">
                   <div>
                     <p>
-                      {getTableStatusHeading(selectedTable.status)}
-                      <span>{getTableStatusCopy(selectedTable.status).en} Table</span>
+                      {getTableStatusHeading(selectedTable.tableStatus)}
+                      <span>{getTableStatusCopy(selectedTable.tableStatus).en} Table</span>
                     </p>
                     <h2>
                       {getTableNameCopy(selectedTable.name).vi}
@@ -1300,11 +1519,9 @@ export default function ChoNeoGossipPage() {
 
                 {isTrendTable ? (
                   <p className="trend-table-subtitle">
-                    Màu nào đang hot, trend nào đang lên — đem ra bàn nói cho
-                    vui.
+                    Màu, trend, design, bling nào khách đang hỏi nhiều?
                     <span>
-                      Hot colors, rising trends, client requests, and product
-                      buzz — bring it to the table.
+                      Colors, trends, designs, and bling clients are asking for.
                     </span>
                   </p>
                 ) : (
@@ -1320,10 +1537,22 @@ export default function ChoNeoGossipPage() {
                   ))}
                 </div>
 
+                {!isFrontCounter && !isTrendTable && selectedTable.artwork ? (
+                  <div
+                    className="generic-table-artwork"
+                    aria-label={`${getTableNameCopy(selectedTable.name).vi} table artwork`}
+                  >
+                    <img
+                      alt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
+                      src={selectedTable.artwork}
+                    />
+                  </div>
+                ) : null}
+
                 {isFrontCounter ? (
                   <div
                     className="front-counter-table-scene"
-                    aria-label="Front Counter café table scene"
+                    aria-label="Social Counter café table scene"
                   >
                     <div
                       className={`front-counter-focused-stage ${
@@ -1333,14 +1562,14 @@ export default function ChoNeoGossipPage() {
                       }`}
                     >
                       <img
-                        alt="Warm Front Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
+                        alt="Warm Social Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
                         className="front-counter-focused-image"
-                        src="/images/cho-neo/quan-tam-front-counter-focused-clean-v3.png"
+                        src={selectedTable.artwork ?? "/images/cho-neo/Quay-Xa-Giao.png"}
                       />
                       <div className="front-counter-focused-scrim" aria-hidden="true" />
                       <div
                         className="front-counter-stage-bubbles"
-                        aria-label="Front Counter visible notes"
+                        aria-label="Social Counter visible notes"
                       >
                         {selectedMessages.slice(-2).map((message, index) => {
                           const frontCounterMessage =
@@ -1486,6 +1715,7 @@ export default function ChoNeoGossipPage() {
                             placeholder={
                               "Góp một câu..."
                             }
+                            ref={frontCounterInputRef}
                             type="text"
                             value={frontCounterDraft}
                           />
@@ -1819,21 +2049,51 @@ export default function ChoNeoGossipPage() {
                     <div className="trend-table-stage">
                       <img
                         alt="Warm Trend Table inside Quán Tám for nail color, style ideas, product colors, seasonal looks, and client requests"
-                        src={COLOR_TREND_STAGE_IMAGE_SRC}
+                        src={selectedTable.artwork ?? COLOR_TREND_STAGE_IMAGE_SRC}
                       />
                     </div>
-                    <div className="trend-table-prompts" aria-label="Bàn Màu prompts">
-                      {COLOR_TREND_PROMPTS.map((prompt) => (
-                        <button
-                          key={prompt.vi}
-                          onClick={() => useTrendTablePrompt(prompt)}
-                          type="button"
-                        >
-                          {prompt.vi}
-                          <span>{prompt.en}</span>
-                        </button>
-                      ))}
+                    <div className="trend-table-hero-dots" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
                     </div>
+                    <section
+                      className="trend-table-topic-chips"
+                      aria-label="Bàn Màu topic ideas"
+                    >
+                      <div>
+                        <strong>
+                          Gợi ý chủ đề
+                          <small>Nhấn màu để chọn chuyện</small>
+                        </strong>
+                        <span>
+                          Color & Trend Ideas
+                          <small>Tap a color to pick a topic</small>
+                        </span>
+                      </div>
+                      <div className="trend-table-chip-row">
+                        {selectedTable.topicChips.map((chip) => (
+                          <button
+                            className={`trend-table-topic-chip trend-chip-${chip.tone}`}
+                            key={chip.vi}
+                            onClick={() => useTrendTablePrompt(chip)}
+                            type="button"
+                          >
+                            <span aria-hidden="true" />
+                            {chip.vi}
+                            <small>{chip.en}</small>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                    <p className="trend-table-value-note">
+                      Mỗi chia sẻ của bạn đều giúp cả bàn nhìn rõ hơn: màu nào
+                      đang lên, style nào dễ chọn, và món nào đáng chuẩn bị.
+                      <span>
+                        Your note helps the whole table see what is rising,
+                        what clients love, and what may be worth preparing.
+                      </span>
+                    </p>
                   </div>
                 ) : null}
 
@@ -1892,7 +2152,20 @@ export default function ChoNeoGossipPage() {
                   </>
                 ) : null}
 
-                <div className="mock-thread" aria-label={`${selectedTable.name} sample conversation`}>
+                <div
+                  className={`mock-thread ${
+                    isTrendTable ? "trend-table-thread" : ""
+                  }`}
+                  aria-label={`${selectedTable.name} sample conversation`}
+                >
+                  {isTrendTable ? (
+                    <div className="trend-table-thread-heading">
+                      <strong>
+                        Chuyện màu & trend mới nhất
+                        <span>Latest Color & Trend Talk</span>
+                      </strong>
+                    </div>
+                  ) : null}
                   {selectedMessages.length ? (
                     selectedMessages.map((message, index) => {
                       const frontCounterMessage =
@@ -2028,11 +2301,33 @@ export default function ChoNeoGossipPage() {
                       </p>
                     </div>
                   ) : isTrendTable ? (
-                    <div className="trend-table-empty-state">
+                    <div className="trend-table-starter-list">
+                      <div className="trend-table-empty-copy">
+                        <strong>
+                          {selectedTable.emptyState?.viTitle}
+                          <span>{selectedTable.emptyState?.enTitle}</span>
+                        </strong>
+                        <p>
+                          Bắt đầu bằng một câu hỏi nhẹ.
+                          <span>Start with one quick note.</span>
+                        </p>
+                      </div>
                       <strong>
-                        Bàn còn đang chờ trend mới.
-                        <span>The table is waiting for the next good trend.</span>
+                        Gợi ý mở chuyện
+                        <span>Conversation starters</span>
                       </strong>
+                      <div>
+                        {COLOR_TREND_CONVERSATION_STARTERS.map((starter) => (
+                          <button
+                            key={starter.vi}
+                            onClick={() => useTrendTablePrompt(starter)}
+                            type="button"
+                          >
+                            {starter.vi}
+                            {starter.en ? <span>{starter.en}</span> : null}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -2049,20 +2344,16 @@ export default function ChoNeoGossipPage() {
                       </p>
                     ) : null}
                     <label htmlFor="table-note-message">
-                      {isTrendTable ? "Có màu, mẫu, trend, hay sản phẩm nào muốn hỏi?" : "Ngồi xuống góp chuyện"}
+                      {isTrendTable ? "Thêm tiếng nói của bạn" : "Ngồi xuống góp chuyện"}
                       <span>
-                        {isTrendTable ? "Got a color, design, trend, or product you want to ask about?" : "Take a seat and add a note"}
+                        {isTrendTable ? "Add your voice to the table" : "Take a seat and add a note"}
                       </span>
                     </label>
                     <p className="posting-helper">
                       {isTrendTable ? (
                         <>
-                          Màu, mẫu, giá, sản phẩm, hay khách đang hỏi gì — nói
-                          rõ để mọi người dễ góp ý.
-                          <span>
-                            Color, design, pricing, products, or what clients
-                            are asking for — be clear so people can respond well.
-                          </span>
+                          Mỗi chia sẻ của bạn đều giúp cả bàn nhìn rõ hơn.
+                          <span>Your note helps the whole table see more clearly.</span>
                         </>
                       ) : (
                         <>
@@ -2086,16 +2377,30 @@ export default function ChoNeoGossipPage() {
                         }}
                         placeholder={
                           isTrendTable
-                            ? "Bạn muốn hỏi hoặc chia sẻ trend gì? / What trend question or idea do you want to share?"
-                            : "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience..."
+                            ? selectedTable.composerPlaceholder
+                            : selectedTable.composerPlaceholder
                         }
                         ref={tableNoteInputRef}
                         type="text"
                         value={tableNoteDraft}
                       />
-                      <button disabled={!canSubmitTableNote} type="submit">
-                        {isTrendTable ? "Đặt lên bàn" : "Góp chuyện"}
-                        <span>{isTrendTable ? "Put it on the table" : "Add note"}</span>
+                      <button
+                        aria-label={
+                          isTrendTable
+                            ? "Đặt lên bàn / Put it on the table"
+                            : undefined
+                        }
+                        disabled={!canSubmitTableNote}
+                        type="submit"
+                      >
+                        {isTrendTable ? (
+                          <span aria-hidden="true">→</span>
+                        ) : (
+                          <>
+                            Góp chuyện
+                            <span>Add note</span>
+                          </>
+                        )}
                       </button>
                     </div>
                     {tableNoteNotice ? (
@@ -2113,6 +2418,17 @@ export default function ChoNeoGossipPage() {
                       </span>
                     </p>
                   </form>
+                ) : null}
+
+                {isTrendTable ? (
+                  <section className="trend-table-rules" aria-label="Bàn Màu table reminders">
+                    {selectedTable.rules.map((rule) => (
+                      <p key={rule.vi}>
+                        {rule.vi}
+                        <span>{rule.en}</span>
+                      </p>
+                    ))}
+                  </section>
                 ) : null}
 
                 {!isFrontCounter ? (
@@ -2140,7 +2456,7 @@ export default function ChoNeoGossipPage() {
                   {/* Future approved café audio can hook in here; no audio element is rendered, so there is no autoplay. */}
 
                   <div className="gossip-hotspot-layer" aria-label="Quán Tám table zones">
-                    {tables.slice(0, 5).map((table, tableIndex) => {
+                    {activeTables.map((table, tableIndex) => {
                       const tableNameCopy = getTableNameCopy(table.name);
 
                       return (
@@ -2186,7 +2502,7 @@ export default function ChoNeoGossipPage() {
                   <span>Choose a table</span>
                 </div>
                 <div className="mobile-table-picker-grid">
-                  {tables.map((table) => {
+                  {activeTables.map((table) => {
                     const tableNameCopy = getTableNameCopy(table.name);
 
                     return (
@@ -2202,7 +2518,7 @@ export default function ChoNeoGossipPage() {
                           </strong>
                           <small>{table.topic}</small>
                         <em>
-                          {table.name === "Color & Trend"
+                          {table.id === "color-trend"
                             ? "Vào Bàn Màu / Enter Trend Table"
                             : "Vào bàn / Enter"}
                         </em>
@@ -2359,6 +2675,30 @@ export default function ChoNeoGossipPage() {
           background: rgba(253, 230, 138, 0.12);
         }
 
+        .cafe-control-pill-primary {
+          border-color: rgba(251, 191, 36, 0.62);
+          background:
+            radial-gradient(circle at 16% 0%, rgba(255, 247, 237, 0.28), transparent 34%),
+            linear-gradient(135deg, rgba(251, 191, 36, 0.24), rgba(180, 83, 9, 0.22)),
+            rgba(18, 18, 24, 0.72);
+          color: #fff7ed;
+        }
+
+        .cafe-control-pill-secondary {
+          border-color: rgba(255, 247, 237, 0.18);
+          color: rgba(255, 247, 237, 0.78);
+        }
+
+        .cafe-control-pill-seated {
+          border-color: rgba(134, 239, 172, 0.28);
+          color: rgba(255, 247, 237, 0.84);
+          background: rgba(22, 101, 52, 0.2);
+        }
+
+        .front-counter-count-pill {
+          display: none;
+        }
+
         .cafe-control-pill small {
           display: block;
           margin-top: 2px;
@@ -2368,11 +2708,11 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-topic-note {
-          flex: 0 1 198px;
+          flex: 0 1 auto;
           max-width: 100%;
-          padding: 7px 10px 8px;
+          padding: 7px 11px;
           border: 1px solid rgba(92, 54, 27, 0.34);
-          border-radius: 12px;
+          border-radius: 999px;
           background:
             radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.72), transparent 24%),
             linear-gradient(180deg, #f5e4c9, #e7cda5);
@@ -2383,19 +2723,11 @@ export default function ChoNeoGossipPage() {
           transform: rotate(-0.4deg);
         }
 
-        .front-counter-topic-note strong,
         .front-counter-topic-note span {
           display: block;
         }
 
-        .front-counter-topic-note strong {
-          font-size: 9px;
-          font-weight: 950;
-          line-height: 1.05;
-        }
-
         .front-counter-topic-note span {
-          margin-top: 3px;
           font-size: 11px;
           font-weight: 850;
           line-height: 1.18;
@@ -3761,8 +4093,12 @@ export default function ChoNeoGossipPage() {
           order: 5;
         }
 
-        .detail-panel-trend-table .leave-button {
+        .detail-panel-trend-table .trend-table-rules {
           order: 6;
+        }
+
+        .detail-panel-trend-table .leave-button {
+          order: 7;
         }
 
         .detail-panel-front-counter .detail-heading {
@@ -3877,16 +4213,33 @@ export default function ChoNeoGossipPage() {
           margin-top: 18px;
         }
 
+        .generic-table-artwork {
+          overflow: hidden;
+          margin: 16px 0 18px;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 22px;
+          background: rgba(67, 20, 7, 0.38);
+          box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+        }
+
+        .generic-table-artwork img {
+          display: block;
+          width: 100%;
+          height: clamp(210px, 30vw, 340px);
+          object-fit: cover;
+          object-position: center;
+        }
+
         .trend-table-scene {
           display: grid;
-          gap: 14px;
-          margin-top: 18px;
+          gap: 10px;
+          margin-top: 14px;
         }
 
         .trend-table-stage {
           position: relative;
           overflow: hidden;
-          aspect-ratio: 1672 / 941;
+          aspect-ratio: 1536 / 1024;
           border: 1px solid rgba(253, 230, 138, 0.2);
           border-radius: 26px;
           background:
@@ -3901,41 +4254,166 @@ export default function ChoNeoGossipPage() {
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          object-fit: cover;
           object-position: center;
           filter: saturate(1.03) brightness(1.02);
         }
 
-        .trend-table-prompts {
+        .trend-table-hero-dots {
           display: flex;
-          flex-wrap: wrap;
+          justify-content: center;
+          gap: 5px;
+        }
+
+        .trend-table-hero-dots span {
+          width: 6px;
+          height: 6px;
+          border-radius: 999px;
+          background: rgba(253, 230, 138, 0.32);
+        }
+
+        .trend-table-hero-dots span:first-child {
+          width: 18px;
+          background: rgba(244, 114, 182, 0.74);
+        }
+
+        .trend-table-topic-chips {
+          display: grid;
+          gap: 9px;
+          padding: 12px;
+          border: 1px solid rgba(244, 114, 182, 0.2);
+          border-radius: 22px;
+          background:
+            radial-gradient(circle at 10% 0%, rgba(244, 114, 182, 0.14), transparent 34%),
+            rgba(8, 13, 28, 0.3);
+        }
+
+        .trend-table-topic-chips > div:first-child {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
           gap: 8px;
         }
 
-        .trend-table-prompts button {
-          min-height: 38px;
-          padding: 7px 10px;
-          border: 1px solid rgba(253, 230, 138, 0.2);
-          border-radius: 999px;
-          color: #fff7ed;
-          background: rgba(255, 247, 237, 0.08);
+        .trend-table-topic-chips strong {
+          color: #fde68a;
           font-size: 12px;
-          font-weight: 900;
-          text-align: left;
+          font-weight: 950;
         }
 
-        .trend-table-prompts button span {
+        .trend-table-topic-chips strong small,
+        .trend-table-topic-chips > div:first-child span small {
           display: block;
           margin-top: 2px;
-          color: rgba(255, 247, 237, 0.58);
-          font-size: 10px;
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: 0;
+          text-transform: none;
         }
 
-        .trend-table-prompts button:hover,
-        .trend-table-prompts button:focus-visible {
+        .trend-table-topic-chips > div:first-child span {
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 10px;
+          font-weight: 850;
+          text-align: right;
+        }
+
+        .trend-table-chip-row {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .trend-table-topic-chip {
+          display: grid;
+          justify-items: center;
+          gap: 4px;
+          min-width: 0;
+          border: 0;
+          border-radius: 16px;
+          padding: 4px 3px;
+          color: rgba(255, 247, 237, 0.84);
+          background: transparent;
+          font: inherit;
+          font-size: 10px;
+          font-weight: 900;
+          line-height: 1.12;
+          text-align: center;
+          cursor: pointer;
+        }
+
+        .trend-table-topic-chip > span {
+          width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.38),
+            0 0 0 3px rgba(255, 247, 237, 0.06);
+        }
+
+        .trend-table-topic-chip small {
+          display: block;
+          color: rgba(255, 247, 237, 0.52);
+          font-size: 8px;
+          font-weight: 750;
+        }
+
+        .trend-table-topic-chip:hover,
+        .trend-table-topic-chip:focus-visible {
           outline: none;
-          border-color: rgba(253, 230, 138, 0.42);
-          background: rgba(253, 230, 138, 0.14);
+          background: rgba(255, 247, 237, 0.08);
+        }
+
+        .trend-chip-marigold > span {
+          background: #f59e0b;
+        }
+
+        .trend-chip-sky > span {
+          background: #38bdf8;
+        }
+
+        .trend-chip-coral > span {
+          background: #fb5a5f;
+        }
+
+        .trend-chip-magenta > span {
+          background: #ec4899;
+        }
+
+        .trend-chip-orange > span {
+          background: #fb923c;
+        }
+
+        .trend-chip-turquoise > span {
+          background: #2dd4bf;
+        }
+
+        .trend-chip-purple > span {
+          background: #8b5cf6;
+        }
+
+        .trend-chip-lavender > span {
+          background: #c4b5fd;
+        }
+
+        .trend-table-value-note {
+          margin: 0;
+          padding: 12px 14px;
+          border: 1px solid rgba(253, 230, 138, 0.16);
+          border-radius: 18px;
+          color: rgba(255, 247, 237, 0.78);
+          background: rgba(253, 230, 138, 0.055);
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.42;
+        }
+
+        .trend-table-value-note span {
+          display: block;
+          margin-top: 5px;
+          color: rgba(255, 247, 237, 0.54);
+          font-size: 10px;
+          font-weight: 750;
         }
 
         .trend-table-empty-state {
@@ -3971,6 +4449,205 @@ export default function ChoNeoGossipPage() {
           margin-top: 3px;
           color: rgba(255, 247, 237, 0.52);
           font-size: 11px;
+        }
+
+        .trend-table-thread {
+          margin-top: 14px;
+          border-color: rgba(253, 230, 138, 0.2);
+          background:
+            radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.12), transparent 30%),
+            rgba(255, 247, 237, 0.06);
+        }
+
+        .trend-table-thread-heading strong,
+        .trend-table-thread-heading span {
+          display: block;
+        }
+
+        .trend-table-thread-heading strong {
+          color: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .trend-table-thread-heading span {
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 10px;
+        }
+
+        .trend-table-starter-list {
+          display: grid;
+          gap: 10px;
+          padding: 12px;
+          border: 1px dashed rgba(253, 230, 138, 0.22);
+          border-radius: 18px;
+          background: rgba(255, 247, 237, 0.045);
+        }
+
+        .trend-table-starter-list strong,
+        .trend-table-starter-list strong span {
+          display: block;
+        }
+
+        .trend-table-starter-list strong {
+          color: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .trend-table-starter-list strong span {
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 10px;
+        }
+
+        .trend-table-empty-copy {
+          padding-bottom: 2px;
+        }
+
+        .trend-table-empty-copy strong,
+        .trend-table-empty-copy strong span,
+        .trend-table-empty-copy p,
+        .trend-table-empty-copy p span {
+          display: block;
+        }
+
+        .trend-table-empty-copy p {
+          margin: 6px 0 0;
+          color: rgba(255, 247, 237, 0.72);
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.35;
+        }
+
+        .trend-table-empty-copy p span {
+          margin-top: 2px;
+          color: rgba(255, 247, 237, 0.5);
+          font-size: 10px;
+          font-weight: 750;
+        }
+
+        .trend-table-starter-list > div {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .trend-table-starter-list > .trend-table-empty-copy {
+          display: block;
+        }
+
+        .trend-table-starter-list button {
+          min-height: 34px;
+          padding: 7px 11px;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 999px;
+          color: #fff7ed;
+          background: rgba(253, 230, 138, 0.08);
+          font: inherit;
+          font-size: 11px;
+          font-weight: 900;
+          line-height: 1.12;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .trend-table-starter-list button span {
+          display: inline;
+          margin-left: 4px;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 9px;
+          font-weight: 800;
+        }
+
+        .trend-table-starter-list button:hover,
+        .trend-table-starter-list button:focus-visible {
+          outline: none;
+          border-color: rgba(253, 230, 138, 0.4);
+          background: rgba(253, 230, 138, 0.14);
+        }
+
+        .detail-panel-trend-table .thread-message {
+          border-color: rgba(244, 114, 182, 0.18);
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.08), rgba(255, 247, 237, 0.04)),
+            rgba(15, 23, 42, 0.32);
+        }
+
+        .detail-panel-trend-table .thread-message small {
+          color: rgba(249, 168, 212, 0.74);
+          font-size: 10px;
+          font-weight: 800;
+        }
+
+        .detail-panel-trend-table .thread-message p {
+          color: rgba(255, 247, 237, 0.92);
+          font-size: 14px;
+          line-height: 1.42;
+        }
+
+        .detail-panel-trend-table .table-note-form {
+          border-color: rgba(244, 114, 182, 0.2);
+          border-radius: 24px;
+          background:
+            radial-gradient(circle at 10% 0%, rgba(244, 114, 182, 0.14), transparent 32%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.09), rgba(255, 247, 237, 0.045)),
+            rgba(15, 23, 42, 0.42);
+        }
+
+        .detail-panel-trend-table .table-note-form label {
+          color: #fde68a;
+          font-size: 13px;
+        }
+
+        .detail-panel-trend-table .message-row input {
+          border-color: rgba(244, 114, 182, 0.2);
+          border-radius: 999px;
+          background: rgba(8, 13, 28, 0.56);
+        }
+
+        .detail-panel-trend-table .message-row button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 48px;
+          min-width: 48px;
+          min-height: 48px;
+          padding: 0;
+          border-radius: 999px;
+          color: #422006;
+          background: #fde68a;
+          font-size: 24px;
+          line-height: 1;
+        }
+
+        .trend-table-rules {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+          margin-top: 14px;
+          padding: 12px;
+          border: 1px solid rgba(253, 230, 138, 0.14);
+          border-radius: 22px;
+          background: rgba(255, 247, 237, 0.045);
+        }
+
+        .trend-table-rules p {
+          margin: 0;
+          color: rgba(255, 247, 237, 0.82);
+          font-size: 11px;
+          font-weight: 900;
+          line-height: 1.25;
+        }
+
+        .trend-table-rules p span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.52);
+          font-size: 9px;
+          font-weight: 750;
         }
 
         .front-counter-table-scene {
@@ -6204,55 +6881,231 @@ export default function ChoNeoGossipPage() {
             border-radius: 20px;
           }
 
-          .trend-table-prompts {
+          .trend-table-chip-row {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 7px;
+            overflow: visible;
+            padding: 0;
           }
 
-          .trend-table-prompts button {
-            min-height: 42px;
+          .trend-table-topic-chip {
+            min-height: 38px;
+            min-width: 0;
+            padding: 6px 8px;
+            grid-template-columns: 14px minmax(0, 1fr);
+            justify-items: start;
+            column-gap: 6px;
+            text-align: left;
+          }
+
+          .trend-table-topic-chip > span {
+            width: 14px;
+            height: 14px;
+          }
+
+          .trend-table-topic-chip small,
+          .trend-table-value-note {
+            display: none;
+          }
+
+          .trend-table-topic-chips {
+            gap: 7px;
+            padding: 10px;
+          }
+
+          .trend-table-topic-chips > div:first-child {
+            align-items: flex-start;
+          }
+
+          .trend-table-topic-chips strong small,
+          .trend-table-topic-chips > div:first-child span small {
+            font-size: 8px;
           }
 
           .trend-table-empty-state {
             padding: 13px;
           }
 
+          .trend-table-starter-list > div {
+            display: flex;
+            flex-wrap: wrap;
+          }
+
+          .trend-table-starter-list button {
+            min-height: 34px;
+          }
+
+          .detail-panel-trend-table .character-count {
+            justify-self: start;
+            margin-top: -4px;
+            color: rgba(255, 247, 237, 0.38);
+            font-size: 10px;
+            font-weight: 750;
+          }
+
+          .detail-panel-trend-table .character-count span {
+            color: rgba(255, 247, 237, 0.3);
+          }
+
+          .front-counter-count-pill {
+            display: inline-flex;
+            flex: 1 1 0;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 36px;
+            min-width: 0;
+            padding: 6px 8px;
+            border: 1px solid rgba(253, 230, 138, 0.18);
+            border-radius: 999px;
+            color: #fde68a;
+            background: rgba(253, 230, 138, 0.08);
+            font-size: 9px;
+            font-weight: 950;
+            line-height: 1.05;
+            text-align: center;
+          }
+
+          .front-counter-count-pill small {
+            display: block;
+            margin-top: 2px;
+            color: rgba(255, 247, 237, 0.6);
+            font-size: 0.78em;
+            font-weight: 850;
+          }
+
+          .table-detail:has(.detail-panel-front-counter) {
+            width: 100%;
+            margin-top: 0;
+          }
+
+          .cafe-page:has(.detail-panel-front-counter) .cafe-stage-controls {
+            display: grid;
+            gap: 8px;
+            margin: 8px 2px 10px;
+          }
+
+          .cafe-page:has(.detail-panel-front-counter) .cafe-control-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            width: 100%;
+            gap: 7px;
+          }
+
+          .cafe-page:has(.detail-panel-front-counter) .cafe-control-pill {
+            width: 100%;
+            min-height: 38px;
+            padding: 6px 7px;
+            font-size: 10px;
+            text-align: center;
+          }
+
+          .cafe-page:has(.detail-panel-front-counter) .front-counter-topic-note {
+            justify-self: start;
+            margin-top: 0;
+          }
+
+          .detail-panel-front-counter {
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+          }
+
+          .detail-panel-front-counter .detail-heading {
+            display: grid;
+            gap: 8px;
+            padding: 0 2px;
+          }
+
+          .detail-panel-front-counter .detail-heading p {
+            display: none;
+          }
+
+          .detail-panel-front-counter .detail-heading h2 {
+            display: none;
+          }
+
+          .detail-panel-front-counter .detail-heading strong {
+            display: none;
+          }
+
+          .detail-panel-front-counter .topic {
+            margin: 6px 2px 12px;
+            padding: 9px 11px;
+            border: 1px solid rgba(253, 230, 138, 0.16);
+            border-radius: 14px;
+            color: rgba(255, 247, 237, 0.82);
+            background: rgba(255, 247, 237, 0.06);
+            font-size: 12px;
+            line-height: 1.35;
+          }
+
+          .detail-panel-front-counter .topic span {
+            display: block;
+            margin-top: 3px;
+            color: rgba(255, 247, 237, 0.52);
+            font-size: 10px;
+          }
+
+          .front-counter-table-scene {
+            border-radius: 0;
+          }
+
           .front-counter-focused-stage {
+            display: grid;
+            gap: 12px;
+            overflow: visible;
             aspect-ratio: unset;
-            min-height: clamp(430px, 70svh, 620px);
-            padding-bottom: 102px;
+            min-height: 0;
+            padding: 0;
+            border: 0;
             border-radius: 24px;
-            background:
-              radial-gradient(circle at 50% 44%, rgba(253, 230, 138, 0.14), transparent 42%),
-              linear-gradient(180deg, #17100f 0%, #2b1914 62%, #160f10 100%);
+            background: transparent;
+            box-shadow: none;
+          }
+
+          .front-counter-focused-stage::before,
+          .front-counter-focused-scrim {
+            display: none;
           }
 
           .front-counter-focused-image {
-            position: absolute;
-            inset: 0 0 auto;
+            position: relative;
+            inset: auto;
+            z-index: 0;
             width: 100%;
             height: auto;
-            min-height: 0;
+            min-height: clamp(200px, 36svh, 310px);
+            border: 1px solid rgba(253, 230, 138, 0.2);
+            border-radius: 24px;
+            background: #1f1412;
             object-fit: contain;
             object-position: center;
             transform: none;
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
           }
 
           .front-counter-stage-bubbles {
-            top: min(46%, 270px);
-            right: 12%;
-            bottom: auto;
-            left: 12%;
-            transform: translateY(-50%);
+            position: relative;
+            inset: auto;
+            z-index: 0;
+            order: 3;
+            transform: none;
             grid-template-columns: 1fr;
-            justify-items: center;
-            gap: 8px;
+            justify-items: stretch;
+            gap: 7px;
+          }
+
+          .front-counter-stage-bubbles::before {
+            display: none;
           }
 
           .front-counter-stage-bubble {
-            max-width: min(240px, 100%);
-            padding: 6px 8px;
+            max-width: 100%;
+            padding: 10px 11px;
+            border-radius: 16px;
           }
 
           .front-counter-stage-bubble:nth-last-child(n+3) {
@@ -6268,9 +7121,9 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-stage-bubble p {
-            font-size: 10px;
-            line-height: 1.24;
-            -webkit-line-clamp: 3;
+            font-size: 12px;
+            line-height: 1.34;
+            -webkit-line-clamp: 4;
           }
 
           .front-counter-stage-etiquette ul {
@@ -6294,13 +7147,17 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-stage-form {
-            left: 10px;
-            right: 10px;
-            bottom: 10px;
+            position: relative;
+            z-index: 0;
+            inset: auto;
+            order: 2;
             grid-template-columns: 1fr;
             gap: 6px;
-            padding: 10px;
+            margin-top: 0;
+            padding: 11px;
             border-radius: 20px;
+            background:
+              linear-gradient(180deg, rgba(83, 47, 31, 0.86), rgba(45, 26, 21, 0.82));
           }
 
           .front-counter-stage-message-row {
@@ -6522,6 +7379,15 @@ export default function ChoNeoGossipPage() {
             align-items: flex-start;
           }
 
+          .generic-table-artwork {
+            margin: 12px 0 14px;
+            border-radius: 18px;
+          }
+
+          .generic-table-artwork img {
+            height: clamp(170px, 48vw, 230px);
+          }
+
           .table-footer button,
           .leave-button,
           .message-row button,
@@ -6623,13 +7489,13 @@ async function updateSharedFrontCounterMessageAsHost(input: {
 function getHostModerationNotice(action: FrontCounterModerationAction) {
   switch (action) {
     case "hide":
-      return "Message hidden from the Front Counter.";
+      return "Message hidden from the Social Counter.";
     case "markReviewed":
       return "Message marked reviewed.";
     case "remove":
       return "Message replaced with a host removal notice.";
     case "unhide":
-      return "Message returned to the Front Counter.";
+      return "Message returned to the Social Counter.";
   }
 }
 
@@ -6678,45 +7544,17 @@ function getTableActionCopy(action: string) {
 }
 
 function getTableNameCopy(tableName: string) {
-  if (tableName === "Front Counter") {
-    return {
-      vi: "Bàn Trước Quầy",
-      en: "Front Counter",
-    };
-  }
+  const table = tables.find(
+    (tableConfig) =>
+      tableConfig.id === tableName ||
+      tableConfig.legacyName === tableName ||
+      tableConfig.name === tableName
+  );
 
-  if (tableName === "Shop Talk") {
+  if (table) {
     return {
-      vi: "Bàn Chuyện Nghề",
-      en: "Shop Talk",
-    };
-  }
-
-  if (tableName === "Color & Trend") {
-    return {
-      vi: "Bàn Màu",
-      en: "Trend Table",
-    };
-  }
-
-  if (tableName === "Vent Table") {
-    return {
-      vi: "Bàn Xả Hơi",
-      en: "Vent Table",
-    };
-  }
-
-  if (tableName === "Quiet Table") {
-    return {
-      vi: "Bàn Yên",
-      en: "Quiet Table",
-    };
-  }
-
-  if (tableName === "Private Table") {
-    return {
-      vi: "Bàn Riêng",
-      en: "Private Table",
+      vi: table.viTitle,
+      en: table.enTitle,
     };
   }
 
