@@ -59,7 +59,6 @@ const FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS = 3;
 const TABLE_NOTE_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS =
   FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS;
-const QUAN_TAM_RULES_ACCEPTED_KEY = "quanTamRulesAcceptedV1";
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
 const FRONT_COUNTER_TALK_EXAMPLES = [
@@ -167,6 +166,168 @@ const COLOR_TREND_UNSAFE_CLAIM_LANGUAGE = [
   "trị nấm",
 ];
 
+const LOCAL_TABLE_CONFIG = {
+  "shop-talk": {
+    topicChips: [
+      {
+        vi: "Khách khó tính",
+        en: "Hard clients",
+        insert: "Khách khó tính thì tiệm bạn xử lý sao?",
+        tone: "marigold",
+      },
+      {
+        vi: "Giá & thời gian",
+        en: "Pricing & time",
+        insert: "Giá và thời gian dịch vụ này nên tính sao cho hợp lý?",
+        tone: "sky",
+      },
+      {
+        vi: "Ngày bận",
+        en: "Busy day",
+        insert: "Ngày bận quá thì sắp lịch sao cho tiệm đỡ rối?",
+        tone: "coral",
+      },
+      {
+        vi: "Dịch vụ bán chạy",
+        en: "Popular services",
+        insert: "Dịch vụ nào đang chạy đều ở tiệm bạn?",
+        tone: "turquoise",
+      },
+      {
+        vi: "Nhân sự",
+        en: "Staffing",
+        insert: "Chia ca và giữ nhịp làm việc sao cho đỡ mệt?",
+        tone: "purple",
+      },
+    ],
+    emptyState: {
+      viTitle: "Bàn nghề đang chờ một câu thật hữu ích.",
+      enTitle: "Shop Talk is waiting for one useful note.",
+    },
+    rules: [
+      { vi: "Nói chuyện nghề, không bêu tiệm.", en: "Talk shop, do not shame salons." },
+      { vi: "Góp ý có cách làm.", en: "Offer something practical." },
+      { vi: "Không spam supplier.", en: "No supplier spam." },
+      { vi: "Giữ tên khách và thợ riêng tư.", en: "Keep clients and techs private." },
+    ],
+    composerPlaceholder: "Hỏi hoặc chia sẻ một chuyện nghề...",
+    helper: {
+      vi: "Nói rõ bối cảnh: khách, giá, lịch, dịch vụ, hay cách tiệm chạy.",
+      en: "Share context: clients, pricing, schedule, services, or shop flow.",
+    },
+    feedLabel: {
+      vi: "Chuyện nghề trên bàn",
+      en: "Shop talk on the table",
+    },
+  },
+  "vent-table": {
+    topicChips: [
+      {
+        vi: "Xả nhẹ",
+        en: "Light vent",
+        insert: "Cho xả nhẹ một câu thôi:",
+        tone: "marigold",
+      },
+      {
+        vi: "Khách làm chậm",
+        en: "Client delay",
+        insert: "Hôm nay có chuyện nhỏ nào làm cả tiệm bị chậm?",
+        tone: "orange",
+      },
+      {
+        vi: "Ngày mệt",
+        en: "Tired day",
+        insert: "Ngày hôm nay mệt nhất ở khúc nào?",
+        tone: "coral",
+      },
+      {
+        vi: "Cười cho qua",
+        en: "Laugh it off",
+        insert: "Có chuyện gì buồn cười trong tiệm hôm nay?",
+        tone: "sky",
+      },
+      {
+        vi: "Thở rồi làm tiếp",
+        en: "Reset",
+        insert: "Mình cần thở một chút vì:",
+        tone: "lavender",
+      },
+    ],
+    emptyState: {
+      viTitle: "Bàn đang nhẹ. Ai mệt thì đặt một câu xuống.",
+      enTitle: "The table is light. Leave one short release if you need it.",
+    },
+    rules: [
+      { vi: "Không nêu tên khách, thợ, hay tiệm.", en: "No client, tech, or salon names." },
+      { vi: "Xả nhẹ, không trả đũa.", en: "Vent lightly, no revenge." },
+      { vi: "Không kỳ thị, hăm dọa, kích động.", en: "No hate, threats, or escalation." },
+      { vi: "Kể xong thì để lòng nhẹ hơn.", en: "Leave lighter than you arrived." },
+    ],
+    composerPlaceholder: "Xả nhẹ một câu...",
+    helper: {
+      vi: "Viết ngắn, đổi tên chi tiết riêng tư, và giữ bàn không độc.",
+      en: "Keep it short, anonymize private details, and keep the table non-toxic.",
+    },
+    feedLabel: {
+      vi: "Tiếng thở ở bàn",
+      en: "Light vents at the table",
+    },
+  },
+  "quiet-table": {
+    topicChips: [
+      {
+        vi: "Thở một chút",
+        en: "Breathe",
+        insert: "Mình đang cần thở một chút vì:",
+        tone: "turquoise",
+      },
+      {
+        vi: "Một điều tử tế",
+        en: "One kind thing",
+        insert: "Hôm nay có một điều tử tế là:",
+        tone: "lavender",
+      },
+      {
+        vi: "Sau ca dài",
+        en: "After a long shift",
+        insert: "Sau ca dài, mình muốn nhắc bản thân:",
+        tone: "green",
+      },
+      {
+        vi: "Gửi lại nhẹ nhàng",
+        en: "Soft note",
+        insert: "Một câu nhẹ để gửi lại bàn:",
+        tone: "sky",
+      },
+      {
+        vi: "Ngày mai làm tiếp",
+        en: "Tomorrow",
+        insert: "Ngày mai mình chỉ cần làm tốt một việc:",
+        tone: "marigold",
+      },
+    ],
+    emptyState: {
+      viTitle: "Bàn Yên đang còn một chỗ trống.",
+      enTitle: "Quiet Table has one soft seat open.",
+    },
+    rules: [
+      { vi: "Không tranh luận ở bàn này.", en: "No debate at this table." },
+      { vi: "Không phán xét hay ép lời khuyên.", en: "No judgment or advice-dumping." },
+      { vi: "Không kéo drama vào đây.", en: "No drama here." },
+      { vi: "Nói nhỏ, để người khác thở.", en: "Speak softly and let others breathe." },
+    ],
+    composerPlaceholder: "Để lại một câu nhẹ...",
+    helper: {
+      vi: "Một câu ngắn cũng đủ: điều bạn đang giữ, điều bạn biết ơn, hoặc điều muốn buông.",
+      en: "One short note is enough: what you are holding, thankful for, or ready to release.",
+    },
+    feedLabel: {
+      vi: "Ghi chú nhẹ trên bàn",
+      en: "Quiet notes on the table",
+    },
+  },
+} as const;
+
 const seededFrontCounterMessages: FrontCounterMessage[] = [
   {
     avatarId: "auntie-owner",
@@ -251,11 +412,10 @@ const tables = [
     tone: "violet",
     note: "Salon life, clients, pricing, busy days, and work tips from people who get it.",
     artwork: "/images/cho-neo/Ban-Chuyen-Nghe.png",
-    topicChips: [],
-    emptyState: null,
-    rules: [],
-    composerPlaceholder:
-      "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience...",
+    topicChips: LOCAL_TABLE_CONFIG["shop-talk"].topicChips,
+    emptyState: LOCAL_TABLE_CONFIG["shop-talk"].emptyState,
+    rules: LOCAL_TABLE_CONFIG["shop-talk"].rules,
+    composerPlaceholder: LOCAL_TABLE_CONFIG["shop-talk"].composerPlaceholder,
     reactionStyle: "generic",
     mode: "local-session",
     messages: [
@@ -309,11 +469,10 @@ const tables = [
     tone: "gold",
     note: "Tired days, funny clients, after-work talk, and a little tea with boundaries.",
     artwork: "/images/cho-neo/Ban-Xa-Hoi.png",
-    topicChips: [],
-    emptyState: null,
-    rules: [],
-    composerPlaceholder:
-      "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience...",
+    topicChips: LOCAL_TABLE_CONFIG["vent-table"].topicChips,
+    emptyState: LOCAL_TABLE_CONFIG["vent-table"].emptyState,
+    rules: LOCAL_TABLE_CONFIG["vent-table"].rules,
+    composerPlaceholder: LOCAL_TABLE_CONFIG["vent-table"].composerPlaceholder,
     reactionStyle: "generic",
     mode: "local-session",
     messages: [
@@ -339,11 +498,10 @@ const tables = [
     tone: "green",
     note: "Softer talk, reflection, tea-table mood, and kindness after a long shift.",
     artwork: "/images/cho-neo/Ban-Yen.png",
-    topicChips: [],
-    emptyState: null,
-    rules: [],
-    composerPlaceholder:
-      "Viết ngắn thôi: hỏi, góp ý, chia sẻ kinh nghiệm... / Keep it short: ask, add advice, share shop experience...",
+    topicChips: LOCAL_TABLE_CONFIG["quiet-table"].topicChips,
+    emptyState: LOCAL_TABLE_CONFIG["quiet-table"].emptyState,
+    rules: LOCAL_TABLE_CONFIG["quiet-table"].rules,
+    composerPlaceholder: LOCAL_TABLE_CONFIG["quiet-table"].composerPlaceholder,
     reactionStyle: "generic",
     mode: "local-session",
     messages: [
@@ -379,14 +537,6 @@ const tables = [
   },
 ];
 const activeTables = tables.filter((table) => table.status === "active");
-
-const frontDoorRules = [
-  "Nói thật, nói vừa nghe.",
-  "Không bêu tên tiệm, khách, thợ, hay chủ tiệm ngoài đời.",
-  "Không chửi bới, kỳ thị, hăm dọa.",
-  "Chuyện nghề thì góp ý có tâm.",
-  "Vào đây để nhẹ lòng hơn.",
-];
 
 const GOSSIP_AVATAR_COPY: Record<
   string,
@@ -495,9 +645,6 @@ export default function ChoNeoGossipPage() {
   const [sharedFetchedMessageIds, setSharedFetchedMessageIds] = useState<string[]>(
     []
   );
-  const [rulesGateOpen, setRulesGateOpen] = useState(true);
-  const [roomEntered, setRoomEntered] = useState(false);
-  const [roomSettled, setRoomSettled] = useState(false);
   const [tableNotesByName, setTableNotesByName] = useState<TableNotesByName>({});
   const [tableNoteDraft, setTableNoteDraft] = useState("");
   const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
@@ -509,6 +656,10 @@ export default function ChoNeoGossipPage() {
   );
   const isFrontCounter = selectedTable?.id === "front-counter";
   const isTrendTable = selectedTable?.id === "color-trend";
+  const isLocalSessionTable = selectedTable?.mode === "local-session";
+  const localTableConfig = isLocalSessionTable
+    ? LOCAL_TABLE_CONFIG[selectedTable.id as keyof typeof LOCAL_TABLE_CONFIG]
+    : null;
   const selectedMessages: Array<ConversationMessage | FrontCounterMessage> =
     isFrontCounter
       ? frontCounterMessages.filter(isVisibleFrontCounterMessage)
@@ -561,39 +712,8 @@ export default function ChoNeoGossipPage() {
     }
 
     const searchParams = new URLSearchParams(window.location.search);
-    const enterByFallback = searchParams.get("enter") === "1";
 
-    if (enterByFallback) {
-      try {
-        window.localStorage.setItem(QUAN_TAM_RULES_ACCEPTED_KEY, "true");
-      } catch {
-        // Storage-restricted sessions should still be able to enter via fallback.
-      }
-
-      setRulesGateOpen(false);
-      setRoomEntered(true);
-      setRoomSettled(false);
-      window.setTimeout(() => setRoomSettled(true), 700);
-      window.history.replaceState(null, "", "/cho-neo/gossip");
-      return;
-    }
-
-    const rulesAccepted =
-      window.localStorage.getItem(QUAN_TAM_RULES_ACCEPTED_KEY) === "true";
-
-    if (rulesAccepted) {
-      setRulesGateOpen(false);
-      setRoomEntered(true);
-      window.setTimeout(() => setRoomSettled(true), 80);
-    } else {
-      setRulesGateOpen(true);
-      setRoomEntered(false);
-      setRoomSettled(false);
-    }
-
-    setHostToolsOpen(
-      searchParams.get("hostTools") === "1"
-    );
+    setHostToolsOpen(searchParams.get("hostTools") === "1");
     setReportedMessageIds(readReportedFrontCounterMessageIds());
 
     const savedFrontCounter = readFrontCounterState();
@@ -778,6 +898,22 @@ export default function ChoNeoGossipPage() {
     setTableNoteDraft((currentDraft) => {
       const starterText = prompt.insert ?? prompt.vi;
       const nextPrompt = `${starterText} `;
+
+      if (!currentDraft.trim()) {
+        return nextPrompt;
+      }
+
+      return `${currentDraft.trim()} ${nextPrompt}`.slice(0, TABLE_NOTE_MESSAGE_LIMIT);
+    });
+    setTableNoteNotice(null);
+    window.requestAnimationFrame(() => {
+      tableNoteInputRef.current?.focus();
+    });
+  }
+
+  function useLocalTablePrompt(prompt: { insert: string }) {
+    setTableNoteDraft((currentDraft) => {
+      const nextPrompt = `${prompt.insert} `;
 
       if (!currentDraft.trim()) {
         return nextPrompt;
@@ -1086,27 +1222,6 @@ export default function ChoNeoGossipPage() {
     }, 80);
   }
 
-  function enterQuanTamRoom() {
-    try {
-      window.localStorage.setItem(QUAN_TAM_RULES_ACCEPTED_KEY, "true");
-    } catch {
-      // Safari private/storage-restricted sessions should still be able to enter.
-    }
-
-    setRulesGateOpen(false);
-    setRoomEntered(true);
-    setRoomSettled(false);
-    window.setTimeout(() => setRoomSettled(true), 700);
-  }
-
-  function closeRulesOverlay() {
-    if (!roomEntered) {
-      return;
-    }
-
-    setRulesGateOpen(false);
-  }
-
   function openTable(tableName: string) {
     setSelectedTableName(tableName);
     setTableNoteDraft("");
@@ -1151,199 +1266,97 @@ export default function ChoNeoGossipPage() {
 
         </header>
 
-        {roomEntered ? (
-          <div className="cafe-stage-controls">
-            <nav className="cafe-control-row" aria-label="Quán Tám controls">
-              <Link className="cafe-control-pill" href="/cho-neo">
-                <span>Về Sân Làng</span>
-                <small>Village</small>
-              </Link>
-              {isFrontCounter ? (
-                <>
-                  <button
-                    className="cafe-control-pill"
-                    type="button"
-                    onClick={() => setSelectedTableName(null)}
-                  >
-                    <span>Về Quán Tám</span>
-                    <small>Café</small>
-                  </button>
-                  <button
-                    className="cafe-control-pill"
-                    type="button"
-                    onClick={() =>
-                      setFrontCounterDrawerOpen((isOpen) => !isOpen)
-                    }
-                  >
-                    <span>{frontCounterDrawerOpen ? "Đóng" : "Chuyện cũ"}</span>
-                    <small>{frontCounterDrawerOpen ? "Close" : "More"}</small>
-                  </button>
-                </>
-              ) : null}
-              <button
-                className={`cafe-control-pill ${
-                  isFrontCounter && !isCurrentIdentitySeated
-                    ? "cafe-control-pill-primary"
-                    : ""
-                } ${
-                  isFrontCounter && isCurrentIdentitySeated
-                    ? "cafe-control-pill-seated"
-                    : ""
-                }`}
-                type="button"
-                onClick={
-                  isFrontCounter
-                    ? enterFrontCounterTable
-                    : () => setIdentityPickerOpen(true)
-                }
-                aria-label={
-                  isFrontCounter
-                    ? isCurrentIdentitySeated
-                      ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
-                      : "Vào bàn / Take a seat"
-                    : undefined
-                }
-              >
-                <span>
-                  {isFrontCounter
-                    ? isCurrentIdentitySeated
-                      ? "Đang ngồi"
-                      : "Vào bàn"
-                    : "Đổi Avatar"}
-                </span>
-                <small>
-                  {isFrontCounter
-                    ? isCurrentIdentitySeated
-                      ? "Seated"
-                      : "Take a seat"
-                    : "Change"}
-                </small>
-              </button>
-              {isFrontCounter ? (
+        <div className="cafe-stage-controls">
+          <nav className="cafe-control-row" aria-label="Quán Tám controls">
+            <Link className="cafe-control-pill" href="/cho-neo">
+              <span>Về Sân Làng</span>
+              <small>Village</small>
+            </Link>
+            {isFrontCounter ? (
+              <>
+                <button
+                  className="cafe-control-pill"
+                  type="button"
+                  onClick={() => setSelectedTableName(null)}
+                >
+                  <span>Về Quán Tám</span>
+                  <small>Café</small>
+                </button>
+                <button
+                  className="cafe-control-pill"
+                  type="button"
+                  onClick={() => setFrontCounterDrawerOpen((isOpen) => !isOpen)}
+                >
+                  <span>{frontCounterDrawerOpen ? "Đóng" : "Chuyện cũ"}</span>
+                  <small>{frontCounterDrawerOpen ? "Close" : "More"}</small>
+                </button>
+              </>
+            ) : null}
+            <button
+              className={`cafe-control-pill ${
+                isFrontCounter && !isCurrentIdentitySeated
+                  ? "cafe-control-pill-primary"
+                  : ""
+              } ${
+                isFrontCounter && isCurrentIdentitySeated
+                  ? "cafe-control-pill-seated"
+                  : ""
+              }`}
+              type="button"
+              onClick={
+                isFrontCounter
+                  ? enterFrontCounterTable
+                  : () => setIdentityPickerOpen(true)
+              }
+              aria-label={
+                isFrontCounter
+                  ? isCurrentIdentitySeated
+                    ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
+                    : "Vào bàn / Take a seat"
+                  : undefined
+              }
+            >
+              <span>
+                {isFrontCounter
+                  ? isCurrentIdentitySeated
+                    ? "Đang ngồi"
+                    : "Vào bàn"
+                  : "Đổi Avatar"}
+              </span>
+              <small>
+                {isFrontCounter
+                  ? isCurrentIdentitySeated
+                    ? "Seated"
+                    : "Take a seat"
+                  : "Change"}
+              </small>
+            </button>
+            {isFrontCounter ? (
+              <>
                 <span className="front-counter-count-pill">
                   👥 {selectedTable.count} người đang ngồi đây
                   <small>{selectedTable.count} seated here</small>
                 </span>
-              ) : null}
-              <button
-                className={`cafe-control-pill ${
-                  isFrontCounter ? "cafe-control-pill-secondary" : ""
-                }`}
-                type="button"
-                onClick={
-                  isFrontCounter
-                    ? () => setFrontCounterMusicOn((isOn) => !isOn)
-                    : () => setRulesGateOpen(true)
-                }
-                aria-pressed={isFrontCounter ? frontCounterMusicOn : undefined}
-              >
-                <span>
-                  {isFrontCounter
-                    ? frontCounterMusicOn
-                      ? "🎵 Tắt nhạc"
-                      : "🎵 Mở nhạc"
-                    : "Nội Quy"}
-                </span>
-                <small>
-                  {isFrontCounter
-                    ? frontCounterMusicOn
-                      ? "Music Off"
-                      : "Music On"
-                    : "Rules"}
-                </small>
-              </button>
-            </nav>
-            {isFrontCounter ? (
-              <aside className="front-counter-topic-note" aria-label="Social Counter topic">
-                <span>☕ Chào hỏi • Xã giao</span>
-              </aside>
-            ) : null}
-          </div>
-        ) : (
-          <div className="cafe-stage-controls">
-            <nav className="cafe-control-row" aria-label="Quán Tám controls">
-              <Link className="cafe-control-pill" href="/cho-neo">
-                <span>Về Sân Làng</span>
-                <small>Village</small>
-              </Link>
-            </nav>
-          </div>
-        )}
-
-        {rulesGateOpen ? (
-          <section
-            className={`quan-tam-rules-door ${
-              roomEntered ? "quan-tam-rules-door-overlay" : ""
-            }`}
-            aria-label="Nội Quy Quán Tám"
-            onClick={(event) => {
-              if (event.target === event.currentTarget) {
-                closeRulesOverlay();
-              }
-            }}
-          >
-            <div className="rules-door-card">
-              {roomEntered ? (
                 <button
-                  className="rules-door-close"
+                  className="cafe-control-pill cafe-control-pill-secondary"
                   type="button"
-                  onClick={closeRulesOverlay}
+                  onClick={() => setFrontCounterMusicOn((isOn) => !isOn)}
+                  aria-pressed={frontCounterMusicOn}
                 >
-                  <span>Đóng</span>
-                  <small>Close</small>
+                  <span>{frontCounterMusicOn ? "🎵 Tắt nhạc" : "🎵 Mở nhạc"}</span>
+                  <small>{frontCounterMusicOn ? "Music Off" : "Music On"}</small>
                 </button>
-              ) : null}
-              <div className="rules-door-sign" aria-hidden="true">
-                <strong>Quán Tám</strong>
-                <span>Gossip Café</span>
-              </div>
-              <p className="eyebrow">
-                Trước khi vào bàn
-                <span>Before entering</span>
-              </p>
-              <h2>Nội Quy Quán Tám</h2>
-              <p className="rules-door-subtitle">
-                Ngồi xuống nói chuyện nhẹ nhàng: nói thật, đừng làm đau người
-                khác, giữ chuyện riêng của nhau.
-                <span>
-                  Sit down gently: be honest, be kind, protect privacy.
-                </span>
-              </p>
-              <ol>
-                {frontDoorRules.map((rule) => (
-                  <li key={rule}>{rule}</li>
-                ))}
-              </ol>
-              <p className="rules-door-helper">
-                Cứ tám như người trong nghề, nhưng để ai rời bàn cũng nhẹ lòng hơn.
-              </p>
-              <div className="rules-door-actions">
-                {roomEntered ? (
-                  <button type="button" onClick={closeRulesOverlay}>
-                    Quay lại Quán Tám / Back
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      data-testid="quan-tam-enter-button"
-                      type="button"
-                      onPointerDown={enterQuanTamRoom}
-                    >
-                      Đồng ý vào Quán Tám / Agree & Enter
-                    </button>
-                    <a href="/cho-neo/gossip?enter=1">
-                      Không vào được? Mở Quán Tám bằng đường phụ
-                      <span>Still stuck? Open Quán Tám another way</span>
-                    </a>
-                  </>
-                )}
-              </div>
-            </div>
-          </section>
-        ) : null}
+              </>
+            ) : null}
+          </nav>
+          {isFrontCounter ? (
+            <aside className="front-counter-topic-note" aria-label="Social Counter topic">
+              <span>☕ Chào hỏi • Xã giao</span>
+            </aside>
+          ) : null}
+        </div>
 
-        {roomEntered ? (
-          <>
+        <>
         <section className="identity-strip" aria-label="Cho Neo identity">
           {identityPickerOpen ? (
             <div className="identity-picker">
@@ -1443,9 +1456,9 @@ export default function ChoNeoGossipPage() {
         </section>
 
         <section
-          className={`room-scene ${selectedTable ? "room-scene-focused" : ""} ${
-            roomEntered ? "room-scene-entered" : ""
-          } ${roomSettled ? "room-scene-settled" : ""}`}
+          className={`room-scene room-scene-entered room-scene-settled ${
+            selectedTable ? "room-scene-focused" : ""
+          }`}
           aria-label="Gossip Café table clusters"
         >
           <div className="counter" aria-hidden="true">
@@ -1471,14 +1484,16 @@ export default function ChoNeoGossipPage() {
                 } ${
                   isTrendTable ? "detail-panel-trend-table" : ""
                 } ${
+                  isLocalSessionTable ? "detail-panel-local-table" : ""
+                } ${
                   isFrontCounter && frontCounterDrawerOpen
                     ? "front-counter-drawer-open"
                     : ""
                 }`}
               >
-                {isTrendTable ? (
+                {isTrendTable || isLocalSessionTable ? (
                   <button
-                    className="trend-table-back"
+                    className={isLocalSessionTable ? "local-table-back" : "trend-table-back"}
                     onClick={() => setSelectedTableName(null)}
                     type="button"
                   >
@@ -1487,6 +1502,7 @@ export default function ChoNeoGossipPage() {
                   </button>
                 ) : null}
 
+                {!isLocalSessionTable ? (
                 <div className="detail-heading">
                   <div>
                     <p>
@@ -1516,6 +1532,7 @@ export default function ChoNeoGossipPage() {
                     </strong>
                   ) : null}
                 </div>
+                ) : null}
 
                 {isTrendTable ? (
                   <p className="trend-table-subtitle">
@@ -1524,20 +1541,22 @@ export default function ChoNeoGossipPage() {
                       Colors, trends, designs, and bling clients are asking for.
                     </span>
                   </p>
-                ) : (
+                ) : !isLocalSessionTable ? (
                   <p className="topic">
                     Chủ đề: “{selectedTable.topic}”
                     <span>Topic</span>
                   </p>
-                )}
+                ) : null}
 
+                {!isLocalSessionTable ? (
                 <div className="member-row detail-members" aria-label={`${selectedTable.name} seated members`}>
                   {selectedTable.initials.map((initial) => (
                     <span key={initial}>{initial}</span>
                   ))}
                 </div>
+                ) : null}
 
-                {!isFrontCounter && !isTrendTable && selectedTable.artwork ? (
+                {!isFrontCounter && !isTrendTable && !isLocalSessionTable && selectedTable.artwork ? (
                   <div
                     className="generic-table-artwork"
                     aria-label={`${getTableNameCopy(selectedTable.name).vi} table artwork`}
@@ -1547,6 +1566,162 @@ export default function ChoNeoGossipPage() {
                       src={selectedTable.artwork}
                     />
                   </div>
+                ) : null}
+
+                {isLocalSessionTable && localTableConfig ? (
+                  <section
+                    className={`local-table-stage local-table-stage-${selectedTable.id}`}
+                    aria-label={`${getTableNameCopy(selectedTable.name).vi} selected table`}
+                  >
+                    <header className="local-table-heading">
+                      <div>
+                        <p>
+                          {getTableStatusHeading(selectedTable.tableStatus)}
+                          <span>{getTableStatusCopy(selectedTable.tableStatus).en} Table</span>
+                        </p>
+                        <h2>
+                          {getTableNameCopy(selectedTable.name).vi}
+                          <span>{getTableNameCopy(selectedTable.name).en}</span>
+                        </h2>
+                      </div>
+                      <strong>
+                        {selectedTable.count} {getTableActionCopy(selectedTable.action).vi}
+                        <span>
+                          {selectedTable.count} {getTableActionCopy(selectedTable.action).en}
+                        </span>
+                      </strong>
+                    </header>
+
+                    <p className="local-table-subtitle">
+                      {selectedTable.subtitle}
+                      <span>{selectedTable.note}</span>
+                    </p>
+
+                    {selectedTable.artwork ? (
+                      <div className="local-table-artwork">
+                        <img
+                          alt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
+                          src={selectedTable.artwork}
+                        />
+                      </div>
+                    ) : null}
+
+                    <section className="local-table-prompts" aria-label={`${getTableNameCopy(selectedTable.name).vi} starter prompts`}>
+                      <div>
+                        <strong>
+                          Gợi ý mở chuyện
+                          <span>Starter prompts</span>
+                        </strong>
+                        <small>Nhấn một câu để viết tiếp. Không tự đăng.</small>
+                      </div>
+                      <div className="local-table-chip-row">
+                        {selectedTable.topicChips.map((chip) => (
+                          <button
+                            className={`local-table-chip trend-chip-${chip.tone}`}
+                            key={chip.vi}
+                            onClick={() => useLocalTablePrompt(chip)}
+                            type="button"
+                          >
+                            <span aria-hidden="true" />
+                            {chip.vi}
+                            <small>{chip.en}</small>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="local-table-thread" aria-label={`${selectedTable.name} table conversation`}>
+                      <div className="local-table-thread-heading">
+                        <strong>
+                          {localTableConfig.feedLabel.vi}
+                          <span>{localTableConfig.feedLabel.en}</span>
+                        </strong>
+                      </div>
+                      {selectedMessages.length ? (
+                        selectedMessages.map((message, index) => {
+                          const conversationMessage =
+                            "name" in message ? message : null;
+
+                          if (!conversationMessage) {
+                            return null;
+                          }
+
+                          return (
+                            <article
+                              className="local-table-note"
+                              key={`${conversationMessage.name}-${conversationMessage.text}-${index}`}
+                            >
+                              <small>{conversationMessage.name}</small>
+                              <p>{conversationMessage.text}</p>
+                            </article>
+                          );
+                        })
+                      ) : (
+                        <div className="local-table-empty-state">
+                          <strong>
+                            {selectedTable.emptyState?.viTitle}
+                            <span>{selectedTable.emptyState?.enTitle}</span>
+                          </strong>
+                          <p>{selectedTable.topic}</p>
+                        </div>
+                      )}
+                    </section>
+
+                    <form
+                      className="conversation-form table-note-form local-table-form"
+                      onSubmit={handleTableNoteSubmit}
+                    >
+                      <label htmlFor="table-note-message">
+                        Góp một câu vào bàn
+                        <span>Add one note to the table</span>
+                      </label>
+                      <p className="posting-helper">
+                        {localTableConfig.helper.vi}
+                        <span>{localTableConfig.helper.en}</span>
+                      </p>
+                      <div className="message-row">
+                        <input
+                          id="table-note-message"
+                          maxLength={TABLE_NOTE_MESSAGE_LIMIT}
+                          onChange={(event) => {
+                            setTableNoteDraft(event.target.value);
+                            setTableNoteNotice(null);
+                          }}
+                          placeholder={selectedTable.composerPlaceholder}
+                          ref={tableNoteInputRef}
+                          type="text"
+                          value={tableNoteDraft}
+                        />
+                        <button disabled={!canSubmitTableNote} type="submit">
+                          Góp chuyện
+                          <span>Add note</span>
+                        </button>
+                      </div>
+                      {tableNoteNotice ? (
+                        <p className="post-feedback">{tableNoteNotice}</p>
+                      ) : null}
+                      <p className="character-count">
+                        Còn {remainingTableNoteCharacters} /{" "}
+                        {TABLE_NOTE_MESSAGE_LIMIT} ký tự. Tối thiểu{" "}
+                        {TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS} ký tự có nghĩa.
+                        <span>
+                          {remainingTableNoteCharacters} of{" "}
+                          {TABLE_NOTE_MESSAGE_LIMIT} characters left. Minimum{" "}
+                          {TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS} meaningful
+                          characters.
+                        </span>
+                      </p>
+                    </form>
+
+                    <section className="local-table-rules" aria-label={`${getTableNameCopy(selectedTable.name).vi} table reminders`}>
+                      {selectedTable.rules.map((rule) => (
+                        <p key={rule.vi}>
+                          {rule.vi}
+                          <span>{rule.en}</span>
+                        </p>
+                      ))}
+                    </section>
+                  </section>
                 ) : null}
 
                 {isFrontCounter ? (
@@ -2152,6 +2327,7 @@ export default function ChoNeoGossipPage() {
                   </>
                 ) : null}
 
+                {!isLocalSessionTable ? (
                 <div
                   className={`mock-thread ${
                     isTrendTable ? "trend-table-thread" : ""
@@ -2331,8 +2507,9 @@ export default function ChoNeoGossipPage() {
                     </div>
                   ) : null}
                 </div>
+                ) : null}
 
-                {!isFrontCounter ? (
+                {!isFrontCounter && !isLocalSessionTable ? (
                   <form
                     className="conversation-form table-note-form"
                     onSubmit={handleTableNoteSubmit}
@@ -2431,7 +2608,7 @@ export default function ChoNeoGossipPage() {
                   </section>
                 ) : null}
 
-                {!isFrontCounter ? (
+                {!isFrontCounter && !isLocalSessionTable ? (
                   <button
                     className="leave-button"
                     type="button"
@@ -2532,7 +2709,6 @@ export default function ChoNeoGossipPage() {
         </section>
 
           </>
-        ) : null}
       </section>
 
       <style>{`
@@ -2735,290 +2911,6 @@ export default function ChoNeoGossipPage() {
 
         .mobile-table-picker {
           display: none;
-        }
-
-        .quan-tam-rules-door {
-          position: fixed;
-          inset: 0;
-          z-index: 100;
-          display: grid;
-          max-height: none;
-          min-height: 100vh;
-          align-items: start;
-          justify-items: center;
-          overflow-y: auto;
-          padding: 24px;
-          isolation: isolate;
-          perspective: 1200px;
-          -webkit-overflow-scrolling: touch;
-          background:
-            radial-gradient(circle at 50% 20%, rgba(253, 230, 138, 0.18), transparent 34%),
-            radial-gradient(circle at 18% 88%, rgba(190, 24, 93, 0.12), transparent 32%),
-            rgba(31, 20, 18, 0.76);
-          backdrop-filter: blur(14px);
-        }
-
-        .quan-tam-rules-door::before {
-          content: "";
-          position: absolute;
-          inset: 4% 3% 0;
-          z-index: -1;
-          border-radius: 44px;
-          background:
-            linear-gradient(90deg, rgba(120, 53, 15, 0.36), transparent 18% 82%, rgba(120, 53, 15, 0.32)),
-            radial-gradient(circle at 50% 18%, rgba(254, 243, 199, 0.24), transparent 22%),
-            radial-gradient(circle at 52% 84%, rgba(251, 191, 36, 0.2), transparent 38%),
-            linear-gradient(180deg, rgba(70, 35, 24, 0.46), rgba(18, 13, 20, 0.2));
-          filter: blur(14px);
-          opacity: 0.9;
-          pointer-events: none;
-        }
-
-        .quan-tam-rules-door::after {
-          content: "";
-          position: absolute;
-          inset: 12% 13% 8%;
-          z-index: -1;
-          border: 1px solid rgba(253, 230, 138, 0.18);
-          border-radius: 42px 42px 24px 24px;
-          background:
-            linear-gradient(90deg, rgba(253, 230, 138, 0.08), transparent 18% 82%, rgba(253, 230, 138, 0.08)),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.08), rgba(255, 247, 237, 0.02));
-          box-shadow:
-            inset 0 0 0 10px rgba(62, 32, 24, 0.18),
-            0 34px 80px rgba(0, 0, 0, 0.24);
-          pointer-events: none;
-        }
-
-        .quan-tam-rules-door-overlay {
-          padding: 24px;
-        }
-
-        .rules-door-card {
-          position: relative;
-          width: min(620px, 100%);
-          padding: clamp(18px, 3vw, 28px) clamp(18px, 3vw, 28px) clamp(24px, 3.2vw, 34px);
-          border: 1px solid rgba(253, 230, 138, 0.26);
-          border-radius: 28px;
-          background:
-            linear-gradient(90deg, rgba(251, 191, 36, 0.09), transparent 30% 70%, rgba(244, 114, 182, 0.08)),
-            radial-gradient(circle at 86% 8%, rgba(254, 243, 199, 0.18), transparent 30%),
-            linear-gradient(180deg, rgba(96, 50, 34, 0.88), rgba(35, 22, 25, 0.94)),
-            rgba(8, 13, 28, 0.88);
-          box-shadow:
-            0 34px 92px rgba(0, 0, 0, 0.38),
-            0 0 48px rgba(251, 191, 36, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.18),
-            inset 0 0 0 1px rgba(255, 247, 237, 0.08);
-          backdrop-filter: blur(14px);
-        }
-
-        .rules-door-close {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-          display: grid;
-          place-items: center;
-          min-width: 74px;
-          min-height: 38px;
-          padding: 6px 12px;
-          border: 1px solid rgba(253, 230, 138, 0.2);
-          border-radius: 999px;
-          background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.13), rgba(255, 247, 237, 0.05)),
-            rgba(42, 24, 23, 0.72);
-          color: #fff7ed;
-          cursor: pointer;
-          font-weight: 950;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.13),
-            0 12px 22px rgba(0, 0, 0, 0.18);
-        }
-
-        .rules-door-close span,
-        .rules-door-close small {
-          display: block;
-          line-height: 1;
-        }
-
-        .rules-door-close span {
-          font-size: 12px;
-        }
-
-        .rules-door-close small {
-          margin-top: 3px;
-          color: rgba(255, 247, 237, 0.62);
-          font-size: 9px;
-        }
-
-        .rules-door-close:hover,
-        .rules-door-close:focus-visible {
-          outline: none;
-          border-color: rgba(253, 230, 138, 0.42);
-          box-shadow:
-            0 0 0 4px rgba(253, 230, 138, 0.14),
-            0 14px 26px rgba(0, 0, 0, 0.22);
-        }
-
-        .rules-door-sign {
-          display: grid;
-          width: fit-content;
-          gap: 4px;
-          margin: -2px auto 16px;
-          padding: 9px 18px 8px;
-          border: 1px solid rgba(253, 230, 138, 0.28);
-          border-radius: 22px;
-          background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.12), rgba(255, 247, 237, 0.035)),
-            rgba(30, 18, 22, 0.54);
-          color: #fde68a;
-          text-align: center;
-          box-shadow:
-            0 0 28px rgba(251, 191, 36, 0.18),
-            inset 0 1px 0 rgba(255, 255, 255, 0.14);
-        }
-
-        .rules-door-sign strong {
-          font-family: ui-serif, Georgia, "Times New Roman", serif;
-          font-size: clamp(28px, 5vw, 42px);
-          font-weight: 950;
-          line-height: 0.92;
-          letter-spacing: -0.035em;
-          text-shadow:
-            0 0 16px rgba(251, 191, 36, 0.28),
-            0 2px 0 rgba(0, 0, 0, 0.28);
-        }
-
-        .rules-door-sign span {
-          color: rgba(255, 247, 237, 0.7);
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-        }
-
-        .rules-door-card h2 {
-          margin: 0;
-          color: #fff7ed;
-          font-family: ui-serif, Georgia, "Times New Roman", serif;
-          font-size: clamp(28px, 5vw, 44px);
-          font-style: italic;
-          font-weight: 800;
-          line-height: 1;
-          letter-spacing: -0.035em;
-          text-align: center;
-          text-shadow: 0 0 24px rgba(251, 191, 36, 0.16);
-        }
-
-        .rules-door-subtitle {
-          max-width: 500px;
-          margin: 10px auto 0;
-          color: rgba(255, 247, 237, 0.84);
-          font-size: clamp(14px, 1.8vw, 17px);
-          font-weight: 760;
-          line-height: 1.4;
-          text-align: center;
-        }
-
-        .rules-door-subtitle span,
-        .rules-door-helper span {
-          display: block;
-          margin-top: 4px;
-          color: rgba(255, 247, 237, 0.62);
-          font-size: 0.84em;
-          font-weight: 750;
-          line-height: 1.35;
-        }
-
-        .rules-door-card ol {
-          display: grid;
-          gap: 6px;
-          margin: 14px 0 0;
-          padding: 0;
-          list-style: none;
-          counter-reset: quan-tam-rule;
-        }
-
-        .rules-door-card li {
-          position: relative;
-          min-height: 32px;
-          padding: 7px 10px 7px 40px;
-          border: 1px solid rgba(253, 230, 138, 0.12);
-          border-radius: 13px;
-          background:
-            linear-gradient(90deg, rgba(253, 230, 138, 0.08), transparent 54%),
-            rgba(255, 247, 237, 0.045);
-          color: rgba(255, 247, 237, 0.82);
-          font-size: 13px;
-          font-weight: 760;
-          line-height: 1.32;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.09),
-            0 10px 22px rgba(0, 0, 0, 0.12);
-          counter-increment: quan-tam-rule;
-        }
-
-        .rules-door-card li::before {
-          content: counter(quan-tam-rule);
-          position: absolute;
-          left: 12px;
-          top: 50%;
-          display: grid;
-          place-items: center;
-          width: 21px;
-          height: 21px;
-          border-radius: 999px;
-          transform: translateY(-50%);
-          background:
-            radial-gradient(circle at 35% 25%, #fff7ed, transparent 32%),
-            linear-gradient(180deg, #fde68a, #f59e0b);
-          color: #111827;
-          font-size: 11px;
-          font-weight: 950;
-          box-shadow: 0 0 16px rgba(251, 191, 36, 0.24);
-        }
-
-        .rules-door-helper {
-          max-width: 500px;
-          margin: 12px auto 0;
-          color: rgba(255, 247, 237, 0.76);
-          font-size: 12px;
-          font-weight: 800;
-          line-height: 1.35;
-          text-align: center;
-        }
-
-        .rules-door-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          margin-top: 14px;
-        }
-
-        .rules-door-actions button {
-          min-height: 40px;
-          flex: 1 1 210px;
-          border: 0;
-          border-radius: 999px;
-          background:
-            radial-gradient(circle at 30% 20%, rgba(255, 247, 237, 0.75), transparent 28%),
-            linear-gradient(180deg, #fde68a, #fbbf24);
-          color: #111827;
-          cursor: pointer;
-          font-size: 13px;
-          font-weight: 950;
-          box-shadow:
-            0 12px 24px rgba(0, 0, 0, 0.22),
-            0 0 20px rgba(251, 191, 36, 0.14);
-        }
-
-        .rules-door-actions button:hover,
-        .rules-door-actions button:focus-visible {
-          outline: none;
-          box-shadow:
-            0 12px 24px rgba(0, 0, 0, 0.22),
-            0 0 0 4px rgba(253, 230, 138, 0.16),
-            0 0 28px rgba(251, 191, 36, 0.26);
         }
 
         .cafe-control-pill small,
@@ -4042,7 +3934,17 @@ export default function ChoNeoGossipPage() {
             rgba(24, 16, 16, 0.84);
         }
 
-        .trend-table-back {
+        .detail-panel-local-table {
+          padding: clamp(18px, 3vw, 28px);
+          border-color: rgba(253, 230, 138, 0.2);
+          background:
+            radial-gradient(circle at 16% 0%, rgba(253, 230, 138, 0.12), transparent 30%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.1), rgba(255, 247, 237, 0.04)),
+            rgba(20, 15, 14, 0.86);
+        }
+
+        .trend-table-back,
+        .local-table-back {
           order: 0;
           justify-self: start;
           width: fit-content;
@@ -4057,7 +3959,8 @@ export default function ChoNeoGossipPage() {
           font-weight: 950;
         }
 
-        .trend-table-back span {
+        .trend-table-back span,
+        .local-table-back span {
           display: block;
           margin-top: 2px;
           color: rgba(255, 247, 237, 0.58);
@@ -4127,6 +4030,15 @@ export default function ChoNeoGossipPage() {
         }
 
         .table-detail:has(.detail-panel-trend-table) > .detail-table-plate {
+          display: none;
+        }
+
+        .table-detail:has(.detail-panel-local-table) {
+          width: min(980px, 100%);
+          margin-top: 0;
+        }
+
+        .table-detail:has(.detail-panel-local-table) > .detail-table-plate {
           display: none;
         }
 
@@ -4228,6 +4140,297 @@ export default function ChoNeoGossipPage() {
           height: clamp(210px, 30vw, 340px);
           object-fit: cover;
           object-position: center;
+        }
+
+        .local-table-stage {
+          display: grid;
+          gap: 14px;
+          margin-top: 14px;
+        }
+
+        .local-table-heading {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+        }
+
+        .local-table-heading p {
+          margin: 0 0 8px;
+          color: #fde68a;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
+        .local-table-heading p span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.56);
+          font-size: 9px;
+          letter-spacing: 0.1em;
+          text-transform: none;
+        }
+
+        .local-table-heading h2 {
+          margin: 0;
+          color: #fff7ed;
+          font-size: clamp(34px, 5vw, 58px);
+          line-height: 0.94;
+        }
+
+        .local-table-heading h2 span {
+          display: block;
+          margin-top: 5px;
+          color: rgba(255, 247, 237, 0.62);
+          font-size: 0.34em;
+          line-height: 1.1;
+        }
+
+        .local-table-heading strong {
+          flex: 0 0 auto;
+          padding: 8px 11px;
+          border-radius: 999px;
+          color: #111827;
+          background: rgba(253, 230, 138, 0.92);
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .local-table-heading strong span {
+          display: block;
+          margin-top: 2px;
+          font-size: 10px;
+          font-weight: 850;
+          opacity: 0.68;
+        }
+
+        .local-table-subtitle {
+          max-width: 760px;
+          margin: -4px 0 0;
+          color: rgba(255, 247, 237, 0.84);
+          font-size: clamp(14px, 1.8vw, 17px);
+          font-weight: 850;
+          line-height: 1.42;
+        }
+
+        .local-table-subtitle span {
+          display: block;
+          margin-top: 5px;
+          color: rgba(255, 247, 237, 0.54);
+          font-size: 12px;
+          font-weight: 750;
+        }
+
+        .local-table-artwork {
+          overflow: hidden;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 26px;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.12), transparent 34%),
+            rgba(67, 20, 7, 0.34);
+          box-shadow:
+            0 20px 48px rgba(0, 0, 0, 0.26),
+            inset 0 1px 0 rgba(255, 247, 237, 0.08);
+        }
+
+        .local-table-artwork img {
+          display: block;
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          object-fit: cover;
+          object-position: center;
+        }
+
+        .local-table-prompts,
+        .local-table-thread,
+        .local-table-rules {
+          border: 1px solid rgba(253, 230, 138, 0.16);
+          border-radius: 22px;
+          background: rgba(255, 247, 237, 0.055);
+        }
+
+        .local-table-prompts {
+          display: grid;
+          gap: 10px;
+          padding: 12px;
+        }
+
+        .local-table-prompts > div:first-child {
+          display: flex;
+          align-items: end;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .local-table-prompts strong,
+        .local-table-thread-heading strong,
+        .local-table-empty-state strong {
+          color: #fde68a;
+          font-size: 13px;
+          font-weight: 950;
+          line-height: 1.15;
+        }
+
+        .local-table-prompts strong span,
+        .local-table-thread-heading strong span,
+        .local-table-empty-state strong span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.56);
+          font-size: 10px;
+          font-weight: 800;
+        }
+
+        .local-table-prompts small {
+          color: rgba(255, 247, 237, 0.54);
+          font-size: 10px;
+          font-weight: 850;
+          text-align: right;
+        }
+
+        .local-table-chip-row {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+          scrollbar-width: none;
+        }
+
+        .local-table-chip-row::-webkit-scrollbar {
+          display: none;
+        }
+
+        .local-table-chip {
+          display: grid;
+          grid-template-columns: 14px max-content;
+          gap: 7px;
+          align-items: center;
+          flex: 0 0 auto;
+          min-height: 36px;
+          border: 1px solid rgba(253, 230, 138, 0.16);
+          border-radius: 999px;
+          padding: 7px 11px;
+          color: #fff7ed;
+          background: rgba(255, 247, 237, 0.075);
+          font: inherit;
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .local-table-chip > span {
+          width: 14px;
+          height: 14px;
+          border-radius: 999px;
+          box-shadow: 0 0 0 2px rgba(255, 247, 237, 0.1);
+        }
+
+        .local-table-chip small {
+          display: none;
+        }
+
+        .local-table-chip:hover,
+        .local-table-chip:focus-visible {
+          outline: none;
+          border-color: rgba(253, 230, 138, 0.42);
+          background: rgba(253, 230, 138, 0.13);
+        }
+
+        .local-table-thread {
+          display: grid;
+          gap: 10px;
+          padding: 13px;
+        }
+
+        .local-table-thread-heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .local-table-note {
+          padding: 11px 12px;
+          border: 1px solid rgba(253, 230, 138, 0.14);
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.09), rgba(255, 247, 237, 0.045)),
+            rgba(15, 23, 42, 0.28);
+        }
+
+        .local-table-note small {
+          display: block;
+          color: rgba(253, 230, 138, 0.76);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+        }
+
+        .local-table-note p {
+          margin: 5px 0 0;
+          color: rgba(255, 247, 237, 0.88);
+          font-size: 14px;
+          line-height: 1.42;
+        }
+
+        .local-table-empty-state {
+          padding: 12px;
+          border: 1px dashed rgba(253, 230, 138, 0.2);
+          border-radius: 18px;
+          background: rgba(255, 247, 237, 0.045);
+        }
+
+        .local-table-empty-state p {
+          margin: 7px 0 0;
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.36;
+        }
+
+        .local-table-form {
+          margin-top: 0;
+          border-color: rgba(253, 230, 138, 0.2);
+          background:
+            radial-gradient(circle at 10% 0%, rgba(253, 230, 138, 0.13), transparent 30%),
+            rgba(255, 247, 237, 0.07);
+        }
+
+        .local-table-rules {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+          padding: 12px;
+        }
+
+        .local-table-rules p {
+          margin: 0;
+          color: rgba(255, 247, 237, 0.8);
+          font-size: 11px;
+          font-weight: 900;
+          line-height: 1.28;
+        }
+
+        .local-table-rules p span {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.52);
+          font-size: 9px;
+          font-weight: 750;
+        }
+
+        .local-table-stage-shop-talk {
+          --local-table-accent: #f59e0b;
+        }
+
+        .local-table-stage-vent-table {
+          --local-table-accent: #fb923c;
+        }
+
+        .local-table-stage-quiet-table {
+          --local-table-accent: #2dd4bf;
         }
 
         .trend-table-scene {
@@ -4386,6 +4589,10 @@ export default function ChoNeoGossipPage() {
 
         .trend-chip-turquoise > span {
           background: #2dd4bf;
+        }
+
+        .trend-chip-green > span {
+          background: #86efac;
         }
 
         .trend-chip-purple > span {
@@ -6552,116 +6759,6 @@ export default function ChoNeoGossipPage() {
             min-height: 34px;
             padding: 5px 10px;
             font-size: 10px;
-          }
-
-          .quan-tam-rules-door {
-            position: fixed;
-            inset: 0;
-            z-index: 100;
-            display: block;
-            max-height: none;
-            min-height: 100svh;
-            overflow-y: auto;
-            padding: max(10px, env(safe-area-inset-top)) 10px max(20px, env(safe-area-inset-bottom));
-            -webkit-overflow-scrolling: touch;
-            background:
-              radial-gradient(circle at 50% 18%, rgba(253, 230, 138, 0.16), transparent 34%),
-              rgba(31, 20, 18, 0.82);
-            backdrop-filter: blur(12px);
-          }
-
-          .quan-tam-rules-door-overlay {
-            padding: 10px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-
-          .quan-tam-rules-door::after {
-            display: none;
-          }
-
-          .rules-door-card {
-            align-self: start;
-            width: 100%;
-            padding: 13px 12px max(28px, calc(16px + env(safe-area-inset-bottom)));
-            border-radius: 18px;
-          }
-
-          .rules-door-card:has(.rules-door-close) {
-            padding-top: 48px;
-          }
-
-          .rules-door-close {
-            top: 9px;
-            right: 9px;
-            min-width: 70px;
-            min-height: 34px;
-            padding: 5px 10px;
-          }
-
-          .rules-door-sign {
-            display: none;
-          }
-
-          .rules-door-card .eyebrow {
-            margin-bottom: 7px;
-            font-size: 10px;
-          }
-
-          .rules-door-card h2 {
-            font-size: clamp(22px, 7vw, 28px);
-            line-height: 1.04;
-          }
-
-          .rules-door-subtitle {
-            margin-top: 7px;
-            font-size: 12px;
-            line-height: 1.28;
-          }
-
-          .rules-door-subtitle span {
-            margin-top: 3px;
-            font-size: 0.82em;
-          }
-
-          .rules-door-card ol {
-            gap: 5px;
-            margin-top: 9px;
-          }
-
-          .rules-door-card li {
-            min-height: 27px;
-            padding: 5px 8px 5px 32px;
-            font-size: 10px;
-            line-height: 1.22;
-          }
-
-          .rules-door-card li::before {
-            left: 8px;
-            width: 17px;
-            height: 17px;
-            font-size: 9px;
-          }
-
-          .rules-door-helper {
-            margin-top: 8px;
-            font-size: 10px;
-            line-height: 1.25;
-          }
-
-          .rules-door-actions {
-            position: static;
-            gap: 8px;
-            margin-top: 9px;
-            padding: 8px 0 0;
-            background: transparent;
-          }
-
-          .rules-door-actions button {
-            flex-basis: 100%;
-            min-height: 44px;
-            font-size: 12px;
-            touch-action: manipulation;
           }
 
           .identity-picker {
