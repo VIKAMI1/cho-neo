@@ -61,6 +61,7 @@ const TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS =
   FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS;
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
+const GOSSIP_RULES_ACCEPTED_KEY = "choNeoGossipRulesAcceptedV1";
 const FRONT_COUNTER_TALK_EXAMPLES = [
   "Which top coat is behaving today",
   "Slow Tuesday walk-in rhythm",
@@ -645,6 +646,7 @@ export default function ChoNeoGossipPage() {
   const [sharedFetchedMessageIds, setSharedFetchedMessageIds] = useState<string[]>(
     []
   );
+  const [rulesAcknowledgementOpen, setRulesAcknowledgementOpen] = useState(false);
   const [tableNotesByName, setTableNotesByName] = useState<TableNotesByName>({});
   const [tableNoteDraft, setTableNoteDraft] = useState("");
   const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
@@ -714,6 +716,13 @@ export default function ChoNeoGossipPage() {
     const searchParams = new URLSearchParams(window.location.search);
 
     setHostToolsOpen(searchParams.get("hostTools") === "1");
+    try {
+      setRulesAcknowledgementOpen(
+        window.localStorage.getItem(GOSSIP_RULES_ACCEPTED_KEY) !== "true"
+      );
+    } catch {
+      setRulesAcknowledgementOpen(true);
+    }
     setReportedMessageIds(readReportedFrontCounterMessageIds());
 
     const savedFrontCounter = readFrontCounterState();
@@ -1220,6 +1229,16 @@ export default function ChoNeoGossipPage() {
       });
       frontCounterInputRef.current?.focus();
     }, 80);
+  }
+
+  function acceptGossipRules() {
+    try {
+      window.localStorage.setItem(GOSSIP_RULES_ACCEPTED_KEY, "true");
+    } catch {
+      // Storage-restricted sessions can continue for the current visit.
+    }
+
+    setRulesAcknowledgementOpen(false);
   }
 
   function openTable(tableName: string) {
@@ -2711,6 +2730,36 @@ export default function ChoNeoGossipPage() {
           </>
       </section>
 
+      {rulesAcknowledgementOpen ? (
+        <section
+          className="gossip-rules-acknowledgement"
+          aria-label="Nội Quy Quán Tám"
+          aria-modal="true"
+          role="dialog"
+        >
+          <div className="gossip-rules-card">
+            <p className="eyebrow">
+              Trước khi ngồi xuống
+              <span>Before you sit down</span>
+            </p>
+            <h2>Nội Quy Quán Tám</h2>
+            <ul>
+              <li>Nói nhỏ. Nói thật. Giữ riêng tư.</li>
+              <li>Không gọi tên người thật để công kích.</li>
+              <li>Không spam bán hàng.</li>
+              <li>Không kéo drama qua bàn khác.</li>
+              <li>Bàn nào có chuyện của bàn đó.</li>
+            </ul>
+            <p>
+              Vui thì ngồi lại. Mệt thì thở một chút. Nhưng đừng làm đau người khác.
+            </p>
+            <button type="button" onClick={acceptGossipRules}>
+              Tôi hiểu, vào Quán Tám
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <style>{`
         .cafe-page {
           min-height: 100vh;
@@ -2911,6 +2960,94 @@ export default function ChoNeoGossipPage() {
 
         .mobile-table-picker {
           display: none;
+        }
+
+        .gossip-rules-acknowledgement {
+          position: fixed;
+          inset: 0;
+          z-index: 120;
+          display: grid;
+          place-items: center;
+          padding: 18px;
+          background:
+            radial-gradient(circle at 50% 18%, rgba(253, 230, 138, 0.16), transparent 34%),
+            rgba(20, 13, 12, 0.72);
+          backdrop-filter: blur(12px);
+        }
+
+        .gossip-rules-card {
+          width: min(520px, 100%);
+          padding: clamp(18px, 4vw, 26px);
+          border: 1px solid rgba(253, 230, 138, 0.24);
+          border-radius: 26px;
+          background:
+            radial-gradient(circle at 86% 0%, rgba(253, 230, 138, 0.16), transparent 30%),
+            linear-gradient(180deg, rgba(96, 50, 34, 0.94), rgba(35, 22, 25, 0.96));
+          box-shadow:
+            0 28px 80px rgba(0, 0, 0, 0.38),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
+        }
+
+        .gossip-rules-card h2 {
+          margin: 0;
+          color: #fff7ed;
+          font-family: ui-serif, Georgia, "Times New Roman", serif;
+          font-size: clamp(28px, 6vw, 42px);
+          font-style: italic;
+          line-height: 1;
+          letter-spacing: -0.035em;
+        }
+
+        .gossip-rules-card ul {
+          display: grid;
+          gap: 8px;
+          margin: 16px 0 0;
+          padding: 0;
+          list-style: none;
+        }
+
+        .gossip-rules-card li {
+          padding: 9px 11px;
+          border: 1px solid rgba(253, 230, 138, 0.12);
+          border-radius: 14px;
+          color: rgba(255, 247, 237, 0.84);
+          background: rgba(255, 247, 237, 0.055);
+          font-size: 13px;
+          font-weight: 800;
+          line-height: 1.32;
+        }
+
+        .gossip-rules-card p:not(.eyebrow) {
+          margin: 14px 0 0;
+          color: rgba(255, 247, 237, 0.76);
+          font-size: 13px;
+          font-weight: 800;
+          line-height: 1.4;
+        }
+
+        .gossip-rules-card button {
+          width: 100%;
+          min-height: 44px;
+          margin-top: 16px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: linear-gradient(180deg, #fde68a, #fbbf24);
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 950;
+          box-shadow:
+            0 12px 24px rgba(0, 0, 0, 0.22),
+            0 0 20px rgba(251, 191, 36, 0.14);
+        }
+
+        .gossip-rules-card button:hover,
+        .gossip-rules-card button:focus-visible {
+          outline: none;
+          box-shadow:
+            0 12px 24px rgba(0, 0, 0, 0.22),
+            0 0 0 4px rgba(253, 230, 138, 0.16),
+            0 0 28px rgba(251, 191, 36, 0.26);
         }
 
         .cafe-control-pill small,
@@ -6759,6 +6896,26 @@ export default function ChoNeoGossipPage() {
             min-height: 34px;
             padding: 5px 10px;
             font-size: 10px;
+          }
+
+          .gossip-rules-acknowledgement {
+            align-items: start;
+            overflow-y: auto;
+            padding: max(12px, env(safe-area-inset-top)) 10px max(18px, env(safe-area-inset-bottom));
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .gossip-rules-card {
+            border-radius: 20px;
+          }
+
+          .gossip-rules-card h2 {
+            font-size: clamp(24px, 8vw, 32px);
+          }
+
+          .gossip-rules-card li {
+            padding: 8px 10px;
+            font-size: 12px;
           }
 
           .identity-picker {
