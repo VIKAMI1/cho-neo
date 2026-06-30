@@ -1291,6 +1291,10 @@ export default function ChoNeoGossipPage() {
               <span>Về Sân Làng</span>
               <small>Village</small>
             </Link>
+            <Link className="cafe-control-pill" href="/cho-neo/gossip/avatar">
+              <span>Chọn avatar</span>
+              <small>Choose village face</small>
+            </Link>
             {isFrontCounter ? (
               <>
                 <button
