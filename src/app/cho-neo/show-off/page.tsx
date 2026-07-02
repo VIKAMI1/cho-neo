@@ -1,384 +1,872 @@
+"use client";
+
+import Image from "next/image";
 import Link from "next/link";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
 
-const gallerySections = [
-  {
-    title: "Fresh Nail Work",
-    text: "New sets, clean fills, seasonal colors, and the little details only another tech notices.",
-    tone: "rose",
-  },
-  {
-    title: "Salon Showcase",
-    text: "Stations, shelves, front desks, lighting, signs, and the pride of keeping a shop alive.",
-    tone: "gold",
-  },
-  {
-    title: "Before / After",
-    text: "Repairs, transformations, grow-outs, remodels, and proof that careful work changes the room.",
-    tone: "cyan",
-  },
-  {
-    title: "Community Recognition",
-    text: "Applause for good craft, steady effort, kind service, and people carrying the village forward.",
-    tone: "green",
-  },
-  {
-    title: "Upload Your Work",
-    text: "Use the existing Show-Off upload flow when you are ready to add your own work.",
-    tone: "violet",
-  },
+const KHOE_SET_HERO_IMAGE = "/images/cho-neo/khoe-set-gallery-hero-v1.png";
+const KHOE_SET_POSTS_KEY = "choNeoKhoeSetPostsV1";
+const CAPTION_LIMIT = 180;
+
+const KHOE_SET_CATEGORIES = [
+  "Mới làm",
+  "Khách thích",
+  "Màu đẹp",
+  "Trend",
+  "Ý tưởng",
+] as const;
+
+type KhoeSetCategory = (typeof KHOE_SET_CATEGORIES)[number];
+
+type KhoeSetPost = {
+  id: string;
+  category: KhoeSetCategory;
+  caption: string;
+  imageDataUrl?: string;
+  createdAt: string;
+};
+
+const PROMPT_CHIPS = [
+  "Set hôm nay khách mê lắm...",
+  "Màu này lên tay đẹp bất ngờ...",
+  "Một ý tưởng cho khách thích nhẹ nhàng...",
+  "Trend này tiệm mình muốn thử...",
+  "Khoe nhẹ một bộ mới làm...",
 ];
 
+function readStoredPosts() {
+  try {
+    const stored = window.localStorage.getItem(KHOE_SET_POSTS_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored) as Partial<KhoeSetPost>[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((post): post is KhoeSetPost => {
+        return Boolean(
+          post.id &&
+            post.caption &&
+            post.category &&
+            KHOE_SET_CATEGORIES.includes(post.category as KhoeSetCategory) &&
+            post.createdAt,
+        );
+      })
+      .slice(0, 24);
+  } catch {
+    return [];
+  }
+}
+
+function formatPostTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Mới đăng";
+  return new Intl.DateTimeFormat("vi", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export default function ChoNeoShowOffPage() {
+  const [selectedCategory, setSelectedCategory] =
+    useState<KhoeSetCategory>("Mới làm");
+  const [caption, setCaption] = useState("");
+  const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
+  const [posts, setPosts] = useState<KhoeSetPost[]>([]);
+  const [notice, setNotice] = useState("");
+  const captionRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    setPosts(readStoredPosts());
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(KHOE_SET_POSTS_KEY, JSON.stringify(posts));
+    } catch {
+      // Local gallery posts are optional browser memory only.
+    }
+  }, [posts]);
+
+  const filteredPosts = useMemo(
+    () => posts.filter((post) => post.category === selectedCategory),
+    [posts, selectedCategory],
+  );
+
+  function handlePromptClick(prompt: string) {
+    setCaption((current) => {
+      const trimmed = current.trim();
+      return trimmed ? `${trimmed} ${prompt}` : `${prompt} `;
+    });
+    setNotice("");
+    window.setTimeout(() => captionRef.current?.focus(), 0);
+  }
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setNotice("");
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setNotice("Chọn hình nail thôi nha.");
+      return;
+    }
+    if (file.size > 1_500_000) {
+      setNotice("Hình hơi nặng. Chọn ảnh dưới 1.5MB để giữ phòng nhẹ.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setImageDataUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanCaption = caption.trim();
+    if (cleanCaption.length < 5) {
+      setNotice("Viết thêm một chút cho mọi người hiểu set này nha.");
+      captionRef.current?.focus();
+      return;
+    }
+
+    const nextPost: KhoeSetPost = {
+      id: `khoe-set-${Date.now()}`,
+      category: selectedCategory,
+      caption: cleanCaption.slice(0, CAPTION_LIMIT),
+      imageDataUrl,
+      createdAt: new Date().toISOString(),
+    };
+
+    setPosts((current) => [nextPost, ...current].slice(0, 24));
+    setCaption("");
+    setImageDataUrl(undefined);
+    setNotice("Đã đặt set lên kệ Khoe Set.");
+  }
+
   return (
-    <main className="gallery-page">
+    <main className="khoe-set-page">
       <ChoNeoTimeAmbience />
-      <div className="gallery-glow" />
-      <div className="floor-grid" />
 
-      <section className="gallery-shell" aria-labelledby="gallery-title">
-        <header className="gallery-hero">
-          <div>
-            <p className="eyebrow">Cho Neo Village</p>
-            <h1 id="gallery-title">Show-Off Gallery</h1>
-            <p className="intro">Where the village shows its work.</p>
-          </div>
-
-          <Link className="back-link" href="/cho-neo">
-            <span className="back-kicker">Cho Neo Village</span>
-            <span>Back to Village Square</span>
+      <section className="khoe-set-shell" aria-labelledby="khoe-set-title">
+        <header className="khoe-set-topbar">
+          <Link className="soft-link" href="/cho-neo">
+            <span>Về Sân Làng</span>
+            <small>Back to Village</small>
+          </Link>
+          <Link className="soft-link" href="/cho-neo/gossip">
+            <span>Qua Quán Tám</span>
+            <small>Gossip Café</small>
           </Link>
         </header>
 
-        <section className="gallery-wall" aria-label="Show-Off Gallery sections">
-          <div className="wall-heading">
-            <p className="eyebrow">Community Wall</p>
-            <h2>Proud work, shared without shouting.</h2>
+        <section className="khoe-set-hero">
+          <Image
+            src={KHOE_SET_HERO_IMAGE}
+            alt="Khoe Set Đẹp bright nail inspiration salon corner"
+            fill
+            priority
+            sizes="(max-width: 860px) 100vw, 1180px"
+            className="khoe-set-hero-image"
+          />
+          <div className="hero-shade" aria-hidden="true" />
+          <div className="hero-copy">
+            <p>Khoe Set Đẹp</p>
+            <h1 id="khoe-set-title">Khoe set mới, giữ vui cho làng.</h1>
+            <span>
+              Show fresh sets, pretty colors, client-loved designs, and small
+              salon wins.
+            </span>
+          </div>
+        </section>
+
+        <section className="room-intro" aria-label="Giới thiệu Khoe Set">
+          <div>
+            <p className="section-kicker">Phòng Khoe Set</p>
+            <h2>Đẹp thì khoe nhẹ. Ai thích thì học ý tưởng.</h2>
             <p>
-              This is for members showing work, not supplier advertising.
+              Một góc sáng để đăng set mới làm, màu khách mê, trend muốn thử,
+              và những bộ móng khiến tiệm thấy tự hào.
             </p>
           </div>
+        </section>
 
-          <div className="spotlight-actions">
-            <Link href="/show-off">View Gallery</Link>
-            <Link href="/show-off/new">Upload Work</Link>
+        <nav className="category-row" aria-label="Danh mục Khoe Set">
+          {KHOE_SET_CATEGORIES.map((category) => (
+            <button
+              key={category}
+              type="button"
+              className={category === selectedCategory ? "active" : ""}
+              onClick={() => setSelectedCategory(category)}
+            >
+              {category}
+            </button>
+          ))}
+        </nav>
+
+        <section className="prompt-strip" aria-label="Gợi ý mở lời">
+          <div>
+            <p className="section-kicker">Gợi ý mở lời</p>
+            <span>Nhấn một câu để bắt đầu caption.</span>
           </div>
-
-          <div className="gallery-grid">
-            {gallerySections.map((section) => (
-              <article className={`gallery-card gallery-${section.tone}`} key={section.title}>
-                <span className="card-light" />
-                <div className="frame" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <h3>{section.title}</h3>
-                <p>{section.text}</p>
-              </article>
+          <div className="prompt-chips">
+            {PROMPT_CHIPS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => handlePromptClick(prompt)}
+              >
+                {prompt}
+              </button>
             ))}
           </div>
+        </section>
+
+        <section className="khoe-set-board">
+          <form className="composer-card" onSubmit={handleSubmit}>
+            <div className="composer-heading">
+              <div>
+                <p className="section-kicker">Đặt set lên kệ</p>
+                <h2>Caption ngắn thôi, hình đẹp nói tiếp.</h2>
+              </div>
+              <span>{caption.length}/{CAPTION_LIMIT}</span>
+            </div>
+
+            <div className="image-picker">
+              {imageDataUrl ? (
+                <img src={imageDataUrl} alt="Ảnh set nail đang chuẩn bị đăng" />
+              ) : (
+                <div>
+                  <strong>Thêm hình set</strong>
+                  <span>Ảnh nằm trên máy bạn, lưu tạm trong trình duyệt này.</span>
+                </div>
+              )}
+              <label>
+                Chọn ảnh
+                <input type="file" accept="image/*" onChange={handleImageChange} />
+              </label>
+            </div>
+
+            <textarea
+              ref={captionRef}
+              value={caption}
+              maxLength={CAPTION_LIMIT}
+              onChange={(event) => {
+                setCaption(event.target.value);
+                setNotice("");
+              }}
+              placeholder="Khoe nhẹ một bộ mới làm..."
+            />
+
+            <div className="composer-actions">
+              <p>
+                Không cần viết dài. Một màu, một cảm giác, một lý do khách
+                thích là đủ.
+              </p>
+              <button type="submit">Đăng set</button>
+            </div>
+            {notice && <p className="notice">{notice}</p>}
+          </form>
+
+          <section className="feed-column" aria-label="Bài Khoe Set">
+            <div className="feed-heading">
+              <div>
+                <p className="section-kicker">Set mới trong phòng</p>
+                <h2>{selectedCategory}</h2>
+              </div>
+            </div>
+
+            {filteredPosts.length > 0 ? (
+              <div className="post-grid">
+                {filteredPosts.map((post) => (
+                  <article className="set-card" key={post.id}>
+                    <div className="set-image">
+                      {post.imageDataUrl ? (
+                        <img src={post.imageDataUrl} alt="Set nail được chia sẻ" />
+                      ) : (
+                        <span>Set</span>
+                      )}
+                    </div>
+                    <div className="set-copy">
+                      <div>
+                        <span>{post.category}</span>
+                        <small>{formatPostTime(post.createdAt)}</small>
+                      </div>
+                      <p>{post.caption}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <strong>Chưa có set nào trong mục này.</strong>
+                <span>
+                  Khoe một bộ bạn thấy vui, một màu khách khen, hoặc một ý
+                  tưởng muốn để dành cho tiệm.
+                </span>
+              </div>
+            )}
+          </section>
+        </section>
+
+        <section className="soft-rules" aria-label="Nếp phòng Khoe Set">
+          <span>Khoe để vui, không chê tay nghề người khác.</span>
+          <span>Không spam bán hàng.</span>
+          <span>Giữ mặt khách riêng tư nếu ảnh có người.</span>
         </section>
       </section>
 
       <style>{`
-        .gallery-page {
+        .khoe-set-page {
           min-height: 100vh;
-          position: relative;
           overflow-x: hidden;
-          color: #fff7ed;
-          background: var(--cho-neo-room-page-background);
+          background:
+            radial-gradient(circle at 20% 0%, rgba(255, 190, 194, 0.32), transparent 28rem),
+            radial-gradient(circle at 86% 18%, rgba(253, 224, 138, 0.24), transparent 30rem),
+            linear-gradient(180deg, #fff7ed 0%, #fdecef 48%, #fff8f2 100%);
+          color: #401919;
         }
 
-        .gallery-glow,
-        .floor-grid {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-        }
-
-        .gallery-glow {
-          background: var(--cho-neo-room-glow-background);
-        }
-
-        .floor-grid {
-          top: 40%;
-          transform: perspective(620px) rotateX(62deg);
-          transform-origin: bottom center;
-          background-image:
-            linear-gradient(rgba(253, 230, 138, 0.13) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(253, 230, 138, 0.1) 1px, transparent 1px);
-          background-size: 58px 58px;
-          mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 100%);
-          opacity: var(--cho-neo-floor-opacity);
-        }
-
-        .gallery-shell {
-          position: relative;
-          z-index: 1;
+        .khoe-set-shell {
           width: min(1180px, 100%);
           margin: 0 auto;
-          padding: 24px;
+          padding: clamp(0.8rem, 2vw, 1.4rem);
         }
 
-        .gallery-hero {
+        .khoe-set-topbar {
           display: flex;
+          flex-wrap: wrap;
+          align-items: center;
           justify-content: space-between;
-          align-items: flex-start;
-          gap: 18px;
+          gap: 0.6rem;
+          margin-bottom: 0.75rem;
         }
 
-        .eyebrow {
-          margin: 0 0 8px;
-          color: #fde68a;
-          font-size: 12px;
-          font-weight: 900;
-          letter-spacing: 0.24em;
+        .soft-link {
+          display: inline-flex;
+          flex-direction: column;
+          justify-content: center;
+          min-height: 42px;
+          border: 1px solid rgba(148, 64, 39, 0.16);
+          border-radius: 999px;
+          padding: 0.48rem 0.82rem;
+          color: #6f2b21;
+          background: rgba(255, 255, 255, 0.74);
+          text-decoration: none;
+          box-shadow: 0 10px 26px rgba(127, 29, 29, 0.08);
+        }
+
+        .soft-link span {
+          font-size: 0.8rem;
+          font-weight: 950;
+        }
+
+        .soft-link small {
+          color: rgba(83, 35, 31, 0.58);
+          font-size: 0.66rem;
+        }
+
+        .khoe-set-hero {
+          position: relative;
+          min-height: clamp(280px, 42vw, 500px);
+          overflow: hidden;
+          border-radius: clamp(20px, 3vw, 34px);
+          background: #fbe7df;
+          box-shadow:
+            0 24px 70px rgba(127, 29, 29, 0.16),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+          isolation: isolate;
+        }
+
+        .khoe-set-hero-image {
+          z-index: 0;
+          object-fit: cover;
+          object-position: center;
+        }
+
+        .hero-shade {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          pointer-events: none;
+          background:
+            linear-gradient(90deg, rgba(77, 24, 24, 0.5), rgba(77, 24, 24, 0.06) 48%, transparent),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 244, 237, 0.18));
+        }
+
+        .hero-copy {
+          position: relative;
+          z-index: 2;
+          width: min(520px, 92%);
+          padding: clamp(1rem, 3vw, 2rem);
+          color: #fff9f1;
+          text-shadow: 0 8px 26px rgba(64, 16, 16, 0.32);
+        }
+
+        .hero-copy p,
+        .hero-copy h1,
+        .hero-copy span,
+        .room-intro h2,
+        .room-intro p,
+        .section-kicker,
+        .composer-heading h2,
+        .feed-heading h2 {
+          margin: 0;
+        }
+
+        .hero-copy p,
+        .section-kicker {
+          color: #ffe4ad;
+          font-size: 0.72rem;
+          font-weight: 950;
+          letter-spacing: 0.12em;
           text-transform: uppercase;
         }
 
-        h1 {
-          margin: 0;
-          font-size: clamp(46px, 8vw, 92px);
-          line-height: 0.9;
-          letter-spacing: -0.045em;
+        .hero-copy h1 {
+          margin-top: 0.35rem;
+          font-size: clamp(2.2rem, 6vw, 4.85rem);
+          line-height: 0.95;
           text-wrap: balance;
         }
 
-        .intro {
-          max-width: 680px;
-          margin: 14px 0 0;
-          color: rgba(255, 247, 237, 0.82);
-          font-size: clamp(16px, 1.8vw, 21px);
+        .hero-copy span {
+          display: block;
+          max-width: 420px;
+          margin-top: 0.72rem;
+          color: rgba(255, 249, 241, 0.82);
+          font-size: clamp(0.98rem, 1.55vw, 1.15rem);
           line-height: 1.5;
         }
 
-        .back-link,
-        .spotlight-actions a {
+        .room-intro,
+        .prompt-strip,
+        .composer-card,
+        .feed-column,
+        .soft-rules {
+          border: 1px solid rgba(148, 64, 39, 0.11);
+          background: rgba(255, 255, 255, 0.76);
+          box-shadow: 0 18px 46px rgba(127, 29, 29, 0.08);
+          backdrop-filter: blur(14px);
+        }
+
+        .room-intro {
+          margin-top: 0.9rem;
+          border-radius: 24px;
+          padding: clamp(1rem, 2vw, 1.25rem);
+        }
+
+        .room-intro h2 {
+          margin-top: 0.25rem;
+          color: #4b1717;
+          font-size: clamp(1.55rem, 3vw, 2.55rem);
+          line-height: 1;
+        }
+
+        .room-intro p:not(.section-kicker) {
+          max-width: 760px;
+          margin-top: 0.55rem;
+          color: rgba(64, 25, 25, 0.72);
+          line-height: 1.55;
+        }
+
+        .category-row,
+        .prompt-chips {
+          display: flex;
+          gap: 0.5rem;
+          overflow-x: auto;
+          padding-bottom: 0.1rem;
+          scrollbar-width: none;
+        }
+
+        .category-row::-webkit-scrollbar,
+        .prompt-chips::-webkit-scrollbar {
+          display: none;
+        }
+
+        .category-row {
+          margin-top: 0.85rem;
+        }
+
+        .category-row button,
+        .prompt-chips button {
+          flex: 0 0 auto;
+          min-height: 42px;
+          border: 1px solid rgba(148, 64, 39, 0.14);
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.78);
+          color: #6f2b21;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .category-row button {
+          padding: 0 0.92rem;
+        }
+
+        .category-row button.active {
+          border-color: transparent;
+          color: #fff8f1;
+          background: #b84b4a;
+          box-shadow: 0 12px 28px rgba(184, 75, 74, 0.22);
+        }
+
+        .prompt-strip {
+          display: grid;
+          grid-template-columns: minmax(160px, 0.34fr) minmax(0, 1fr);
+          gap: 0.9rem;
+          align-items: center;
+          margin-top: 0.75rem;
+          border-radius: 22px;
+          padding: 0.85rem;
+        }
+
+        .prompt-strip span {
+          display: block;
+          margin-top: 0.24rem;
+          color: rgba(64, 25, 25, 0.58);
+          font-size: 0.86rem;
+        }
+
+        .prompt-chips button {
+          padding: 0 0.78rem;
+          font-size: 0.86rem;
+          white-space: nowrap;
+        }
+
+        .khoe-set-board {
+          display: grid;
+          grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
+          gap: 0.9rem;
+          align-items: start;
+          margin-top: 0.9rem;
+        }
+
+        .composer-card,
+        .feed-column {
+          border-radius: 26px;
+          padding: clamp(0.9rem, 2vw, 1.1rem);
+        }
+
+        .composer-heading,
+        .feed-heading {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+
+        .composer-heading h2,
+        .feed-heading h2 {
+          margin-top: 0.22rem;
+          color: #4b1717;
+          font-size: 1.45rem;
+          line-height: 1.05;
+        }
+
+        .composer-heading > span {
+          color: rgba(64, 25, 25, 0.48);
+          font-size: 0.8rem;
+          font-weight: 800;
+        }
+
+        .image-picker {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 0.7rem;
+          align-items: center;
+          margin-top: 0.85rem;
+          border: 1px dashed rgba(148, 64, 39, 0.22);
+          border-radius: 20px;
+          padding: 0.65rem;
+          background: rgba(255, 247, 237, 0.72);
+        }
+
+        .image-picker img,
+        .set-image img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .image-picker img {
+          min-height: 140px;
+          border-radius: 16px;
+        }
+
+        .image-picker div {
+          min-height: 98px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          border-radius: 16px;
+          padding: 0.8rem;
+          background:
+            radial-gradient(circle at 30% 20%, rgba(251, 207, 232, 0.72), transparent 46%),
+            linear-gradient(135deg, #fff7ed, #ffe4e6);
+        }
+
+        .image-picker strong,
+        .image-picker span {
+          display: block;
+        }
+
+        .image-picker strong {
+          color: #4b1717;
+        }
+
+        .image-picker span {
+          margin-top: 0.25rem;
+          color: rgba(64, 25, 25, 0.6);
+          font-size: 0.84rem;
+          line-height: 1.35;
+        }
+
+        .image-picker label {
+          position: relative;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           min-height: 42px;
-          padding: 0 15px;
           border-radius: 999px;
-          color: #111827;
-          background: #fde68a;
-          font-size: 14px;
+          padding: 0 0.85rem;
+          color: #fff8f1;
+          background: #6f2b21;
+          font-size: 0.84rem;
           font-weight: 950;
-          text-decoration: none;
-          box-shadow: 0 0 34px rgba(251, 191, 36, 0.22);
+          cursor: pointer;
         }
 
-        .back-link {
-          flex: 0 0 auto;
-          flex-direction: column;
-          align-items: flex-start;
-          min-height: 50px;
-          padding: 7px 15px;
-          line-height: 1.1;
-        }
-
-        .back-kicker {
-          font-size: 9px;
-          font-weight: 950;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          opacity: 0.68;
-        }
-
-        .gallery-wall {
-          position: relative;
-          overflow: hidden;
-          margin-top: 22px;
-          padding: 22px;
-          border: 1px solid rgba(253, 230, 138, 0.16);
-          border-radius: 34px;
-          background:
-            radial-gradient(circle at 50% 12%, rgba(253, 230, 138, 0.18), transparent 28%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04)),
-            rgba(8, 13, 28, 0.62);
-          box-shadow:
-            0 24px 80px rgba(0, 0, 0, 0.38),
-            inset 0 1px 0 rgba(255, 255, 255, 0.14);
-          backdrop-filter: blur(12px);
-        }
-
-        .gallery-wall::before {
-          content: "";
+        .image-picker input {
           position: absolute;
-          left: 50%;
-          bottom: -120px;
-          width: min(900px, 105%);
-          height: 360px;
-          transform: translateX(-50%) rotate(-2deg);
-          border-radius: 50%;
-          background: rgba(75, 47, 60, 0.78);
-          box-shadow: inset 0 0 48px rgba(0, 0, 0, 0.24);
+          inset: 0;
+          opacity: 0;
+          cursor: pointer;
         }
 
-        .wall-heading,
-        .spotlight-actions,
-        .gallery-grid {
-          position: relative;
-          z-index: 1;
+        textarea {
+          width: 100%;
+          min-height: 112px;
+          resize: vertical;
+          margin-top: 0.75rem;
+          border: 1px solid rgba(148, 64, 39, 0.14);
+          border-radius: 20px;
+          padding: 0.82rem;
+          color: #401919;
+          background: rgba(255, 255, 255, 0.82);
+          font: inherit;
+          line-height: 1.45;
+          outline: none;
         }
 
-        .wall-heading {
+        textarea:focus {
+          border-color: rgba(184, 75, 74, 0.55);
+          box-shadow: 0 0 0 4px rgba(251, 207, 232, 0.52);
+        }
+
+        .composer-actions {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.8rem;
+          margin-top: 0.75rem;
+        }
+
+        .composer-actions p,
+        .notice {
+          margin: 0;
+          color: rgba(64, 25, 25, 0.58);
+          font-size: 0.84rem;
+          line-height: 1.35;
+        }
+
+        .composer-actions button {
+          flex: 0 0 auto;
+          min-height: 46px;
+          border: 0;
+          border-radius: 999px;
+          padding: 0 1rem;
+          color: #fff8f1;
+          background: #b84b4a;
+          font-weight: 950;
+          cursor: pointer;
+          box-shadow: 0 12px 28px rgba(184, 75, 74, 0.22);
+        }
+
+        .notice {
+          margin-top: 0.65rem;
+          color: #9f3a38;
+          font-weight: 800;
+        }
+
+        .post-grid {
           display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          gap: 10px;
-          max-width: 780px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.75rem;
+          margin-top: 0.8rem;
         }
 
-        .wall-heading h2 {
-          margin: 0;
-          font-size: clamp(30px, 4vw, 56px);
-          line-height: 0.95;
-          letter-spacing: -0.04em;
+        .set-card {
+          overflow: hidden;
+          border: 1px solid rgba(148, 64, 39, 0.1);
+          border-radius: 22px;
+          background: rgba(255, 255, 255, 0.82);
+          box-shadow: 0 14px 34px rgba(127, 29, 29, 0.08);
         }
 
-        .wall-heading p:not(.eyebrow) {
-          margin: 0;
-          color: rgba(255, 247, 237, 0.76);
-          font-size: 15px;
+        .set-image {
+          display: grid;
+          place-items: center;
+          aspect-ratio: 4 / 3;
+          background:
+            radial-gradient(circle at 40% 20%, rgba(251, 207, 232, 0.72), transparent 46%),
+            linear-gradient(135deg, #fff7ed, #fed7aa);
+          color: rgba(111, 43, 33, 0.5);
+          font-weight: 950;
+        }
+
+        .set-copy {
+          padding: 0.75rem;
+        }
+
+        .set-copy div {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.7rem;
+        }
+
+        .set-copy span {
+          border-radius: 999px;
+          padding: 0.24rem 0.48rem;
+          color: #fff8f1;
+          background: #b84b4a;
+          font-size: 0.72rem;
+          font-weight: 900;
+        }
+
+        .set-copy small {
+          color: rgba(64, 25, 25, 0.5);
+          font-weight: 800;
+        }
+
+        .set-copy p {
+          margin: 0.6rem 0 0;
+          color: #401919;
+          line-height: 1.45;
+          overflow-wrap: anywhere;
+        }
+
+        .empty-state {
+          display: grid;
+          gap: 0.4rem;
+          margin-top: 0.8rem;
+          border: 1px dashed rgba(148, 64, 39, 0.18);
+          border-radius: 22px;
+          padding: 1rem;
+          background: rgba(255, 247, 237, 0.7);
+        }
+
+        .empty-state strong {
+          color: #4b1717;
+          font-size: 1.15rem;
+        }
+
+        .empty-state span {
+          color: rgba(64, 25, 25, 0.62);
           line-height: 1.5;
         }
 
-        .spotlight-actions {
+        .soft-rules {
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
-          margin-top: 18px;
-        }
-
-        .spotlight-actions a:last-child {
-          color: #fff7ed;
-          background: rgba(255, 255, 255, 0.11);
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          box-shadow: none;
-        }
-
-        .gallery-grid {
-          display: grid;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-          gap: 12px;
-          margin-top: 22px;
-        }
-
-        .gallery-card {
-          position: relative;
-          overflow: hidden;
-          min-height: 260px;
-          padding: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          border-radius: 24px;
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045)),
-            rgba(8, 13, 28, 0.72);
-          box-shadow:
-            0 18px 54px rgba(0, 0, 0, 0.34),
-            inset 0 1px 0 rgba(255, 255, 255, 0.13);
-          backdrop-filter: blur(12px);
-        }
-
-        .card-light {
-          position: absolute;
-          inset: -28px 20px auto;
-          height: 100px;
+          gap: 0.5rem;
+          margin-top: 0.9rem;
           border-radius: 999px;
-          opacity: 0.34;
-          filter: blur(22px);
+          padding: 0.65rem;
         }
 
-        .gallery-rose .card-light { background: #fda4af; }
-        .gallery-gold .card-light { background: #fcd34d; }
-        .gallery-cyan .card-light { background: #67e8f9; }
-        .gallery-green .card-light { background: #86efac; }
-        .gallery-violet .card-light { background: #c4b5fd; }
-
-        .frame,
-        .gallery-card h3,
-        .gallery-card p {
-          position: relative;
-          z-index: 1;
+        .soft-rules span {
+          border-radius: 999px;
+          padding: 0.35rem 0.62rem;
+          color: rgba(64, 25, 25, 0.68);
+          background: rgba(255, 247, 237, 0.72);
+          font-size: 0.8rem;
+          font-weight: 800;
         }
 
-        .frame {
-          display: grid;
-          grid-template-columns: 1fr 0.78fr;
-          grid-template-rows: repeat(2, 52px);
-          gap: 7px;
-        }
+        @media (max-width: 900px) {
+          .khoe-set-board,
+          .prompt-strip {
+            grid-template-columns: 1fr;
+          }
 
-        .frame span {
-          border: 1px solid rgba(255, 255, 255, 0.22);
-          border-radius: 14px;
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.58)),
-            #fef3c7;
-          box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22);
-        }
-
-        .frame span:first-child {
-          grid-row: span 2;
-        }
-
-        .gallery-card h3 {
-          margin: 18px 0 0;
-          font-size: 24px;
-          line-height: 0.98;
-          letter-spacing: -0.03em;
-        }
-
-        .gallery-card p {
-          margin: 12px 0 0;
-          color: rgba(255, 247, 237, 0.7);
-          font-size: 13px;
-          line-height: 1.45;
-        }
-
-        @media (max-width: 1020px) {
-          .gallery-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+          .post-grid {
+            grid-template-columns: 1fr;
           }
         }
 
-        @media (max-width: 760px) {
-          .gallery-shell {
-            max-width: 100vw;
-            overflow-x: hidden;
-            padding: 16px 12px 22px;
+        @media (max-width: 640px) {
+          .khoe-set-shell {
+            padding: 0.7rem;
           }
 
-          .gallery-hero {
+          .khoe-set-topbar {
+            justify-content: flex-start;
+          }
+
+          .soft-link {
+            flex: 1 1 150px;
+          }
+
+          .khoe-set-hero {
+            min-height: 300px;
+          }
+
+          .khoe-set-hero-image {
+            object-position: 58% 50%;
+          }
+
+          .hero-shade {
+            background:
+              linear-gradient(180deg, rgba(77, 24, 24, 0.52), rgba(77, 24, 24, 0.08) 58%, rgba(255, 244, 237, 0.15)),
+              linear-gradient(90deg, rgba(77, 24, 24, 0.2), transparent);
+          }
+
+          .hero-copy {
+            width: 100%;
+            padding: 1rem;
+          }
+
+          .hero-copy h1 {
+            font-size: clamp(2rem, 11vw, 3rem);
+          }
+
+          .image-picker,
+          .composer-actions {
+            grid-template-columns: 1fr;
             flex-direction: column;
+            align-items: stretch;
           }
 
-          h1 {
-            max-width: 100%;
-            overflow-wrap: anywhere;
-            font-size: clamp(38px, 12vw, 50px);
-          }
-
-          .back-link,
-          .spotlight-actions a {
+          .image-picker label,
+          .composer-actions button {
             width: 100%;
           }
 
-          .spotlight-actions {
-            flex-direction: column;
-          }
-
-          .gallery-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .gallery-card {
-            min-height: auto;
-          }
-
-          .frame {
-            grid-template-columns: 1fr;
+          .soft-rules {
+            border-radius: 22px;
           }
         }
       `}</style>
