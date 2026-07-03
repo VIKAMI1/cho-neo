@@ -2742,6 +2742,7 @@ export default function ChoNeoGossipPage() {
                         </>
                       )}
                     </p>
+                    {renderAvatarPassportChip()}
                     <div className="message-row">
                       <input
                         id="table-note-message"
@@ -3070,6 +3071,7 @@ export default function ChoNeoGossipPage() {
           text-decoration: none;
           box-shadow: none;
           backdrop-filter: blur(10px);
+          touch-action: manipulation;
         }
 
         .cafe-control-pill:hover,
@@ -6709,6 +6711,85 @@ export default function ChoNeoGossipPage() {
           line-height: 1.4;
         }
 
+        .composer-avatar-passport {
+          display: inline-flex;
+          width: fit-content;
+          max-width: 100%;
+          min-height: 38px;
+          align-items: center;
+          gap: 8px;
+          justify-self: start;
+          border: 1px solid rgba(253, 230, 138, 0.2);
+          border-radius: 999px;
+          padding: 5px 12px 5px 6px;
+          color: #fff7ed;
+          background:
+            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.12), transparent 34%),
+            rgba(255, 247, 237, 0.075);
+          text-decoration: none;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .composer-avatar-passport img,
+        .composer-avatar-placeholder {
+          width: 30px;
+          height: 30px;
+          flex: 0 0 auto;
+          border-radius: 999px;
+        }
+
+        .composer-avatar-passport img {
+          object-fit: cover;
+        }
+
+        .composer-avatar-placeholder {
+          display: grid;
+          place-items: center;
+          color: #111827;
+          background: #fde68a;
+          font-size: 18px;
+          font-weight: 950;
+        }
+
+        .composer-avatar-passport strong {
+          display: block;
+          overflow: hidden;
+          color: #fff7ed;
+          font-size: 12px;
+          font-weight: 950;
+          line-height: 1.05;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .composer-avatar-passport small {
+          display: block;
+          overflow: hidden;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 10px;
+          font-weight: 850;
+          line-height: 1.05;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .composer-avatar-passport-empty {
+          color: #fde68a;
+        }
+
+        .front-counter-stage-form .composer-avatar-passport {
+          min-height: 32px;
+          padding: 4px 10px 4px 5px;
+          background: rgba(255, 247, 237, 0.09);
+        }
+
+        .front-counter-stage-form .composer-avatar-passport img,
+        .front-counter-stage-form .composer-avatar-placeholder {
+          width: 26px;
+          height: 26px;
+        }
+
         .message-row {
           display: grid;
           grid-template-columns: minmax(0, 1fr) auto;
@@ -7261,11 +7342,11 @@ export default function ChoNeoGossipPage() {
             padding: 0 2px 2px;
           }
 
-          .mobile-table-card {
+        .mobile-table-card {
             display: grid;
             gap: 5px;
-            min-height: 76px;
-            padding: 11px 12px;
+            min-height: 82px;
+            padding: 13px 12px;
             border: 1px solid rgba(253, 230, 138, 0.22);
             border-radius: 18px;
             background:
@@ -7275,6 +7356,7 @@ export default function ChoNeoGossipPage() {
             color: #fff7ed;
             font: inherit;
             text-align: left;
+            touch-action: manipulation;
             box-shadow:
               inset 0 1px 0 rgba(255, 255, 255, 0.1),
               0 12px 24px rgba(0, 0, 0, 0.18);
@@ -7282,10 +7364,12 @@ export default function ChoNeoGossipPage() {
 
           .mobile-table-card strong {
             display: block;
+            min-width: 0;
             color: #fff7ed;
             font-size: 14px;
             font-weight: 950;
             line-height: 1.08;
+            overflow-wrap: anywhere;
           }
 
           .mobile-table-card strong span {
@@ -7300,7 +7384,7 @@ export default function ChoNeoGossipPage() {
             display: -webkit-box;
             overflow: hidden;
             color: rgba(255, 247, 237, 0.68);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 800;
             line-height: 1.25;
             -webkit-box-orient: vertical;
@@ -7428,6 +7512,99 @@ export default function ChoNeoGossipPage() {
 
           .trend-table-starter-list button {
             min-height: 34px;
+          }
+
+          .local-table-stage {
+            gap: 10px;
+            margin-top: 8px;
+          }
+
+          .local-table-heading {
+            display: grid;
+            gap: 8px;
+          }
+
+          .local-table-heading p {
+            margin-bottom: 2px;
+            font-size: 10px;
+            letter-spacing: 0.11em;
+          }
+
+          .local-table-heading h2 {
+            font-size: clamp(28px, 9vw, 38px);
+            line-height: 0.98;
+          }
+
+          .local-table-heading strong {
+            justify-self: start;
+            min-height: 34px;
+            padding: 7px 10px;
+            font-size: 11px;
+          }
+
+          .local-table-subtitle {
+            margin-top: 0;
+            font-size: 12px;
+            line-height: 1.36;
+          }
+
+          .local-table-subtitle span {
+            margin-top: 4px;
+            font-size: 10px;
+          }
+
+          .local-table-artwork {
+            border-radius: 20px;
+          }
+
+          .local-table-artwork img {
+            aspect-ratio: 16 / 10;
+          }
+
+          .local-table-prompts,
+          .local-table-thread,
+          .local-table-rules {
+            border-radius: 18px;
+          }
+
+          .local-table-prompts {
+            gap: 8px;
+            padding: 10px;
+          }
+
+          .local-table-prompts > div:first-child,
+          .local-table-thread-heading {
+            display: grid;
+            gap: 3px;
+          }
+
+          .local-table-prompts small {
+            text-align: left;
+          }
+
+          .local-table-chip {
+            min-height: 40px;
+            padding: 8px 11px;
+          }
+
+          .local-table-thread {
+            gap: 8px;
+            padding: 11px;
+          }
+
+          .local-table-note {
+            padding: 10px;
+            border-radius: 16px;
+          }
+
+          .local-table-rules {
+            grid-template-columns: 1fr;
+            gap: 7px;
+            padding: 10px;
+          }
+
+          .local-table-rules p {
+            font-size: 11px;
           }
 
           .detail-panel-trend-table .character-count {
@@ -7673,7 +7850,7 @@ export default function ChoNeoGossipPage() {
           .front-counter-stage-message-row input {
             min-height: 40px;
             padding: 10px 12px;
-            font-size: 12px;
+            font-size: 16px;
           }
 
           .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
@@ -7730,6 +7907,7 @@ export default function ChoNeoGossipPage() {
           .cafe-control-pill {
             flex: 1 1 calc(33.333% - 6px);
             min-width: 96px;
+            min-height: 42px;
           }
 
           .current-identity,
@@ -7894,7 +8072,48 @@ export default function ChoNeoGossipPage() {
           }
 
           .message-row {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(82px, auto);
+            gap: 8px;
+          }
+
+          .message-row input {
+            min-height: 44px;
+            padding-inline: 13px;
+            font-size: 16px;
+          }
+
+          .message-row button {
+            width: auto;
+            min-height: 44px;
+            padding-inline: 12px;
+            font-size: 12px;
+            touch-action: manipulation;
+          }
+
+          .message-row button span {
+            display: none;
+          }
+
+          .composer-avatar-passport {
+            width: 100%;
+            min-height: 44px;
+            padding: 6px 12px 6px 7px;
+            border-radius: 18px;
+          }
+
+          .composer-avatar-passport img,
+          .composer-avatar-placeholder {
+            width: 34px;
+            height: 34px;
+          }
+
+          .composer-avatar-passport strong {
+            min-width: 0;
+            font-size: 12px;
+          }
+
+          .composer-avatar-passport small {
+            font-size: 10px;
           }
 
           .thread-message {
@@ -7907,6 +8126,16 @@ export default function ChoNeoGossipPage() {
 
           .host-note div {
             align-items: stretch;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .message-row {
+            grid-template-columns: 1fr;
+          }
+
+          .message-row button {
+            width: 100%;
           }
         }
       `}</style>
