@@ -13,7 +13,38 @@ export type ChoNeoIdentity = {
   updatedAt: string;
 };
 
-export const CHO_NEO_IDENTITY_KEY = "choNeoIdentityV1";
+type ChoNeoAvatarProfileStorage = {
+  avatarId?: string;
+  avatarSrc?: string;
+  createdAt?: string;
+  mood?: string;
+  nickname?: string;
+  updatedAt?: string;
+};
+
+export const CHO_NEO_IDENTITY_KEY = "choNeoAvatarProfile";
+
+const CANONICAL_AVATAR_ID_MAP: Record<string, string> = {
+  "bling-bling-girl": "salon-queen",
+  "creative-soul": "golden-scissors",
+  "female-salon-owner": "auntie-owner",
+  "gossip-cafe-regular": "gossip-auntie",
+  "male-salon-owner": "auntie-owner",
+  "nail-tech": "young-nail-tech",
+  "nail-tech-guy": "young-nail-tech",
+  "show-off-gay": "weekend-warrior",
+};
+
+const AVATAR_PROFILE_SRC_BY_ID: Record<string, string> = {
+  "auntie-owner": "/images/cho-neo/avatars/salon-owner-female.png",
+  "front-counter-pro": "/images/cho-neo/avatars/salon-owner-male.png",
+  "golden-scissors": "/images/cho-neo/avatars/creative-soul.png",
+  "gossip-auntie": "/images/cho-neo/avatars/gossip-cafe-regular.png",
+  "salon-queen": "/images/cho-neo/avatars/bling-bling-girl.png",
+  "uncle-coffee": "/images/cho-neo/avatars/gossip-cafe-regular.png",
+  "weekend-warrior": "/images/cho-neo/avatars/show-off-guy.png",
+  "young-nail-tech": "/images/cho-neo/avatars/nail-tech-girl.png",
+};
 
 export const CHO_NEO_AVATARS: ChoNeoAvatar[] = [
   {
@@ -138,11 +169,23 @@ export function getAvatarById(avatarId: string) {
   return CHO_NEO_AVATARS.find((avatar) => avatar.id === avatarId) ?? CHO_NEO_AVATARS[0];
 }
 
-export function getChoNeoIdentity(): ChoNeoIdentity | null {
-  if (typeof window === "undefined") {
-    return null;
+function resolveAvatarId(avatarId: string | undefined) {
+  if (!avatarId) {
+    return CHO_NEO_AVATARS[0].id;
   }
 
+  if (CHO_NEO_AVATARS.some((avatar) => avatar.id === avatarId)) {
+    return avatarId;
+  }
+
+  return CANONICAL_AVATAR_ID_MAP[avatarId] ?? CHO_NEO_AVATARS[0].id;
+}
+
+function getAvatarProfileSrc(avatarId: string) {
+  return AVATAR_PROFILE_SRC_BY_ID[avatarId] ?? "/images/cho-neo/avatars/nail-tech-girl.png";
+}
+
+function readStoredAvatarProfile(): ChoNeoAvatarProfileStorage | null {
   const raw = localStorage.getItem(CHO_NEO_IDENTITY_KEY);
 
   if (!raw) {
@@ -150,29 +193,36 @@ export function getChoNeoIdentity(): ChoNeoIdentity | null {
   }
 
   try {
-    const parsed = JSON.parse(raw) as ChoNeoIdentity;
-    const avatarExists = CHO_NEO_AVATARS.some(
-      (avatar) => avatar.id === parsed.avatarId
-    );
-
-    if (
-      !avatarExists ||
-      !isValidVillageNickname(parsed.nickname).valid ||
-      typeof parsed.createdAt !== "string" ||
-      typeof parsed.updatedAt !== "string"
-    ) {
-      return null;
-    }
-
-    return {
-      avatarId: parsed.avatarId,
-      createdAt: parsed.createdAt,
-      nickname: parsed.nickname.trim(),
-      updatedAt: parsed.updatedAt,
-    };
+    return JSON.parse(raw) as ChoNeoAvatarProfileStorage;
   } catch {
     return null;
   }
+}
+
+export function getChoNeoIdentity(): ChoNeoIdentity | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const parsed = readStoredAvatarProfile();
+
+  if (
+    !parsed ||
+    typeof parsed.nickname !== "string" ||
+    !isValidVillageNickname(parsed.nickname).valid ||
+    typeof parsed.updatedAt !== "string"
+  ) {
+    return null;
+  }
+
+  const avatarId = resolveAvatarId(parsed.avatarId);
+
+  return {
+    avatarId,
+    createdAt: parsed.createdAt ?? parsed.updatedAt,
+    nickname: parsed.nickname.trim(),
+    updatedAt: parsed.updatedAt,
+  };
 }
 
 export function saveChoNeoIdentity(input: {
@@ -184,7 +234,7 @@ export function saveChoNeoIdentity(input: {
     return null;
   }
 
-  const avatarId = getAvatarById(input.avatarId).id;
+  const avatarId = resolveAvatarId(input.avatarId);
   const nickname = input.nickname.trim();
   const validation = isValidVillageNickname(nickname);
 
@@ -193,14 +243,24 @@ export function saveChoNeoIdentity(input: {
   }
 
   const now = new Date().toISOString();
+  const storedProfile = readStoredAvatarProfile();
   const identity: ChoNeoIdentity = {
     avatarId,
     nickname,
-    createdAt: input.existingIdentity?.createdAt ?? now,
+    createdAt: input.existingIdentity?.createdAt ?? storedProfile?.createdAt ?? now,
     updatedAt: now,
   };
 
-  localStorage.setItem(CHO_NEO_IDENTITY_KEY, JSON.stringify(identity));
+  localStorage.setItem(
+    CHO_NEO_IDENTITY_KEY,
+    JSON.stringify({
+      avatarId,
+      avatarSrc: getAvatarProfileSrc(avatarId),
+      nickname,
+      mood: storedProfile?.mood ?? "Muốn tám chút",
+      updatedAt: now,
+    })
+  );
 
   return identity;
 }

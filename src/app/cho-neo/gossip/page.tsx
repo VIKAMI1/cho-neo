@@ -42,6 +42,11 @@ import {
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
 
 type ConversationMessage = {
+  author?: {
+    avatarSrc?: string;
+    mood?: string;
+    nickname: string;
+  };
   name: string;
   text: string;
 };
@@ -53,6 +58,13 @@ type FrontCounterModerationAction =
   | "markReviewed"
   | "remove"
   | "unhide";
+type ChoNeoAvatarProfile = {
+  avatarId: string;
+  avatarSrc: string;
+  nickname: string;
+  mood: string;
+  updatedAt: string;
+};
 
 const FRONT_COUNTER_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS = 3;
@@ -62,6 +74,7 @@ const TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS =
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
 const GOSSIP_RULES_ACCEPTED_KEY = "choNeoGossipRulesAcceptedV1";
+const CHO_NEO_AVATAR_PROFILE_KEY = "choNeoAvatarProfile";
 const FRONT_COUNTER_TALK_EXAMPLES = [
   "Which top coat is behaving today",
   "Slow Tuesday walk-in rhythm",
@@ -625,6 +638,8 @@ export default function ChoNeoGossipPage() {
   >(null);
   const [frontCounterMusicOn, setFrontCounterMusicOn] = useState(false);
   const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
+  const [avatarProfile, setAvatarProfile] =
+    useState<ChoNeoAvatarProfile | null>(null);
   const [identityPickerOpen, setIdentityPickerOpen] = useState(false);
   const [identityAvatarId, setIdentityAvatarId] = useState(CHO_NEO_AVATARS[0].id);
   const [identityNicknameDraft, setIdentityNicknameDraft] = useState("");
@@ -705,7 +720,42 @@ export default function ChoNeoGossipPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const readAvatarProfile = () => {
+      try {
+        const rawProfile = window.localStorage.getItem(CHO_NEO_AVATAR_PROFILE_KEY);
+
+        if (!rawProfile) {
+          setAvatarProfile(null);
+          return;
+        }
+
+        const parsedProfile = JSON.parse(rawProfile) as Partial<ChoNeoAvatarProfile>;
+
+        if (
+          typeof parsedProfile.avatarId !== "string" ||
+          typeof parsedProfile.avatarSrc !== "string" ||
+          typeof parsedProfile.nickname !== "string" ||
+          typeof parsedProfile.mood !== "string" ||
+          typeof parsedProfile.updatedAt !== "string"
+        ) {
+          setAvatarProfile(null);
+          return;
+        }
+
+        setAvatarProfile({
+          avatarId: parsedProfile.avatarId,
+          avatarSrc: parsedProfile.avatarSrc,
+          nickname: parsedProfile.nickname.trim(),
+          mood: parsedProfile.mood.trim(),
+          updatedAt: parsedProfile.updatedAt,
+        });
+      } catch {
+        setAvatarProfile(null);
+      }
+    };
     const savedIdentity = getChoNeoIdentity();
+
+    readAvatarProfile();
 
     if (savedIdentity) {
       setIdentity(savedIdentity);
@@ -760,8 +810,17 @@ export default function ChoNeoGossipPage() {
 
     void loadSharedFrontCounterMessages();
 
+    function handleAvatarStorage(event: StorageEvent) {
+      if (event.key === CHO_NEO_AVATAR_PROFILE_KEY) {
+        readAvatarProfile();
+      }
+    }
+
+    window.addEventListener("storage", handleAvatarStorage);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("storage", handleAvatarStorage);
     };
   }, []);
 
@@ -790,6 +849,8 @@ export default function ChoNeoGossipPage() {
     setFrontCounterPostNotice(null);
 
     if (frontCounterMemoryMode === "shared") {
+      const authorSnapshot = getCurrentAuthorSnapshot();
+
       try {
         const savedMessage = await postSharedFrontCounterMessage({
           avatarId: identity.avatarId,
@@ -804,9 +865,14 @@ export default function ChoNeoGossipPage() {
         }
 
         const sharedMessages = await fetchSharedFrontCounterMessages();
+        const decoratedSharedMessages = sharedMessages.map((message) =>
+          message.id === savedMessage.id && authorSnapshot
+            ? { ...message, author: authorSnapshot }
+            : message
+        );
 
-        setFrontCounterMessages(sharedMessages);
-        setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(sharedMessages));
+        setFrontCounterMessages(decoratedSharedMessages);
+        setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(decoratedSharedMessages));
         setFrontCounterDraft("");
         setFrontCounterMemoryNotice(null);
         setFrontCounterPostNotice(
@@ -824,11 +890,16 @@ export default function ChoNeoGossipPage() {
       }
     }
 
-    saveFrontCounterMessageLocally({ identity, text });
+    saveFrontCounterMessageLocally({
+      author: getCurrentAuthorSnapshot(),
+      identity,
+      text,
+    });
     setFrontCounterPosting(false);
   }
 
   function saveFrontCounterMessageLocally(input: {
+    author?: FrontCounterMessage["author"];
     identity: ChoNeoIdentity;
     text: string;
   }) {
@@ -884,6 +955,7 @@ export default function ChoNeoGossipPage() {
     }
 
     const nextMessage: ConversationMessage = {
+      author: getCurrentAuthorSnapshot(),
       name: identity?.nickname ?? "Bạn làng",
       text,
     };
@@ -1261,6 +1333,81 @@ export default function ChoNeoGossipPage() {
     }
   }
 
+  function getCurrentAuthorSnapshot() {
+    if (!avatarProfile) {
+      return undefined;
+    }
+
+    return {
+      avatarSrc: avatarProfile.avatarSrc,
+      mood: avatarProfile.mood,
+      nickname: avatarProfile.nickname || identity?.nickname || "Bạn làng",
+    };
+  }
+
+  function renderPostAuthor(input: {
+    author?: ConversationMessage["author"] | FrontCounterMessage["author"];
+    className?: string;
+    fallbackAvatarId?: string;
+    fallbackName: string;
+  }) {
+    const author = input.author;
+    const displayName = author?.nickname || input.fallbackName;
+    const fallbackAvatar = input.fallbackAvatarId
+      ? getAvatarById(input.fallbackAvatarId)
+      : null;
+    const initials = getNicknameInitials(displayName);
+
+    return (
+      <div className={`post-author-chip ${input.className ?? ""}`}>
+        {author?.avatarSrc ? (
+          <img alt="" src={author.avatarSrc} />
+        ) : (
+          <span
+            className={fallbackAvatar ? `avatar-${fallbackAvatar.tone}` : ""}
+            aria-hidden="true"
+          >
+            {fallbackAvatar?.emoji ?? initials}
+          </span>
+        )}
+        <strong>
+          {displayName}
+          {author?.mood ? <small>{author.mood}</small> : null}
+        </strong>
+      </div>
+    );
+  }
+
+  function renderAvatarPassportChip() {
+    if (!avatarProfile) {
+      return (
+        <Link className="composer-avatar-passport composer-avatar-passport-empty" href="/cho-neo/avatar">
+          <span className="composer-avatar-placeholder" aria-hidden="true">
+            +
+          </span>
+          <strong>
+            Chọn dáng vào chợ
+            <small>Choose your village face</small>
+          </strong>
+        </Link>
+      );
+    }
+
+    return (
+      <Link
+        className="composer-avatar-passport"
+        href="/cho-neo/avatar"
+        aria-label="Đổi dáng vào chợ"
+      >
+        <img alt="" src={avatarProfile.avatarSrc} />
+        <strong>
+          {avatarProfile.nickname || "Người Ghé Chợ"}
+          <small>{avatarProfile.mood || "Nhẹ nhàng"}</small>
+        </strong>
+      </Link>
+    );
+  }
+
   return (
     <main className="cafe-page">
       <ChoNeoTimeAmbience />
@@ -1291,7 +1438,7 @@ export default function ChoNeoGossipPage() {
               <span>Về Sân Làng</span>
               <small>Village</small>
             </Link>
-            <Link className="cafe-control-pill" href="/cho-neo/gossip/avatar">
+            <Link className="cafe-control-pill" href="/cho-neo/avatar">
               <span>Chọn avatar</span>
               <small>Choose village face</small>
             </Link>
@@ -1674,7 +1821,10 @@ export default function ChoNeoGossipPage() {
                               className="local-table-note"
                               key={`${conversationMessage.name}-${conversationMessage.text}-${index}`}
                             >
-                              <small>{conversationMessage.name}</small>
+                              {renderPostAuthor({
+                                author: conversationMessage.author,
+                                fallbackName: conversationMessage.name,
+                              })}
                               <p>{conversationMessage.text}</p>
                             </article>
                           );
@@ -1702,6 +1852,7 @@ export default function ChoNeoGossipPage() {
                         {localTableConfig.helper.vi}
                         <span>{localTableConfig.helper.en}</span>
                       </p>
+                      {renderAvatarPassportChip()}
                       <div className="message-row">
                         <input
                           id="table-note-message"
@@ -1786,6 +1937,8 @@ export default function ChoNeoGossipPage() {
                           const messageAvatarCopy = frontCounterMessage
                             ? getGossipAvatarCopy(frontCounterMessage.avatarId)
                             : null;
+                          const messageAuthor =
+                            frontCounterMessage?.author ?? conversationMessage?.author;
                           const displayInitials = getNicknameInitials(displayName);
                           const shouldShowDisplayName =
                             displayName.trim().toUpperCase() !== displayInitials;
@@ -1805,7 +1958,13 @@ export default function ChoNeoGossipPage() {
                               }
                             >
                               <div className="front-counter-bubble-header">
-                                {messageAvatar ? (
+                                {messageAuthor?.avatarSrc ? (
+                                  <img
+                                    alt=""
+                                    className="front-counter-bubble-avatar-image"
+                                    src={messageAuthor.avatarSrc}
+                                  />
+                                ) : messageAvatar ? (
                                   <span
                                     className={`front-counter-bubble-avatar avatar-${messageAvatar.tone}`}
                                     aria-hidden="true"
@@ -1815,12 +1974,14 @@ export default function ChoNeoGossipPage() {
                                 ) : null}
                                 <div>
                                   <strong>
-                                    {displayInitials}
-                                    {shouldShowDisplayName ? (
+                                    {messageAuthor?.nickname ?? displayInitials}
+                                    {messageAuthor?.nickname ? null : shouldShowDisplayName ? (
                                       <span>{displayName}</span>
                                     ) : null}
                                   </strong>
-                                  {messageAvatar && messageAvatarCopy ? (
+                                  {messageAuthor?.mood ? (
+                                    <small>{messageAuthor.mood}</small>
+                                  ) : messageAvatar && messageAvatarCopy ? (
                                     <small>{messageAvatarCopy.name}</small>
                                   ) : null}
                                 </div>
@@ -1867,6 +2028,7 @@ export default function ChoNeoGossipPage() {
                         className="front-counter-stage-form"
                         onSubmit={handleFrontCounterSubmit}
                       >
+                        {renderAvatarPassportChip()}
                         <div className="front-counter-stage-message-row">
                           {identity && currentAvatar ? (
                             <button
@@ -2141,6 +2303,8 @@ export default function ChoNeoGossipPage() {
                                 const messageAvatarCopy = frontCounterMessage
                                   ? getGossipAvatarCopy(frontCounterMessage.avatarId)
                                   : null;
+                                const messageAuthor =
+                                  frontCounterMessage?.author ?? conversationMessage?.author;
 
                                 return (
                                   <div
@@ -2154,7 +2318,13 @@ export default function ChoNeoGossipPage() {
                                     }
                                   >
                                     <div className="front-counter-bubble-header">
-                                      {messageAvatar ? (
+                                      {messageAuthor?.avatarSrc ? (
+                                        <img
+                                          alt=""
+                                          className="front-counter-bubble-avatar-image"
+                                          src={messageAuthor.avatarSrc}
+                                        />
+                                      ) : messageAvatar ? (
                                         <span
                                           className={`front-counter-bubble-avatar avatar-${messageAvatar.tone}`}
                                           aria-hidden="true"
@@ -2164,10 +2334,15 @@ export default function ChoNeoGossipPage() {
                                       ) : null}
                                       <div>
                                         <strong>
-                                          {getNicknameInitials(displayName)}
-                                          <span>{displayName}</span>
+                                          {messageAuthor?.nickname ??
+                                            getNicknameInitials(displayName)}
+                                          {messageAuthor?.nickname ? null : (
+                                            <span>{displayName}</span>
+                                          )}
                                         </strong>
-                                        {messageAvatar && messageAvatarCopy ? (
+                                        {messageAuthor?.mood ? (
+                                          <small>{messageAuthor.mood}</small>
+                                        ) : messageAvatar && messageAvatarCopy ? (
                                           <small>
                                             {messageAvatarCopy.name}
                                             <span>{messageAvatar.name}</span>
@@ -2398,12 +2573,12 @@ export default function ChoNeoGossipPage() {
                           } ${isRemoved ? "thread-message-removed" : ""}`}
                           key={"id" in message ? message.id : `${message.name}-${message.text}`}
                         >
-                          {frontCounterMessage ? (
-                            <span className="thread-avatar" aria-hidden="true">
-                              {getAvatarById(frontCounterMessage.avatarId).emoji}
-                            </span>
-                          ) : null}
-                          <small>{displayName}</small>
+                          {renderPostAuthor({
+                            author: frontCounterMessage?.author ?? conversationMessage?.author,
+                            className: "thread-author-chip",
+                            fallbackAvatarId: frontCounterMessage?.avatarId,
+                            fallbackName: displayName,
+                          })}
                           <p>{message.text}</p>
                           {"reactions" in message && message.reactions && !isRemoved ? (
                             <span className="reaction-row" aria-hidden="true">
@@ -4509,6 +4684,57 @@ export default function ChoNeoGossipPage() {
           letter-spacing: 0.08em;
         }
 
+        .post-author-chip {
+          display: inline-flex;
+          max-width: 100%;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+
+        .post-author-chip img,
+        .post-author-chip > span {
+          width: 30px;
+          height: 30px;
+          flex: 0 0 auto;
+          border-radius: 999px;
+        }
+
+        .post-author-chip img {
+          object-fit: cover;
+        }
+
+        .post-author-chip > span {
+          display: grid;
+          place-items: center;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          color: #fde68a;
+          background: rgba(255, 247, 237, 0.1);
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .post-author-chip strong {
+          display: block;
+          overflow: hidden;
+          color: rgba(255, 247, 237, 0.9);
+          font-size: 12px;
+          font-weight: 950;
+          line-height: 1.1;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .post-author-chip small {
+          display: block;
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.56);
+          font-size: 10px;
+          font-weight: 850;
+          letter-spacing: 0;
+          line-height: 1.1;
+        }
+
         .local-table-note p {
           margin: 5px 0 0;
           color: rgba(255, 247, 237, 0.88);
@@ -5308,6 +5534,16 @@ export default function ChoNeoGossipPage() {
             radial-gradient(circle at 50% 28%, rgba(255, 247, 237, 0.4), transparent 42%),
             rgba(255, 247, 237, 0.42);
           font-size: 11px;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
+        }
+
+        .front-counter-bubble-avatar-image {
+          width: 22px;
+          height: 22px;
+          flex: 0 0 auto;
+          border: 1px solid rgba(63, 36, 24, 0.12);
+          border-radius: 999px;
+          object-fit: cover;
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
         }
 
