@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
   type FormEvent,
 } from "react";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
@@ -15,6 +16,66 @@ import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
 const KHOE_SET_HERO_IMAGE = "/images/cho-neo/khoe-set-gallery-hero-v1.png";
 const KHOE_SET_POSTS_KEY = "choNeoKhoeSetPostsV1";
 const CAPTION_LIMIT = 180;
+const KHOE_SET_FRAME_IMAGES = [
+  {
+    alt: "ARGENTIUM silver sparkle nail design",
+    objectPosition: "center center",
+    src: "/images/cho-neo/Reference%20image/Agardenofsparkle.JPG",
+  },
+  {
+    alt: "ARGENTIUM chrome 3D nail design",
+    objectPosition: "center center",
+    src: "/images/cho-neo/Reference%20image/AgChrome3d.JPG",
+  },
+  {
+    alt: "ARGENTIUM colorful geometric nail design",
+    objectPosition: "center center",
+    src: "/images/cho-neo/Reference%20image/AgColor.JPG",
+  },
+  {
+    alt: "ARGENTIUM orange floral nail design",
+    objectPosition: "center center",
+    src: "/images/cho-neo/Reference%20image/AgOrange.JPG",
+  },
+  {
+    alt: "ARGENTIUM barely there beautifully bold nail design",
+    objectPosition: "center center",
+    src: "/images/cho-neo/Reference%20image/BarelyThereBB.JPG",
+  },
+] as const;
+
+const KHOE_SET_FRAME_SLOTS = [
+  {
+    className: "khoe-set-frame-slot-1",
+    desktop: { height: "29%", left: "58.4%", top: "60.6%", width: "7.2%" },
+    mobile: { height: "27.5%", left: "48.2%", top: "58.4%", width: "9%" },
+    rotate: "1deg",
+  },
+  {
+    className: "khoe-set-frame-slot-2",
+    desktop: { height: "29%", left: "66.5%", top: "61%", width: "7.7%" },
+    mobile: { height: "27.5%", left: "58.6%", top: "58.6%", width: "10%" },
+    rotate: "2deg",
+  },
+  {
+    className: "khoe-set-frame-slot-3",
+    desktop: { height: "29%", left: "74.4%", top: "61.3%", width: "7.8%" },
+    mobile: { height: "27.5%", left: "68.4%", top: "58.9%", width: "9.8%" },
+    rotate: "2deg",
+  },
+  {
+    className: "khoe-set-frame-slot-4",
+    desktop: { height: "29%", left: "82.5%", top: "61.4%", width: "8%" },
+    mobile: { height: "27.5%", left: "78.3%", top: "59.2%", width: "9.8%" },
+    rotate: "3deg",
+  },
+  {
+    className: "khoe-set-frame-slot-5",
+    desktop: { height: "29%", left: "91%", top: "61.8%", width: "8.5%" },
+    mobile: { height: "27.5%", left: "88.3%", top: "59.5%", width: "9.9%" },
+    rotate: "4deg",
+  },
+] as const;
 
 const KHOE_SET_CATEGORIES = [
   "Mới làm",
@@ -33,6 +94,9 @@ type KhoeSetPost = {
   imageDataUrl?: string;
   createdAt: string;
 };
+
+type KhoeSetFrameSlot = (typeof KHOE_SET_FRAME_SLOTS)[number];
+type KhoeSetFrameStyle = CSSProperties & Record<`--${string}`, string>;
 
 const PROMPT_CHIPS = [
   "Set hôm nay khách mê lắm...",
@@ -73,6 +137,20 @@ function formatPostTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function getKhoeSetFrameStyle(slot: KhoeSetFrameSlot): KhoeSetFrameStyle {
+  return {
+    "--frame-height": slot.desktop.height,
+    "--frame-left": slot.desktop.left,
+    "--frame-mobile-height": slot.mobile.height,
+    "--frame-mobile-left": slot.mobile.left,
+    "--frame-mobile-top": slot.mobile.top,
+    "--frame-mobile-width": slot.mobile.width,
+    "--frame-rotate": slot.rotate,
+    "--frame-top": slot.desktop.top,
+    "--frame-width": slot.desktop.width,
+  };
 }
 
 export default function ChoNeoShowOffPage() {
@@ -179,6 +257,21 @@ export default function ChoNeoShowOffPage() {
             sizes="(max-width: 860px) 100vw, 1180px"
             className="khoe-set-hero-image"
           />
+          <div className="khoe-set-frame-overlays" aria-label="ARGENTIUM table frame photos">
+            {KHOE_SET_FRAME_IMAGES.map((frame, frameIndex) => (
+              <span
+                className={`khoe-set-frame ${KHOE_SET_FRAME_SLOTS[frameIndex].className}`}
+                key={frame.src}
+                style={getKhoeSetFrameStyle(KHOE_SET_FRAME_SLOTS[frameIndex])}
+              >
+                <img
+                  src={frame.src}
+                  alt={frame.alt}
+                  style={{ objectPosition: frame.objectPosition }}
+                />
+              </span>
+            ))}
+          </div>
           <div className="hero-shade" aria-hidden="true" />
           <div className="hero-copy">
             <p>Khoe Set Đẹp</p>
@@ -394,10 +487,40 @@ export default function ChoNeoShowOffPage() {
           object-position: center;
         }
 
-        .hero-shade {
+        .khoe-set-frame-overlays {
           position: absolute;
           inset: 0;
           z-index: 1;
+          pointer-events: none;
+        }
+
+        .khoe-set-frame {
+          position: absolute;
+          display: block;
+          left: var(--frame-left);
+          top: var(--frame-top);
+          width: var(--frame-width);
+          height: var(--frame-height);
+          overflow: hidden;
+          border-radius: 2px;
+          background: #f8efe5;
+          box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+            0 2px 6px rgba(92, 39, 27, 0.12);
+          transform: rotate(var(--frame-rotate));
+        }
+
+        .khoe-set-frame img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .hero-shade {
+          position: absolute;
+          inset: 0;
+          z-index: 2;
           pointer-events: none;
           background:
             linear-gradient(90deg, rgba(77, 24, 24, 0.5), rgba(77, 24, 24, 0.06) 48%, transparent),
@@ -406,7 +529,7 @@ export default function ChoNeoShowOffPage() {
 
         .hero-copy {
           position: relative;
-          z-index: 2;
+          z-index: 3;
           width: min(520px, 92%);
           padding: clamp(1rem, 3vw, 2rem);
           color: #fff9f1;
@@ -836,6 +959,13 @@ export default function ChoNeoShowOffPage() {
 
           .khoe-set-hero-image {
             object-position: 58% 50%;
+          }
+
+          .khoe-set-frame {
+            left: var(--frame-mobile-left);
+            top: var(--frame-mobile-top);
+            width: var(--frame-mobile-width);
+            height: var(--frame-mobile-height);
           }
 
           .hero-shade {
