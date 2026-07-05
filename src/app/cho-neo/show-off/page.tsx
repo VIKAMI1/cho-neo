@@ -13,7 +13,8 @@ import {
 } from "react";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
 
-const KHOE_SET_HERO_IMAGE = "/images/cho-neo/khoe-set-gallery-hero-v1.png";
+const KHOE_SET_HERO_IMAGE = "/images/cho-neo/Reference%20image/Khoe-Set-Room.png";
+const RENDER_KHOE_SET_FRAME_OVERLAYS = false;
 const KHOE_SET_POSTS_KEY = "choNeoKhoeSetPostsV1";
 const CAPTION_LIMIT = 180;
 const KHOE_SET_FRAME_IMAGES = [
@@ -257,21 +258,23 @@ export default function ChoNeoShowOffPage() {
             sizes="(max-width: 860px) 100vw, 1180px"
             className="khoe-set-hero-image"
           />
-          <div className="khoe-set-frame-overlays" aria-label="ARGENTIUM table frame photos">
-            {KHOE_SET_FRAME_IMAGES.map((frame, frameIndex) => (
-              <span
-                className={`khoe-set-frame ${KHOE_SET_FRAME_SLOTS[frameIndex].className}`}
-                key={frame.src}
-                style={getKhoeSetFrameStyle(KHOE_SET_FRAME_SLOTS[frameIndex])}
-              >
-                <img
-                  src={frame.src}
-                  alt={frame.alt}
-                  style={{ objectPosition: frame.objectPosition }}
-                />
-              </span>
-            ))}
-          </div>
+          {RENDER_KHOE_SET_FRAME_OVERLAYS ? (
+            <div className="khoe-set-frame-overlays" aria-label="ARGENTIUM table frame photos">
+              {KHOE_SET_FRAME_IMAGES.map((frame, frameIndex) => (
+                <span
+                  className={`khoe-set-frame ${KHOE_SET_FRAME_SLOTS[frameIndex].className}`}
+                  key={frame.src}
+                  style={getKhoeSetFrameStyle(KHOE_SET_FRAME_SLOTS[frameIndex])}
+                >
+                  <img
+                    src={frame.src}
+                    alt={frame.alt}
+                    style={{ objectPosition: frame.objectPosition }}
+                  />
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className="hero-shade" aria-hidden="true" />
           <div className="hero-copy">
             <p>Khoe Set Đẹp</p>
