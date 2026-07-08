@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  applySafetyOverride,
   createFallbackOngDiaPrayerResponse,
   routeOngDiaWish,
   type OngDiaWishCategory,
@@ -51,9 +52,10 @@ function cleanRitualText(value: unknown) {
 function normalizePrayerResponse(
   value: unknown,
   fallback: OngDiaPrayerResponse,
-  serious: boolean,
+  route: { category: OngDiaWishCategory; severity: OngDiaWishSeverity },
 ): OngDiaPrayerResponse {
   if (!value || typeof value !== "object") return fallback;
+  const serious = route.severity === "high";
   const record = value as OpenAIPrayerPayload;
   const sections = record.sections ?? {};
   const loiOngDia =
@@ -71,14 +73,14 @@ function normalizePrayerResponse(
 
   if (!loiOngDia || !ongNhacNhe || !viecNhoHomNay) return fallback;
 
-  return {
+  return applySafetyOverride({
     loiOngDia: loiOngDia.slice(0, 260),
     ongNhacNhe: ongNhacNhe.slice(0, 260),
     viecNhoHomNay: viecNhoHomNay.slice(0, 180),
     khiChuyenQuaNang: serious
       ? (khiChuyenQuaNang || fallback.khiChuyenQuaNang)?.slice(0, 220)
       : undefined,
-  };
+  }, route);
 }
 
 function getResponseText(payload: OpenAIResponsePayload) {
@@ -172,13 +174,24 @@ export async function POST(request: Request) {
                     "shop_business",
                     "money_debt",
                     "gambling",
+                    "gambling_debt",
                     "family_relationship",
                     "burnout_stress",
+                    "severe_burnout_despair",
                     "grief_loss",
                     "abuse_threat_unsafe",
+                    "domestic_violence",
+                    "coercion_blackmail",
+                    "child_elder_safety",
+                    "sexual_exploitation",
                     "self_harm",
                     "medical_emergency",
                     "legal_trouble",
+                    "legal_danger",
+                    "severe_debt_crisis",
+                    "substance_addiction",
+                    "delusional_paranoid_fear",
+                    "guaranteed_spiritual_answer",
                     "sexual_inappropriate",
                     "curse_harm_request",
                     "trolling_spam_nonsense",
@@ -235,7 +248,7 @@ export async function POST(request: Request) {
       return createPrayerJson(fallback, "fallback_json_parse_error");
     }
 
-    const result = normalizePrayerResponse(parsed, fallback, serious);
+    const result = normalizePrayerResponse(parsed, fallback, wishRoute);
     if (result === fallback) {
       return createPrayerJson(fallback, "fallback_validation_error");
     }
