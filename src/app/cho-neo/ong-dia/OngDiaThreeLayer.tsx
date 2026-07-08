@@ -1,18 +1,51 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import {
   createOngDiaPlaceholder,
   disposeOngDiaPlaceholder,
 } from "./OngDiaPlaceholder";
 
-export default function OngDiaThreeLayer() {
+type OngDiaThreeLayerProps = {
+  blessingSignal?: number;
+  onBlessingRequest?: () => void;
+};
+
+function canCreateWebGLContext() {
+  try {
+    const canvas = document.createElement("canvas");
+    const context =
+      canvas.getContext("webgl2") ??
+      canvas.getContext("webgl") ??
+      canvas.getContext("experimental-webgl");
+    return Boolean(context);
+  } catch {
+    return false;
+  }
+}
+
+export default function OngDiaThreeLayer({
+  blessingSignal = 0,
+  onBlessingRequest,
+}: OngDiaThreeLayerProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const blessRef = useRef<(() => void) | null>(null);
+  const [webglFailed, setWebglFailed] = useState(false);
+
+  useEffect(() => {
+    blessRef.current = onBlessingRequest ?? null;
+  }, [onBlessingRequest]);
 
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
+
+    if (!canCreateWebGLContext()) {
+      console.warn("[ong-dia] WebGL unavailable; using static shrine fallback.");
+      setWebglFailed(true);
+      return;
+    }
 
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -22,11 +55,21 @@ export default function OngDiaThreeLayer() {
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
     camera.position.set(0, 0.16, 4.25);
 
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true,
-      powerPreference: "low-power",
-    });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true,
+        powerPreference: "low-power",
+      });
+    } catch (error) {
+      console.warn("[ong-dia] WebGL renderer failed; using static shrine fallback.", {
+        message: error instanceof Error ? error.message : "Unknown WebGL error",
+      });
+      setWebglFailed(true);
+      return;
+    }
+
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     mount.appendChild(renderer.domElement);
@@ -47,6 +90,9 @@ export default function OngDiaThreeLayer() {
     const ongDia = createOngDiaPlaceholder();
     scene.add(ongDia);
     const fanPivot = ongDia.getObjectByName("BlessingFanPivot");
+    const belly = ongDia.getObjectByName("OngDiaBelly");
+    const head = ongDia.getObjectByName("OngDiaHead");
+    const smile = ongDia.getObjectByName("OngDiaSmile");
 
     const shadow = new THREE.Mesh(
       new THREE.CircleGeometry(0.62, 40),
@@ -62,55 +108,7 @@ export default function OngDiaThreeLayer() {
     shadow.scale.set(0.72, 0.28, 1);
     scene.add(shadow);
 
-    const incenseGroup = new THREE.Group();
-    incenseGroup.name = "IncenseHolderDetail";
-    incenseGroup.position.set(0.55, altarSeatY - 0.03, -0.04);
-    scene.add(incenseGroup);
-
-    const stickMaterial = new THREE.MeshStandardMaterial({
-      color: "#6d2a19",
-      roughness: 0.72,
-      metalness: 0,
-    });
-    const emberMaterial = new THREE.MeshBasicMaterial({
-      color: "#db4b2d",
-      transparent: true,
-      opacity: 0.72,
-    });
-    const ashMaterial = new THREE.MeshStandardMaterial({
-      color: "#7b6958",
-      roughness: 0.86,
-      metalness: 0,
-    });
-    const holderMaterial = new THREE.MeshStandardMaterial({
-      color: "#b2722b",
-      roughness: 0.42,
-      metalness: 0.45,
-    });
-
-    const holder = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.05, 24), holderMaterial);
-    holder.position.y = -0.035;
-    incenseGroup.add(holder);
-
-    [-0.028, 0, 0.028].forEach((x, index) => {
-      const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.34, 8), stickMaterial);
-      stick.position.set(x, 0.13, 0);
-      stick.rotation.z = (index - 1) * 0.08;
-      incenseGroup.add(stick);
-
-      const ember = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), emberMaterial.clone());
-      ember.position.set(x + (index - 1) * 0.012, 0.3, 0);
-      incenseGroup.add(ember);
-    });
-
-    [-0.045, -0.014, 0.018, 0.046].forEach((x, index) => {
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.18, 8), ashMaterial);
-      stem.position.set(x, 0.055, -0.01);
-      stem.rotation.z = (index - 1.5) * 0.1;
-      incenseGroup.add(stem);
-    });
-
-    const specks = Array.from({ length: 14 }, (_, index) => {
+    const specks = Array.from({ length: 8 }, (_, index) => {
       const speck = new THREE.Mesh(
         new THREE.SphereGeometry(0.01, 8, 6),
         new THREE.MeshBasicMaterial({
@@ -126,21 +124,6 @@ export default function OngDiaThreeLayer() {
       return speck;
     });
 
-    const smokeLines = Array.from({ length: 5 }, (_, index) => {
-      const line = new THREE.Line(
-        new THREE.BufferGeometry(),
-        new THREE.LineBasicMaterial({
-          color: "#ffe4b3",
-          transparent: true,
-          opacity: 0.18,
-          depthWrite: false,
-        }),
-      );
-      line.name = `FanTouchedIncenseSmoke${index}`;
-      scene.add(line);
-      return line;
-    });
-
     const resize = () => {
       const { width, height } = mount.getBoundingClientRect();
       renderer.setSize(width, height, false);
@@ -152,48 +135,43 @@ export default function OngDiaThreeLayer() {
     let raf = 0;
     let blessingWave = 0;
 
-    const updateSmoke = (time: number, breezeStrength: number) => {
-      smokeLines.forEach((line, index) => {
-        const stemOffset = (index - 2) * 0.015;
-        const baseX = 0.55 + stemOffset;
-        const baseY = altarSeatY + 0.23;
-        const baseSway = prefersReducedMotion ? 0.015 : Math.sin(time * 1.1 + index) * 0.028;
-        const breeze = baseSway + breezeStrength;
-        const points = [
-          new THREE.Vector3(baseX, baseY, -0.04),
-          new THREE.Vector3(baseX + breeze * 0.16, baseY + 0.12, -0.035),
-          new THREE.Vector3(baseX + breeze * 0.48, baseY + 0.25, -0.03),
-          new THREE.Vector3(baseX + breeze * 0.78, baseY + 0.39, -0.025),
-          new THREE.Vector3(baseX + breeze, baseY + 0.51, -0.02),
-        ];
-        line.geometry.dispose();
-        line.geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = line.material as THREE.LineBasicMaterial;
-        material.opacity =
-          0.11 + (index % 2) * 0.035 + Math.min(Math.abs(breezeStrength), 0.08) * 0.45;
-      });
-    };
-
     const triggerBlessingWave = () => {
       if (prefersReducedMotion) return;
       blessingWave = 1;
     };
 
-    mount.addEventListener("pointerdown", triggerBlessingWave);
-    updateSmoke(0, 0);
+    const handlePointerDown = () => {
+      triggerBlessingWave();
+      blessRef.current?.();
+    };
+
+    mount.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("ong-dia-blessing-wave", triggerBlessingWave);
 
     const animate = () => {
       if (!prefersReducedMotion) {
         frame += 0.01;
-        ongDia.position.y = altarSeatY + Math.sin(frame) * 0.012;
-        ongDia.rotation.y = Math.sin(frame * 0.65) * 0.04;
+        ongDia.position.y = altarSeatY;
+        ongDia.rotation.y = Math.sin(frame * 0.5) * 0.025;
         shadow.material.opacity = 0.2 + Math.sin(frame) * 0.018;
+        const breath = Math.sin(frame * 1.25) * 0.018;
+        if (belly) {
+          belly.scale.set(1.08 + breath, 0.82 + breath * 0.35, 0.42 + breath * 0.55);
+        }
+        if (head) {
+          head.position.y = 0.37 + Math.sin(frame * 1.25 + 0.4) * 0.004;
+          head.rotation.x = blessingWave * Math.sin(frame * 15) * 0.12;
+        }
 
         blessingWave = Math.max(0, blessingWave - 0.018);
         const fanWave =
           Math.sin(frame * 2.4) * 0.1 + blessingWave * Math.sin(frame * 11) * 0.28;
         if (fanPivot) {
           fanPivot.rotation.z = -0.26 + fanWave;
+        }
+        if (smile) {
+          const smileLift = blessingWave * 0.18;
+          smile.scale.set(1 + smileLift, 1 + smileLift * 0.32, 1);
         }
 
         const fanWorld = new THREE.Vector3();
@@ -203,21 +181,19 @@ export default function OngDiaThreeLayer() {
           fanWorld.set(0.25, altarSeatY + 0.05, 0.1);
         }
 
-        const speckStrength = 0.18 + blessingWave * 0.72;
+        const speckStrength = 0.1 + blessingWave * 0.5;
         specks.forEach((speck, index) => {
-          const phase = frame * 2.2 + index * 0.72;
-          const drift = (index % 5) * 0.022 + blessingWave * 0.06;
+          const phase = frame * 1.8 + index * 0.9;
+          const drift = (index % 4) * 0.018 + blessingWave * 0.04;
           speck.position.set(
             fanWorld.x + Math.cos(phase) * (0.05 + drift) + 0.05,
             fanWorld.y + Math.sin(phase * 0.8) * 0.035 + index * 0.006,
             fanWorld.z + 0.18 + Math.sin(phase * 0.6) * 0.035,
           );
           const material = speck.material as THREE.MeshBasicMaterial;
-          material.opacity = Math.max(0, Math.sin(phase) * 0.18 + speckStrength * 0.32);
-          speck.scale.setScalar(0.72 + blessingWave * 0.65 + (index % 3) * 0.12);
+          material.opacity = Math.max(0, Math.sin(phase) * 0.12 + speckStrength * 0.24);
+          speck.scale.setScalar(0.58 + blessingWave * 0.42 + (index % 3) * 0.1);
         });
-
-        updateSmoke(frame, blessingWave * 0.075);
       }
       renderer.render(scene, camera);
       raf = window.requestAnimationFrame(animate);
@@ -229,35 +205,144 @@ export default function OngDiaThreeLayer() {
 
     return () => {
       window.removeEventListener("resize", resize);
-      mount.removeEventListener("pointerdown", triggerBlessingWave);
+      mount.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("ong-dia-blessing-wave", triggerBlessingWave);
       window.cancelAnimationFrame(raf);
       disposeOngDiaPlaceholder(ongDia);
       shadow.geometry.dispose();
       shadow.material.dispose();
-      incenseGroup.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-        child.geometry.dispose();
-        const materials = Array.isArray(child.material) ? child.material : [child.material];
-        materials.forEach((material) => material.dispose());
-      });
       specks.forEach((speck) => {
         speck.geometry.dispose();
         speck.material.dispose();
-      });
-      smokeLines.forEach((line) => {
-        line.geometry.dispose();
-        line.material.dispose();
       });
       renderer.dispose();
       renderer.domElement.remove();
     };
   }, []);
 
+  useEffect(() => {
+    if (blessingSignal === 0) return;
+    window.dispatchEvent(new Event("ong-dia-blessing-wave"));
+  }, [blessingSignal]);
+
   return (
     <div
       ref={mountRef}
-      className="ong-dia-three-layer"
+      className={`ong-dia-three-layer ${
+        webglFailed ? "ong-dia-three-layer-static" : ""
+      }`}
       aria-label="Three.js Ông Địa placeholder"
-    />
+      onPointerDown={webglFailed ? () => blessRef.current?.() : undefined}
+    >
+      {webglFailed ? (
+        <div className="ong-dia-static-fallback" aria-label="Ông Địa static fallback">
+          <span className="ong-dia-static-halo" aria-hidden="true" />
+          <span className="ong-dia-static-hat" aria-hidden="true" />
+          <span className="ong-dia-static-head" aria-hidden="true">
+            <span />
+          </span>
+          <span className="ong-dia-static-body" aria-hidden="true">
+            <span />
+          </span>
+          <span className="ong-dia-static-fan" aria-hidden="true" />
+        </div>
+      ) : null}
+
+      <style>{`
+        .ong-dia-static-fallback {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: min(23vw, 190px);
+          min-width: 112px;
+          aspect-ratio: 0.78;
+          transform: translate(-50%, -42%);
+          pointer-events: auto;
+        }
+
+        .ong-dia-static-fallback span {
+          position: absolute;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .ong-dia-static-halo {
+          inset: 5% 6% 8%;
+          border-radius: 999px;
+          background: radial-gradient(circle, rgba(255, 221, 141, 0.2), transparent 66%);
+          filter: blur(2px);
+        }
+
+        .ong-dia-static-hat {
+          left: 33%;
+          top: 10%;
+          width: 34%;
+          height: 16%;
+          border: 2px solid rgba(255, 211, 128, 0.72);
+          border-radius: 45% 45% 28% 28%;
+          background: linear-gradient(180deg, #d9a147, #a93224);
+          box-shadow: 0 6px 18px rgba(80, 27, 14, 0.26);
+        }
+
+        .ong-dia-static-head {
+          left: 31%;
+          top: 21%;
+          width: 38%;
+          height: 29%;
+          border-radius: 50%;
+          background: #f0c486;
+          box-shadow: inset 0 -8px 12px rgba(126, 66, 31, 0.16);
+        }
+
+        .ong-dia-static-head span {
+          left: 28%;
+          top: 48%;
+          width: 44%;
+          height: 20%;
+          border-bottom: 4px solid #3a1f14;
+          border-radius: 0 0 999px 999px;
+        }
+
+        .ong-dia-static-body {
+          left: 20%;
+          top: 47%;
+          width: 60%;
+          height: 42%;
+          border-radius: 42% 42% 30% 30%;
+          background: linear-gradient(145deg, #b73725, #7e251b);
+          box-shadow:
+            inset 0 0 0 3px rgba(243, 182, 90, 0.32),
+            0 10px 24px rgba(45, 22, 13, 0.24);
+        }
+
+        .ong-dia-static-body span {
+          left: 23%;
+          top: 14%;
+          width: 54%;
+          height: 56%;
+          border-radius: 50%;
+          background: #f0c486;
+          box-shadow: inset 0 -8px 16px rgba(126, 66, 31, 0.12);
+        }
+
+        .ong-dia-static-fan {
+          right: 10%;
+          top: 44%;
+          width: 25%;
+          height: 22%;
+          border-radius: 100% 12% 100% 12%;
+          background: linear-gradient(135deg, #ffdf8a, #c7802f);
+          transform: rotate(-20deg);
+          box-shadow: 0 0 14px rgba(255, 217, 121, 0.28);
+        }
+
+        @media (max-width: 760px) {
+          .ong-dia-static-fallback {
+            width: min(30vw, 142px);
+            transform: translate(-50%, -42%);
+          }
+        }
+      `}</style>
+    </div>
   );
 }
