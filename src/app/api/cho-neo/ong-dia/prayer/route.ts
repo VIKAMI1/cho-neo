@@ -205,10 +205,13 @@ function createPrayerJson(
   source: OngDiaPrayerSource,
   provider: OngDiaAiProvider,
 ) {
-  if (!source.startsWith("provider_")) {
-    console.warn("[ong-dia-prayer] Using fallback response", { provider, source });
+  const diagnostics = { provider, source };
+  if (source.startsWith("provider_")) {
+    console.info("[ong-dia-prayer] Using provider response", diagnostics);
+  } else {
+    console.warn("[ong-dia-prayer] Using fallback response", diagnostics);
   }
-  return NextResponse.json({ result, source });
+  return NextResponse.json({ result });
 }
 
 function createProviderInput(
@@ -368,7 +371,7 @@ export async function POST(request: Request) {
     body = (await request.json()) as PrayerRequest;
   } catch {
     return NextResponse.json(
-      { error: "Bad request", result: createFallbackOngDiaPrayerResponse("") },
+      { result: createFallbackOngDiaPrayerResponse("") },
       { status: 400 },
     );
   }
