@@ -29,7 +29,7 @@ export default function ChoNeoThemeParkAudio({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [trackId, setTrackId] = useState(CHO_NEO_THEME_TRACKS[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.34);
+  const [volume] = useState(0.34);
 
   const selectedTrack = useMemo(
     () => CHO_NEO_THEME_TRACKS.find((track) => track.id === trackId) ?? CHO_NEO_THEME_TRACKS[0],
@@ -76,36 +76,28 @@ export default function ChoNeoThemeParkAudio({
 
   return (
     <div
-      className={`fixed bottom-4 right-4 z-50 w-[min(92vw,22rem)] rounded-3xl border border-amber-200/60 bg-stone-950/78 px-4 py-3 text-amber-50 shadow-2xl shadow-black/30 backdrop-blur-md ${className}`}
+      className={`cho-neo-theme-audio ${className}`}
       aria-label="Chợ Neo music player"
     >
       <audio ref={audioRef} loop preload="metadata" playsInline>
         <source src={selectedTrack.src} type="audio/mpeg" />
       </audio>
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-xs uppercase tracking-[0.2em] text-amber-200/80">Nhạc Chợ Neo</p>
-          <p className="truncate text-sm font-semibold">{selectedTrack.label}</p>
-        </div>
-
+      <div className="theme-audio-controls">
         <button
           type="button"
+          className="theme-music-toggle"
           onClick={toggleMusic}
-          className="shrink-0 rounded-full bg-amber-300 px-4 py-2 text-sm font-bold text-stone-950 shadow-lg shadow-amber-950/20 transition hover:bg-amber-200"
+          aria-label={isPlaying ? 'Tạm dừng nhạc Chợ Neo' : 'Mở nhạc Chợ Neo'}
           aria-pressed={isPlaying}
         >
-          {isPlaying ? 'Tạm dừng' : 'Mở nhạc'}
+          <span aria-hidden="true">{isPlaying ? 'Ⅱ' : '♪'}</span>
         </button>
-      </div>
 
-      <div className="mt-3 grid grid-cols-[1fr_auto] items-center gap-3 text-xs text-amber-100/80">
-        <label className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0">Bài</span>
+        <label>
           <select
             value={trackId}
             onChange={(event) => setTrackId(event.target.value)}
-            className="min-w-0 flex-1 rounded-full border border-amber-200/30 bg-stone-900/90 px-3 py-1.5 text-amber-50 outline-none"
             aria-label="Choose Chợ Neo music track"
           >
             {CHO_NEO_THEME_TRACKS.map((track) => (
@@ -116,20 +108,139 @@ export default function ChoNeoThemeParkAudio({
           </select>
         </label>
 
-        <label className="flex items-center gap-2">
-          <span>Âm</span>
-          <input
-            type="range"
-            min="0"
-            max="0.7"
-            step="0.01"
-            value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
-            className="w-20 accent-amber-300"
-            aria-label="Chợ Neo music volume"
-          />
-        </label>
       </div>
+
+      <style>{`
+        .cho-neo-theme-audio,
+        .cho-neo-theme-audio * {
+          box-sizing: border-box;
+        }
+
+        .cho-neo-theme-audio {
+          position: relative;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          flex: 0 0 auto;
+          width: auto;
+          min-width: 0;
+          max-width: none;
+          min-height: 44px;
+          padding: 5px 7px;
+          overflow: visible;
+          border: 1px solid rgba(248, 211, 145, 0.24);
+          border-radius: 15px;
+          color: #fff7ed;
+          background:
+            radial-gradient(circle at 18% 4%, rgba(244, 114, 182, 0.12), transparent 32%),
+            linear-gradient(135deg, rgba(62, 27, 57, 0.84), rgba(12, 7, 20, 0.95) 62%, rgba(7, 6, 13, 0.96));
+          box-shadow:
+            0 5px 14px rgba(0, 0, 0, 0.14),
+            inset 0 1px 0 rgba(255, 247, 237, 0.08),
+            inset 0 -1px 0 rgba(248, 211, 145, 0.06);
+          backdrop-filter: blur(18px);
+        }
+
+        .cho-neo-theme-audio::before {
+          display: none;
+        }
+
+        .theme-music-toggle {
+          display: grid;
+          flex: 0 0 auto;
+          place-items: center;
+          width: 32px;
+          height: 32px;
+          border: 1px solid rgba(248, 211, 145, 0.2);
+          border-radius: 999px;
+          padding: 0;
+          color: #f8d391;
+          background: rgba(255, 247, 237, 0.055);
+          box-shadow:
+            0 5px 12px rgba(0, 0, 0, 0.16),
+            inset 0 1px 0 rgba(255, 247, 237, 0.1);
+          cursor: pointer;
+          font: inherit;
+          font-size: 22px;
+          font-weight: 850;
+          line-height: 1;
+        }
+
+        .theme-music-toggle span {
+          display: block;
+          line-height: 1;
+        }
+
+        .theme-audio-controls {
+          display: grid;
+          grid-template-columns: 32px minmax(180px, 1fr);
+          gap: 7px;
+          align-items: center;
+          width: auto;
+          min-width: 0;
+          color: rgba(255, 247, 237, 0.76);
+          font-size: 11px;
+          font-weight: 720;
+        }
+
+        .theme-audio-controls label {
+          display: flex;
+          align-items: center;
+          min-width: 0;
+        }
+
+        .theme-audio-controls select,
+        .theme-audio-controls input {
+          min-width: 0;
+          font: inherit;
+        }
+
+        .theme-audio-controls select {
+          flex: 1 1 auto;
+          width: 100%;
+          min-height: 30px;
+          border: 1px solid transparent;
+          border-radius: 10px;
+          color: #fff7ed;
+          background: transparent;
+          padding: 4px 7px;
+          outline: none;
+        }
+
+        .theme-audio-controls select:hover,
+        .theme-audio-controls select:focus-visible {
+          border-color: rgba(248, 211, 145, 0.2);
+          background: rgba(255, 247, 237, 0.055);
+        }
+
+        @media (max-width: 760px) {
+          .cho-neo-theme-audio {
+            flex: 1 1 0;
+            width: 100%;
+            min-width: 0;
+            max-width: none;
+            padding: 8px;
+            border-radius: 18px;
+          }
+
+          .theme-music-toggle {
+            width: 34px;
+            height: 34px;
+            font-size: 23px;
+          }
+
+          .theme-audio-controls {
+            grid-template-columns: 34px minmax(0, 1fr);
+            gap: 8px 9px;
+            font-size: 12px;
+          }
+
+          .theme-audio-controls select {
+            min-height: 34px;
+            padding: 6px 8px;
+          }
+        }
+      `}</style>
     </div>
   );
 }

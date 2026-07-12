@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useState } from "react";
+import { trackChoNeoBetaEvent } from "@/lib/cho-neo/beta-analytics";
 import type { ChoNeoRoom } from "@/lib/cho-neo/rooms";
 
 type ChoNeoRoomHotspotProps = {
@@ -35,7 +36,13 @@ export function ChoNeoRoomHotspot({ room }: ChoNeoRoomHotspotProps) {
             setIsSelected(false);
           }
         }}
-        onClick={() => setIsSelected((current) => !current)}
+        onClick={() => {
+          setIsSelected((current) => !current);
+          trackChoNeoBetaEvent("map_icon_clicked", {
+            room: room.id,
+            details: { href: room.href, status: room.status },
+          });
+        }}
         onFocus={() => setIsSelected(true)}
         type="button"
       >
@@ -60,6 +67,12 @@ export function ChoNeoRoomHotspot({ room }: ChoNeoRoomHotspotProps) {
               setIsSelected(false);
             }
           }}
+          onClick={() =>
+            trackChoNeoBetaEvent("room_entered", {
+              room: room.id,
+              details: { href: room.href, status: room.status, source: "map_label" },
+            })
+          }
         >
           {room.status === "open"
             ? "Vào phòng / Enter"

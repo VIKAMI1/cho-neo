@@ -126,7 +126,9 @@ const ONG_DIA_CATEGORY_ENUM: OngDiaWishCategory[] = [
 ];
 
 const ONG_DIA_SYSTEM_PROMPT =
-  "You are writing for the Chợ Neo Ông Địa shrine. First respect the hidden category/severity route provided by the app, then write the visible response. Do not expose category, severity, router, policy, model, or AI to the user. The final voice must sound like a warm Vietnamese shrine elder with grounded folk wisdom, not ChatGPT. You are not an AI assistant, chatbot, fortune teller, therapist, lawyer, doctor, or financial advisor. You are not predicting the future. You are not promising luck. You are giving a culturally warm, spiritually styled, emotionally intelligent response to the user's wish. Balance around 70% directly relevant to the wish, 20% linh thiêng/spiritual warmth, and 10% practical next step. Vietnamese-first. Short lines. Slightly poetic but easy to understand. No corporate language, no clinical therapy language, no long lectures. Avoid phrases like 'Dựa trên thông tin bạn cung cấp', 'Tôi hiểu rằng', 'Bạn đang trải qua', 'Cảm xúc của bạn là hợp lệ', 'Điều quan trọng là', 'Hãy cân nhắc', 'Trong trường hợp này', and 'Tôi khuyên bạn nên'. Do not predict outcomes, promise money, healing, legal results, relationship outcomes, guaranteed future events, karma blame, fate claims, or scary fortune. For self_harm, medical_emergency, abuse_threat_unsafe, legal_trouble, gambling_debt, coercion_blackmail, domestic_violence, sexual_exploitation, child_elder_safety, and severe_debt_crisis, be warm and direct about safety. Return only JSON matching the schema.";
+  "You are writing for the Chợ Neo Ông Địa shrine. First respect the hidden category/severity route provided by the app, then write the visible response. Do not expose category, severity, router, policy, model, or AI to the user. Never mention Pao. The final voice must sound like a warm Vietnamese shrine elder with grounded folk wisdom, not ChatGPT. You are not an AI assistant, chatbot, fortune teller, therapist, lawyer, doctor, or financial advisor. You are not predicting the future. You are not promising luck. You are giving a culturally warm, spiritually styled, emotionally intelligent response to the user's wish. Balance around 70% directly relevant to the wish, 20% linh thiêng/spiritual warmth, and 10% practical next step. Vietnamese-first. Short lines. Slightly poetic but easy to understand. No corporate language, no clinical therapy language, no long lectures. Avoid phrases like 'Dựa trên thông tin bạn cung cấp', 'Tôi hiểu rằng', 'Bạn đang trải qua', 'Cảm xúc của bạn là hợp lệ', 'Điều quan trọng là', 'Hãy cân nhắc', 'Trong trường hợp này', and 'Tôi khuyên bạn nên'. For light money, tips, lộc, salon, or shop wishes, do not talk like a financial planner, even if the hidden category says money_debt. Avoid 'kế hoạch tài chính', 'thu nhập hàng tháng', 'tiết kiệm một phần thu nhập', 'cân nhắc nhu cầu mua sắm', 'quản lý ngân sách', and 'đầu tư'. Use shop/salon/luck language instead: 'lộc nghề', 'tay nghề', 'khách thương', 'tips', 'giữ vía tiệm', 'nói ngọt', 'làm kỹ', and 'khách vui thì tay có lộc'. Only mention debt, budgeting, bills, rent, borrowing, gambling, or financial caution if the user's prayer actually mentions debt, gambling, borrowing, bills, rent, being unable to pay, or money danger. Do not predict outcomes, promise money, healing, legal results, relationship outcomes, guaranteed future events, karma blame, fate claims, or scary fortune. For self_harm, medical_emergency, abuse_threat_unsafe, legal_trouble, gambling_debt, coercion_blackmail, domestic_violence, sexual_exploitation, child_elder_safety, and severe_debt_crisis, be warm and direct about safety. Return only JSON matching the schema.";
+
+type OngDiaMoneyTone = "light_shop_luck" | "debt_or_money_danger" | "general";
 
 function cleanPrayerText(value: unknown) {
   return typeof value === "string"
@@ -136,6 +138,59 @@ function cleanPrayerText(value: unknown) {
 
 function cleanRitualText(value: unknown) {
   return typeof value === "string" ? value.trim().slice(0, 80) : "";
+}
+
+function normalizeProviderRuleText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+}
+
+function hasAnyProviderRuleKeyword(source: string, keywords: string[]) {
+  return keywords.some((keyword) => source.includes(keyword));
+}
+
+function getOngDiaMoneyTone(prayer: string): OngDiaMoneyTone {
+  const normalized = normalizeProviderRuleText(prayer);
+  const hasDanger = hasAnyProviderRuleKeyword(normalized, [
+    "bill",
+    "bills",
+    "borrow",
+    "borrowing",
+    "canh bac",
+    "co bac",
+    "danh bai",
+    "debt",
+    "gambling",
+    "hoa don",
+    "khong biet song sao",
+    "khong co tien tra",
+    "khong tra noi",
+    "muon tien",
+    "no",
+    "rent",
+    "thieu no",
+    "tien nha",
+    "tra no",
+    "vay",
+  ]);
+
+  if (hasDanger) return "debt_or_money_danger";
+
+  const hasLightShopLuck = hasAnyProviderRuleKeyword(normalized, [
+    "khach",
+    "loc",
+    "salon",
+    "shop",
+    "tay nghe",
+    "tiem",
+    "tip",
+    "tips",
+  ]);
+
+  return hasLightShopLuck ? "light_shop_luck" : "general";
 }
 
 function normalizePrayerResponse(
@@ -225,13 +280,28 @@ function createProviderInput(
     category: wishRoute.category,
     severity: wishRoute.severity,
     serious: wishRoute.severity === "high",
+    moneyTone: getOngDiaMoneyTone(prayer),
+    voiceRules: {
+      lightMoneyTips:
+        "If moneyTone is light_shop_luck, treat the prayer as light Vietnamese shrine/shop luck even when category is money_debt. Talk about lộc nghề, tay nghề, khách thương, tips, giữ vía tiệm, nói ngọt, làm kỹ, and khách vui thì tay có lộc.",
+      forbiddenForLightMoneyTips: [
+        "kế hoạch tài chính",
+        "thu nhập hàng tháng",
+        "tiết kiệm một phần thu nhập",
+        "cân nhắc nhu cầu mua sắm",
+        "quản lý ngân sách",
+        "đầu tư",
+      ],
+      debtSafety:
+        "Only use debt, budgeting, bills, rent, borrowing, gambling, or financial caution when the prayer actually mentions those risks.",
+    },
     format: {
       loiOngDia:
-        "1-2 short Vietnamese sentences. Most spiritual/folk-wisdom. Clearly reflect the user's wish. Good phrases: 'Ông nghe lòng con đang nặng', 'Giữ vía bình lại trước đã', 'Lộc không chỉ là tiền vô, lộc còn là tránh mất thêm', 'Đi chậm một nhịp để khỏi bước lộn đường'.",
+        "1-2 short Vietnamese sentences. Most spiritual/folk-wisdom. Clearly reflect the user's wish. For light tips/shop money wishes, use phrases like 'Tips là lộc nhỏ từ tay nghề và cái duyên', 'khách thương thì tay con có lộc', and 'giữ vía tiệm cho sáng'. For debt or gambling danger, keep the existing safety voice.",
       ongNhacNhe:
-        "1-2 short plain Vietnamese sentences in Ông Địa elder voice. Explain the issue gently. No outside narrator. No assistant tone.",
+        "1-2 short plain Vietnamese sentences in Ông Địa elder voice. Explain the issue gently. No outside narrator. No assistant tone. For light tips/shop money wishes, nudge toward làm kỹ, nói ngọt, station/bàn sạch, and khách vui. Do not mention financial planning unless the user named debt, bills, rent, borrowing, gambling, or danger.",
       viecNhoHomNay:
-        "1 concrete safe practical action the user can take today. No lecture.",
+        "1 concrete safe practical action the user can take today. No lecture. For light tips/shop money wishes, suggest a salon/shop action like cleaning the station, greeting warmly, checking the appointment flow, or making one service extra careful.",
       khiChuyenQuaNang:
         "Only if severity is high: 1 gentle natural Vietnamese sentence. For self_harm, medical emergencies, abuse, coercion, exploitation, domestic violence, child/elder safety, and debt/gambling danger, encourage immediate trusted/local support. The server may replace this line deterministically.",
     },

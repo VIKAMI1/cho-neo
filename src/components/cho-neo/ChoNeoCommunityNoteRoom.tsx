@@ -29,6 +29,8 @@ type CommunityNoteRoomProps = {
   previewNoteBody?: string;
   lockedMessage?: string;
   lockedDetail?: string;
+  previewMusicSrc?: string;
+  previewMusicLabel?: string;
   showPreviewPrompts?: boolean;
 };
 
@@ -140,8 +142,10 @@ export function ChoNeoCommunityNoteRoom({
   previewImage,
   previewNoteTitle = "Nhìn qua cửa kính.",
   previewNoteBody = "Phòng đang được dọn cho đúng nhịp của làng.",
-  lockedMessage = "Phòng này đang được giữ lại cho đúng thứ tự.",
+  lockedMessage = "Câu chuyện tương lai đang chờ sau cửa.",
   lockedDetail,
+  previewMusicSrc,
+  previewMusicLabel = "Nhạc phòng",
   showPreviewPrompts = true,
 }: CommunityNoteRoomProps) {
   const [notes, setNotes] = useState<CommunityNote[]>([]);
@@ -401,6 +405,16 @@ export function ChoNeoCommunityNoteRoom({
                 {lockedDetail ??
                   `Khoe Set vẫn là vòng hoạt động kế tiếp. ${viTitle} sẽ mở khi làng sẵn sàng đón câu chuyện ở đây.`}
               </span>
+              <div className="locked-music-preview">
+                <strong>{previewMusicLabel}</strong>
+                {previewMusicSrc ? (
+                  <audio controls preload="none">
+                    <source src={previewMusicSrc} type="audio/mpeg" />
+                  </audio>
+                ) : (
+                  <small>Nhạc phòng đang được chuẩn bị.</small>
+                )}
+              </div>
             </div>
           </section>
         ) : (
@@ -933,6 +947,34 @@ export function ChoNeoCommunityNoteRoom({
           line-height: 1.48;
         }
 
+        .locked-music-preview {
+          display: grid;
+          gap: 7px;
+          width: min(360px, 100%);
+          margin-top: 13px;
+          padding: 10px 12px;
+          border: 1px solid rgba(253, 230, 138, 0.16);
+          border-radius: 16px;
+          background: rgba(253, 230, 138, 0.075);
+        }
+
+        .locked-music-preview strong {
+          color: #fde68a;
+          font-size: 12px;
+          line-height: 1.1;
+        }
+
+        .locked-music-preview small {
+          color: rgba(255, 247, 237, 0.66);
+          font-size: 12px;
+          font-weight: 800;
+        }
+
+        .locked-music-preview audio {
+          width: 100%;
+          max-width: 100%;
+        }
+
         .note-loop {
           display: grid;
           grid-template-columns: minmax(280px, 0.86fr) minmax(320px, 1.14fr);
@@ -1084,7 +1126,7 @@ export function ChoNeoCommunityNoteRoom({
 
         @media (max-width: 820px) {
           .community-shell {
-            padding: 14px;
+            padding: 14px 14px calc(26px + env(safe-area-inset-bottom));
           }
 
           .room-hero,
@@ -1126,6 +1168,126 @@ export function ChoNeoCommunityNoteRoom({
 
           .note-feed {
             margin-top: 2px;
+          }
+
+          .community-room-locked .room-hero {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+
+          .community-room-locked.community-preview-small .room-hero {
+            grid-template-columns: 1fr;
+          }
+
+          .community-room-locked .hero-copy {
+            min-height: auto;
+            padding: 14px 15px;
+            border-radius: 22px;
+          }
+
+          .community-room-locked .hero-copy p {
+            margin-bottom: 6px;
+            font-size: 10px;
+            letter-spacing: 0.14em;
+          }
+
+          .community-room-locked .hero-copy h1 {
+            gap: 4px;
+            font-size: clamp(30px, 9vw, 38px);
+            line-height: 1.02;
+            letter-spacing: -0.035em;
+            overflow-wrap: normal;
+            word-break: keep-all;
+          }
+
+          .community-room-locked .hero-copy h1 small {
+            font-size: 14px;
+          }
+
+          .community-room-locked .hero-copy strong {
+            display: -webkit-box;
+            max-width: none;
+            margin-top: 10px;
+            overflow: hidden;
+            color: rgba(255, 247, 237, 0.78);
+            font-size: 14px;
+            line-height: 1.35;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+          }
+
+          .community-room-locked .room-stage {
+            min-height: 250px;
+            border-radius: 22px;
+          }
+
+          .community-room-locked .stage-note {
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            width: auto;
+            padding: 10px 12px;
+            border-radius: 15px;
+            transform: none;
+          }
+
+          .community-room-locked .stage-note strong {
+            font-size: 13px;
+          }
+
+          .community-room-locked .stage-note span {
+            font-size: 11px;
+          }
+
+          .community-room-locked .locked-glass {
+            top: 12px;
+            right: 12px;
+            bottom: auto;
+            left: auto;
+            padding: 8px 10px;
+            border-radius: 14px;
+          }
+
+          .community-room-locked .locked-glass span {
+            font-size: 9px;
+          }
+
+          .community-room-locked .locked-glass strong {
+            font-size: 14px;
+          }
+
+          .community-room-locked .prompt-panel,
+          .community-room-locked .guardrail-strip {
+            display: none;
+          }
+
+          .community-room-locked .locked-preview-card {
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 14px;
+            border-radius: 20px;
+          }
+
+          .community-room-locked .lock-mark {
+            width: 34px;
+            height: 34px;
+          }
+
+          .community-room-locked .locked-preview-card p {
+            margin-bottom: 4px;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+          }
+
+          .community-room-locked .locked-preview-card h2 {
+            font-size: 19px;
+          }
+
+          .community-room-locked .locked-preview-card span:not(.lock-mark) {
+            margin-top: 5px;
+            font-size: 13px;
+            line-height: 1.42;
           }
         }
       `}</style>

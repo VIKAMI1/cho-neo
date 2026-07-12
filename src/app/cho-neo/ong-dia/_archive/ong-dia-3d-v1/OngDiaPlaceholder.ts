@@ -26,11 +26,13 @@ export function createOngDiaPlaceholder() {
   });
 
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.36, 10, 20), red);
+  body.name = "OngDiaBody";
   body.position.y = -0.05;
   body.scale.set(1.08, 0.82, 0.76);
   group.add(body);
 
   const belly = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 18), warmSkin);
+  belly.name = "OngDiaBelly";
   belly.position.set(0, -0.18, 0.22);
   belly.scale.set(1.08, 0.82, 0.42);
   group.add(belly);
@@ -42,9 +44,19 @@ export function createOngDiaPlaceholder() {
   group.add(robeBand);
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 32, 20), warmSkin);
+  head.name = "OngDiaHead";
   head.position.y = 0.37;
   head.scale.set(1.05, 0.92, 0.96);
   group.add(head);
+
+  const leftEar = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 10), warmSkin);
+  leftEar.position.set(-0.26, 0.38, 0.02);
+  leftEar.scale.set(0.72, 1, 0.4);
+  group.add(leftEar);
+
+  const rightEar = leftEar.clone();
+  rightEar.position.x = 0.26;
+  group.add(rightEar);
 
   const hatBase = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.08, 32), gold);
   hatBase.position.y = 0.61;
@@ -84,7 +96,17 @@ export function createOngDiaPlaceholder() {
   rightFoot.position.x = 0.16;
   group.add(rightFoot);
 
+  const robePanel = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.05, 0.26, 16),
+    gold,
+  );
+  robePanel.position.set(0, -0.16, 0.39);
+  robePanel.rotation.x = Math.PI / 2;
+  robePanel.scale.set(1, 0.48, 1);
+  group.add(robePanel);
+
   const smile = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.01, 8, 24, Math.PI), dark);
+  smile.name = "OngDiaSmile";
   smile.position.set(0, 0.3, 0.255);
   smile.rotation.z = Math.PI;
   group.add(smile);
@@ -96,6 +118,26 @@ export function createOngDiaPlaceholder() {
   const rightEye = leftEye.clone();
   rightEye.position.x = 0.08;
   group.add(rightEye);
+
+  const leftBrow = new THREE.Mesh(new THREE.CapsuleGeometry(0.008, 0.07, 6, 8), dark);
+  leftBrow.position.set(-0.08, 0.445, 0.255);
+  leftBrow.rotation.z = Math.PI / 2 - 0.18;
+  group.add(leftBrow);
+
+  const rightBrow = leftBrow.clone();
+  rightBrow.position.x = 0.08;
+  rightBrow.rotation.z = Math.PI / 2 + 0.18;
+  group.add(rightBrow);
+
+  const leftMustache = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.08, 6, 10), dark);
+  leftMustache.position.set(-0.06, 0.335, 0.265);
+  leftMustache.rotation.z = -0.56;
+  group.add(leftMustache);
+
+  const rightMustache = leftMustache.clone();
+  rightMustache.position.x = 0.06;
+  rightMustache.rotation.z = 0.56;
+  group.add(rightMustache);
 
   const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.03, 28), gold);
   coin.position.set(0, -0.03, 0.38);

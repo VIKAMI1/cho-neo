@@ -1,451 +1,775 @@
 // src/app/xin-xam/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  LOCAL_XIN_XAM_SEED_STICKS,
+  XIN_XAM_TOPICS,
+  type XinXamStick,
+  type XinXamTopic,
+} from "@/lib/cho-neo/xin-xam-sticky";
 
-type TopicKey = "tien" | "tiem" | "tinh" | "ban-than";
+const XIN_XAM_STAGE_IMAGE = "/images/cho-neo/Xin-Xam-Room.png";
+const XIN_XAM_WEEKLY_KEY = "choNeo.xinXamWeeklyReflection.v1";
 
-const TOPIC_LABELS: Record<TopicKey, string> = {
-  tien: "Tiền",
-  tiem: "Tiệm",
-  tinh: "Tình",
-  "ban-than": "Bản thân",
-};
+type RitualState = "ready" | "drawing" | "drawn" | "revealed";
 
-type XinXamLuck = "DAI_CAT" | "CAT" | "BINH" | "HUNG";
+type WeeklyReflectionMemory = Partial<
+  Record<
+    XinXamTopic,
+    {
+      periodKey: string;
+      stickId: string;
+      drawnAt: string;
+    }
+  >
+>;
 
-type XinXamStick = {
-  no: number;
-  luck: XinXamLuck;
-  title: string;
-  poem: string;
-  meaning: string;
-};
-
-type XinXamResponse = {
-  period_kind: "day" | "week";
-  period: string; // YYYY-MM-DD or YYYY-WW
-  category: "TIEN" | "TIEM" | "TINH" | "BAN_THAN";
-  stick: XinXamStick;
-  draw_index: number;
-  refresh_remaining: 0 | 1;
-  message?: string;
-};
-
-function luckLabel(luck: XinXamLuck) {
-  switch (luck) {
-    case "DAI_CAT":
-      return "Đại Cát";
-    case "CAT":
-      return "Cát";
-    case "BINH":
-      return "Bình";
-    case "HUNG":
-      return "Hung";
-  }
+function getStickNumber(stick: XinXamStick) {
+  const index = LOCAL_XIN_XAM_SEED_STICKS.findIndex((seed) => seed.id === stick.id);
+  return String(index + 1).padStart(2, "0");
 }
 
-function luckClasses(luck: XinXamLuck) {
-  switch (luck) {
-    case "DAI_CAT":
-      return "bg-emerald-50 text-emerald-900 border-emerald-200";
-    case "CAT":
-      return "bg-green-50 text-green-900 border-green-200";
-    case "BINH":
-      return "bg-zinc-50 text-zinc-800 border-zinc-200";
-    case "HUNG":
-      return "bg-rose-50 text-rose-900 border-rose-200";
-  }
+function getCurrentWeekKey(date = new Date()) {
+  const start = new Date(date.getFullYear(), 0, 1);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const dayOfYear = Math.floor((date.getTime() - start.getTime()) / dayMs);
+  const week = Math.floor(dayOfYear / 7) + 1;
+  return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-function getOrCreateVisitorId(): string {
+function chooseStick(topic: XinXamTopic) {
+  const topicSticks = LOCAL_XIN_XAM_SEED_STICKS.filter(
+    (stick) => stick.topic === topic,
+  );
+  const pool = topicSticks.length ? topicSticks : LOCAL_XIN_XAM_SEED_STICKS;
+  const index = Math.floor(Math.random() * pool.length);
+  return (pool[index] ?? pool[0] ?? LOCAL_XIN_XAM_SEED_STICKS[0]) as XinXamStick;
+}
+
+function loadWeeklyMemory() {
   try {
-    const key = "od_vid";
-    const existing = localStorage.getItem(key);
-    if (existing) return existing;
-    const v =
-      globalThis.crypto?.randomUUID?.() ??
-      `vid_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    localStorage.setItem(key, v);
-    return v;
+    const stored = window.localStorage.getItem(XIN_XAM_WEEKLY_KEY);
+    if (!stored) return {};
+    const parsed = JSON.parse(stored) as WeeklyReflectionMemory;
+    return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
-    return "dev";
+    return {};
   }
 }
 
-type TopicLock = { period_kind: "day" | "week"; period: string; topic: TopicKey };
-const TOPIC_LOCK_KEY = "xinXam.topicLock.v2";
+function saveWeeklyMemory(topic: XinXamTopic, stick: XinXamStick) {
+  try {
+    const memory = loadWeeklyMemory();
+    memory[topic] = {
+      periodKey: getCurrentWeekKey(),
+      stickId: stick.id,
+      drawnAt: new Date().toISOString(),
+    };
+    window.localStorage.setItem(XIN_XAM_WEEKLY_KEY, JSON.stringify(memory));
+  } catch {
+    // The weekly quẻ is local comfort state only; the ritual still works without it.
+  }
+}
+
+function getSavedStickForTopic(topic: XinXamTopic) {
+  const saved = loadWeeklyMemory()[topic];
+  if (!saved || saved.periodKey !== getCurrentWeekKey()) return null;
+  return LOCAL_XIN_XAM_SEED_STICKS.find((stick) => stick.id === saved.stickId) ?? null;
+}
 
 export default function XinXamPage() {
-  // Strong default: if env missing, use prod API
-  const base =
-    (process.env.NEXT_PUBLIC_OD_BASE && process.env.NEXT_PUBLIC_OD_BASE.trim()) ||
-    "https://api.vikami.ca";
+  const [selectedTopic, setSelectedTopic] = useState<XinXamTopic>("tiem");
+  const [ritualState, setRitualState] = useState<RitualState>("ready");
+  const [selectedStick, setSelectedStick] = useState<XinXamStick | null>(null);
+  const [hasLoadedTopic, setHasLoadedTopic] = useState(false);
 
-  const [selectedTopic, setSelectedTopic] = useState<TopicKey | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const selectedTopicCopy =
+    XIN_XAM_TOPICS.find((topic) => topic.key === selectedTopic) ??
+    XIN_XAM_TOPICS[0];
 
-  const [xx, setXx] = useState<XinXamResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const selectedNumber = useMemo(
+    () => (selectedStick ? getStickNumber(selectedStick) : "--"),
+    [selectedStick],
+  );
 
-  // Dev gate: only show reset tools if URL has ?dev=1
-  const [showDev, setShowDev] = useState(false);
   useEffect(() => {
-    try {
-      const sp = new URLSearchParams(window.location.search);
-      setShowDev(sp.get("dev") === "1" || sp.has("dev"));
-    } catch {
-      setShowDev(false);
-    }
-  }, []);
+    const savedStick = getSavedStickForTopic(selectedTopic);
+    setSelectedStick(savedStick);
+    setRitualState(savedStick ? "revealed" : "ready");
+    setHasLoadedTopic(true);
+  }, [selectedTopic]);
 
-  // Load last topic lock (optional)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(TOPIC_LOCK_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as TopicLock;
-      if (parsed?.topic) setSelectedTopic(parsed.topic);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  /**
-   * IMPORTANT:
-   *  - Send topic using `topic=` (NOT `cat=`).
-   *  - Use POST for draw + refresh to avoid caching weirdness.
-   */
-  async function callWorker(path: "/xin-xam/draw" | "/xin-xam/refresh", topic: TopicKey) {
-    if (!base) throw new Error("Missing NEXT_PUBLIC_OD_BASE");
-    const visitorId = getOrCreateVisitorId();
-
-    const url =
-      `${base}${path}` +
-      `?visitor_id=${encodeURIComponent(visitorId)}` +
-      `&topic=${encodeURIComponent(topic)}`;
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Xin Xăm API failed ${res.status}: ${text}`);
-    }
-
-    return (await res.json()) as XinXamResponse;
+  function handleShakeHolder() {
+    if (ritualState === "drawing" || ritualState === "revealed") return;
+    const nextStick = chooseStick(selectedTopic);
+    setSelectedStick(nextStick);
+    setRitualState("drawing");
+    window.setTimeout(() => {
+      setRitualState("drawn");
+    }, 980);
   }
 
-  const handleConfirm = async () => {
-    if (!selectedTopic) return;
-    setConfirmed(true);
-    setErr(null);
-    setLoading(true);
+  function handleRevealStick() {
+    if (!selectedStick || ritualState !== "drawn") return;
+    saveWeeklyMemory(selectedTopic, selectedStick);
+    setRitualState("revealed");
+  }
 
-    try {
-      const out = await callWorker("/xin-xam/draw", selectedTopic);
-      setXx(out);
-
-      // lock topic for this period (day/week depending on lane)
-      try {
-        localStorage.setItem(
-          TOPIC_LOCK_KEY,
-          JSON.stringify({
-            period_kind: out.period_kind,
-            period: out.period,
-            topic: selectedTopic,
-          } satisfies TopicLock)
-        );
-      } catch {
-        // ignore
-      }
-    } catch (e: any) {
-      setErr(e?.message ?? "Xin Xăm bị nghẽn.");
-      setXx(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    if (!selectedTopic) return;
-    setErr(null);
-    setLoading(true);
-    try {
-      const out = await callWorker("/xin-xam/refresh", selectedTopic);
-      setXx(out);
-    } catch (e: any) {
-      setErr(e?.message ?? "Xin Xăm bị nghẽn.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // DEV: reset lock + identity so you can re-draw without waiting day/week
-  const resetLocalXinXam = () => {
-    try {
-      localStorage.removeItem(TOPIC_LOCK_KEY);
-      localStorage.removeItem("od_vid");
-    } catch {
-      // ignore
-    }
-    setConfirmed(false);
-    setXx(null);
-    setErr(null);
-    setLoading(false);
-  };
-
-  const refreshDisabled = loading || (xx?.refresh_remaining ?? 1) === 0;
-
-  // If worker period differs from local lock period, unlock topic automatically
-  useEffect(() => {
-    if (!xx?.period) return;
-    try {
-      const raw = localStorage.getItem(TOPIC_LOCK_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as TopicLock;
-      if (parsed?.period && parsed.period !== xx.period) {
-        localStorage.removeItem(TOPIC_LOCK_KEY);
-      }
-    } catch {
-      // ignore
-    }
-  }, [xx?.period]);
-
-  const topicHint = useMemo(() => {
-    if (!selectedTopic) return null;
-    return (
-      <p className="mt-2 text-xs text-amber-800/90">
-        {xx?.period_kind === "day" ? "Hôm nay" : "Tuần này"} xin xăm về{" "}
-        <span className="font-semibold">{TOPIC_LABELS[selectedTopic]}</span>. Đừng ôm thêm
-        chuyện khác vô chung.
-      </p>
-    );
-  }, [selectedTopic, xx?.period_kind]);
+  const showRisingStick = ritualState === "drawing" || ritualState === "drawn";
+  const hasWeeklyQue = ritualState === "revealed" && selectedStick;
 
   return (
-    <div className="min-h-screen bg-[#FFF9F0]">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Top nav / back */}
-        <div className="flex items-center justify-between mb-2">
-          <Link
-            href="/"
-            className="text-sm text-amber-800 hover:text-amber-900 underline-offset-2 hover:underline"
-          >
-            ← Về Chợ Neo
-          </Link>
-          <span className="text-xs uppercase tracking-wide text-amber-700">
-            Xin xăm
-            {showDev && (
-              <span className="text-[10px] px-2 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-900">
-                DEV ON
-            </span>
-            )}
+    <main className="xin-xam-page">
+      <section className="xin-xam-topbar" aria-label="Điều hướng Xin Xăm">
+        <Link href="/cho-neo" className="xin-xam-nav-link">
+          <span>Về Chợ Neo</span>
+          <small>Back to Village</small>
+        </Link>
+        <Link href="/cho-neo/ong-dia" className="xin-xam-nav-link">
+          <span>Qua Ông Địa</span>
+          <small>Ong Dia Shrine</small>
+        </Link>
+      </section>
+
+      <div className="xin-xam-layout">
+        <section className="xin-xam-title-card" aria-labelledby="xin-xam-title">
+          <p>Xin Xăm</p>
+          <h1 id="xin-xam-title">Chọn một chuyện, giữ một quẻ.</h1>
+          <span>
+            Mỗi chuyện giữ một quẻ trong 7 ngày. Đọc rồi ngồi với nó một chút.
           </span>
-        </div>
 
-        {/* Title + hero */}
-        <div className="flex items-center gap-4">
-          <div className="shrink-0">
-            <Image
-              src="/Xin-Xam.png"
-              alt="Xin Xăm"
-              width={80}
-              height={80}
-              className="h-20 w-20 object-contain"
-            />
+          <div className="xin-xam-topic-grid" aria-label="Chọn chuyện xin xăm">
+            {XIN_XAM_TOPICS.map((topic) => (
+              <button
+                key={topic.key}
+                type="button"
+                className={selectedTopic === topic.key ? "active" : ""}
+                onClick={() => setSelectedTopic(topic.key)}
+              >
+                {topic.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-amber-950">Xin Xăm</h1>
-            <p className="mt-1 text-sm text-amber-800">
-              Không phải bói cho vui. Chỉ là ngồi lại một chút cho lòng bớt rối, rồi mới
-              tính đường đi tiếp.
-            </p>
-          </div>
-        </div>
-
-        {/* 1. Trước khi xin xăm */}
-        <section className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-amber-900">Trước khi xin xăm</h2>
-          <p className="text-sm text-amber-900">Hít thở chậm một nhịp. Nghĩ rõ trong đầu:</p>
-          <ul className="list-disc list-inside text-sm text-amber-900 space-y-1">
-            <li>Một chuyện muốn hỏi, không phải mười chuyện.</li>
-            <li>Mình muốn nghe sự thật nhẹ nhàng, không phải lời khen cho sướng.</li>
-            <li>Xin xăm để rõ đường, không phải để trốn trách nhiệm.</li>
-          </ul>
-          <p className="text-xs text-amber-800/80">Khi lòng bớt gấp, xăm mới nói trúng.</p>
         </section>
 
-        {/* 2. Chủ đề xin xăm */}
-        <section className="rounded-2xl border border-amber-100 bg-white p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-amber-900">Chọn chủ đề</h2>
-          <p className="text-xs text-amber-800/80">
-            Chỉ chọn <span className="font-semibold">một</span> chủ đề. Tình/Bản thân là quẻ{" "}
-            <span className="font-semibold">theo ngày</span>. Tiền/Tiệm là quẻ{" "}
-            <span className="font-semibold">theo tuần</span>.
-          </p>
+        <section className="xin-xam-room" aria-label="Phòng Xin Xăm">
+          <Image
+            src={XIN_XAM_STAGE_IMAGE}
+            alt="Phòng Xin Xăm riêng với bàn thờ đỏ vàng, người hướng dẫn, thiếu nữ áo dài vàng, chuông sân, mèo nhìn từ cửa, nhang trầm và ống xin xăm phía trước"
+            fill
+            priority
+            sizes="(max-width: 820px) 100vw, 920px"
+            className="xin-xam-stage-image"
+          />
 
-          <div className="flex flex-wrap gap-2 mt-2">
-            {(Object.keys(TOPIC_LABELS) as TopicKey[]).map((key) => {
-              const isActive = selectedTopic === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    setSelectedTopic(key);
-                    setConfirmed(false);
-                    setXx(null);
-                    setErr(null);
-                  }}
-                  className={[
-                    "px-3 py-1.5 rounded-full border text-sm transition",
-                    "focus:outline-none focus:ring-2 focus:ring-amber-500/60",
-                    isActive
-                      ? "bg-amber-900 text-amber-50 border-amber-900 shadow-sm"
-                      : "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100",
-                  ].join(" ")}
-                >
-                  {TOPIC_LABELS[key]}
-                </button>
-              );
-            })}
-          </div>
+          <div className="xin-xam-room-shade" aria-hidden="true" />
 
-          {topicHint}
-        </section>
+          <button
+            type="button"
+            className={`xam-holder-hotspot ${ritualState === "drawing" ? "is-shaking" : ""}`}
+            onClick={handleShakeHolder}
+            disabled={ritualState === "drawing" || ritualState === "revealed"}
+            aria-label="Xin một quẻ nhẹ"
+          >
+            <span className="xam-holder-glow" aria-hidden="true" />
+            <span className="xam-holder-label">
+              {ritualState === "ready" && "Xin một quẻ nhẹ"}
+              {ritualState === "drawing" && "Đang rút quẻ..."}
+              {ritualState === "drawn" && "Chạm thẻ xăm"}
+              {ritualState === "revealed" && "Đã giữ quẻ"}
+            </span>
+            <span className="xam-holder-sticks" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
 
-        {/* 3. Warning + confirm */}
-        <section className="rounded-2xl border border-amber-100 bg-amber-900 text-amber-50 p-4 space-y-3">
-          <h2 className="text-sm font-semibold">Ông Địa nhắc nhẹ</h2>
-          <p className="text-sm">
-            Đừng xin tới xin lui mỗi lần thấy bất an. Xin xăm xong thì chịu khó làm phần của mình nữa.
-          </p>
-          <p className="text-xs text-amber-100/80">
-            Nếu cảm thấy không nghe nổi sự thật, để mai/tuần sau rồi xin. Không sao hết.
-          </p>
-
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-xs text-amber-100/90">Khi sẵn sàng, bấm nút. Mỗi kỳ chỉ có 1 lần đổi.</p>
-
+          {showRisingStick && selectedStick && (
             <button
               type="button"
-              onClick={() => void handleConfirm()}
-              disabled={!selectedTopic || loading}
-              className={[
-                "px-4 py-2 rounded-full text-sm font-medium transition",
-                !selectedTopic || loading
-                  ? "bg-amber-700/60 text-amber-100 cursor-not-allowed"
-                  : "bg-amber-50 text-amber-900 hover:bg-white shadow-sm",
-              ].join(" ")}
+              className={`xam-rising-stick ${ritualState === "drawn" ? "is-ready" : ""}`}
+              onClick={handleRevealStick}
+              aria-label={`Mở thẻ xăm số ${selectedNumber}`}
             >
-              {selectedTopic ? "Đã hiểu, cho em xin xăm" : "Chọn chủ đề trước nha"}
+              <span>Quẻ {selectedNumber}</span>
             </button>
-          </div>
-
-          {err && <div className="text-xs text-amber-100/90">Lỗi: {err}</div>}
+          )}
         </section>
 
-        {/* 4. Result */}
-        {confirmed && (
-          <section className="rounded-2xl border border-amber-100 bg-white p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-amber-700">
-                  {xx?.period_kind === "day" ? "Quẻ hôm nay" : "Quẻ tuần này"}
-                </p>
-
-                {loading && <div className="text-sm text-amber-900">Đang xin quẻ…</div>}
-
-                {!loading && xx && (
-                  <h2 className="text-sm font-semibold text-amber-950">{xx.stick.title}</h2>
-                )}
+        <section
+          className={`xam-card ${hasWeeklyQue ? "is-open" : ""}`}
+          aria-live="polite"
+          aria-label="Lời xăm"
+        >
+          {selectedStick ? (
+            <>
+              <div className="xam-card-meta">
+                <span>{selectedTopicCopy?.label}</span>
+                <strong>Giữ 7 ngày</strong>
               </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {xx?.period && (
-                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900">
-                    {xx.period_kind === "week" ? `Tuần ${xx.period}` : `Ngày ${xx.period}`}
-                  </span>
-                )}
-                {xx?.stick?.luck && (
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${luckClasses(
-                      xx.stick.luck
-                    )}`}
-                  >
-                    {luckLabel(xx.stick.luck)}
-                  </span>
-                )}
-                {xx?.stick?.no && (
-                  <span className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700">
-                    Số {xx.stick.no}
-                  </span>
-                )}
-                {selectedTopic && (
-                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900">
-                    Chủ đề: {TOPIC_LABELS[selectedTopic]}
-                  </span>
-                )}
+              <h2>{selectedStick.title}</h2>
+              <p className="xam-poem">{selectedStick.lucBat}</p>
+              <p>{selectedStick.meaning}</p>
+              <div className="xam-action">
+                <span>Việc nhỏ tuần này</span>
+                <p>{selectedStick.advice}</p>
               </div>
-            </div>
-
-            {!loading && xx && (
-              <>
-                <div className="space-y-2 text-sm text-amber-900">
-                  <p className="italic whitespace-pre-line">{xx.stick.poem}</p>
-                  <p>{xx.stick.meaning}</p>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 flex-wrap pt-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleRefresh()}
-                    disabled={refreshDisabled}
-                    className={[
-                      "px-3 py-2 rounded-xl text-xs border border-zinc-200 bg-white hover:bg-zinc-50",
-                      refreshDisabled ? "opacity-50 cursor-not-allowed" : "",
-                    ].join(" ")}
-                  >
-                    Đổi quẻ (1 lần)
-                  </button>
-
-                  {showDev && (
-                    <button
-                      type="button"
-                      onClick={resetLocalXinXam}
-                      className="px-3 py-2 rounded-xl text-xs border border-zinc-200 bg-white hover:bg-zinc-50"
-                      title="Chỉ dùng để test: xoá lock + đổi visitor_id"
-                    >
-                      Reset (dev)
-                    </button>
-                  )}
-
-                  <div className="text-[11px] text-zinc-500">
-                    {xx.refresh_remaining === 0 ? "Kỳ này hết đổi." : "Còn _1 lần đổi kỳ này."}
-                  </div>
-                </div>
-
-                {xx.message && <div className="text-xs text-amber-800/90">{xx.message}</div>}
-
-                <p className="text-[11px] text-amber-700/80">
-                  Xăm chỉ nhắc đường. Còn đi đường nào, quay lại lúc nào – là quyền của mình.
-                </p>
-              </>
-            )}
-
-            {!loading && !xx && (
-              <div className="text-sm text-amber-900">Chưa xin được quẻ. Thử bấm lại.</div>
-            )}
-          </section>
-        )}
+            </>
+          ) : (
+            <>
+              <div className="xam-card-meta">
+                <span>{selectedTopicCopy?.label}</span>
+                <strong>{hasLoadedTopic ? "Chưa rút" : "Đang mở"}</strong>
+              </div>
+              <h2>{selectedTopicCopy?.helper}</h2>
+              <p>
+                Chọn một chuyện thôi. Chạm ống xin xăm, đợi một thẻ nhô lên,
+                rồi mở quẻ nhẹ để giữ trong tuần.
+              </p>
+            </>
+          )}
+        </section>
       </div>
-    </div>
+
+      <style>{`
+        .xin-xam-page {
+          min-height: 100vh;
+          overflow-x: hidden;
+          background:
+            radial-gradient(circle at 50% 8%, rgba(220, 76, 30, 0.24), transparent 32rem),
+            linear-gradient(180deg, #160907 0%, #2a0e08 52%, #110706 100%);
+          color: #fff1d0;
+          padding: clamp(0.75rem, 2vw, 1.2rem);
+        }
+
+        .xin-xam-topbar {
+          position: relative;
+          z-index: 5;
+          width: min(1320px, 100%);
+          margin: clamp(0.45rem, 1.4vw, 1rem) auto 0.85rem;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.6rem;
+        }
+
+        .xin-xam-nav-link {
+          display: inline-flex;
+          flex-direction: column;
+          justify-content: center;
+          min-height: 42px;
+          border: 1px solid rgba(255, 214, 142, 0.28);
+          border-radius: 999px;
+          padding: 0.48rem 0.82rem;
+          color: #ffe4ab;
+          background: rgba(36, 13, 8, 0.72);
+          text-decoration: none;
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+        }
+
+        .xin-xam-nav-link span {
+          font-size: 0.8rem;
+          font-weight: 900;
+        }
+
+        .xin-xam-nav-link small {
+          color: rgba(255, 241, 208, 0.64);
+          font-size: 0.66rem;
+        }
+
+        .xin-xam-layout {
+          width: min(1320px, 100%);
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-areas:
+            "stage stage"
+            "intro card";
+          gap: clamp(0.75rem, 1.6vw, 1.1rem);
+          align-items: start;
+        }
+
+        .xin-xam-room {
+          grid-area: stage;
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1672 / 941;
+          margin: 0;
+          overflow: hidden;
+          border: 1px solid rgba(255, 210, 126, 0.22);
+          border-radius: clamp(18px, 2.4vw, 30px);
+          background: #130806;
+          box-shadow:
+            0 34px 90px rgba(0, 0, 0, 0.58),
+            inset 0 0 0 1px rgba(255, 224, 161, 0.08);
+          isolation: isolate;
+        }
+
+        .xin-xam-stage-image {
+          z-index: 0;
+          object-fit: contain;
+          object-position: center;
+        }
+
+        .xin-xam-room-shade {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 22% 78%, rgba(255, 176, 68, 0.14), transparent 15rem),
+            linear-gradient(180deg, rgba(9, 3, 2, 0.08), rgba(9, 3, 2, 0.2));
+        }
+
+        .xin-xam-title-card,
+        .xam-card {
+          position: relative;
+          z-index: 3;
+          border: 1px solid rgba(255, 224, 161, 0.24);
+          background: rgba(32, 12, 8, 0.74);
+          color: #fff1d0;
+          box-shadow: 0 22px 56px rgba(0, 0, 0, 0.28);
+          backdrop-filter: blur(12px);
+        }
+
+        .xin-xam-title-card {
+          grid-area: intro;
+          max-width: none;
+          border-radius: 20px;
+          padding: clamp(0.8rem, 2vw, 1.05rem);
+        }
+
+        .xin-xam-title-card p,
+        .xin-xam-title-card h1,
+        .xin-xam-title-card span,
+        .xam-card p,
+        .xam-card h2 {
+          margin: 0;
+        }
+
+        .xin-xam-title-card p {
+          color: #ffd28a;
+          font-size: 0.72rem;
+          font-weight: 900;
+          letter-spacing: 0.11em;
+          text-transform: uppercase;
+        }
+
+        .xin-xam-title-card h1 {
+          margin-top: 0.25rem;
+          color: #fff1d0;
+          font-size: clamp(1.55rem, 3vw, 2.45rem);
+          line-height: 1.02;
+        }
+
+        .xin-xam-title-card span {
+          display: block;
+          margin-top: 0.42rem;
+          color: rgba(255, 241, 208, 0.72);
+          font-size: 0.9rem;
+          line-height: 1.35;
+        }
+
+        .xin-xam-topic-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.45rem;
+          margin-top: 0.8rem;
+        }
+
+        .xin-xam-topic-grid button {
+          min-height: 38px;
+          border: 1px solid rgba(255, 224, 161, 0.24);
+          border-radius: 999px;
+          background: rgba(255, 241, 208, 0.08);
+          color: rgba(255, 241, 208, 0.82);
+          font: inherit;
+          font-size: 0.82rem;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .xin-xam-topic-grid button.active {
+          border-color: rgba(255, 210, 126, 0.58);
+          background: #ffd28a;
+          color: #2b1008;
+        }
+
+        .xam-holder-hotspot {
+          position: absolute;
+          left: 8%;
+          bottom: 12%;
+          z-index: 4;
+          width: clamp(118px, 15vw, 190px);
+          height: clamp(118px, 15vw, 190px);
+          border: 0;
+          border-radius: 999px;
+          background: transparent;
+          color: #ffe4ab;
+          cursor: pointer;
+          touch-action: manipulation;
+        }
+
+        .xam-holder-hotspot:disabled {
+          cursor: default;
+        }
+
+        .xam-holder-glow {
+          position: absolute;
+          inset: 12%;
+          border: 1px solid rgba(255, 210, 126, 0.44);
+          border-radius: 999px;
+          background: radial-gradient(circle, rgba(255, 188, 82, 0.22), transparent 66%);
+          box-shadow: 0 0 34px rgba(255, 159, 48, 0.28);
+          animation: xamPulse 2.8s ease-in-out infinite;
+        }
+
+        .xam-holder-label {
+          position: absolute;
+          left: 50%;
+          bottom: -0.2rem;
+          min-width: max-content;
+          transform: translateX(-50%);
+          border: 1px solid rgba(255, 224, 161, 0.24);
+          border-radius: 999px;
+          padding: 0.42rem 0.68rem;
+          background: rgba(35, 12, 7, 0.76);
+          font-size: 0.76rem;
+          font-weight: 900;
+          box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26);
+        }
+
+        .xam-holder-sticks {
+          position: absolute;
+          left: 49%;
+          top: 42%;
+          width: 46px;
+          height: 76px;
+          transform: translate(-50%, -50%);
+        }
+
+        .xam-holder-sticks span {
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          width: 8px;
+          height: 72px;
+          border-radius: 999px;
+          background: linear-gradient(180deg, #9b3f22, #4b170e);
+          opacity: 0.58;
+          transform-origin: bottom center;
+        }
+
+        .xam-holder-sticks span:nth-child(1) {
+          transform: translateX(-18px) rotate(-10deg);
+        }
+
+        .xam-holder-sticks span:nth-child(2) {
+          transform: translateX(-4px) rotate(2deg);
+        }
+
+        .xam-holder-sticks span:nth-child(3) {
+          transform: translateX(12px) rotate(10deg);
+        }
+
+        .xam-holder-hotspot.is-shaking .xam-holder-sticks {
+          animation: xamShake 0.78s ease-in-out;
+        }
+
+        .xam-rising-stick {
+          position: absolute;
+          left: 14.5%;
+          bottom: 20%;
+          z-index: 5;
+          width: clamp(34px, 4vw, 48px);
+          height: clamp(168px, 23vw, 280px);
+          border: 1px solid rgba(255, 217, 139, 0.28);
+          border-radius: 999px;
+          background: linear-gradient(180deg, #a84b25, #552015);
+          color: #ffdf96;
+          cursor: pointer;
+          box-shadow: 0 22px 46px rgba(0, 0, 0, 0.34);
+          transform: rotate(-8deg) translateY(54px);
+          animation: xamRise 0.9s ease-out forwards;
+          touch-action: manipulation;
+        }
+
+        .xam-rising-stick span {
+          writing-mode: vertical-rl;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.18rem;
+          font-size: 0.78rem;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+        }
+
+        .xam-rising-stick.is-ready {
+          box-shadow:
+            0 24px 52px rgba(0, 0, 0, 0.36),
+            0 0 34px rgba(255, 190, 82, 0.28);
+        }
+
+        .xam-card {
+          grid-area: card;
+          width: auto;
+          border-radius: 24px;
+          padding: clamp(0.9rem, 2vw, 1.15rem);
+          opacity: 0.94;
+          transform: translateY(0);
+        }
+
+        .xam-card.is-open {
+          animation: xamCardOpen 0.42s ease-out;
+        }
+
+        .xam-card-meta {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+          color: #ffd28a;
+          font-size: 0.78rem;
+          font-weight: 900;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+        }
+
+        .xam-card-meta strong {
+          border-radius: 999px;
+          padding: 0.28rem 0.5rem;
+          background: rgba(255, 210, 126, 0.16);
+          color: #ffe4ab;
+        }
+
+        .xam-card h2 {
+          margin-top: 0.55rem;
+          color: #fff4dd;
+          font-size: clamp(1.32rem, 2.6vw, 2rem);
+          line-height: 1.05;
+        }
+
+        .xam-card p {
+          margin-top: 0.65rem;
+          color: rgba(255, 241, 208, 0.78);
+          font-size: 0.94rem;
+          line-height: 1.5;
+        }
+
+        .xam-poem {
+          white-space: pre-line;
+          color: #ffe4ab !important;
+          font-style: italic;
+        }
+
+        .xam-action {
+          margin-top: 0.85rem;
+          border-left: 3px solid rgba(255, 210, 126, 0.7);
+          padding-left: 0.75rem;
+        }
+
+        .xam-action span {
+          color: #ffd28a;
+          font-size: 0.72rem;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .xam-action p {
+          margin-top: 0.25rem;
+        }
+
+        @keyframes xamPulse {
+          0%,
+          100% {
+            opacity: 0.68;
+            transform: scale(0.96);
+          }
+
+          50% {
+            opacity: 1;
+            transform: scale(1.04);
+          }
+        }
+
+        @keyframes xamShake {
+          0%,
+          100% {
+            transform: translate(-50%, -50%) rotate(0deg);
+          }
+
+          25% {
+            transform: translate(-50%, -50%) rotate(-8deg);
+          }
+
+          55% {
+            transform: translate(-50%, -50%) rotate(7deg);
+          }
+
+          80% {
+            transform: translate(-50%, -50%) rotate(-4deg);
+          }
+        }
+
+        @keyframes xamRise {
+          from {
+            opacity: 0.68;
+            transform: rotate(-8deg) translateY(78px);
+          }
+
+          to {
+            opacity: 1;
+            transform: rotate(-8deg) translateY(0);
+          }
+        }
+
+        @keyframes xamCardOpen {
+          from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.98);
+          }
+
+          to {
+            opacity: 0.94;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @media (max-width: 820px) {
+          .xin-xam-page {
+            padding: 0.55rem;
+          }
+
+          .xin-xam-topbar {
+            margin-bottom: 0.5rem;
+            gap: 0.45rem;
+          }
+
+          .xin-xam-nav-link {
+            min-height: 38px;
+            padding: 0.42rem 0.7rem;
+          }
+
+          .xin-xam-layout {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+              "stage"
+              "intro"
+              "card";
+            gap: 0.6rem;
+          }
+
+          .xin-xam-room {
+            aspect-ratio: 1672 / 941;
+            margin-bottom: 0;
+            overflow: hidden;
+            border-radius: 20px;
+          }
+
+          .xin-xam-stage-image {
+            object-fit: contain;
+            object-position: center;
+          }
+
+          .xin-xam-title-card {
+            max-width: none;
+            border-radius: 16px;
+            padding: 0.58rem 0.64rem;
+          }
+
+          .xin-xam-title-card h1 {
+            font-size: clamp(1.1rem, 5vw, 1.32rem);
+          }
+
+          .xin-xam-title-card p {
+            font-size: 0.62rem;
+          }
+
+          .xin-xam-title-card span {
+            margin-top: 0.25rem;
+            font-size: 0.72rem;
+            line-height: 1.28;
+          }
+
+          .xin-xam-topic-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.28rem;
+            margin-top: 0.5rem;
+          }
+
+          .xin-xam-topic-grid button {
+            min-height: 34px;
+            padding: 0 0.32rem;
+            font-size: 0.72rem;
+          }
+
+          .xam-holder-hotspot {
+            left: 7%;
+            bottom: 13%;
+            width: clamp(94px, 28vw, 124px);
+            height: clamp(94px, 28vw, 124px);
+          }
+
+          .xam-holder-label {
+            bottom: -0.08rem;
+            padding: 0.32rem 0.5rem;
+            font-size: 0.62rem;
+          }
+
+          .xam-rising-stick {
+            left: 17%;
+            bottom: 24%;
+            width: 30px;
+            height: clamp(138px, 38vw, 180px);
+          }
+
+          .xam-card {
+            width: auto;
+            border-radius: 16px;
+            padding: 0.72rem;
+            max-height: none;
+            overflow: visible;
+          }
+
+          .xam-card-meta {
+            font-size: 0.62rem;
+            gap: 0.35rem;
+          }
+
+          .xam-card h2 {
+            margin-top: 0.35rem;
+            font-size: clamp(0.98rem, 4.2vw, 1.2rem);
+          }
+
+          .xam-card p {
+            margin-top: 0.42rem;
+            font-size: 0.78rem;
+            line-height: 1.32;
+          }
+
+          .xam-action {
+            margin-top: 0.5rem;
+            padding-left: 0.5rem;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .xam-holder-glow,
+          .xam-holder-hotspot.is-shaking .xam-holder-sticks,
+          .xam-rising-stick,
+          .xam-card.is-open {
+            animation: none;
+          }
+        }
+      `}</style>
+    </main>
   );
 }
