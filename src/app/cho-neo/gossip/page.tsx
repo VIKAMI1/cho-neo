@@ -2826,7 +2826,7 @@ export default function ChoNeoGossipPage() {
                   <img
                     alt="Quán Tám isometric café room with five empty table zones, warm lanterns, a small espresso bar, and nail café details"
                     className="gossip-room-image"
-                    src="/images/cho-neo/quan-tam-gossip-cafe-room-modern-warm-final.png"
+                    src="/images/cho-neo/quan-tam-gossip.png"
                   />
                   <div className="gossip-room-scrim" aria-hidden="true" />
                   {/* Future approved café audio can hook in here; no audio element is rendered, so there is no autoplay. */}
@@ -3836,7 +3836,7 @@ export default function ChoNeoGossipPage() {
         .gossip-room-stage {
           position: relative;
           width: min(1120px, 100%);
-          aspect-ratio: 2048 / 1365;
+          aspect-ratio: 16 / 9;
           margin: 0 auto;
           overflow: hidden;
           border: 1px solid rgba(253, 230, 138, 0.24);
@@ -7426,7 +7426,7 @@ export default function ChoNeoGossipPage() {
           }
 
           .gossip-room-stage {
-            min-height: 300px;
+            min-height: auto;
             border-radius: 24px;
           }
 
