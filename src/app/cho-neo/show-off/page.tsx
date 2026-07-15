@@ -1,163 +1,126 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import {
   useEffect,
   useMemo,
   useRef,
   useState,
   type ChangeEvent,
-  type CSSProperties,
   type FormEvent,
 } from "react";
+import { ChoNeoRoomShell } from "@/components/cho-neo/ChoNeoRoomShell";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
+import { GalleryGrid } from "@/components/cho-neo/show-off/GalleryGrid";
+import { GallerySearch } from "@/components/cho-neo/show-off/GallerySearch";
+import { RoomArtwork } from "@/components/cho-neo/show-off/RoomArtwork";
+import { UploadPanel } from "@/components/cho-neo/show-off/UploadPanel";
+import {
+  KHOE_SET_CATEGORIES,
+  type KhoeSetCategory,
+  type KhoeSetPost,
+  type RoomArtworkConfig,
+} from "@/components/cho-neo/show-off/types";
 
-const KHOE_SET_HERO_IMAGE = "/images/cho-neo/Reference%20image/Khoe-Set-Room.png";
 const RENDER_KHOE_SET_FRAME_OVERLAYS = false;
 const KHOE_SET_POSTS_KEY = "choNeoKhoeSetPostsV1";
 const CAPTION_LIMIT = 180;
-const KHOE_SET_FRAME_IMAGES = [
-  {
-    alt: "ARGENTIUM silver sparkle nail design",
-    objectPosition: "center center",
-    src: "/images/cho-neo/Reference%20image/Agardenofsparkle.JPG",
-  },
-  {
-    alt: "ARGENTIUM chrome 3D nail design",
-    objectPosition: "center center",
-    src: "/images/cho-neo/Reference%20image/AgChrome3d.JPG",
-  },
-  {
-    alt: "ARGENTIUM colorful geometric nail design",
-    objectPosition: "center center",
-    src: "/images/cho-neo/Reference%20image/AgColor.JPG",
-  },
-  {
-    alt: "ARGENTIUM orange floral nail design",
-    objectPosition: "center center",
-    src: "/images/cho-neo/Reference%20image/AgOrange.JPG",
-  },
-  {
-    alt: "ARGENTIUM barely there beautifully bold nail design",
-    objectPosition: "center center",
-    src: "/images/cho-neo/Reference%20image/BarelyThereBB.JPG",
-  },
-] as const;
+const DEFAULT_CREATOR_NAME = "Nail Artist";
 
-const KHOE_SET_FRAME_SLOTS = [
-  {
-    className: "khoe-set-frame-slot-1",
-    desktop: { height: "29%", left: "58.4%", top: "60.6%", width: "7.2%" },
-    mobile: { height: "27.5%", left: "48.2%", top: "58.4%", width: "9%" },
-    rotate: "1deg",
-  },
-  {
-    className: "khoe-set-frame-slot-2",
-    desktop: { height: "29%", left: "66.5%", top: "61%", width: "7.7%" },
-    mobile: { height: "27.5%", left: "58.6%", top: "58.6%", width: "10%" },
-    rotate: "2deg",
-  },
-  {
-    className: "khoe-set-frame-slot-3",
-    desktop: { height: "29%", left: "74.4%", top: "61.3%", width: "7.8%" },
-    mobile: { height: "27.5%", left: "68.4%", top: "58.9%", width: "9.8%" },
-    rotate: "2deg",
-  },
-  {
-    className: "khoe-set-frame-slot-4",
-    desktop: { height: "29%", left: "82.5%", top: "61.4%", width: "8%" },
-    mobile: { height: "27.5%", left: "78.3%", top: "59.2%", width: "9.8%" },
-    rotate: "3deg",
-  },
-  {
-    className: "khoe-set-frame-slot-5",
-    desktop: { height: "29%", left: "91%", top: "61.8%", width: "8.5%" },
-    mobile: { height: "27.5%", left: "88.3%", top: "59.5%", width: "9.9%" },
-    rotate: "4deg",
-  },
-] as const;
-
-const KHOE_SET_CATEGORIES = [
-  "Mới làm",
-  "Khách thích",
-  "Màu đẹp",
-  "Trend",
-  "Ý tưởng",
-] as const;
-
-type KhoeSetCategory = (typeof KHOE_SET_CATEGORIES)[number];
-
-type KhoeSetPost = {
-  id: string;
-  category: KhoeSetCategory;
-  caption: string;
-  imageDataUrl?: string;
-  createdAt: string;
+const ROOM_ARTWORK: RoomArtworkConfig = {
+  src: "/images/cho-neo/Reference%20image/Khoe-Set-Room.png",
+  alt: "Phòng Trưng Bày boutique nail studio with warm sunlight, flowers, marble table, color wheels, and framed nail displays",
+  objectPosition: "center center",
+  aspectRatio: "16 / 5.2",
+  caption: "Không gian tham khảo của Phòng Trưng Bày",
 };
 
-type KhoeSetFrameSlot = (typeof KHOE_SET_FRAME_SLOTS)[number];
-type KhoeSetFrameStyle = CSSProperties & Record<`--${string}`, string>;
+const UPLOAD_CATEGORIES = KHOE_SET_CATEGORIES.filter(
+  (category) => category !== "Mới nhất",
+) as KhoeSetCategory[];
 
 const PROMPT_CHIPS = [
   "Set hôm nay khách mê lắm...",
   "Màu này lên tay đẹp bất ngờ...",
   "Một ý tưởng cho khách thích nhẹ nhàng...",
-  "Trend này tiệm mình muốn thử...",
-  "Khoe nhẹ một bộ mới làm...",
+  "Chi tiết hoa nhỏ làm bộ này mềm hơn...",
+  "Khoe một góc màu mới của tiệm...",
 ];
+
+type LegacyKhoeSetPost = Partial<KhoeSetPost> & {
+  category?: string;
+  imageDataUrl?: string;
+};
+
+function normalizeCategory(value?: string): KhoeSetCategory {
+  if (value === "Mới làm") return "Mới nhất";
+  if (value === "Khách thích") return "Khách mê";
+  if (value === "Trend") return "Xu hướng";
+  if (KHOE_SET_CATEGORIES.includes(value as KhoeSetCategory)) {
+    return value as KhoeSetCategory;
+  }
+  return "Mới nhất";
+}
+
+function parseStyleTags(value: string) {
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function normalizePost(post: LegacyKhoeSetPost): KhoeSetPost | null {
+  if (!post.id || !post.caption || !post.createdAt) return null;
+
+  return {
+    id: post.id,
+    category: normalizeCategory(post.category),
+    caption: post.caption,
+    imageDataUrl: post.imageDataUrl,
+    createdAt: post.createdAt,
+    creatorName: post.creatorName?.trim() || DEFAULT_CREATOR_NAME,
+    creatorAvatar: post.creatorAvatar,
+    styleTags: Array.isArray(post.styleTags)
+      ? post.styleTags.filter(Boolean).slice(0, 4)
+      : [],
+  };
+}
 
 function readStoredPosts() {
   try {
     const stored = window.localStorage.getItem(KHOE_SET_POSTS_KEY);
     if (!stored) return [];
-    const parsed = JSON.parse(stored) as Partial<KhoeSetPost>[];
+    const parsed = JSON.parse(stored) as LegacyKhoeSetPost[];
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .filter((post): post is KhoeSetPost => {
-        return Boolean(
-          post.id &&
-            post.caption &&
-            post.category &&
-            KHOE_SET_CATEGORIES.includes(post.category as KhoeSetCategory) &&
-            post.createdAt,
-        );
-      })
-      .slice(0, 24);
+      .map(normalizePost)
+      .filter((post): post is KhoeSetPost => Boolean(post))
+      .slice(0, 36);
   } catch {
     return [];
   }
 }
 
-function formatPostTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Mới đăng";
-  return new Intl.DateTimeFormat("vi", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function getKhoeSetFrameStyle(slot: KhoeSetFrameSlot): KhoeSetFrameStyle {
-  return {
-    "--frame-height": slot.desktop.height,
-    "--frame-left": slot.desktop.left,
-    "--frame-mobile-height": slot.mobile.height,
-    "--frame-mobile-left": slot.mobile.left,
-    "--frame-mobile-top": slot.mobile.top,
-    "--frame-mobile-width": slot.mobile.width,
-    "--frame-rotate": slot.rotate,
-    "--frame-top": slot.desktop.top,
-    "--frame-width": slot.desktop.width,
-  };
+function getSearchText(post: KhoeSetPost) {
+  return [
+    post.caption,
+    post.category,
+    post.creatorName,
+    ...post.styleTags,
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 export default function ChoNeoShowOffPage() {
   const [selectedCategory, setSelectedCategory] =
-    useState<KhoeSetCategory>("Mới làm");
+    useState<KhoeSetCategory>("Mới nhất");
+  const [composerCategory, setComposerCategory] =
+    useState<KhoeSetCategory>("Khách mê");
+  const [query, setQuery] = useState("");
   const [caption, setCaption] = useState("");
+  const [creatorName, setCreatorName] = useState("");
+  const [styleTagsText, setStyleTagsText] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
   const [posts, setPosts] = useState<KhoeSetPost[]>([]);
   const [notice, setNotice] = useState("");
@@ -175,10 +138,15 @@ export default function ChoNeoShowOffPage() {
     }
   }, [posts]);
 
-  const filteredPosts = useMemo(
-    () => posts.filter((post) => post.category === selectedCategory),
-    [posts, selectedCategory],
-  );
+  const visiblePosts = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+    return posts.filter((post) => {
+      const categoryMatch =
+        selectedCategory === "Mới nhất" || post.category === selectedCategory;
+      const queryMatch = cleanQuery ? getSearchText(post).includes(cleanQuery) : true;
+      return categoryMatch && queryMatch;
+    });
+  }, [posts, query, selectedCategory]);
 
   function handlePromptClick(prompt: string) {
     setCaption((current) => {
@@ -221,788 +189,976 @@ export default function ChoNeoShowOffPage() {
 
     const nextPost: KhoeSetPost = {
       id: `khoe-set-${Date.now()}`,
-      category: selectedCategory,
+      category: composerCategory,
       caption: cleanCaption.slice(0, CAPTION_LIMIT),
       imageDataUrl,
       createdAt: new Date().toISOString(),
+      creatorName: creatorName.trim() || DEFAULT_CREATOR_NAME,
+      styleTags: parseStyleTags(styleTagsText),
     };
 
-    setPosts((current) => [nextPost, ...current].slice(0, 24));
+    setPosts((current) => [nextPost, ...current].slice(0, 36));
     setCaption("");
+    setStyleTagsText("");
     setImageDataUrl(undefined);
-    setNotice("Đã đặt set lên kệ Khoe Set.");
+    setSelectedCategory("Mới nhất");
+    setNotice("Đã đặt bộ móng lên tường trưng bày.");
   }
 
   return (
-    <main className="khoe-set-page">
+    <ChoNeoRoomShell className="show-off-page" currentNavId="show-off">
       <ChoNeoTimeAmbience />
 
-      <section className="khoe-set-shell" aria-labelledby="khoe-set-title">
-        <header className="khoe-set-topbar">
-          <Link className="soft-link" href="/cho-neo">
-            <span>Về Sân Làng</span>
-            <small>Back to Village</small>
-          </Link>
-          <Link className="soft-link" href="/cho-neo/gossip">
-            <span>Qua Quán Tám</span>
-            <small>Gossip Café</small>
-          </Link>
-        </header>
+      <section className="show-off-shell" aria-labelledby="show-off-title">
+        <section className="show-off-main">
+          <header className="show-off-topbar">
+            <GallerySearch value={query} onChange={setQuery} />
+            <a className="show-off-mobile-post-link" href="#dang-bo-mong">
+              + Đăng bộ móng
+            </a>
+          </header>
 
-        <section className="khoe-set-hero">
-          <Image
-            src={KHOE_SET_HERO_IMAGE}
-            alt="Khoe Set Đẹp bright nail inspiration salon corner"
-            fill
-            priority
-            sizes="(max-width: 860px) 100vw, 1180px"
-            className="khoe-set-hero-image"
-          />
-          {RENDER_KHOE_SET_FRAME_OVERLAYS ? (
-            <div className="khoe-set-frame-overlays" aria-label="ARGENTIUM table frame photos">
-              {KHOE_SET_FRAME_IMAGES.map((frame, frameIndex) => (
-                <span
-                  className={`khoe-set-frame ${KHOE_SET_FRAME_SLOTS[frameIndex].className}`}
-                  key={frame.src}
-                  style={getKhoeSetFrameStyle(KHOE_SET_FRAME_SLOTS[frameIndex])}
-                >
-                  <img
-                    src={frame.src}
-                    alt={frame.alt}
-                    style={{ objectPosition: frame.objectPosition }}
-                  />
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <div className="hero-shade" aria-hidden="true" />
-          <div className="hero-copy">
-            <p>Khoe Set Đẹp</p>
-            <h1 id="khoe-set-title">Khoe set mới, giữ vui cho làng.</h1>
-            <span>
-              Show fresh sets, pretty colors, client-loved designs, and small
-              salon wins.
-            </span>
-          </div>
-        </section>
-
-        <section className="room-intro" aria-label="Giới thiệu Khoe Set">
-          <div>
-            <p className="section-kicker">Phòng Khoe Set</p>
-            <h2>Đẹp thì khoe nhẹ. Ai thích thì học ý tưởng.</h2>
-            <p>
-              Một góc sáng để đăng set mới làm, màu khách mê, trend muốn thử,
-              và những bộ móng khiến tiệm thấy tự hào.
-            </p>
-          </div>
-        </section>
-
-        <nav className="category-row" aria-label="Danh mục Khoe Set">
-          {KHOE_SET_CATEGORIES.map((category) => (
-            <button
-              key={category}
-              type="button"
-              className={category === selectedCategory ? "active" : ""}
-              onClick={() => setSelectedCategory(category)}
-            >
-              {category}
-            </button>
-          ))}
-        </nav>
-
-        <section className="prompt-strip" aria-label="Gợi ý mở lời">
-          <div>
-            <p className="section-kicker">Gợi ý mở lời</p>
-            <span>Nhấn một câu để bắt đầu caption.</span>
-          </div>
-          <div className="prompt-chips">
-            {PROMPT_CHIPS.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                onClick={() => handlePromptClick(prompt)}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="khoe-set-board">
-          <form className="composer-card" onSubmit={handleSubmit}>
-            <div className="composer-heading">
-              <div>
-                <p className="section-kicker">Đặt set lên kệ</p>
-                <h2>Caption ngắn thôi, hình đẹp nói tiếp.</h2>
-              </div>
-              <span>{caption.length}/{CAPTION_LIMIT}</span>
-            </div>
-
-            <div className="image-picker">
-              {imageDataUrl ? (
-                <img src={imageDataUrl} alt="Ảnh set nail đang chuẩn bị đăng" />
-              ) : (
-                <div>
-                  <strong>Thêm hình set</strong>
-                  <span>Ảnh nằm trên máy bạn, lưu tạm trong trình duyệt này.</span>
+          <div className="show-off-room-layout">
+            <section className="show-off-gallery-stack">
+              <section className="show-off-hero">
+                <RoomArtwork artwork={ROOM_ARTWORK} />
+                <div className="show-off-hero-copy">
+                  <p>Phòng Trưng Bày</p>
+                  <h1 id="show-off-title">Khoe bộ móng mới, giữ lại màu đẹp và ý tưởng khách mê.</h1>
+                  <span>
+                    Một góc nhẹ để người làm nail lưu tác phẩm, kể vài chữ về
+                    màu, kiểu, và cảm hứng phía sau mỗi bộ móng.
+                  </span>
+                  <a href="#dang-bo-mong">
+                    <strong>+</strong>
+                    Đăng bộ móng
+                  </a>
                 </div>
-              )}
-              <label>
-                Chọn ảnh
-                <input type="file" accept="image/*" onChange={handleImageChange} />
-              </label>
-            </div>
+              </section>
 
-            <textarea
-              ref={captionRef}
-              value={caption}
-              maxLength={CAPTION_LIMIT}
-              onChange={(event) => {
-                setCaption(event.target.value);
+              <nav className="show-off-category-row" aria-label="Danh mục Phòng Trưng Bày">
+                {KHOE_SET_CATEGORIES.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={category === selectedCategory ? "active" : ""}
+                    onClick={() => setSelectedCategory(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </nav>
+
+              <GalleryGrid posts={visiblePosts} totalCount={posts.length} query={query} />
+            </section>
+
+            <UploadPanel
+              caption={caption}
+              captionLimit={CAPTION_LIMIT}
+              captionRef={captionRef}
+              categoryOptions={UPLOAD_CATEGORIES}
+              creatorName={creatorName}
+              imageDataUrl={imageDataUrl}
+              notice={notice}
+              promptChips={PROMPT_CHIPS}
+              selectedCategory={composerCategory}
+              styleTagsText={styleTagsText}
+              onCaptionChange={(value) => {
+                setCaption(value);
                 setNotice("");
               }}
-              placeholder="Khoe nhẹ một bộ mới làm..."
+              onCategoryChange={setComposerCategory}
+              onCreatorNameChange={setCreatorName}
+              onImageChange={handleImageChange}
+              onPromptClick={handlePromptClick}
+              onStyleTagsChange={setStyleTagsText}
+              onSubmit={handleSubmit}
             />
-
-            <div className="composer-actions">
-              <p>
-                Không cần viết dài. Một màu, một cảm giác, một lý do khách
-                thích là đủ.
-              </p>
-              <button type="submit">Đăng set</button>
-            </div>
-            {notice && <p className="notice">{notice}</p>}
-          </form>
-
-          <section className="feed-column" aria-label="Bài Khoe Set">
-            <div className="feed-heading">
-              <div>
-                <p className="section-kicker">Set mới trong phòng</p>
-                <h2>{selectedCategory}</h2>
-              </div>
-            </div>
-
-            {filteredPosts.length > 0 ? (
-              <div className="post-grid">
-                {filteredPosts.map((post) => (
-                  <article className="set-card" key={post.id}>
-                    <div className="set-image">
-                      {post.imageDataUrl ? (
-                        <img src={post.imageDataUrl} alt="Set nail được chia sẻ" />
-                      ) : (
-                        <span>Set</span>
-                      )}
-                    </div>
-                    <div className="set-copy">
-                      <div>
-                        <span>{post.category}</span>
-                        <small>{formatPostTime(post.createdAt)}</small>
-                      </div>
-                      <p>{post.caption}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <strong>Chưa có set nào trong mục này.</strong>
-                <span>
-                  Khoe một bộ bạn thấy vui, một màu khách khen, hoặc một ý
-                  tưởng muốn để dành cho tiệm.
-                </span>
-              </div>
-            )}
-          </section>
-        </section>
-
-        <section className="soft-rules" aria-label="Nếp phòng Khoe Set">
-          <span>Khoe để vui, không chê tay nghề người khác.</span>
-          <span>Không spam bán hàng.</span>
-          <span>Giữ mặt khách riêng tư nếu ảnh có người.</span>
+          </div>
         </section>
       </section>
 
       <style>{`
-        .khoe-set-page {
+        .show-off-page,
+        .show-off-page * {
+          box-sizing: border-box;
+        }
+
+        .show-off-page {
           min-height: 100vh;
           overflow-x: hidden;
+          color: #4a1b24;
           background:
-            radial-gradient(circle at 20% 0%, rgba(255, 190, 194, 0.32), transparent 28rem),
-            radial-gradient(circle at 86% 18%, rgba(253, 224, 138, 0.24), transparent 30rem),
-            linear-gradient(180deg, #fff7ed 0%, #fdecef 48%, #fff8f2 100%);
-          color: #401919;
+            linear-gradient(90deg, rgba(251, 232, 229, 0.78), transparent 12rem),
+            linear-gradient(180deg, #fffaf6 0%, #fdeceb 54%, #fff7f0 100%);
+          font-family:
+            Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+            "Segoe UI", sans-serif;
         }
 
-        .khoe-set-shell {
-          width: min(1180px, 100%);
-          margin: 0 auto;
-          padding: clamp(0.8rem, 2vw, 1.4rem);
+        .show-off-shell {
+          display: block;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          min-height: 100vh;
+          margin: 0;
+          overflow-x: hidden;
+          padding: 0;
         }
 
-        .khoe-set-topbar {
+        .show-off-nav {
+          position: sticky;
+          top: 0;
+          align-self: start;
           display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.6rem;
-          margin-bottom: 0.75rem;
+          flex-direction: column;
+          gap: 1.4rem;
+          min-height: 100vh;
+          border-right: 1px solid rgba(129, 54, 66, 0.1);
+          padding: 1.5rem 0.9rem;
+          background: rgba(255, 250, 247, 0.7);
+          backdrop-filter: blur(18px);
         }
 
-        .soft-link {
-          display: inline-flex;
+        .show-off-brand {
+          color: #5b2029;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.7rem;
+          font-style: italic;
+          text-decoration: none;
+        }
+
+        .show-off-nav nav {
+          display: grid;
+          gap: 0.55rem;
+        }
+
+        .show-off-nav nav a {
+          display: flex;
           flex-direction: column;
           justify-content: center;
-          min-height: 42px;
-          border: 1px solid rgba(148, 64, 39, 0.16);
-          border-radius: 999px;
-          padding: 0.48rem 0.82rem;
-          color: #6f2b21;
-          background: rgba(255, 255, 255, 0.74);
+          min-height: 48px;
+          border: 1px solid transparent;
+          border-radius: 8px;
+          padding: 0.55rem 0.7rem;
+          color: #6d333d;
+          font-size: 0.84rem;
+          font-weight: 560;
           text-decoration: none;
-          box-shadow: 0 10px 26px rgba(127, 29, 29, 0.08);
         }
 
-        .soft-link span {
-          font-size: 0.8rem;
-          font-weight: 950;
+        .show-off-nav nav a.active {
+          border-color: rgba(164, 73, 87, 0.18);
+          color: #8f2e42;
+          background: rgba(255, 239, 238, 0.88);
+          box-shadow: 0 10px 24px rgba(137, 47, 62, 0.06);
         }
 
-        .soft-link small {
-          color: rgba(83, 35, 31, 0.58);
-          font-size: 0.66rem;
+        .show-off-nav small {
+          margin-top: 0.18rem;
+          color: rgba(91, 32, 41, 0.58);
+          font-size: 0.72rem;
+          font-weight: 500;
         }
 
-        .khoe-set-hero {
+        .show-off-main {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow-x: hidden;
+          padding-top: 0.62rem;
+        }
+
+        .show-off-topbar {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.75rem;
+          min-height: 46px;
+        }
+
+        .show-off-search {
+          display: flex;
+          align-items: center;
+          gap: 0.55rem;
+          width: min(420px, 100%);
+          height: 42px;
+          border: 1px solid rgba(132, 58, 69, 0.14);
+          border-radius: 16px;
+          padding: 0 0.9rem;
+          color: #8f5360;
+          background: rgba(255, 255, 255, 0.8);
+          box-shadow: 0 10px 30px rgba(129, 54, 66, 0.05);
+        }
+
+        .show-off-search input {
+          width: 100%;
+          border: 0;
+          color: #4a1b24;
+          background: transparent;
+          font: inherit;
+          font-size: 0.9rem;
+          outline: none;
+        }
+
+        .show-off-search input::placeholder {
+          color: rgba(74, 27, 36, 0.48);
+        }
+
+        .show-off-mobile-post-link {
+          display: none;
+        }
+
+        .show-off-hero {
           position: relative;
-          min-height: clamp(280px, 42vw, 500px);
+          min-height: clamp(320px, 27vw, 390px);
+          margin-top: 0.2rem;
           overflow: hidden;
-          border-radius: clamp(20px, 3vw, 34px);
-          background: #fbe7df;
-          box-shadow:
-            0 24px 70px rgba(127, 29, 29, 0.16),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+          border-radius: 18px;
+          background: #f4ddd6;
+          box-shadow: 0 22px 62px rgba(117, 49, 60, 0.1);
           isolation: isolate;
         }
 
-        .khoe-set-hero-image {
-          z-index: 0;
-          object-fit: cover;
-          object-position: center;
+        .show-off-hero-copy {
+          position: relative;
+          z-index: 3;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          width: min(54%, 600px);
+          min-height: clamp(320px, 27vw, 390px);
+          padding: clamp(1.4rem, 2.4vw, 2rem) clamp(1.1rem, 2.5vw, 2.4rem);
         }
 
-        .khoe-set-frame-overlays {
+        .show-off-hero-copy p,
+        .show-off-section-heading p,
+        .show-off-upload-summary p {
+          margin: 0;
+          color: #c47442;
+          font-size: 0.74rem;
+          font-weight: 620;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+        }
+
+        .show-off-hero-copy h1 {
+          max-width: 560px;
+          margin: 0.65rem 0 0;
+          color: #54202a;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: clamp(1.95rem, 2.72vw, 2.88rem);
+          font-weight: 400;
+          line-height: 1.08;
+          text-wrap: balance;
+        }
+
+        .show-off-hero-copy > span {
+          max-width: 450px;
+          margin-top: 0.82rem;
+          color: rgba(74, 27, 36, 0.66);
+          font-size: 0.94rem;
+          font-weight: 400;
+          line-height: 1.62;
+        }
+
+        .show-off-hero-copy a {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.7rem;
+          width: fit-content;
+          min-height: 44px;
+          margin-top: 1.05rem;
+          border-radius: 14px;
+          padding: 0 1.15rem;
+          color: #fff9f7;
+          background: #b32345;
+          font-size: 0.92rem;
+          font-weight: 660;
+          text-decoration: none;
+          box-shadow: 0 12px 24px rgba(179, 35, 69, 0.17);
+        }
+
+        .show-off-hero-copy strong {
+          font-size: 1.22rem;
+          font-weight: 500;
+        }
+
+        .show-off-room-artwork {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          min-height: 0;
+          margin: 0;
+          overflow: hidden;
+          border-radius: inherit;
+          background: #f4ddd6;
+          box-shadow: none;
+        }
+
+        .show-off-room-artwork::before {
+          content: "";
           position: absolute;
           inset: 0;
           z-index: 1;
           pointer-events: none;
+          background:
+            linear-gradient(90deg, rgba(255, 249, 245, 0.95) 0%, rgba(255, 249, 245, 0.84) 32%, rgba(255, 249, 245, 0.46) 56%, rgba(255, 249, 245, 0.06) 82%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 242, 237, 0.12));
         }
 
-        .khoe-set-frame {
-          position: absolute;
-          display: block;
-          left: var(--frame-left);
-          top: var(--frame-top);
-          width: var(--frame-width);
-          height: var(--frame-height);
-          overflow: hidden;
-          border-radius: 2px;
-          background: #f8efe5;
-          box-shadow:
-            inset 0 0 0 1px rgba(255, 255, 255, 0.42),
-            0 2px 6px rgba(92, 39, 27, 0.12);
-          transform: rotate(var(--frame-rotate));
-        }
-
-        .khoe-set-frame img {
-          display: block;
-          width: 100%;
-          height: 100%;
+        .show-off-room-artwork-image {
           object-fit: cover;
         }
 
-        .hero-shade {
+        .show-off-room-artwork figcaption {
           position: absolute;
-          inset: 0;
           z-index: 2;
-          pointer-events: none;
-          background:
-            linear-gradient(90deg, rgba(77, 24, 24, 0.5), rgba(77, 24, 24, 0.06) 48%, transparent),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 244, 237, 0.18));
-        }
-
-        .hero-copy {
-          position: relative;
-          z-index: 3;
-          width: min(520px, 92%);
-          padding: clamp(1rem, 3vw, 2rem);
-          color: #fff9f1;
-          text-shadow: 0 8px 26px rgba(64, 16, 16, 0.32);
-        }
-
-        .hero-copy p,
-        .hero-copy h1,
-        .hero-copy span,
-        .room-intro h2,
-        .room-intro p,
-        .section-kicker,
-        .composer-heading h2,
-        .feed-heading h2 {
-          margin: 0;
-        }
-
-        .hero-copy p,
-        .section-kicker {
-          color: #ffe4ad;
-          font-size: 0.72rem;
-          font-weight: 950;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-        }
-
-        .hero-copy h1 {
-          margin-top: 0.35rem;
-          font-size: clamp(2.2rem, 6vw, 4.85rem);
-          line-height: 0.95;
-          text-wrap: balance;
-        }
-
-        .hero-copy span {
-          display: block;
-          max-width: 420px;
-          margin-top: 0.72rem;
-          color: rgba(255, 249, 241, 0.82);
-          font-size: clamp(0.98rem, 1.55vw, 1.15rem);
-          line-height: 1.5;
-        }
-
-        .room-intro,
-        .prompt-strip,
-        .composer-card,
-        .feed-column,
-        .soft-rules {
-          border: 1px solid rgba(148, 64, 39, 0.11);
-          background: rgba(255, 255, 255, 0.76);
-          box-shadow: 0 18px 46px rgba(127, 29, 29, 0.08);
-          backdrop-filter: blur(14px);
-        }
-
-        .room-intro {
-          margin-top: 0.9rem;
-          border-radius: 24px;
-          padding: clamp(1rem, 2vw, 1.25rem);
-        }
-
-        .room-intro h2 {
-          margin-top: 0.25rem;
-          color: #4b1717;
-          font-size: clamp(1.55rem, 3vw, 2.55rem);
-          line-height: 1;
-        }
-
-        .room-intro p:not(.section-kicker) {
-          max-width: 760px;
-          margin-top: 0.55rem;
-          color: rgba(64, 25, 25, 0.72);
-          line-height: 1.55;
-        }
-
-        .category-row,
-        .prompt-chips {
+          right: 1rem;
+          bottom: 0.9rem;
           display: flex;
-          gap: 0.5rem;
+          gap: 0.45rem;
+          align-items: center;
+          border-radius: 14px;
+          padding: 0.42rem 0.68rem;
+          color: rgba(84, 32, 42, 0.72);
+          background: rgba(255, 250, 246, 0.7);
+          font-size: 0.72rem;
+          backdrop-filter: blur(12px);
+        }
+
+        .show-off-room-artwork small {
+          color: rgba(84, 32, 42, 0.5);
+        }
+
+        .show-off-category-row {
+          display: flex;
+          gap: 0.62rem;
+          margin: 0.9rem 0 1rem;
           overflow-x: auto;
           padding-bottom: 0.1rem;
           scrollbar-width: none;
         }
 
-        .category-row::-webkit-scrollbar,
-        .prompt-chips::-webkit-scrollbar {
+        .show-off-category-row::-webkit-scrollbar,
+        .show-off-prompt-row::-webkit-scrollbar {
           display: none;
         }
 
-        .category-row {
-          margin-top: 0.85rem;
-        }
-
-        .category-row button,
-        .prompt-chips button {
+        .show-off-category-row button {
           flex: 0 0 auto;
-          min-height: 42px;
-          border: 1px solid rgba(148, 64, 39, 0.14);
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.78);
-          color: #6f2b21;
-          font-weight: 900;
+          min-height: 40px;
+          border: 1px solid rgba(146, 67, 80, 0.15);
+          border-radius: 14px;
+          padding: 0 1rem;
+          color: #74323e;
+          background: rgba(255, 255, 255, 0.58);
+          font: inherit;
+          font-size: 0.86rem;
+          font-weight: 560;
           cursor: pointer;
         }
 
-        .category-row button {
-          padding: 0 0.92rem;
+        .show-off-category-row button.active {
+          border-color: #b32345;
+          color: #fff9f7;
+          background: #b32345;
+          box-shadow: 0 10px 24px rgba(179, 35, 69, 0.14);
         }
 
-        .category-row button.active {
-          border-color: transparent;
-          color: #fff8f1;
-          background: #b84b4a;
-          box-shadow: 0 12px 28px rgba(184, 75, 74, 0.22);
-        }
-
-        .prompt-strip {
+        .show-off-room-layout {
           display: grid;
-          grid-template-columns: minmax(160px, 0.34fr) minmax(0, 1fr);
-          gap: 0.9rem;
-          align-items: center;
-          margin-top: 0.75rem;
-          border-radius: 22px;
-          padding: 0.85rem;
-        }
-
-        .prompt-strip span {
-          display: block;
-          margin-top: 0.24rem;
-          color: rgba(64, 25, 25, 0.58);
-          font-size: 0.86rem;
-        }
-
-        .prompt-chips button {
-          padding: 0 0.78rem;
-          font-size: 0.86rem;
-          white-space: nowrap;
-        }
-
-        .khoe-set-board {
-          display: grid;
-          grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
-          gap: 0.9rem;
+          grid-template-columns: minmax(0, 1fr) minmax(310px, 338px);
+          gap: 1.15rem;
           align-items: start;
-          margin-top: 0.9rem;
+          max-width: 100%;
+          min-width: 0;
         }
 
-        .composer-card,
-        .feed-column {
-          border-radius: 26px;
-          padding: clamp(0.9rem, 2vw, 1.1rem);
+        .show-off-gallery-stack {
+          min-width: 0;
         }
 
-        .composer-heading,
-        .feed-heading {
+        .show-off-gallery-section {
+          min-width: 0;
+        }
+
+        .show-off-section-heading {
           display: flex;
-          align-items: flex-start;
+          align-items: flex-end;
           justify-content: space-between;
           gap: 1rem;
+          margin: 0 0 0.75rem;
         }
 
-        .composer-heading h2,
-        .feed-heading h2 {
-          margin-top: 0.22rem;
-          color: #4b1717;
-          font-size: 1.45rem;
-          line-height: 1.05;
+        .show-off-section-heading h2 {
+          margin: 0.2rem 0 0;
+          color: #54202a;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.56rem;
+          font-weight: 400;
         }
 
-        .composer-heading > span {
-          color: rgba(64, 25, 25, 0.48);
-          font-size: 0.8rem;
-          font-weight: 800;
+        .show-off-section-heading > span {
+          color: #ad6170;
+          font-size: 0.84rem;
+          font-weight: 560;
         }
 
-        .image-picker {
+        .show-off-gallery-grid {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 0.7rem;
-          align-items: center;
-          margin-top: 0.85rem;
-          border: 1px dashed rgba(148, 64, 39, 0.22);
-          border-radius: 20px;
-          padding: 0.65rem;
-          background: rgba(255, 247, 237, 0.72);
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.78rem;
         }
 
-        .image-picker img,
-        .set-image img {
+        .show-off-card {
+          overflow: hidden;
+          border: 1px solid rgba(141, 66, 78, 0.1);
+          border-radius: 9px;
+          background: rgba(255, 251, 248, 0.9);
+          box-shadow: 0 10px 28px rgba(111, 43, 55, 0.06);
+        }
+
+        .show-off-card-image {
+          display: grid;
+          place-items: center;
+          aspect-ratio: 1.22 / 1;
+          overflow: hidden;
+          background: linear-gradient(135deg, #fff8f3, #f4d6d8);
+          color: rgba(116, 50, 62, 0.45);
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.2rem;
+        }
+
+        .show-off-card:nth-child(4n + 2) .show-off-card-image,
+        .show-off-card:nth-child(4n + 4) .show-off-card-image {
+          aspect-ratio: 1.12 / 1;
+        }
+
+        .show-off-card-image img {
           display: block;
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
 
-        .image-picker img {
-          min-height: 140px;
-          border-radius: 16px;
+        .show-off-card-body {
+          padding: 0.72rem;
         }
 
-        .image-picker div {
-          min-height: 98px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          border-radius: 16px;
-          padding: 0.8rem;
-          background:
-            radial-gradient(circle at 30% 20%, rgba(251, 207, 232, 0.72), transparent 46%),
-            linear-gradient(135deg, #fff7ed, #ffe4e6);
+        .show-off-creator-row {
+          display: grid;
+          grid-template-columns: 30px minmax(0, 1fr);
+          gap: 0.48rem;
+          align-items: center;
         }
 
-        .image-picker strong,
-        .image-picker span {
+        .show-off-avatar {
+          display: grid;
+          place-items: center;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+
+        .show-off-avatar-fallback {
+          color: #fff9f7;
+          background: #7b3642;
+          font-size: 0.72rem;
+          font-weight: 580;
+        }
+
+        .show-off-creator-row strong,
+        .show-off-creator-row small {
           display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
-        .image-picker strong {
-          color: #4b1717;
+        .show-off-creator-row strong {
+          color: #4f1e28;
+          font-size: 0.82rem;
+          font-weight: 620;
         }
 
-        .image-picker span {
-          margin-top: 0.25rem;
-          color: rgba(64, 25, 25, 0.6);
+        .show-off-creator-row small {
+          color: rgba(79, 30, 40, 0.46);
+          font-size: 0.7rem;
+          font-weight: 500;
+        }
+
+        .show-off-card-body p {
+          margin: 0.58rem 0 0;
+          color: #4d2029;
           font-size: 0.84rem;
-          line-height: 1.35;
+          line-height: 1.4;
         }
 
-        .image-picker label {
+        .show-off-tag-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.34rem;
+          margin-top: 0.62rem;
+        }
+
+        .show-off-tag-row span {
+          border: 1px solid rgba(164, 73, 87, 0.15);
+          border-radius: 999px;
+          padding: 0.23rem 0.48rem;
+          color: #8d3a49;
+          background: rgba(255, 242, 239, 0.72);
+          font-size: 0.68rem;
+          font-weight: 520;
+        }
+
+        .show-off-upload-rail {
+          position: sticky;
+          top: 0.9rem;
+          display: grid;
+          gap: 0.8rem;
+        }
+
+        .show-off-upload-card,
+        .show-off-room-rules,
+        .show-off-empty-state {
+          border: 1px solid rgba(141, 66, 78, 0.12);
+          border-radius: 12px;
+          background: rgba(255, 251, 248, 0.86);
+          box-shadow: 0 14px 40px rgba(111, 43, 55, 0.06);
+          backdrop-filter: blur(14px);
+        }
+
+        .show-off-upload-card {
+          padding: 1rem;
+        }
+
+        .show-off-upload-summary {
+          display: flex;
+          width: 100%;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 0.8rem;
+          border: 0;
+          padding: 0;
+          color: inherit;
+          background: transparent;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .show-off-upload-summary h2 {
+          margin: 0.24rem 0 0;
+          color: #54202a;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.34rem;
+          font-weight: 400;
+        }
+
+        .show-off-upload-summary > span {
+          flex: 0 0 auto;
+          color: rgba(84, 32, 42, 0.45);
+          font-size: 0.76rem;
+          font-weight: 560;
+        }
+
+        .show-off-upload-preview {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0.62rem;
+          margin-top: 0.9rem;
+        }
+
+        .show-off-upload-preview > span,
+        .show-off-upload-preview img {
+          display: grid;
+          place-items: center;
+          width: 100%;
+          aspect-ratio: 1.9 / 1;
+          border: 1px dashed rgba(179, 35, 69, 0.24);
+          border-radius: 8px;
+          color: #b32345;
+          background: linear-gradient(135deg, #fffaf6, #f8dfdf);
+          font-size: 1.4rem;
+        }
+
+        .show-off-upload-preview img {
+          display: block;
+          object-fit: cover;
+        }
+
+        .show-off-upload-preview label {
           position: relative;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-height: 42px;
-          border-radius: 999px;
-          padding: 0 0.85rem;
-          color: #fff8f1;
-          background: #6f2b21;
+          justify-self: start;
+          min-width: 132px;
+          min-height: 40px;
+          border: 1px solid rgba(179, 35, 69, 0.2);
+          border-radius: 8px;
+          padding: 0 0.92rem;
+          color: #8f2e42;
+          background: rgba(255, 247, 244, 0.76);
           font-size: 0.84rem;
-          font-weight: 950;
+          font-weight: 600;
           cursor: pointer;
         }
 
-        .image-picker input {
+        .show-off-upload-preview input {
           position: absolute;
           inset: 0;
           opacity: 0;
           cursor: pointer;
         }
 
-        textarea {
+        .show-off-field {
+          display: grid;
+          gap: 0.32rem;
+          margin-top: 0.72rem;
+        }
+
+        .show-off-field span {
+          color: rgba(84, 32, 42, 0.62);
+          font-size: 0.72rem;
+          font-weight: 560;
+        }
+
+        .show-off-field input,
+        .show-off-field select,
+        .show-off-upload-card textarea {
           width: 100%;
-          min-height: 112px;
-          resize: vertical;
-          margin-top: 0.75rem;
-          border: 1px solid rgba(148, 64, 39, 0.14);
-          border-radius: 20px;
-          padding: 0.82rem;
-          color: #401919;
-          background: rgba(255, 255, 255, 0.82);
+          border: 1px solid rgba(141, 66, 78, 0.14);
+          border-radius: 8px;
+          color: #4a1b24;
+          background: rgba(255, 255, 255, 0.68);
           font: inherit;
-          line-height: 1.45;
+          font-size: 0.86rem;
           outline: none;
         }
 
-        textarea:focus {
-          border-color: rgba(184, 75, 74, 0.55);
-          box-shadow: 0 0 0 4px rgba(251, 207, 232, 0.52);
+        .show-off-field input,
+        .show-off-field select {
+          min-height: 38px;
+          padding: 0 0.68rem;
         }
 
-        .composer-actions {
+        .show-off-upload-card textarea {
+          min-height: 92px;
+          margin-top: 0.72rem;
+          resize: vertical;
+          padding: 0.72rem;
+          line-height: 1.45;
+        }
+
+        .show-off-field input:focus,
+        .show-off-field select:focus,
+        .show-off-upload-card textarea:focus {
+          border-color: rgba(179, 35, 69, 0.46);
+          box-shadow: 0 0 0 3px rgba(179, 35, 69, 0.11);
+        }
+
+        .show-off-prompt-row {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.8rem;
-          margin-top: 0.75rem;
+          gap: 0.42rem;
+          margin-top: 0.72rem;
+          overflow-x: auto;
+          padding-bottom: 0.08rem;
+          scrollbar-width: none;
         }
 
-        .composer-actions p,
-        .notice {
-          margin: 0;
-          color: rgba(64, 25, 25, 0.58);
-          font-size: 0.84rem;
+        .show-off-prompt-row button {
+          flex: 0 0 auto;
+          min-height: 32px;
+          border: 1px solid rgba(141, 66, 78, 0.15);
+          border-radius: 12px;
+          padding: 0 0.62rem;
+          color: #85404b;
+          background: rgba(255, 246, 243, 0.74);
+          font: inherit;
+          font-size: 0.74rem;
+          font-weight: 520;
+          cursor: pointer;
+        }
+
+        .show-off-submit {
+          width: fit-content;
+          min-width: 148px;
+          min-height: 40px;
+          margin: 0.82rem auto 0;
+          border: 0;
+          border-radius: 12px;
+          padding: 0 1.05rem;
+          color: #fff9f7;
+          background: #b32345;
+          font: inherit;
+          font-size: 0.88rem;
+          font-weight: 650;
+          cursor: pointer;
+          box-shadow: 0 10px 22px rgba(179, 35, 69, 0.15);
+        }
+
+        .show-off-notice {
+          margin: 0.68rem 0 0;
+          color: #9a3f4f;
+          font-size: 0.8rem;
+          font-weight: 520;
           line-height: 1.35;
         }
 
-        .composer-actions button {
-          flex: 0 0 auto;
-          min-height: 46px;
-          border: 0;
-          border-radius: 999px;
-          padding: 0 1rem;
-          color: #fff8f1;
-          background: #b84b4a;
-          font-weight: 950;
-          cursor: pointer;
-          box-shadow: 0 12px 28px rgba(184, 75, 74, 0.22);
-        }
-
-        .notice {
-          margin-top: 0.65rem;
-          color: #9f3a38;
-          font-weight: 800;
-        }
-
-        .post-grid {
+        .show-off-room-rules {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 0.75rem;
-          margin-top: 0.8rem;
+          gap: 0.45rem;
+          padding: 0.9rem 1rem;
         }
 
-        .set-card {
-          overflow: hidden;
-          border: 1px solid rgba(148, 64, 39, 0.1);
-          border-radius: 22px;
-          background: rgba(255, 255, 255, 0.82);
-          box-shadow: 0 14px 34px rgba(127, 29, 29, 0.08);
+        .show-off-room-rules strong {
+          color: #662a35;
+          font-size: 0.86rem;
+          font-weight: 560;
         }
 
-        .set-image {
+        .show-off-room-rules span {
+          color: rgba(74, 27, 36, 0.62);
+          font-size: 0.8rem;
+          line-height: 1.35;
+        }
+
+        .show-off-empty-state {
           display: grid;
-          place-items: center;
-          aspect-ratio: 4 / 3;
-          background:
-            radial-gradient(circle at 40% 20%, rgba(251, 207, 232, 0.72), transparent 46%),
-            linear-gradient(135deg, #fff7ed, #fed7aa);
-          color: rgba(111, 43, 33, 0.5);
-          font-weight: 950;
+          gap: 0.45rem;
+          width: 100%;
+          min-width: 0;
+          min-height: 320px;
+          place-content: center;
+          padding: 1.5rem;
+          text-align: center;
         }
 
-        .set-copy {
-          padding: 0.75rem;
+        .show-off-empty-state strong {
+          width: min(100%, 28rem);
+          min-width: 0;
+          justify-self: center;
+          color: #54202a;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 1.65rem;
+          font-weight: 400;
         }
 
-        .set-copy div {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.7rem;
-        }
-
-        .set-copy span {
-          border-radius: 999px;
-          padding: 0.24rem 0.48rem;
-          color: #fff8f1;
-          background: #b84b4a;
-          font-size: 0.72rem;
-          font-weight: 900;
-        }
-
-        .set-copy small {
-          color: rgba(64, 25, 25, 0.5);
-          font-weight: 800;
-        }
-
-        .set-copy p {
-          margin: 0.6rem 0 0;
-          color: #401919;
-          line-height: 1.45;
+        .show-off-empty-state span {
+          width: min(100%, 28rem);
+          min-width: 0;
+          max-width: 100%;
+          justify-self: center;
+          color: rgba(74, 27, 36, 0.62);
           overflow-wrap: anywhere;
         }
 
-        .empty-state {
-          display: grid;
-          gap: 0.4rem;
-          margin-top: 0.8rem;
-          border: 1px dashed rgba(148, 64, 39, 0.18);
-          border-radius: 22px;
-          padding: 1rem;
-          background: rgba(255, 247, 237, 0.7);
-        }
-
-        .empty-state strong {
-          color: #4b1717;
-          font-size: 1.15rem;
-        }
-
-        .empty-state span {
-          color: rgba(64, 25, 25, 0.62);
-          line-height: 1.5;
-        }
-
-        .soft-rules {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          margin-top: 0.9rem;
-          border-radius: 999px;
-          padding: 0.65rem;
-        }
-
-        .soft-rules span {
-          border-radius: 999px;
-          padding: 0.35rem 0.62rem;
-          color: rgba(64, 25, 25, 0.68);
-          background: rgba(255, 247, 237, 0.72);
-          font-size: 0.8rem;
-          font-weight: 800;
-        }
-
-        @media (max-width: 900px) {
-          .khoe-set-board,
-          .prompt-strip {
-            grid-template-columns: 1fr;
-          }
-
-          .post-grid {
-            grid-template-columns: 1fr;
+        @media (max-width: 1240px) {
+          .show-off-gallery-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
         }
 
-        @media (max-width: 640px) {
-          .khoe-set-shell {
+        @media (max-width: 1040px) {
+          .show-off-shell {
+            grid-template-columns: 1fr;
             padding: 0.7rem;
           }
 
-          .khoe-set-topbar {
-            justify-content: flex-start;
+          .show-off-nav {
+            position: relative;
+            min-height: auto;
+            border-right: 0;
+            border-bottom: 1px solid rgba(129, 54, 66, 0.12);
+            padding: 0.4rem 0 0.7rem;
           }
 
-          .soft-link {
-            flex: 1 1 150px;
+          .show-off-brand {
+            display: none;
           }
 
-          .khoe-set-hero {
-            min-height: 300px;
+          .show-off-nav nav {
+            display: flex;
+            overflow-x: auto;
           }
 
-          .khoe-set-hero-image {
-            object-position: 58% 50%;
+          .show-off-nav nav a {
+            flex: 0 0 auto;
+            min-height: 40px;
           }
 
-          .khoe-set-frame {
-            left: var(--frame-mobile-left);
-            top: var(--frame-mobile-top);
-            width: var(--frame-mobile-width);
-            height: var(--frame-mobile-height);
+          .show-off-topbar {
+            justify-content: space-between;
           }
 
-          .hero-shade {
-            background:
-              linear-gradient(180deg, rgba(77, 24, 24, 0.52), rgba(77, 24, 24, 0.08) 58%, rgba(255, 244, 237, 0.15)),
-              linear-gradient(90deg, rgba(77, 24, 24, 0.2), transparent);
+          .show-off-mobile-post-link {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            border: 1px solid rgba(179, 35, 69, 0.18);
+            border-radius: 999px;
+            padding: 0 0.9rem;
+            color: #8f2e42;
+            background: rgba(255, 255, 255, 0.75);
+            font-size: 0.84rem;
+            font-weight: 760;
+            text-decoration: none;
           }
 
-          .hero-copy {
-            width: 100%;
-            padding: 1rem;
-          }
-
-          .hero-copy h1 {
-            font-size: clamp(2rem, 11vw, 3rem);
-          }
-
-          .image-picker,
-          .composer-actions {
+          .show-off-room-layout {
             grid-template-columns: 1fr;
-            flex-direction: column;
+          }
+
+          .show-off-hero {
+            min-height: clamp(270px, 35vw, 330px);
+          }
+
+          .show-off-hero-copy {
+            width: min(58%, 460px);
+            min-height: clamp(270px, 35vw, 330px);
+            padding: 1.1rem 1.2rem;
+          }
+
+          .show-off-hero-copy h1 {
+            font-size: clamp(1.9rem, 5.3vw, 2.75rem);
+          }
+
+          .show-off-upload-rail {
+            position: static;
+          }
+        }
+
+        @media (max-width: 680px) {
+          .show-off-shell {
+            gap: 0.55rem;
+          }
+
+          .show-off-main {
+            padding-top: 0;
+          }
+
+          .show-off-search {
+            flex: 1 1 auto;
+            min-width: 0;
+          }
+
+          .show-off-mobile-post-link {
+            flex: 0 0 auto;
+            padding: 0 0.72rem;
+          }
+
+          .show-off-hero {
+            min-height: 235px;
+            border-radius: 14px;
+          }
+
+          .show-off-room-artwork::before {
+            background:
+              linear-gradient(90deg, rgba(255, 249, 245, 0.94) 0%, rgba(255, 249, 245, 0.76) 44%, rgba(255, 249, 245, 0.16) 78%, transparent 100%),
+              linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 242, 237, 0.08));
+          }
+
+          .show-off-room-artwork figcaption {
+            display: none;
+          }
+
+          .show-off-hero-copy {
+            width: min(76%, 320px);
+            min-height: 235px;
+            padding: 0.9rem;
+          }
+
+          .show-off-hero-copy p {
+            font-size: 0.66rem;
+          }
+
+          .show-off-hero-copy h1 {
+            font-size: clamp(1.55rem, 7.4vw, 2.05rem);
+          }
+
+          .show-off-hero-copy > span {
+            margin-top: 0.58rem;
+            font-size: 0.78rem;
+            line-height: 1.42;
+          }
+
+          .show-off-hero-copy a {
+            min-height: 38px;
+            margin-top: 0.75rem;
+            padding: 0 0.9rem;
+            font-size: 0.82rem;
+          }
+
+          .show-off-category-row {
+            margin: 0.72rem 0;
+          }
+
+          .show-off-category-row button {
+            min-height: 40px;
+            padding: 0 0.9rem;
+          }
+
+          .show-off-section-heading h2 {
+            font-size: 1.42rem;
+          }
+
+          .show-off-empty-state strong,
+          .show-off-empty-state span {
+            width: min(100%, 17rem);
+          }
+
+          .show-off-gallery-grid {
+            grid-template-columns: 1fr;
+            gap: 0.72rem;
+          }
+
+          .show-off-card-image,
+          .show-off-card:nth-child(4n + 2) .show-off-card-image,
+          .show-off-card:nth-child(4n + 4) .show-off-card-image {
+            aspect-ratio: 1.18 / 1;
+          }
+
+          .show-off-upload-card {
+            padding: 0.82rem;
+          }
+
+          .show-off-upload-summary {
+            align-items: center;
+          }
+
+          .show-off-upload-summary h2 {
+            font-size: 1.24rem;
+          }
+
+          .show-off-upload-rail:not(.is-open) .show-off-upload-form,
+          .show-off-upload-rail:not(.is-open) .show-off-room-rules {
+            display: none;
+          }
+
+          .show-off-upload-preview {
+            grid-template-columns: minmax(0, 1fr) 112px;
             align-items: stretch;
           }
 
-          .image-picker label,
-          .composer-actions button {
-            width: 100%;
+          .show-off-upload-preview label {
+            justify-self: stretch;
+            min-width: 0;
+            padding: 0 0.7rem;
           }
 
-          .soft-rules {
-            border-radius: 22px;
+          .show-off-upload-preview > span,
+          .show-off-upload-preview img {
+            aspect-ratio: auto;
+            min-height: 72px;
           }
         }
       `}</style>
-    </main>
+    </ChoNeoRoomShell>
   );
 }
