@@ -64,6 +64,97 @@ type ChoNeoAvatarProfile = {
   updatedAt: string;
 };
 
+type QuanTamMusicTrack = {
+  id: string;
+  label: string;
+  src: string;
+};
+
+const QUAN_TAM_MUSIC_TRACKS: QuanTamMusicTrack[] = [
+  {
+    id: "cho-neo-main-theme",
+    label: "Chợ Neo Main Theme",
+    src: "/Cho_Neo_music/cho-neo-theme-park-top-1-main-theme-3.mp3",
+  },
+  {
+    id: "sky-lift",
+    label: "Sky Lift",
+    src: "/Cho_Neo_music/cho-neo-theme-park-runner-up-sky-lift.mp3",
+  },
+];
+
+function QuanTamMusicNoteIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="quan-tam-music-icon"
+      focusable="false"
+      viewBox="0 0 32 32"
+    >
+      <path d="M20.8 5.6v15.3a5.1 5.1 0 1 1-2.3-4.3V9.2l-8.7 1.9v11a5.1 5.1 0 1 1-2.3-4.3V8.9l13.3-3.3Z" />
+    </svg>
+  );
+}
+
+function QuanTamMusicControl({
+  className = "",
+  isPlaying,
+  onToggle,
+  onTrackChange,
+  selectedTrackId,
+}: {
+  className?: string;
+  isPlaying: boolean;
+  onToggle: () => void;
+  onTrackChange: (trackId: string) => void;
+  selectedTrackId: string;
+}) {
+  const selectedTrack =
+    QUAN_TAM_MUSIC_TRACKS.find((track) => track.id === selectedTrackId) ??
+    QUAN_TAM_MUSIC_TRACKS[0];
+
+  return (
+    <div
+      className={`quan-tam-music-control ${
+        isPlaying ? "quan-tam-music-control-on" : ""
+      } ${className}`}
+      aria-label="Nhạc Quán Tám"
+    >
+      <button
+        aria-label={isPlaying ? "Tắt nhạc" : "Mở nhạc"}
+        aria-pressed={isPlaying}
+        className="quan-tam-music-toggle"
+        onClick={onToggle}
+        title={isPlaying ? "Tắt nhạc" : "Mở nhạc"}
+        type="button"
+      >
+        <QuanTamMusicNoteIcon />
+      </button>
+      <label className="quan-tam-track-picker">
+        <span className="sr-only">Chọn nhạc</span>
+        <select
+          aria-label="Chọn nhạc"
+          onChange={(event) => onTrackChange(event.target.value)}
+          title="Chọn nhạc"
+          value={selectedTrack.id}
+        >
+          {QUAN_TAM_MUSIC_TRACKS.map((track) => (
+            <option key={track.id} value={track.id}>
+              {track.label}
+            </option>
+          ))}
+        </select>
+        <span className="quan-tam-track-title" aria-hidden="true">
+          {selectedTrack.label}
+        </span>
+        <span className="quan-tam-track-chevron" aria-hidden="true">
+          ▾
+        </span>
+      </label>
+    </div>
+  );
+}
+
 function TableHostNudge({
   message,
   onClose,
@@ -92,10 +183,12 @@ function TableHostNudge({
 
 function CompactTableHeader({
   countLabel,
+  musicControl,
   onBack,
   onEnter,
 }: {
   countLabel: string;
+  musicControl?: ReactNode;
   onBack: () => void;
   onEnter?: () => void;
 }) {
@@ -110,6 +203,7 @@ function CompactTableHeader({
           <span>Take a seat</span>
         </button>
       ) : null}
+      {musicControl}
       <span className="compact-table-count">{countLabel}</span>
     </div>
   );
@@ -122,6 +216,7 @@ function QuanTamTableShell({
   children,
   className,
   countLabel,
+  musicControl,
   note,
   onBack,
   onEnter,
@@ -135,6 +230,7 @@ function QuanTamTableShell({
   children: ReactNode;
   className?: string;
   countLabel: string;
+  musicControl?: ReactNode;
   note: string;
   onBack: () => void;
   onEnter?: () => void;
@@ -147,7 +243,12 @@ function QuanTamTableShell({
       className={`local-table-stage ${className ?? ""}`}
       aria-label={ariaLabel}
     >
-      <CompactTableHeader countLabel={countLabel} onBack={onBack} onEnter={onEnter} />
+      <CompactTableHeader
+        countLabel={countLabel}
+        musicControl={musicControl}
+        onBack={onBack}
+        onEnter={onEnter}
+      />
       <header className="local-table-heading">
         <div>
           <h2>
@@ -192,7 +293,7 @@ const FRONT_COUNTER_TALK_EXAMPLES = [
   "Weather before booking the afternoon",
 ];
 const COLOR_TREND_STAGE_IMAGE_SRC =
-  "/images/cho-neo/Ban-Mau-Trend.png";
+  "/images/cho-neo/Ban-Mau-New.png";
 const COLOR_TREND_TOPIC_CHIPS = [
   {
     vi: "Khách hỏi hoài",
@@ -765,7 +866,11 @@ export default function ChoNeoGossipPage() {
   const [frontCounterPostNotice, setFrontCounterPostNotice] = useState<
     string | null
   >(null);
-  const [frontCounterMusicOn, setFrontCounterMusicOn] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [quanTamMusicTrackId, setQuanTamMusicTrackId] = useState(
+    QUAN_TAM_MUSIC_TRACKS[0].id
+  );
+  const [quanTamMusicPlaying, setQuanTamMusicPlaying] = useState(false);
   const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
   const [avatarProfile, setAvatarProfile] =
     useState<ChoNeoAvatarProfile | null>(null);
@@ -803,6 +908,60 @@ export default function ChoNeoGossipPage() {
   const localTableConfig = isLocalSessionTable
     ? LOCAL_TABLE_CONFIG[selectedTable.id as keyof typeof LOCAL_TABLE_CONFIG]
     : null;
+  const selectedQuanTamTrack =
+    QUAN_TAM_MUSIC_TRACKS.find((track) => track.id === quanTamMusicTrackId) ??
+    QUAN_TAM_MUSIC_TRACKS[0];
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = 0.34;
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.pause();
+    audio.load();
+
+    if (!quanTamMusicPlaying) return;
+
+    audio.play().catch(() => {
+      setQuanTamMusicPlaying(false);
+    });
+  }, [selectedQuanTamTrack.src]);
+
+  async function toggleQuanTamMusic() {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (quanTamMusicPlaying) {
+      audio.pause();
+      setQuanTamMusicPlaying(false);
+      return;
+    }
+
+    try {
+      await audio.play();
+      setQuanTamMusicPlaying(true);
+    } catch {
+      setQuanTamMusicPlaying(false);
+    }
+  }
+
+  function changeQuanTamTrack(trackId: string) {
+    setQuanTamMusicTrackId(trackId);
+  }
+
+  const quanTamMusicControl = (
+    <QuanTamMusicControl
+      isPlaying={quanTamMusicPlaying}
+      onToggle={toggleQuanTamMusic}
+      onTrackChange={changeQuanTamTrack}
+      selectedTrackId={quanTamMusicTrackId}
+    />
+  );
   const selectedMessages: Array<ConversationMessage | FrontCounterMessage> =
     isFrontCounter
       ? frontCounterMessages.filter(isVisibleFrontCounterMessage)
@@ -1577,6 +1736,9 @@ export default function ChoNeoGossipPage() {
   return (
     <main className="cafe-page">
       <ChoNeoTimeAmbience />
+      <audio ref={audioRef} loop preload="metadata" playsInline>
+        <source src={selectedQuanTamTrack.src} type="audio/mpeg" />
+      </audio>
       <div className="room-glow" />
       <div className="floor-grid" />
 
@@ -1653,6 +1815,7 @@ export default function ChoNeoGossipPage() {
                 {isTrendTable ? (
                   <CompactTableHeader
                     countLabel={getCompactTableCountLabel(selectedTable)}
+                    musicControl={quanTamMusicControl}
                     onEnter={enterSelectedTable}
                     onBack={() => setSelectedTableName(null)}
                   />
@@ -1682,18 +1845,9 @@ export default function ChoNeoGossipPage() {
                       {isCurrentIdentitySeated ? "Đang ngồi" : "Vào bàn"}
                       <span>{isCurrentIdentitySeated ? "Seated" : "Take a seat"}</span>
                     </button>
-                    <button
-                      className="front-counter-music-control"
-                      type="button"
-                      onClick={() => setFrontCounterMusicOn((isOn) => !isOn)}
-                      aria-pressed={frontCounterMusicOn}
-                    >
-                      {frontCounterMusicOn ? "🎵 Tắt nhạc" : "🎵 Mở nhạc"}
-                      <span>{frontCounterMusicOn ? "Music Off" : "Music On"}</span>
-                    </button>
-                    <aside className="front-counter-topic-note" aria-label="Social Counter topic">
-                      <span>☕ Chào hỏi • Xã giao</span>
-                    </aside>
+                    <div className="front-counter-music-shell">
+                      {quanTamMusicControl}
+                    </div>
                     <span className="compact-table-count front-counter-count-control">
                       {getCompactTableCountLabel(selectedTable)}
                     </span>
@@ -1779,6 +1933,7 @@ export default function ChoNeoGossipPage() {
                     artworkAlt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
                     className={`local-table-stage-${selectedTable.id}`}
                     countLabel={getCompactTableCountLabel(selectedTable)}
+                    musicControl={quanTamMusicControl}
                     note={selectedTable.note}
                     onBack={() => setSelectedTableName(null)}
                     onEnter={enterSelectedTable}
@@ -1922,12 +2077,22 @@ export default function ChoNeoGossipPage() {
                           : ""
                       }`}
                     >
-                      <img
-                        alt="Warm Social Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
-                        className="front-counter-focused-image"
-                        src={selectedTable.artwork ?? "/images/cho-neo/Quay-Xa-Giao.png"}
-                      />
-                      <div className="front-counter-focused-scrim" aria-hidden="true" />
+                      <div className="front-counter-artwork-frame">
+                        <div className="front-counter-artwork-surface">
+                          <img
+                            alt="Warm Social Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
+                            className="front-counter-focused-image"
+                            src={selectedTable.artwork ?? "/images/cho-neo/Quay-Xa-Giao.png"}
+                          />
+                          <div className="front-counter-scene-ambience" aria-hidden="true">
+                            <span className="front-counter-ambient-glow front-counter-ambient-lantern" />
+                            <span className="front-counter-ambient-glow front-counter-ambient-counter" />
+                            <span className="front-counter-ambient-steam" />
+                            <span className="front-counter-ambient-reflection" />
+                          </div>
+                          <div className="front-counter-focused-scrim" aria-hidden="true" />
+                        </div>
+                      </div>
                       <div
                         className="front-counter-stage-bubbles"
                         aria-label="Social Counter visible notes"
@@ -2100,13 +2265,23 @@ export default function ChoNeoGossipPage() {
                             }
                             type="submit"
                           >
-                            {frontCounterPosting ? "Đang đăng..." : "Đăng"}
-                            <span>{frontCounterPosting ? "Posting..." : "Post"}</span>
+                            <span className="front-counter-send-icon" aria-hidden="true">
+                              ↗
+                            </span>
+                            <span className="front-counter-send-copy">
+                              {frontCounterPosting ? "Đang đăng..." : "Đăng"}
+                              <small>{frontCounterPosting ? "Posting..." : "Post"}</small>
+                            </span>
                           </button>
                         </div>
                         <p className="front-counter-stage-safety">
-                          Nói nhẹ. Giữ tên riêng tư.
-                          <span>Keep it gentle. Keep names private.</span>
+                          <span className="front-counter-safety-leaf" aria-hidden="true">
+                            ❧
+                          </span>
+                          <span>
+                            Nói nhẹ. Giữ tên riêng tư.
+                            <small>Keep it gentle. Keep names private.</small>
+                          </span>
                         </p>
                         {frontCounterPostNotice ? (
                           <p className="front-counter-stage-feedback">
@@ -2934,6 +3109,15 @@ export default function ChoNeoGossipPage() {
       ) : null}
 
       <style>{`
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+        }
+
         .cafe-page {
           min-height: 100vh;
           position: relative;
@@ -4320,8 +4504,8 @@ export default function ChoNeoGossipPage() {
           display: flex;
           flex-wrap: nowrap;
           align-items: center;
-          gap: 7px;
-          margin: 0 0 10px;
+          gap: 8px;
+          margin: 0 0 8px;
           overflow-x: auto;
           padding-bottom: 2px;
           scrollbar-width: none;
@@ -4331,28 +4515,158 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
+        .front-counter-quick-controls .compact-table-back,
         .front-counter-seat-control,
-        .front-counter-music-control {
+        .front-counter-count-control {
           flex: 0 0 auto;
-          min-height: 34px;
-          padding: 5px 10px;
-          border: 1px solid rgba(253, 230, 138, 0.18);
-          border-radius: 999px;
-          color: #fff7ed;
-          background: rgba(255, 247, 237, 0.08);
-          font-size: 11px;
-          font-weight: 950;
-          line-height: 1.05;
+          min-height: 44px;
+          border: 1px solid rgba(244, 198, 118, 0.24);
+          border-radius: 14px;
+          color: rgba(255, 247, 237, 0.88);
+          background: rgba(54, 32, 27, 0.52);
+          font: inherit;
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.1;
+          letter-spacing: 0;
+          box-shadow:
+            0 8px 20px rgba(18, 10, 8, 0.18),
+            inset 0 1px 0 rgba(255, 247, 237, 0.08);
+          transition:
+            border-color 160ms ease,
+            background 160ms ease,
+            box-shadow 160ms ease,
+            color 160ms ease,
+            transform 160ms ease;
+        }
+
+        .front-counter-quick-controls .compact-table-back,
+        .front-counter-seat-control {
+          padding: 8px 12px;
         }
 
         .front-counter-seat-control {
-          color: #111827;
-          background: #fde68a;
+          color: #fff7ed;
+          background: rgba(80, 43, 36, 0.58);
         }
 
         .front-counter-seat-control-seated {
-          color: #fde68a;
-          background: rgba(253, 230, 138, 0.08);
+          color: #f7d594;
+          border-color: rgba(247, 213, 148, 0.38);
+          background: rgba(94, 40, 46, 0.42);
+        }
+
+        .front-counter-music-shell {
+          flex: 0 1 290px;
+          min-width: 220px;
+        }
+
+        .quan-tam-music-control {
+          position: relative;
+          display: grid;
+          flex: 0 1 290px;
+          grid-template-columns: 38px minmax(0, 1fr);
+          align-items: center;
+          gap: 7px;
+          width: min(290px, 100%);
+          min-width: min(220px, 100%);
+          min-height: 44px;
+          padding: 4px 9px 4px 4px;
+          border: 1px solid rgba(244, 198, 118, 0.22);
+          border-radius: 14px;
+          color: rgba(255, 247, 237, 0.82);
+          background: rgba(31, 20, 18, 0.66);
+          box-shadow:
+            0 8px 20px rgba(18, 10, 8, 0.18),
+            inset 0 1px 0 rgba(255, 247, 237, 0.08);
+          backdrop-filter: blur(14px);
+        }
+
+        .quan-tam-music-toggle {
+          display: grid;
+          place-items: center;
+          width: 36px;
+          height: 36px;
+          padding: 0;
+          border: 1px solid rgba(244, 198, 118, 0.2);
+          border-radius: 12px;
+          color: rgba(255, 247, 237, 0.62);
+          background: rgba(255, 247, 237, 0.04);
+          font: inherit;
+          cursor: pointer;
+          transition:
+            border-color 160ms ease,
+            color 160ms ease,
+            background 160ms ease,
+            box-shadow 160ms ease;
+        }
+
+        .quan-tam-music-control-on .quan-tam-music-toggle {
+          color: #f6cf83;
+          border-color: rgba(246, 207, 131, 0.4);
+          background: rgba(92, 45, 24, 0.52);
+          box-shadow: 0 0 18px rgba(246, 207, 131, 0.18);
+        }
+
+        .quan-tam-music-control-on .quan-tam-music-icon {
+          animation: quanTamMusicBreath 4.8s ease-in-out infinite;
+        }
+
+        .quan-tam-music-icon {
+          width: 20px;
+          height: 20px;
+          fill: currentColor;
+        }
+
+        .quan-tam-track-picker {
+          position: relative;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          min-width: 0;
+          height: 36px;
+          color: rgba(255, 247, 237, 0.8);
+        }
+
+        .quan-tam-track-picker select {
+          position: absolute;
+          inset: 0;
+          z-index: 2;
+          width: 100%;
+          height: 100%;
+          border: 0;
+          border-radius: 10px;
+          opacity: 0;
+          cursor: pointer;
+        }
+
+        .quan-tam-track-title {
+          overflow: hidden;
+          padding: 0 4px;
+          color: rgba(255, 247, 237, 0.82);
+          font-size: 12px;
+          font-weight: 400;
+          line-height: 1.1;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .quan-tam-track-chevron {
+          color: rgba(255, 247, 237, 0.52);
+          font-size: 11px;
+          line-height: 1;
+        }
+
+        .quan-tam-track-picker:hover .quan-tam-track-title,
+        .quan-tam-track-picker:focus-within .quan-tam-track-title,
+        .quan-tam-music-toggle:hover {
+          color: #fff7ed;
+        }
+
+        .quan-tam-music-toggle:focus-visible,
+        .quan-tam-track-picker select:focus-visible {
+          outline: 2px solid rgba(246, 207, 131, 0.82);
+          outline-offset: 2px;
         }
 
         .front-counter-back-control,
@@ -4362,13 +4676,29 @@ export default function ChoNeoGossipPage() {
           white-space: nowrap;
         }
 
-        .front-counter-seat-control span,
-        .front-counter-music-control span {
-          display: block;
-          margin-top: 1px;
-          font-size: 9px;
-          font-weight: 850;
-          opacity: 0.68;
+        .front-counter-count-control {
+          padding: 8px 11px;
+          color: rgba(255, 247, 237, 0.72);
+          font-size: 11px;
+          font-weight: 500;
+        }
+
+        .front-counter-seat-control span {
+          display: none;
+        }
+
+        .front-counter-quick-controls .compact-table-back:hover,
+        .front-counter-seat-control:hover {
+          border-color: rgba(246, 207, 131, 0.42);
+          background: rgba(92, 45, 24, 0.62);
+          color: #fff7ed;
+        }
+
+        .front-counter-quick-controls .compact-table-back:focus-visible,
+        .front-counter-seat-control:focus-visible,
+        .front-counter-count-control:focus-visible {
+          outline: 2px solid rgba(246, 207, 131, 0.82);
+          outline-offset: 2px;
         }
 
         .detail-panel-trend-table .detail-heading {
@@ -5509,21 +5839,112 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
-        .front-counter-focused-image {
+        .front-counter-artwork-frame {
+          display: grid;
+          place-items: center;
+          width: 100%;
+          min-height: clamp(320px, 52vw, 560px);
+          border: 1px solid rgba(244, 198, 118, 0.2);
+          border-radius: 26px;
+          background: #1f1412;
+          box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+        }
+
+        .front-counter-artwork-surface {
           position: relative;
-          inset: auto;
+          overflow: hidden;
+          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.499));
+          aspect-ratio: 1535 / 1024;
+          border-radius: 25px;
+          background: #1f1412;
+        }
+
+        .front-counter-focused-image {
+          position: absolute;
+          inset: 0;
           z-index: 0;
           display: block;
           width: 100%;
-          height: clamp(320px, 52vw, 560px);
-          border: 1px solid rgba(253, 230, 138, 0.2);
-          border-radius: 26px;
-          background: #1f1412;
-          object-fit: contain;
+          height: 100%;
+          object-fit: cover;
           object-position: center;
           transform: none;
           filter: saturate(1.04) brightness(1.03) contrast(0.98);
-          box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+        }
+
+        .front-counter-scene-ambience {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          overflow: hidden;
+          pointer-events: none;
+          mix-blend-mode: screen;
+        }
+
+        .front-counter-ambient-glow,
+        .front-counter-ambient-steam,
+        .front-counter-ambient-reflection {
+          position: absolute;
+          display: block;
+          pointer-events: none;
+        }
+
+        .front-counter-ambient-glow {
+          border-radius: 999px;
+          filter: blur(8px);
+          transform: translate3d(-50%, -50%, 0);
+          will-change: opacity, transform;
+        }
+
+        .front-counter-ambient-lantern {
+          left: 73%;
+          top: 16%;
+          width: 18%;
+          height: 23%;
+          background:
+            radial-gradient(circle at 46% 45%, rgba(255, 214, 130, 0.52), rgba(232, 127, 48, 0.22) 42%, transparent 72%);
+          opacity: 0.54;
+          animation: frontCounterLanternGlow 6.8s ease-in-out 500ms infinite;
+        }
+
+        .front-counter-ambient-counter {
+          left: 37%;
+          top: 53%;
+          width: 30%;
+          height: 21%;
+          background:
+            radial-gradient(ellipse at 50% 55%, rgba(255, 216, 143, 0.36), rgba(185, 88, 38, 0.16) 48%, transparent 74%);
+          opacity: 0.42;
+          animation: frontCounterCounterGlow 8.9s ease-in-out 1.6s infinite;
+        }
+
+        .front-counter-ambient-steam {
+          left: 64%;
+          top: 38%;
+          width: 8%;
+          height: 18%;
+          border-radius: 999px;
+          background:
+            radial-gradient(ellipse at 50% 20%, rgba(255, 247, 237, 0.34), transparent 42%),
+            linear-gradient(180deg, transparent, rgba(255, 247, 237, 0.24), transparent);
+          filter: blur(7px);
+          opacity: 0.26;
+          transform: translate3d(0, 8px, 0) rotate(-5deg);
+          animation: frontCounterSteamDrift 7.4s ease-in-out 900ms infinite;
+        }
+
+        .front-counter-ambient-reflection {
+          left: 31%;
+          bottom: 10%;
+          width: 34%;
+          height: 10%;
+          border-radius: 999px;
+          background:
+            linear-gradient(90deg, transparent, rgba(255, 206, 120, 0.22), transparent);
+          filter: blur(9px);
+          opacity: 0.34;
+          transform: rotate(-5deg);
+          animation: frontCounterReflectionWarmth 10.5s ease-in-out 2.2s infinite;
         }
 
         .front-counter-focused-scrim {
@@ -5558,6 +5979,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-bubble {
+          animation: frontCounterNoteIn 420ms ease-out both;
           width: min(100%, 520px);
           max-width: 100%;
           padding: 10px 11px;
@@ -5630,9 +6052,10 @@ export default function ChoNeoGossipPage() {
           gap: 4px;
           min-width: 0;
           color: #3f2418;
-          font-size: 9px;
-          font-weight: 950;
-          line-height: 1.1;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: 10px;
+          font-weight: 600;
+          line-height: 1.12;
         }
 
         .front-counter-bubble-header strong span {
@@ -5645,14 +6068,15 @@ export default function ChoNeoGossipPage() {
           max-width: 104px;
           color: rgba(63, 36, 24, 0.68);
           font-size: 8px;
+          font-weight: 500;
         }
 
         .front-counter-bubble-header small {
           display: block;
           margin-top: 2px;
           color: rgba(63, 36, 24, 0.62);
-          font-size: 7px;
-          font-weight: 900;
+          font-size: 8px;
+          font-weight: 500;
           line-height: 1.1;
         }
 
@@ -5662,8 +6086,8 @@ export default function ChoNeoGossipPage() {
           -webkit-box-orient: vertical;
           -webkit-line-clamp: 4;
           margin: 0;
-          font-size: 11px;
-          font-weight: 800;
+          font-size: 11.5px;
+          font-weight: 500;
           line-height: 1.3;
         }
 
@@ -5682,8 +6106,8 @@ export default function ChoNeoGossipPage() {
           color: #3f2418;
           background: rgba(255, 247, 237, 0.5);
           font: inherit;
-          font-size: 8px;
-          font-weight: 950;
+          font-size: 9px;
+          font-weight: 500;
           cursor: pointer;
         }
 
@@ -5723,10 +6147,9 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-stage-form label {
           color: #7c2d12;
-          font-size: 10px;
-          font-weight: 950;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0;
         }
 
         .front-counter-stage-form label span,
@@ -5749,9 +6172,9 @@ export default function ChoNeoGossipPage() {
         .front-counter-stage-feedback,
         .front-counter-stage-count {
           color: rgba(92, 45, 24, 0.66);
-          font-size: 10px;
-          font-weight: 850;
-          line-height: 1.25;
+          font-size: 10.5px;
+          font-weight: 500;
+          line-height: 1.3;
         }
 
         .front-counter-stage-posting-as strong {
@@ -5766,7 +6189,7 @@ export default function ChoNeoGossipPage() {
           background: #fde68a;
           font: inherit;
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
           cursor: pointer;
         }
 
@@ -5829,16 +6252,29 @@ export default function ChoNeoGossipPage() {
           background: rgba(255, 255, 255, 0.82);
           font: inherit;
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 500;
         }
 
         .front-counter-stage-message-row input::placeholder {
           color: rgba(92, 45, 24, 0.44);
         }
 
+        .front-counter-stage-form:focus-within {
+          border-color: rgba(146, 64, 14, 0.28);
+          box-shadow:
+            0 14px 30px rgba(69, 26, 3, 0.16),
+            0 0 0 3px rgba(244, 198, 118, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.68);
+        }
+
         .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
           min-width: 76px;
           padding: 8px 12px;
+          border: 1px solid rgba(146, 64, 14, 0.16);
+          border-radius: 14px;
+          color: #fff7ed;
+          background: #7c2d12;
+          box-shadow: 0 8px 18px rgba(69, 26, 3, 0.14);
         }
 
         .front-counter-stage-message-row input:disabled,
@@ -6095,15 +6531,15 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-stage-drawer-heading button {
           flex: 0 0 auto;
-          min-height: 30px;
-          padding: 6px 10px;
-          border: 1px solid rgba(253, 230, 138, 0.26);
-          border-radius: 999px;
-          color: #fde68a;
-          background: rgba(253, 230, 138, 0.08);
+          min-height: 34px;
+          padding: 7px 10px;
+          border: 1px solid rgba(244, 198, 118, 0.26);
+          border-radius: 14px;
+          color: rgba(255, 247, 237, 0.82);
+          background: rgba(54, 32, 27, 0.5);
           font: inherit;
           font-size: 10px;
-          font-weight: 950;
+          font-weight: 500;
           cursor: pointer;
         }
 
@@ -6159,15 +6595,15 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-host-actions button {
-          min-height: 28px;
-          border: 0;
-          border-radius: 999px;
-          padding: 6px 10px;
-          color: #3f2418;
-          background: #fde68a;
+          min-height: 34px;
+          border: 1px solid rgba(244, 198, 118, 0.24);
+          border-radius: 14px;
+          padding: 7px 10px;
+          color: rgba(255, 247, 237, 0.84);
+          background: rgba(54, 32, 27, 0.5);
           font: inherit;
           font-size: 10px;
-          font-weight: 950;
+          font-weight: 500;
           cursor: pointer;
         }
 
@@ -6250,6 +6686,307 @@ export default function ChoNeoGossipPage() {
           line-height: 1.35;
         }
 
+        .front-counter-focused-stage .front-counter-stage-form {
+          gap: 10px;
+          padding: 14px;
+          border: 1px solid rgba(141, 92, 69, 0.16);
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(255, 243, 238, 0.95));
+          box-shadow:
+            0 14px 30px rgba(75, 42, 30, 0.11),
+            inset 0 1px 0 rgba(255, 255, 255, 0.82);
+        }
+
+        .front-counter-stage-form .composer-avatar-passport {
+          border-color: rgba(141, 92, 69, 0.14);
+          border-radius: 16px;
+          color: #4a2a1d;
+          background: rgba(255, 250, 244, 0.86);
+          box-shadow: 0 8px 18px rgba(75, 42, 30, 0.08);
+        }
+
+        .front-counter-stage-form .composer-avatar-passport strong,
+        .front-counter-stage-form .composer-avatar-action {
+          color: #4a2a1d;
+          font-weight: 500;
+        }
+
+        .front-counter-stage-form .composer-avatar-passport small {
+          color: rgba(106, 75, 62, 0.68);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row {
+          grid-template-columns: 40px minmax(0, 1fr) auto;
+          gap: 8px;
+        }
+
+        .front-counter-focused-stage .front-counter-input-avatar {
+          width: 40px;
+          height: 40px;
+          border-color: rgba(141, 92, 69, 0.16);
+          border-radius: 14px;
+          color: #4a2a1d;
+          background: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 8px 18px rgba(75, 42, 30, 0.08);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row .front-counter-input-avatar span {
+          background: rgba(255, 232, 223, 0.78);
+        }
+
+        .front-counter-focused-stage .front-counter-input-avatar strong {
+          color: #4a2a1d;
+          font-weight: 500;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row input {
+          min-height: 46px;
+          border-color: rgba(141, 92, 69, 0.15);
+          border-radius: 16px;
+          padding: 12px 14px;
+          color: #3b2118;
+          background: rgba(255, 255, 255, 0.96);
+          font-size: 14px;
+          font-weight: 400;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row input::placeholder {
+          color: rgba(106, 75, 62, 0.48);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          min-width: 92px;
+          min-height: 46px;
+          padding: 9px 13px;
+          border: 1px solid rgba(197, 94, 78, 0.2);
+          border-radius: 16px;
+          color: #fffaf5;
+          background: #d96f61;
+          box-shadow: 0 12px 22px rgba(164, 75, 62, 0.2);
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row > button:not(.front-counter-input-avatar):hover:not(:disabled) {
+          background: #cf6256;
+          box-shadow: 0 14px 24px rgba(164, 75, 62, 0.24);
+        }
+
+        .front-counter-send-icon {
+          display: grid;
+          place-items: center;
+          width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          background: rgba(255, 250, 245, 0.18);
+          font-size: 13px;
+          line-height: 1;
+        }
+
+        .front-counter-send-copy {
+          display: grid;
+          gap: 1px;
+          line-height: 1.05;
+        }
+
+        .front-counter-send-copy small {
+          color: rgba(255, 250, 245, 0.78);
+          font-size: 10px;
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-safety {
+          display: flex;
+          align-items: flex-start;
+          gap: 7px;
+          margin: 0 4px;
+          color: rgba(74, 42, 29, 0.72);
+          font-size: 12px;
+          font-weight: 400;
+          line-height: 1.35;
+        }
+
+        .front-counter-safety-leaf {
+          flex: 0 0 auto;
+          color: rgba(217, 111, 97, 0.8);
+          font-size: 15px;
+          line-height: 1.15;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-safety > span:not(.front-counter-safety-leaf) {
+          display: block;
+          margin: 0;
+          color: rgba(74, 42, 29, 0.72);
+          font-size: 12px;
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-safety small {
+          display: block;
+          margin-top: 1px;
+          color: rgba(106, 75, 62, 0.58);
+          font-size: 11px;
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-feedback,
+        .front-counter-focused-stage .front-counter-stage-count {
+          color: rgba(74, 42, 29, 0.68);
+          font-size: 11px;
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-drawer {
+          border: 1px solid rgba(141, 92, 69, 0.14);
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(255, 242, 238, 0.96));
+          box-shadow:
+            0 18px 38px rgba(75, 42, 30, 0.13),
+            inset 0 1px 0 rgba(255, 255, 255, 0.82);
+          backdrop-filter: none;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-drawer-heading strong {
+          color: #3b2118;
+          font-size: 12px;
+          font-weight: 500;
+          letter-spacing: 0;
+          text-transform: none;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-drawer-heading strong span,
+        .front-counter-focused-stage .front-counter-stage-drawer-heading p,
+        .front-counter-focused-stage .front-counter-stage-drawer-notice {
+          color: rgba(106, 75, 62, 0.68);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-drawer-heading button,
+        .front-counter-focused-stage .front-counter-stage-host-actions button {
+          border-color: rgba(141, 92, 69, 0.16);
+          color: #4a2a1d;
+          background: rgba(255, 255, 255, 0.72);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-host-tools,
+        .front-counter-focused-stage .front-counter-stage-host-card {
+          border-color: rgba(141, 92, 69, 0.14);
+          background: rgba(255, 255, 255, 0.58);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-host-tools strong,
+        .front-counter-focused-stage .front-counter-stage-host-card small {
+          color: #4a2a1d;
+          font-weight: 500;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-host-tools p,
+        .front-counter-focused-stage .front-counter-stage-host-card p {
+          color: rgba(74, 42, 29, 0.76);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-host-tools input {
+          border-color: rgba(141, 92, 69, 0.16);
+          color: #3b2118;
+          background: rgba(255, 255, 255, 0.9);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread {
+          gap: 10px;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread-note {
+          gap: 8px;
+          width: min(560px, 94%);
+          padding: 12px 13px;
+          border: 1px solid rgba(141, 92, 69, 0.14);
+          border-radius: 18px;
+          color: #3b2118;
+          background: rgba(255, 255, 255, 0.88);
+          box-shadow: 0 12px 26px rgba(75, 42, 30, 0.1);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread-note.thread-note-warm {
+          border-radius: 18px;
+          background: rgba(255, 242, 238, 0.92);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread-note.thread-note-muted {
+          opacity: 0.74;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-header {
+          gap: 8px;
+          margin-bottom: 0;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-avatar,
+        .front-counter-focused-stage .front-counter-bubble-avatar-image {
+          width: 30px;
+          height: 30px;
+          border-color: rgba(141, 92, 69, 0.16);
+          background: rgba(255, 232, 223, 0.7);
+          font-size: 14px;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-header strong {
+          color: #3b2118;
+          font-family: inherit;
+          font-size: 13px;
+          font-weight: 500;
+          letter-spacing: 0;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-header strong span,
+        .front-counter-focused-stage .front-counter-bubble-header small,
+        .front-counter-focused-stage .front-counter-stage-thread-note small {
+          color: rgba(106, 75, 62, 0.66);
+          font-size: 11px;
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread-note p {
+          color: #3b2118;
+          font-size: 13.5px;
+          font-weight: 400;
+          line-height: 1.48;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-controls {
+          gap: 8px;
+          margin-top: 2px;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-controls button {
+          min-height: 28px;
+          padding: 4px 0;
+          border: 0;
+          border-radius: 0;
+          color: rgba(106, 75, 62, 0.72);
+          background: transparent;
+          font-size: 11px;
+          font-weight: 400;
+          text-decoration: underline;
+          text-decoration-color: rgba(217, 111, 97, 0.28);
+          text-underline-offset: 3px;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-controls button:hover:not(:disabled) {
+          color: #d96f61;
+          text-decoration-color: rgba(217, 111, 97, 0.62);
+        }
+
         .detail-panel-front-counter > .host-tools-panel,
         .detail-panel-front-counter > .moderation-notice,
         .detail-panel-front-counter > .daily-table-talk,
@@ -6266,6 +7003,65 @@ export default function ChoNeoGossipPage() {
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+
+        @keyframes frontCounterLanternGlow {
+          0%, 100% { opacity: 0.42; transform: translate3d(-50%, -50%, 0) scale(0.98); }
+          36% { opacity: 0.68; transform: translate3d(-50%, -50%, 0) scale(1.04); }
+          61% { opacity: 0.5; transform: translate3d(-50%, -50%, 0) scale(1); }
+          78% { opacity: 0.62; transform: translate3d(-50%, -50%, 0) scale(1.03); }
+        }
+
+        @keyframes frontCounterCounterGlow {
+          0%, 100% { opacity: 0.34; transform: translate3d(-50%, -50%, 0) scale(0.99); }
+          43% { opacity: 0.52; transform: translate3d(-50%, -50%, 0) scale(1.03); }
+          70% { opacity: 0.4; transform: translate3d(-50%, -50%, 0) scale(1); }
+        }
+
+        @keyframes frontCounterSteamDrift {
+          0%, 100% { opacity: 0.18; transform: translate3d(0, 8px, 0) rotate(-5deg) scaleY(0.96); }
+          46% { opacity: 0.34; transform: translate3d(8px, -10px, 0) rotate(3deg) scaleY(1.08); }
+          72% { opacity: 0.24; transform: translate3d(3px, -3px, 0) rotate(-1deg) scaleY(1); }
+        }
+
+        @keyframes frontCounterReflectionWarmth {
+          0%, 100% { opacity: 0.24; transform: translateX(-10px) rotate(-5deg); }
+          45% { opacity: 0.42; transform: translateX(16px) rotate(-5deg); }
+          72% { opacity: 0.3; transform: translateX(4px) rotate(-5deg); }
+        }
+
+        @keyframes quanTamMusicBreath {
+          0%, 100% { opacity: 0.82; transform: scale(1); }
+          48% { opacity: 1; transform: scale(1.08); }
+        }
+
+        @keyframes frontCounterNoteIn {
+          from { opacity: 0; transform: translateY(7px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .front-counter-ambient-glow,
+          .front-counter-ambient-steam,
+          .front-counter-ambient-reflection,
+          .quan-tam-music-control-on .quan-tam-music-icon,
+          .front-counter-stage-bubble,
+          .front-counter-stage-drawer {
+            animation: none;
+          }
+
+          .front-counter-ambient-lantern {
+            opacity: 0.5;
+          }
+
+          .front-counter-ambient-counter {
+            opacity: 0.34;
+          }
+
+          .front-counter-ambient-steam,
+          .front-counter-ambient-reflection {
+            opacity: 0.18;
           }
         }
 
@@ -7429,6 +8225,8 @@ export default function ChoNeoGossipPage() {
           }
 
           .compact-table-header {
+            flex-wrap: wrap;
+            justify-content: flex-start;
             gap: 8px;
             margin-bottom: 8px;
           }
@@ -7452,6 +8250,7 @@ export default function ChoNeoGossipPage() {
             min-width: 0;
             max-width: 42%;
             min-height: 28px;
+            margin-left: 0;
             padding: 5px 8px;
             font-size: 10.5px;
             overflow: hidden;
@@ -7463,28 +8262,35 @@ export default function ChoNeoGossipPage() {
             margin-bottom: 8px;
           }
 
-          .front-counter-seat-control,
-          .front-counter-music-control {
-            min-height: 32px;
-            padding: 4px 8px;
-            font-size: 10.5px;
+          .front-counter-seat-control {
+            min-height: 44px;
+            font-size: 11px;
           }
 
-          .front-counter-topic-note {
-            padding: 5px 8px;
-            font-size: 10.5px;
+          .front-counter-music-shell {
+            flex: 1 1 210px;
+            min-width: min(210px, 54vw);
+          }
+
+          .quan-tam-music-control {
+            flex: 1 1 190px;
+            grid-template-columns: 38px minmax(0, 1fr);
+            width: min(250px, 100%);
+            min-width: min(190px, 62vw);
+            min-height: 44px;
+            padding: 4px 8px 4px 4px;
           }
 
           .front-counter-quick-controls .compact-table-back,
           .front-counter-quick-controls .compact-table-count {
-            min-height: 32px;
-            padding: 4px 8px;
-            font-size: 10.5px;
+            min-height: 44px;
+            padding: 8px 10px;
+            font-size: 11px;
           }
 
           .front-counter-quick-controls span,
           .front-counter-seat-control span,
-          .front-counter-music-control span {
+          .quan-tam-track-title {
             white-space: nowrap;
           }
 
@@ -7989,20 +8795,26 @@ export default function ChoNeoGossipPage() {
             display: none;
           }
 
+          .front-counter-artwork-frame {
+            min-height: clamp(210px, 36svh, 310px);
+            border-radius: 24px;
+          }
+
+          .front-counter-artwork-surface {
+            width: min(100%, calc(clamp(210px, 36svh, 310px) * 1.499));
+            border-radius: 23px;
+          }
+
           .front-counter-focused-image {
-            position: relative;
-            inset: auto;
+            position: absolute;
+            inset: 0;
             z-index: 0;
             width: 100%;
-            height: clamp(210px, 36svh, 310px);
+            height: 100%;
             min-height: 0;
-            border: 1px solid rgba(253, 230, 138, 0.2);
-            border-radius: 24px;
-            background: #1f1412;
-            object-fit: contain;
+            object-fit: cover;
             object-position: center;
             transform: none;
-            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
           }
 
           .front-counter-stage-bubbles {
