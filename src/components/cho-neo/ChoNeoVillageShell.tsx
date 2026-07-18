@@ -639,16 +639,52 @@ export function ChoNeoVillageShell() {
           position: absolute;
           inset: -1px;
           z-index: 1;
-          background-image:
-            var(--cho-neo-scene-wash),
-            var(--cho-neo-scene-radial),
-            url("/images/cho-neo/village-map-v1.png"),
-            url("/images/cho-neo/village-map-v1.webp"),
-            url("/images/cho-neo/isometric-village-placeholder.png");
-          background-size: cover;
-          background-position: center;
+          overflow: hidden;
+          background: #07111d;
           filter: var(--cho-neo-scene-filter);
           transform: scale(1.04);
+        }
+
+        .scene-art::after {
+          position: absolute;
+          inset: 0;
+          z-index: 2;
+          content: "";
+          pointer-events: none;
+          background-image:
+            var(--cho-neo-scene-wash),
+            var(--cho-neo-scene-radial);
+        }
+
+        .scene-art-layer {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          background-repeat: no-repeat;
+          background-size: cover;
+          background-position: center;
+          opacity: 0;
+          transition: opacity 1600ms ease-in-out;
+          will-change: opacity;
+        }
+
+        .scene-art-layer-day {
+          opacity: 1;
+        }
+
+        :root[data-cho-neo-time="morning"] .scene-art-layer-day,
+        :root[data-cho-neo-time="day"] .scene-art-layer-day {
+          opacity: 1;
+        }
+
+        :root[data-cho-neo-time="golden-dusk"] .scene-art-layer-day,
+        :root[data-cho-neo-time="night-market"] .scene-art-layer-day {
+          opacity: 0;
+        }
+
+        :root[data-cho-neo-time="golden-dusk"] .scene-art-layer-twilight,
+        :root[data-cho-neo-time="night-market"] .scene-art-layer-night {
+          opacity: 1;
         }
 
         .scene-vignette {
@@ -1110,12 +1146,22 @@ export function ChoNeoVillageShell() {
           border-radius: 20px;
           background-image:
             linear-gradient(180deg, rgba(3, 7, 18, 0.3), rgba(3, 7, 18, 0.56)),
-            url("/images/cho-neo/village-map-v1.png"),
-            url("/images/cho-neo/village-map-v1.webp"),
-            url("/images/cho-neo/isometric-village-placeholder.png");
+            url("/images/cho-neo/village-map-july-summer-day.png");
           background-size: cover;
           background-position: center;
           filter: var(--cho-neo-scene-filter);
+        }
+
+        :root[data-cho-neo-time="golden-dusk"] .mini-map-card {
+          background-image:
+            linear-gradient(180deg, rgba(3, 7, 18, 0.3), rgba(3, 7, 18, 0.56)),
+            url("/images/cho-neo/village-map-master-twilight.png");
+        }
+
+        :root[data-cho-neo-time="night-market"] .mini-map-card {
+          background-image:
+            linear-gradient(180deg, rgba(3, 7, 18, 0.3), rgba(3, 7, 18, 0.56)),
+            url("/images/cho-neo/village-map-summer-night.png");
         }
 
         .mini-map-pin {
@@ -1461,9 +1507,6 @@ export function ChoNeoVillageShell() {
           }
 
           .scene-art {
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-position: center;
             transform: none;
           }
 
@@ -1773,6 +1816,10 @@ export function ChoNeoVillageShell() {
           .scene-haze,
           .room-hotspot-pin {
             animation: none !important;
+          }
+
+          .scene-art-layer {
+            transition: none;
           }
 
           .scene-lantern,

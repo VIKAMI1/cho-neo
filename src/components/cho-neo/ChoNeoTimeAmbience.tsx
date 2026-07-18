@@ -22,7 +22,14 @@ function getLocalTimeMood(date: Date): ChoNeoTimeMood {
 
 export function ChoNeoTimeAmbience() {
   useEffect(() => {
-    document.documentElement.dataset.choNeoTime = getLocalTimeMood(new Date());
+    const syncLocalMood = () => {
+      document.documentElement.dataset.choNeoTime = getLocalTimeMood(new Date());
+    };
+
+    syncLocalMood();
+    const intervalId = window.setInterval(syncLocalMood, 60_000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   return (
@@ -161,9 +168,16 @@ export function ChoNeoTimeMoodLabel() {
   const [mood, setMood] = useState<ChoNeoTimeMood>("golden-dusk");
 
   useEffect(() => {
-    const localMood = getLocalTimeMood(new Date());
-    document.documentElement.dataset.choNeoTime = localMood;
-    setMood(localMood);
+    const syncLocalMood = () => {
+      const localMood = getLocalTimeMood(new Date());
+      document.documentElement.dataset.choNeoTime = localMood;
+      setMood(localMood);
+    };
+
+    syncLocalMood();
+    const intervalId = window.setInterval(syncLocalMood, 60_000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const label = MOOD_LABELS[mood];
