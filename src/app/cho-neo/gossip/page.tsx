@@ -642,7 +642,7 @@ const tables = [
     initials: ["MT", "Kim", "LD"],
     tone: "violet",
     note: "Salon life, clients, pricing, busy days, and work tips from people who get it.",
-    artwork: "/images/cho-neo/Ban-Chuyen-Nghe.png",
+    artwork: "/images/cho-neo/Ban-Chuyen-Nghe-New.png",
     topicChips: LOCAL_TABLE_CONFIG["shop-talk"].topicChips,
     emptyState: LOCAL_TABLE_CONFIG["shop-talk"].emptyState,
     rules: LOCAL_TABLE_CONFIG["shop-talk"].rules,
@@ -706,7 +706,7 @@ const tables = [
     initials: ["Anh", "Bao", "Nhi", "SL", "PQ", "TV"],
     tone: "gold",
     note: "Tired days, funny clients, after-work talk, and a little tea with boundaries.",
-    artwork: "/images/cho-neo/Ban-Xa-Hoi.png",
+    artwork: "/images/cho-neo/Ban-Xa-Hoi-New.png",
     topicChips: LOCAL_TABLE_CONFIG["vent-table"].topicChips,
     emptyState: LOCAL_TABLE_CONFIG["vent-table"].emptyState,
     rules: LOCAL_TABLE_CONFIG["vent-table"].rules,
@@ -738,7 +738,7 @@ const tables = [
     initials: ["Linh", "Duc"],
     tone: "green",
     note: "Softer talk, reflection, tea-table mood, and kindness after a long shift.",
-    artwork: "/images/cho-neo/Ban-Yen.png",
+    artwork: "/images/cho-neo/Ban-Yen-New.png",
     topicChips: LOCAL_TABLE_CONFIG["quiet-table"].topicChips,
     emptyState: LOCAL_TABLE_CONFIG["quiet-table"].emptyState,
     rules: LOCAL_TABLE_CONFIG["quiet-table"].rules,
@@ -1894,10 +1894,7 @@ export default function ChoNeoGossipPage() {
 
                 {isTrendTable ? (
                   <p className="trend-table-subtitle">
-                    Màu, trend, design, bling nào khách đang hỏi nhiều?
-                    <span>
-                      Colors, trends, designs, and bling clients are asking for.
-                    </span>
+                    Colors, trends, designs, and bling clients are asking for.
                   </p>
                 ) : !isLocalSessionTable ? (
                   <p className="topic">
@@ -1959,7 +1956,6 @@ export default function ChoNeoGossipPage() {
                           >
                             <span aria-hidden="true" />
                             {chip.vi}
-                            <small>{chip.en}</small>
                           </button>
                         ))}
                       </div>
@@ -2623,10 +2619,7 @@ export default function ChoNeoGossipPage() {
                       aria-label="Bàn Màu topic ideas"
                     >
                       <div>
-                        <strong>
-                          Chọn một màu để mở chuyện
-                          <small>Pick a color note to start.</small>
-                        </strong>
+                        <strong>Mở chuyện bằng màu</strong>
                       </div>
                       <div className="trend-table-chip-row">
                         {selectedTable.topicChips.map((chip) => (
@@ -2638,17 +2631,10 @@ export default function ChoNeoGossipPage() {
                           >
                             <span aria-hidden="true" />
                             {chip.vi}
-                            <small>{chip.en}</small>
                           </button>
                         ))}
                       </div>
                     </section>
-                    <p className="trend-table-value-note">
-                      Góp một màu, cả bàn dễ nhìn trend hơn.
-                      <span>
-                        Share one color note. Help the table spot what&apos;s rising.
-                      </span>
-                    </p>
                   </div>
                 ) : null}
 
@@ -2716,10 +2702,7 @@ export default function ChoNeoGossipPage() {
                 >
                   {isTrendTable ? (
                     <div className="trend-table-thread-heading">
-                      <strong>
-                        Chuyện màu & trend mới nhất
-                        <span>Latest Color & Trend Talk</span>
-                      </strong>
+                      <strong>Chuyện màu mới</strong>
                     </div>
                   ) : null}
                   {selectedMessages.length ? (
@@ -2772,6 +2755,7 @@ export default function ChoNeoGossipPage() {
                           {frontCounterMessage && !isRemoved ? (
                             <div className="moderation-row">
                               <button
+                                className={isTrendTable ? "trend-table-report-action" : undefined}
                                 disabled={
                                   isBusy ||
                                   reportedByThisBrowser ||
@@ -2783,7 +2767,25 @@ export default function ChoNeoGossipPage() {
                               }
                               type="button"
                             >
-                                {reportedByThisBrowser ? (
+                                {isTrendTable ? (
+                                  <>
+                                    <svg
+                                      aria-hidden="true"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path
+                                        d="M6.5 20V5.8m0 0c2.3-1.1 4.2.7 6.4-.2 1.5-.6 2.4-1.2 4.6-.3v8.1c-2.1-.9-3.1-.3-4.6.3-2.2.9-4.1-.9-6.4.2V5.8Z"
+                                        stroke="currentColor"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="1.8"
+                                      />
+                                    </svg>
+                                    {reportedByThisBrowser ? "Đã báo cáo" : "Báo cáo"}
+                                  </>
+                                ) : reportedByThisBrowser ? (
                                   <>
                                     Đã báo cáo
                                     <span>Reported</span>
@@ -2859,19 +2861,9 @@ export default function ChoNeoGossipPage() {
                   ) : isTrendTable ? (
                     <div className="trend-table-starter-list">
                       <div className="trend-table-empty-copy">
-                        <strong>
-                          {selectedTable.emptyState?.viTitle}
-                          <span>{selectedTable.emptyState?.enTitle}</span>
-                        </strong>
-                        <p>
-                          Bắt đầu bằng một câu hỏi nhẹ.
-                          <span>Start with one quick note.</span>
-                        </p>
+                        <strong>Chưa có chuyện mới.</strong>
+                        <p>Bắt đầu bằng một câu hỏi nhé.</p>
                       </div>
-                      <strong>
-                        Gợi ý mở chuyện
-                        <span>Conversation starters</span>
-                      </strong>
                       <div>
                         {COLOR_TREND_CONVERSATION_STARTERS.map((starter) => (
                           <button
@@ -2880,7 +2872,6 @@ export default function ChoNeoGossipPage() {
                             type="button"
                           >
                             {starter.vi}
-                            {starter.en ? <span>{starter.en}</span> : null}
                           </button>
                         ))}
                       </div>
@@ -2900,15 +2891,22 @@ export default function ChoNeoGossipPage() {
                         table note stays in the current café session.
                       </p>
                     ) : null}
-                    <label htmlFor="table-note-message">
-                      {isTrendTable ? "Thêm tiếng nói của bạn" : "Ngồi xuống góp chuyện"}
-                      <span>
-                        {isTrendTable ? "Add your voice to the table" : "Take a seat and add a note"}
-                      </span>
-                    </label>
-                    <p className="posting-helper table-safety-line">
+                    {!isTrendTable ? (
+                      <label htmlFor="table-note-message">
+                        Ngồi xuống góp chuyện
+                        <span>Take a seat and add a note</span>
+                      </label>
+                    ) : null}
+                    <p
+                      aria-label={
+                        isTrendTable
+                          ? "Nói nhẹ. Giữ tên riêng tư. Keep it gentle. Keep names private."
+                          : undefined
+                      }
+                      className="posting-helper table-safety-line"
+                    >
                       Nói nhẹ. Giữ tên riêng tư.
-                      <span>Keep it gentle. Keep names private.</span>
+                      {!isTrendTable ? <span>Keep it gentle. Keep names private.</span> : null}
                     </p>
                     {renderAvatarPassportChip()}
                     <div className="message-row">
@@ -2934,11 +2932,36 @@ export default function ChoNeoGossipPage() {
                             ? "Đặt lên bàn / Put it on the table"
                             : undefined
                         }
+                        title={
+                          isTrendTable
+                            ? "Đặt lên bàn / Put it on the table"
+                            : undefined
+                        }
                         disabled={!canSubmitTableNote}
                         type="submit"
                       >
                         {isTrendTable ? (
-                          <span aria-hidden="true">→</span>
+                          <svg
+                            aria-hidden="true"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="m4.8 12 13.7-6.4-3.7 12.8-3.1-5.1-6.9-1.3Z"
+                              stroke="currentColor"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="1.8"
+                            />
+                            <path
+                              d="m11.7 13.3 3.4-3.7"
+                              stroke="currentColor"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="1.8"
+                            />
+                          </svg>
                         ) : (
                           <>
                             Góp chuyện
@@ -2963,21 +2986,7 @@ export default function ChoNeoGossipPage() {
                   </form>
                 ) : null}
 
-                {isTrendTable ? (
-                  <details className="table-light-rules trend-table-rules">
-                    <summary>Nội quy nhẹ</summary>
-                    <div>
-                      {selectedTable.rules.map((rule) => (
-                        <p key={rule.vi}>
-                          {rule.vi}
-                          <span>{rule.en}</span>
-                        </p>
-                      ))}
-                    </div>
-                  </details>
-                ) : null}
-
-                {!isFrontCounter && !isLocalSessionTable ? (
+                {!isTrendTable && !isFrontCounter && !isLocalSessionTable ? (
                   <button
                     className="leave-button"
                     type="button"
@@ -4421,12 +4430,11 @@ export default function ChoNeoGossipPage() {
         .detail-panel-trend-table {
           display: flex;
           flex-direction: column;
-          padding: clamp(18px, 3vw, 28px);
-          border-color: rgba(253, 230, 138, 0.22);
-          background:
-            radial-gradient(circle at 82% 8%, rgba(253, 230, 138, 0.16), transparent 28%),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.12), rgba(255, 247, 237, 0.045)),
-            rgba(24, 16, 16, 0.84);
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+          backdrop-filter: none;
         }
 
         .detail-panel-local-table {
@@ -4701,6 +4709,60 @@ export default function ChoNeoGossipPage() {
           outline-offset: 2px;
         }
 
+        .detail-panel-trend-table .compact-table-header {
+          align-items: center;
+          justify-content: flex-start;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+
+        .detail-panel-trend-table .compact-table-back,
+        .detail-panel-trend-table .compact-table-enter,
+        .detail-panel-trend-table .compact-table-count {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 44px;
+          padding: 7px 12px;
+          border: 1px solid rgba(146, 64, 14, 0.14);
+          border-radius: 14px;
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1.12;
+          letter-spacing: 0;
+          box-shadow:
+            0 8px 20px rgba(69, 26, 3, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.54);
+        }
+
+        .detail-panel-trend-table .compact-table-back {
+          color: #6f4b3b;
+          background: rgba(255, 255, 255, 0.68);
+        }
+
+        .detail-panel-trend-table .compact-table-enter {
+          flex-direction: column;
+          color: #fff7ed;
+          border-color: rgba(190, 24, 93, 0.22);
+          background: #f87171;
+          box-shadow: 0 8px 18px rgba(190, 24, 93, 0.16);
+        }
+
+        .detail-panel-trend-table .compact-table-enter span {
+          display: block;
+          margin-top: 1px;
+          font-size: 10px;
+          font-weight: 500;
+          opacity: 0.86;
+        }
+
+        .detail-panel-trend-table .compact-table-count {
+          margin-left: auto;
+          color: #7d4f40;
+          background: rgba(255, 255, 255, 0.58);
+          text-align: center;
+        }
+
         .detail-panel-trend-table .detail-heading {
           order: 2;
         }
@@ -4709,8 +4771,28 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
+        .detail-panel-trend-table .detail-heading h2 {
+          color: #8f153f;
+          font-size: clamp(28px, 3.7vw, 44px);
+          font-weight: 500;
+          line-height: 0.98;
+          letter-spacing: -0.015em;
+        }
+
+        .detail-panel-trend-table .detail-heading h2 span {
+          margin-top: 4px;
+          color: #7d4f40;
+          font-size: 0.36em;
+          font-weight: 400;
+        }
+
         .detail-panel-trend-table .trend-table-subtitle {
           order: 3;
+          color: #6f4b3b;
+        }
+
+        .detail-panel-trend-table .trend-table-subtitle span {
+          color: #8a6858;
         }
 
         .detail-panel-trend-table .detail-members {
@@ -4727,14 +4809,6 @@ export default function ChoNeoGossipPage() {
 
         .detail-panel-trend-table .table-note-form {
           order: 6;
-        }
-
-        .detail-panel-trend-table .trend-table-rules {
-          order: 7;
-        }
-
-        .detail-panel-trend-table .leave-button {
-          order: 8;
         }
 
         .detail-panel-front-counter .detail-heading {
@@ -4760,6 +4834,13 @@ export default function ChoNeoGossipPage() {
         .table-detail:has(.detail-panel-trend-table) {
           width: min(980px, 100%);
           margin-top: 0;
+          padding: clamp(18px, 3vw, 28px);
+          border: 1px solid rgba(146, 64, 14, 0.1);
+          border-radius: 30px;
+          background: linear-gradient(180deg, #f1e6dc 0%, #f8efe8 46%, #efe3d9 100%);
+          box-shadow:
+            0 18px 48px rgba(69, 26, 3, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.7);
         }
 
         .table-detail:has(.detail-panel-trend-table) > .table-glow,
@@ -4840,20 +4921,20 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-subtitle {
-          max-width: 760px;
-          margin: 12px 0 0;
-          color: rgba(255, 247, 237, 0.84);
-          font-size: clamp(14px, 1.8vw, 17px);
-          font-weight: 850;
-          line-height: 1.4;
+          max-width: 620px;
+          margin: 8px 0 0;
+          color: rgba(255, 247, 237, 0.64);
+          font-size: clamp(12px, 1.35vw, 14px);
+          font-weight: 400;
+          line-height: 1.45;
         }
 
         .trend-table-subtitle span {
           display: block;
-          margin-top: 5px;
-          color: rgba(255, 247, 237, 0.54);
-          font-size: 12px;
-          font-weight: 800;
+          margin-top: 4px;
+          color: rgba(255, 247, 237, 0.5);
+          font-size: 11px;
+          font-weight: 400;
         }
 
         .detail-members {
@@ -5209,14 +5290,14 @@ export default function ChoNeoGossipPage() {
         .trend-table-stage {
           position: relative;
           overflow: hidden;
-          aspect-ratio: 1536 / 1024;
-          border: 1px solid rgba(253, 230, 138, 0.2);
-          border-radius: 26px;
+          aspect-ratio: 1672 / 941;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 24px;
           background:
-            radial-gradient(circle at 50% 68%, rgba(253, 230, 138, 0.16), transparent 38%),
-            linear-gradient(135deg, #1c1110, #4b2b1c 52%, #120c0d);
+            radial-gradient(circle at 50% 72%, rgba(244, 114, 182, 0.1), transparent 42%),
+            linear-gradient(135deg, #1b1111, #2b1815 58%, #120c0d);
           box-shadow:
-            0 22px 54px rgba(0, 0, 0, 0.28),
+            0 18px 42px rgba(0, 0, 0, 0.24),
             inset 0 1px 0 rgba(255, 247, 237, 0.08);
         }
 
@@ -5224,9 +5305,33 @@ export default function ChoNeoGossipPage() {
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
           object-position: center;
-          filter: saturate(1.03) brightness(1.02);
+          filter: saturate(1.02) brightness(1.01);
+        }
+
+        .trend-table-stage::after {
+          content: "";
+          position: absolute;
+          inset: -24% -58%;
+          z-index: 1;
+          pointer-events: none;
+          opacity: 0;
+          background: linear-gradient(
+            112deg,
+            transparent 0%,
+            transparent 28%,
+            rgba(255, 235, 190, 0.05) 35%,
+            rgba(255, 228, 170, 0.56) 45%,
+            rgba(255, 248, 220, 0.72) 50%,
+            rgba(255, 208, 138, 0.34) 58%,
+            transparent 70%,
+            transparent 100%
+          );
+          filter: blur(12px);
+          transform: translate3d(-42%, 0, 0);
+          animation: trendTableSunrayDrift 18s ease-in-out infinite;
+          will-change: opacity, transform;
         }
 
         .trend-table-hero-dots {
@@ -5249,91 +5354,66 @@ export default function ChoNeoGossipPage() {
 
         .trend-table-topic-chips {
           display: grid;
-          gap: 8px;
-          padding: 10px;
-          border: 1px solid rgba(190, 24, 93, 0.13);
-          border-radius: 18px;
-          background:
-            radial-gradient(circle at 10% 0%, rgba(244, 114, 182, 0.12), transparent 34%),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(255, 241, 242, 0.74));
-          box-shadow: 0 10px 24px rgba(69, 26, 3, 0.08);
+          gap: 9px;
+          margin-top: 8px;
+          padding: 14px;
+          border: 1px solid rgba(146, 64, 14, 0.08);
+          border-radius: 16px 16px 8px 8px;
+          background: #f6efe7;
+          box-shadow: none;
         }
 
         .trend-table-topic-chips > div:first-child {
           display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
+          align-items: center;
           gap: 8px;
         }
 
         .trend-table-topic-chips strong {
           color: #8f153f;
           font-size: 12px;
-          font-weight: 950;
-        }
-
-        .trend-table-topic-chips strong small,
-        .trend-table-topic-chips > div:first-child span small {
-          display: block;
-          margin-top: 2px;
-          font-size: 9px;
-          font-weight: 800;
-          letter-spacing: 0;
-          text-transform: none;
-        }
-
-        .trend-table-topic-chips > div:first-child span {
-          color: rgba(92, 45, 24, 0.58);
-          font-size: 10px;
-          font-weight: 850;
-          text-align: right;
+          font-weight: 650;
         }
 
         .trend-table-chip-row {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 8px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
         }
 
         .trend-table-topic-chip {
-          display: grid;
-          justify-items: center;
-          gap: 4px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 34px;
           min-width: 0;
-          border: 1px solid rgba(190, 24, 93, 0.08);
-          border-radius: 16px;
-          padding: 6px 5px;
-          color: #5c2d18;
-          background: rgba(255, 255, 255, 0.42);
+          border: 1px solid rgba(146, 64, 14, 0.1);
+          border-radius: 999px;
+          padding: 6px 10px;
+          color: #2f1b13;
+          background: rgba(255, 255, 255, 0.76);
           font: inherit;
-          font-size: 10px;
-          font-weight: 900;
+          font-size: 11px;
+          font-weight: 650;
           line-height: 1.12;
-          text-align: center;
+          text-align: left;
           cursor: pointer;
+          box-shadow: none;
         }
 
         .trend-table-topic-chip > span {
-          width: 18px;
-          height: 18px;
+          flex: 0 0 auto;
+          width: 10px;
+          height: 10px;
           border-radius: 999px;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.38),
-            0 0 0 3px rgba(255, 247, 237, 0.06);
-        }
-
-        .trend-table-topic-chip small {
-          display: block;
-          color: rgba(92, 45, 24, 0.54);
-          font-size: 8px;
-          font-weight: 750;
+          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
         }
 
         .trend-table-topic-chip:hover,
         .trend-table-topic-chip:focus-visible {
           outline: none;
-          border-color: rgba(190, 24, 93, 0.22);
-          background: rgba(255, 241, 242, 0.82);
+          border-color: rgba(244, 114, 105, 0.34);
+          background: rgba(255, 246, 243, 0.92);
         }
 
         .trend-chip-marigold > span {
@@ -5372,26 +5452,6 @@ export default function ChoNeoGossipPage() {
           background: #c4b5fd;
         }
 
-        .trend-table-value-note {
-          margin: 0;
-          padding: 9px 11px;
-          border: 1px solid rgba(190, 24, 93, 0.1);
-          border-radius: 16px;
-          color: #6f2b21;
-          background: rgba(255, 247, 237, 0.72);
-          font-size: 12px;
-          font-weight: 800;
-          line-height: 1.34;
-        }
-
-        .trend-table-value-note span {
-          display: block;
-          margin-top: 3px;
-          color: rgba(92, 45, 24, 0.54);
-          font-size: 10px;
-          font-weight: 750;
-        }
-
         .trend-table-empty-state {
           width: min(100%, 620px);
           padding: 16px;
@@ -5428,12 +5488,12 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-thread {
-          margin-top: 12px;
-          border-color: rgba(190, 24, 93, 0.12);
-          border-radius: 20px;
-          background:
-            radial-gradient(circle at 50% 0%, rgba(244, 114, 182, 0.12), transparent 30%),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(255, 241, 242, 0.72));
+          margin-top: 8px;
+          padding: 14px;
+          border: 1px solid rgba(146, 64, 14, 0.08);
+          border-radius: 8px;
+          background: #fbf6ef;
+          box-shadow: none;
         }
 
         .trend-table-thread-heading strong,
@@ -5444,22 +5504,16 @@ export default function ChoNeoGossipPage() {
         .trend-table-thread-heading strong {
           color: #8f153f;
           font-size: 13px;
-          font-weight: 950;
-        }
-
-        .trend-table-thread-heading span {
-          margin-top: 2px;
-          color: rgba(92, 45, 24, 0.54);
-          font-size: 10px;
+          font-weight: 700;
         }
 
         .trend-table-starter-list {
           display: grid;
           gap: 8px;
-          padding: 10px;
-          border: 1px dashed rgba(190, 24, 93, 0.14);
-          border-radius: 18px;
-          background: rgba(255, 255, 255, 0.38);
+          padding: 8px 0 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
         }
 
         .trend-table-starter-list strong,
@@ -5468,47 +5522,28 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-starter-list strong {
-          color: #8f153f;
+          color: #2f1b13;
           font-size: 13px;
-          font-weight: 950;
-        }
-
-        .trend-table-starter-list strong span {
-          margin-top: 2px;
-          color: rgba(92, 45, 24, 0.54);
-          font-size: 10px;
-        }
-
-        .trend-table-empty-copy {
-          padding-bottom: 2px;
+          font-weight: 650;
         }
 
         .trend-table-empty-copy strong,
-        .trend-table-empty-copy strong span,
-        .trend-table-empty-copy p,
-        .trend-table-empty-copy p span {
+        .trend-table-empty-copy p {
           display: block;
         }
 
         .trend-table-empty-copy p {
-          margin: 6px 0 0;
-          color: rgba(92, 45, 24, 0.72);
+          margin: 4px 0 0;
+          color: #6f4b3b;
           font-size: 12px;
-          font-weight: 800;
-          line-height: 1.35;
-        }
-
-        .trend-table-empty-copy p span {
-          margin-top: 2px;
-          color: rgba(92, 45, 24, 0.48);
-          font-size: 10px;
-          font-weight: 750;
+          font-weight: 500;
+          line-height: 1.34;
         }
 
         .trend-table-starter-list > div {
           display: flex;
           flex-wrap: wrap;
-          gap: 8px;
+          gap: 7px;
         }
 
         .trend-table-starter-list > .trend-table-empty-copy {
@@ -5516,75 +5551,154 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-starter-list button {
-          min-height: 34px;
+          min-height: 32px;
           padding: 6px 10px;
-          border: 1px solid rgba(190, 24, 93, 0.12);
+          border: 1px solid rgba(146, 64, 14, 0.07);
           border-radius: 999px;
-          color: #6f2b21;
-          background: rgba(255, 247, 237, 0.78);
+          color: #3b2318;
+          background: rgba(255, 255, 255, 0.7);
           font: inherit;
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1.12;
           text-align: left;
           cursor: pointer;
         }
 
-        .trend-table-starter-list button span {
-          display: inline;
-          margin-left: 4px;
-          color: rgba(92, 45, 24, 0.52);
-          font-size: 9px;
-          font-weight: 800;
-        }
-
         .trend-table-starter-list button:hover,
         .trend-table-starter-list button:focus-visible {
           outline: none;
-          border-color: rgba(190, 24, 93, 0.28);
-          background: rgba(255, 241, 242, 0.92);
+          border-color: rgba(244, 114, 105, 0.28);
+          background: rgba(255, 241, 242, 0.84);
         }
 
         .detail-panel-trend-table .thread-message {
-          border-color: rgba(190, 24, 93, 0.14);
-          border-radius: 18px;
-          background:
-            linear-gradient(180deg, rgba(255, 241, 242, 0.94), rgba(255, 247, 237, 0.82)),
-            rgba(254, 243, 199, 0.44);
+          border-color: rgba(146, 64, 14, 0.08);
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.78);
+          box-shadow: none;
         }
 
         .detail-panel-trend-table .thread-message small {
-          color: rgba(157, 23, 77, 0.62);
+          color: #7d4f40;
           font-size: 10px;
-          font-weight: 800;
+          font-weight: 550;
         }
 
         .detail-panel-trend-table .thread-message p {
-          color: #3f2418;
+          color: #2f1b13;
           font-size: 14px;
-          line-height: 1.42;
+          font-weight: 450;
+          line-height: 1.48;
+        }
+
+        .detail-panel-trend-table .trend-table-report-action {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          min-height: 28px;
+          border-radius: 10px;
+          color: #6f3d2f;
+          background: transparent;
+          font-weight: 550;
+        }
+
+        .detail-panel-trend-table .trend-table-report-action svg {
+          width: 14px;
+          height: 14px;
         }
 
         .detail-panel-trend-table .table-note-form {
           gap: 8px;
+          margin-top: 8px;
           padding: 12px;
-          border-color: rgba(190, 24, 93, 0.14);
-          border-radius: 18px;
-          background:
-            radial-gradient(circle at 10% 0%, rgba(244, 114, 182, 0.12), transparent 32%),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.95), rgba(255, 241, 242, 0.82));
-          box-shadow: 0 10px 24px rgba(69, 26, 3, 0.1);
+          border-color: rgba(146, 64, 14, 0.08);
+          border-radius: 8px 8px 16px 16px;
+          background: #f7eee9;
+          box-shadow: none;
         }
 
         .detail-panel-trend-table .table-note-form label {
-          color: #9d174d;
+          color: #8f153f;
           font-size: 12px;
+          font-weight: 650;
+        }
+
+        .detail-panel-trend-table .table-safety-line {
+          order: 3;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin: 0;
+          color: #6f4b3b;
+          font-size: 11px;
+          font-weight: 550;
+        }
+
+        .detail-panel-trend-table .table-safety-line::before {
+          content: "";
+          flex: 0 0 auto;
+          width: 11px;
+          height: 11px;
+          border: 1.4px solid currentColor;
+          border-radius: 70% 30% 70% 30%;
+          transform: rotate(-28deg);
+          opacity: 0.68;
+        }
+
+        .detail-panel-trend-table .table-note-form .avatar-chip {
+          order: 1;
+        }
+
+        .detail-panel-trend-table .message-row {
+          order: 2;
         }
 
         .detail-panel-trend-table .message-row input {
-          border-color: rgba(190, 24, 93, 0.16);
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.86);
+          border-color: rgba(146, 64, 14, 0.16);
+          border-radius: 16px;
+          color: #2f1b13;
+          background: rgba(255, 255, 255, 0.98);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        .detail-panel-trend-table .message-row input::placeholder {
+          color: #8a6858;
+          opacity: 1;
+        }
+
+        .detail-panel-trend-table .composer-avatar-passport {
+          color: #2f1b13;
+        }
+
+        .detail-panel-trend-table .composer-avatar-passport strong {
+          color: #2f1b13;
+          font-weight: 700;
+        }
+
+        .detail-panel-trend-table .composer-avatar-passport small {
+          color: #7d4f40;
+          font-weight: 550;
+        }
+
+        .detail-panel-trend-table .composer-avatar-action {
+          color: #7f1d3f;
+          font-weight: 650;
+        }
+
+        .detail-panel-trend-table .post-feedback {
+          color: #7a3d2d;
+          font-weight: 650;
+        }
+
+        .detail-panel-trend-table .character-count {
+          color: #6f4b3b;
+          font-weight: 600;
+        }
+
+        .detail-panel-trend-table .character-count span {
+          color: #7d5a49;
+          font-weight: 550;
         }
 
         .detail-panel-trend-table .message-row button {
@@ -5595,11 +5709,23 @@ export default function ChoNeoGossipPage() {
           min-width: 48px;
           min-height: 48px;
           padding: 0;
-          border-radius: 999px;
-          color: #422006;
-          background: #fde68a;
-          font-size: 24px;
+          border-radius: 16px;
+          color: #fff7ed;
+          background: #f87171;
+          font-size: 18px;
           line-height: 1;
+          box-shadow: 0 8px 18px rgba(190, 24, 93, 0.16);
+        }
+
+        .detail-panel-trend-table .message-row button svg {
+          width: 20px;
+          height: 20px;
+        }
+
+        .detail-panel-trend-table .message-row button:disabled {
+          color: #7d5a49;
+          background: rgba(255, 255, 255, 0.7);
+          box-shadow: none;
         }
 
         .detail-panel-trend-table .table-light-rules {
@@ -7041,14 +7167,43 @@ export default function ChoNeoGossipPage() {
           to { opacity: 1; transform: translateY(0); }
         }
 
+        @keyframes trendTableSunrayDrift {
+          0% {
+            opacity: 0;
+            transform: translate3d(-42%, 0, 0);
+          }
+          12% {
+            opacity: 0.12;
+          }
+          48% {
+            opacity: 0.18;
+            transform: translate3d(12%, 0, 0);
+          }
+          72% {
+            opacity: 0.13;
+            transform: translate3d(32%, 0, 0);
+          }
+          86%,
+          100% {
+            opacity: 0;
+            transform: translate3d(46%, 0, 0);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .front-counter-ambient-glow,
           .front-counter-ambient-steam,
           .front-counter-ambient-reflection,
           .quan-tam-music-control-on .quan-tam-music-icon,
           .front-counter-stage-bubble,
-          .front-counter-stage-drawer {
+          .front-counter-stage-drawer,
+          .trend-table-stage::after {
             animation: none;
+          }
+
+          .trend-table-stage::after {
+            opacity: 0.07;
+            transform: translate3d(6%, 0, 0);
           }
 
           .front-counter-ambient-lantern {
@@ -7076,6 +7231,15 @@ export default function ChoNeoGossipPage() {
             radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.18), transparent 34%),
             linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(254, 243, 199, 0.74));
           box-shadow: 0 14px 34px rgba(69, 26, 3, 0.12);
+        }
+
+        .detail-panel-trend-table .mock-thread.trend-table-thread {
+          margin-top: 8px;
+          padding: 14px;
+          border: 1px solid rgba(146, 64, 14, 0.08);
+          border-radius: 8px;
+          background: #fbf6ef;
+          box-shadow: none;
         }
 
         .detail-panel-front-counter .mock-thread {
@@ -8512,22 +8676,46 @@ export default function ChoNeoGossipPage() {
           .table-detail:has(.detail-panel-trend-table) {
             width: 100%;
             margin-top: 36px;
-          }
-
-          .detail-panel-trend-table {
             padding: 14px;
             border-radius: 24px;
           }
 
+          .detail-panel-trend-table {
+            padding: 0;
+            border-radius: 0;
+          }
+
+          .detail-panel-trend-table .compact-table-header {
+            align-items: center;
+            gap: 8px;
+          }
+
+          .detail-panel-trend-table .compact-table-back,
+          .detail-panel-trend-table .compact-table-enter,
+          .detail-panel-trend-table .compact-table-count {
+            min-height: 44px;
+            padding: 7px 10px;
+            font-size: 11px;
+          }
+
+          .detail-panel-trend-table .compact-table-count {
+            margin-left: 0;
+            max-width: 100%;
+          }
+
           .detail-panel-trend-table .detail-heading {
             display: grid;
-            gap: 4px;
+            gap: 3px;
+          }
+
+          .detail-panel-trend-table .detail-heading h2 {
+            font-size: clamp(25px, 7.2vw, 30px);
           }
 
           .trend-table-subtitle {
-            margin-top: 8px;
+            margin-top: 6px;
             font-size: 12px;
-            line-height: 1.42;
+            line-height: 1.4;
           }
 
           .trend-table-stage {
@@ -8555,22 +8743,6 @@ export default function ChoNeoGossipPage() {
           .trend-table-topic-chip > span {
             width: 14px;
             height: 14px;
-          }
-
-          .trend-table-topic-chip small {
-            display: none;
-          }
-
-          .trend-table-value-note {
-            display: block;
-            padding: 8px 10px;
-            font-size: 11px;
-            line-height: 1.32;
-          }
-
-          .trend-table-value-note span {
-            margin-top: 2px;
-            font-size: 9px;
           }
 
           .trend-table-topic-chips {
@@ -9193,16 +9365,24 @@ export default function ChoNeoGossipPage() {
         }
 
         @media (max-width: 640px) {
-          .local-table-heading h2,
-          .detail-panel-trend-table .detail-heading h2 {
+          .local-table-heading h2 {
             font-size: clamp(28px, 8.5vw, 32px);
             line-height: 1;
           }
 
-          .local-table-subtitle,
-          .trend-table-subtitle {
+          .detail-panel-trend-table .detail-heading h2 {
+            font-size: clamp(24px, 7vw, 30px);
+            line-height: 1;
+          }
+
+          .local-table-subtitle {
             font-size: 16px;
             line-height: 1.42;
+          }
+
+          .trend-table-subtitle {
+            font-size: 12px;
+            line-height: 1.4;
           }
 
           .table-note-form label,
@@ -9259,11 +9439,15 @@ export default function ChoNeoGossipPage() {
             font-size: 11px;
           }
 
+          .detail-panel-trend-table .message-row {
+            grid-template-columns: minmax(0, 1fr) 48px;
+          }
+
           .detail-panel-trend-table .message-row button {
-            width: 100%;
-            min-width: 0;
+            width: 48px;
+            min-width: 48px;
             min-height: 48px;
-            padding-inline: 14px;
+            padding-inline: 0;
           }
 
           .front-counter-stage-message-row {
@@ -9305,6 +9489,14 @@ export default function ChoNeoGossipPage() {
 
           .message-row button {
             width: 100%;
+          }
+
+          .detail-panel-trend-table .message-row {
+            grid-template-columns: minmax(0, 1fr) 48px;
+          }
+
+          .detail-panel-trend-table .message-row button {
+            width: 48px;
           }
         }
       `}</style>
