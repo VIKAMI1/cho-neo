@@ -27,6 +27,67 @@ type LocUiResult = {
   vibeLine: string;
 };
 
+type PrayerExperience = "conversation" | "ritual" | "xin_xam";
+
+type PrayerConversationTurn = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+type PrayerResponseMeta = {
+  source?: string;
+  generatedByProvider?: boolean;
+};
+
+function createPrayerProviderNotice(meta?: PrayerResponseMeta) {
+  if (!meta || meta.generatedByProvider) return "";
+
+  if (meta.source === "fallback_deterministic_ritual") {
+    return "Ông Địa giữ lời vía sẵn cho nghi lễ nhỏ này.";
+  }
+
+  if (meta.source === "fallback_safety_guardrail") {
+    return "Ông Địa giữ lời an toàn trước, rồi mới nói chuyện nhẹ sau.";
+  }
+
+  if (meta.source === "fallback_no_api_key") {
+    return "Hôm nay đường AI chưa mở, Ông Địa dùng lời giữ vía sẵn.";
+  }
+
+  if (meta.source === "fallback_provider_timeout") {
+    return "Ông Địa nghe chậm quá, nên trả lời bằng lời giữ vía sẵn.";
+  }
+
+  if (meta.source === "fallback_provider_rate_limited") {
+    return "Đường AI đang đông, Ông Địa dùng lời giữ vía sẵn trước.";
+  }
+
+  if (meta.source?.startsWith("fallback_")) {
+    return "Ông Địa chưa gọi được AI, nên dùng lời giữ vía sẵn.";
+  }
+
+  return "";
+}
+
+function appendPrayerConversationTurn(
+  history: PrayerConversationTurn[],
+  userPrayer: string,
+  response: OngDiaPrayerResponse,
+) {
+  const nextTurns: PrayerConversationTurn[] = [
+    ...history,
+    { role: "user", content: userPrayer || "Xin vía nhẹ" },
+    {
+      role: "assistant",
+      content: [response.loiOngDia, response.ongNhacNhe, response.viecNhoHomNay]
+        .filter(Boolean)
+        .join(" "),
+    },
+  ];
+
+  return nextTurns.slice(-6);
+}
+
 function OngDiaShrineAtmosphere({ blessingSignal }: { blessingSignal: number }) {
   return (
     <div className="ong-dia-atmosphere" aria-hidden="true">
@@ -73,10 +134,15 @@ export default function OngDiaPage() {
   const [prayerResponse, setPrayerResponse] =
     useState<OngDiaPrayerResponse | null>(null);
   const [isPrayerResponseLoading, setIsPrayerResponseLoading] = useState(false);
+  const [prayerProviderNotice, setPrayerProviderNotice] = useState("");
+  const [prayerConversationHistory, setPrayerConversationHistory] = useState<
+    PrayerConversationTurn[]
+  >([]);
   const [smallPrayer, setSmallPrayer] = useState("");
   const [locResult, setLocResult] = useState<LocUiResult | null>(null);
   const [locNotice, setLocNotice] = useState("");
   const blessingMessageIndexRef = useRef(0);
+  const prayerRequestInFlightRef = useRef(false);
   const lastBlessingVisualAtRef = useRef(0);
   const blessingVisualTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -128,12 +194,19 @@ export default function OngDiaPage() {
     ritual: string,
     prayerOverride?: string,
     shouldTriggerAtmosphere = true,
+    experience: PrayerExperience = "conversation",
   ) {
+    if (prayerRequestInFlightRef.current) return;
+    prayerRequestInFlightRef.current = true;
+
     const prayer = (prayerOverride ?? smallPrayer).trim();
     const fallback = createFallbackOngDiaPrayerResponse(prayer);
+    const history =
+      experience === "conversation" ? prayerConversationHistory : [];
 
     showBlessingMessage();
     setPrayerResponse(fallback);
+    setPrayerProviderNotice("");
     setIsPrayerResponseLoading(true);
     if (shouldTriggerAtmosphere) {
       triggerBlessingAtmosphere();
@@ -148,13 +221,21 @@ export default function OngDiaPage() {
         body: JSON.stringify({
           prayer,
           ritual,
+          experience,
+          history,
         }),
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        setPrayerProviderNotice(
+          "Đường nghe lời đang nghẽn. Con thử lại một nhịp nữa nha.",
+        );
+        return;
+      }
 
       const payload = (await response.json()) as {
         result?: OngDiaPrayerResponse;
+        meta?: PrayerResponseMeta;
       };
 
       if (
@@ -163,23 +244,38 @@ export default function OngDiaPage() {
         payload.result.viecNhoHomNay
       ) {
         setPrayerResponse(payload.result);
+        setPrayerProviderNotice(createPrayerProviderNotice(payload.meta));
+        if (experience === "conversation") {
+          setPrayerConversationHistory((current) =>
+            appendPrayerConversationTurn(current, prayer, payload.result!),
+          );
+        }
+      } else {
+        setPrayerProviderNotice(
+          "Ông Địa nghe chưa rõ, nên giữ tạm một lời nhẹ cho con.",
+        );
       }
     } catch {
       setPrayerResponse(fallback);
+      setPrayerProviderNotice(
+        "Đường nghe lời đang chập chờn. Con thử lại một nhịp nữa nha.",
+      );
     } finally {
+      prayerRequestInFlightRef.current = false;
       setIsPrayerResponseLoading(false);
     }
   }
 
   function handleBlessingRequest() {
-    void requestPrayerResponse("Xin vía nhẹ");
+    const experience = smallPrayer.trim() ? "conversation" : "ritual";
+    void requestPrayerResponse("Xin vía nhẹ", undefined, true, experience);
   }
 
   function handleLocRequest() {
     const wish = smallPrayer.trim() || "Xin giữ lòng vững hôm nay.";
     const result = createLocMemoryForWish(wish);
 
-    void requestPrayerResponse("Mở một lộc nhỏ", wish, result.ok);
+    void requestPrayerResponse("Mở một lộc nhỏ", wish, result.ok, "ritual");
 
     if (!result.ok) {
       setLocNotice(result.message);
@@ -284,6 +380,9 @@ export default function OngDiaPage() {
                 <span>{prayerResponse.khiChuyenQuaNang}</span>
               </div>
             ) : null}
+            {prayerProviderNotice ? (
+              <p className="ong-dia-provider-notice">{prayerProviderNotice}</p>
+            ) : null}
           </article>
         ) : null}
 
@@ -307,7 +406,11 @@ export default function OngDiaPage() {
             >
               {isPrayerResponseLoading ? "Đang nghe..." : "Xin vía nhẹ"}
             </button>
-            <button type="button" onClick={handleLocRequest}>
+            <button
+              type="button"
+              onClick={handleLocRequest}
+              disabled={isPrayerResponseLoading}
+            >
               Mở một lộc nhỏ
             </button>
           </div>
@@ -1098,6 +1201,13 @@ export default function OngDiaPage() {
 
         .ong-dia-loc-notice {
           color: #ffd48b !important;
+        }
+
+        .ong-dia-provider-notice {
+          margin: 0.15rem 0 0;
+          color: rgba(255, 239, 203, 0.78);
+          font-size: 0.83rem;
+          line-height: 1.45;
         }
 
         .ong-dia-safety-copy {
