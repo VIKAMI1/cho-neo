@@ -82,10 +82,10 @@ async function callPrayer(body, headers) {
 }
 
 function providerPayload({
-  noticedDetail = "tiệm vắng, khách mới nervous, salon tomorrow, lottery bot, turn 4",
-  loiOngDia = "Ông nghe rồi, chuyện này cứ thở chậm một nhịp nha.",
-  ongNhacNhe = "Con hỏi bằng lòng thật thì Ông đáp bằng lời thật.",
-  viecNhoHomNay = "Viết xuống một việc nhỏ rồi làm trước khi đóng tiệm.",
+  noticedDetail = "tiệm vắng hôm nay",
+  loiOngDia = "Tiệm vắng hôm nay làm con nghe tiếng kéo cũng vang hơn thường ngày.",
+  ongNhacNhe = "Ông đoán con đang nhìn cửa tiệm mà mong vía khách ghé nhẹ.",
+  viecNhoHomNay = "Con lau một góc bàn cho sáng rồi đợi lộc đi ngang.",
   khiChuyenQuaNang = null,
 } = {}) {
   return JSON.stringify({
@@ -106,6 +106,7 @@ function mockGroq({
   content = providerPayload(),
   delayMs = 0,
   headers = {},
+  usage = undefined,
 } = {}) {
   const calls = [];
   globalThis.fetch = async (url, init) => {
@@ -120,7 +121,7 @@ function mockGroq({
       });
     }
     return new Response(
-      JSON.stringify({ choices: [{ message: { content } }] }),
+      JSON.stringify({ choices: [{ message: { content } }], ...(usage ? { usage } : {}) }),
       { status, headers: { "content-type": "application/json", ...headers } },
     );
   };
@@ -149,24 +150,38 @@ test("Vietnamese conversation uses Groq GPT-OSS and returns provider metadata", 
 test("Vietlish conversation reaches Groq", async () => {
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   process.env.GROQ_API_KEY = "test-key";
-  const calls = mockGroq({ content: providerPayload({ ongNhacNhe: "Con đang mix Vietlish cũng được, miễn lòng mình rõ." }) });
+  const calls = mockGroq({
+    content: providerPayload({
+      noticedDetail: "khách mới nervous",
+      loiOngDia: "Khách mới nervous làm con đứng ngay cửa mà nghe tay mình chậm lại.",
+      ongNhacNhe: "Ông đoán cái nervous này nằm ở khoảnh khắc khách vừa ngồi xuống.",
+      viecNhoHomNay: "Con để sẵn một câu chào nhẹ trước khi bắt đầu.",
+    }),
+  });
 
   const { body } = await callPrayer({ prayer: "Ông ơi today con feel hơi nervous about khách mới." });
 
   assert.equal(body.meta.source, "provider_groq");
-  assert.match(body.result.ongNhacNhe, /Vietlish/);
+  assert.match(body.result.ongNhacNhe, /nervous/);
   assert.equal(calls.length, 1);
 });
 
 test("English conversation reaches Groq", async () => {
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   process.env.GROQ_API_KEY = "test-key";
-  mockGroq({ content: providerPayload({ loiOngDia: "Con brought an English worry to the shrine, and Ông hears it slowly and kindly." }) });
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "opening my salon tomorrow",
+      loiOngDia: "Opening my salon tomorrow has con holding the key like it is a tiny lantern.",
+      ongNhacNhe: "Ông hears the English worry, but the shrine still understands the nervous door.",
+      viecNhoHomNay: "Con set one small thing by the entrance tonight.",
+    }),
+  });
 
   const { body } = await callPrayer({ prayer: "I am worried about opening my salon tomorrow." });
 
   assert.equal(body.meta.source, "provider_groq");
-  assert.match(body.result.loiOngDia, /English worry/);
+  assert.match(body.result.loiOngDia, /Opening my salon tomorrow/);
 });
 
 test("multi-turn memory is bounded and sent as untrusted history", async () => {
@@ -523,13 +538,13 @@ test("Vietnamese, English, Vietlish, missing accents, and typos keep message-spe
   }
 });
 
-test("direct visitor address as anh chi em ban or English you is rejected", async () => {
+test("direct Vietnamese visitor address is normalized locally to con without repair", async () => {
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   process.env.GROQ_API_KEY = "test-key";
   const cases = [
     {
-      prayer: "Con là nam mà hôm nay vẫn sợ hỏi chủ tiệm tăng lương.",
-      visible: "Anh đang sợ hỏi chủ tiệm tăng lương nên cứ đứng ngoài cửa lòng.",
+      prayer: "Con là nam mà hôm nay vẫn sợ mở tiệm nhỏ ngày mai.",
+      visible: "Anh đang sợ mở tiệm nhỏ ngày mai nên cái bảng hiệu cũng nghe nặng.",
     },
     {
       prayer: "Con là nữ, khách làm con quê vì chê màu đỏ.",
@@ -537,16 +552,12 @@ test("direct visitor address as anh chi em ban or English you is rejected", asyn
     },
     {
       prayer: "Ong oi my boss nói con chậm quá, con stress ghê.",
-      visible: "Bạn cần tin vào tay nghề của mình và cố gắng hơn.",
-    },
-    {
-      prayer: "I feel nervous opening my small salon tomorrow.",
-      visible: "You should prepare the salon calmly and trust your work.",
+      visible: "Bạn cần đặt chữ slow của boss xuống, kẻo nó ngồi lấn cả bàn thờ vía.",
     },
   ];
 
   for (const scenario of cases) {
-    mockGroq({
+    const calls = mockGroq({
       content: providerPayload({
         noticedDetail: scenario.prayer,
         loiOngDia: scenario.visible,
@@ -556,8 +567,35 @@ test("direct visitor address as anh chi em ban or English you is rejected", asyn
     });
 
     const { body } = await callPrayer({ prayer: scenario.prayer });
-    assert.equal(body.meta.source, "fallback_generic_listener_response");
+    assert.equal(body.meta.source, "provider_groq");
+    assert.equal(calls.length, 1);
+    assert.equal(body.meta.repairUsed, false);
+    assert.equal(body.meta.localNormalization.visitorAddressNormalized, true);
+    assert.doesNotMatch(JSON.stringify(body.result), /\b(Anh đang|Chị nên|Bạn cần)\b/i);
+    assert.match(JSON.stringify(body.result), /\bcon\b/i);
   }
+});
+
+test("English direct you address is rejected when it cannot be confidently localized", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  const calls = mockGroq({
+    content: providerPayload({
+      noticedDetail: "small salon tomorrow",
+      loiOngDia: "You should prepare the salon calmly and trust your work.",
+      ongNhacNhe: "Có lẽ con đang mong có một câu nghe đúng bụng.",
+      viecNhoHomNay: "Con ghi lại một việc nhỏ rồi làm trước.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "I feel nervous opening my small salon tomorrow.",
+  });
+
+  assert.equal(body.meta.source, "fallback_generic_listener_response");
+  assert.equal(body.meta.validationFailure, "visitor_address");
+  assert.equal(body.meta.repairUsed, false);
+  assert.equal(calls.length, 1);
 });
 
 test("third-party anh chi em mentions are allowed when visitor is addressed as con", async () => {
@@ -577,6 +615,31 @@ test("third-party anh chi em mentions are allowed when visitor is addressed as c
   assert.equal(body.meta.source, "provider_groq");
   assert.match(JSON.stringify(body.result), /chị Mai/i);
   assert.match(JSON.stringify(body.result), /con/i);
+});
+
+test("third-party anh chồng and em nhân viên mentions are preserved", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "anh chồng và em nhân viên",
+      loiOngDia:
+        "Anh chồng góp ý rồi em nhân viên nhìn con im im, nghe như cái bàn thờ trong lòng cũng nghiêng nhẹ.",
+      ongNhacNhe:
+        "Ông đoán con không nặng vì một câu, mà vì hai ánh nhìn tới cùng lúc.",
+      viecNhoHomNay:
+        "Con uống ngụm nước, chọn một chuyện nhỏ nhất để nói lại cho rõ.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Anh chồng góp ý rồi em nhân viên nhìn con im im, con thấy rối.",
+  });
+
+  assert.equal(body.meta.source, "provider_groq");
+  assert.equal(body.meta.localNormalization.visitorAddressNormalized, false);
+  assert.match(JSON.stringify(body.result), /Anh chồng/i);
+  assert.match(JSON.stringify(body.result), /em nhân viên/i);
 });
 
 test("male female English Vietnamese and Vietlish prayers are addressed as con", async () => {
@@ -924,6 +987,178 @@ test("banana offering prayer stays ritual humor without debt invention", async (
   assert.doesNotMatch(JSON.stringify(body.result), /debt|loan|bill|nợ|vay/i);
 });
 
+test("exact banana prayer rejects weak detail and invented anxiety or financial planning", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "tiem",
+      loiOngDia:
+        "Con, khi tiệm bận rộn, lòng lo lắng về tiền như gió thổi qua cửa sổ.",
+      ongNhacNhe:
+        "Ông Địa thấy con đang lo âu, nhưng cũng biết niềm tin vào công việc sẽ mang lại may mắn.",
+      viecNhoHomNay:
+        "Hãy ghi lại một mục tiêu tài chính nhỏ, ví dụ tiết kiệm 10% doanh thu hôm nay.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer:
+      "Ong Dia phu ho cho tiem con tuan nay busy. Con hua neu ban ron lam co tien con cung ong dia mot nai chuoi.",
+  });
+
+  assert.equal(body.meta.source, "fallback_generic_listener_response");
+});
+
+test("exact banana prayer requires the distinctive nải chuối anchor", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "tiệm tuần này busy",
+      loiOngDia:
+        "Tiệm tuần này busy làm con nghe tiếng cửa mở cũng giống tiếng lộc gõ nhẹ.",
+      ongNhacNhe:
+        "Ông đoán con mong bàn làm sáng vía, khách vô đều mà tay vẫn gọn.",
+      viecNhoHomNay:
+        "Hôm nay con lau bàn cho thơm rồi làm kỹ bộ đầu tiên.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer:
+      "Ong Dia phu ho cho tiem con tuan nay busy. Con hua neu ban ron lam co tien con cung ong dia mot nai chuoi.",
+  });
+
+  assert.equal(body.meta.source, "fallback_generic_listener_response");
+});
+
+test("first provider call receives the strongest local distinctive anchor", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  const calls = mockGroq({
+    content: providerPayload({
+      noticedDetail: "nải chuối",
+      loiOngDia:
+        "Con hứa nải chuối nghe thiệt có duyên, Ông nhận vía vui chứ không nhận mặc cả.",
+      ongNhacNhe:
+        "Tiệm tuần này busy thì con mong cửa mở đều, tay làm chắc, tiếng cười có lộc.",
+      viecNhoHomNay:
+        "Con làm kỹ bộ đầu tiên; chuối chín vàng rồi cúng cũng thơm hơn.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer:
+      "Ong Dia phu ho cho tiem con tuan nay busy. Con hua neu ban ron lam co tien con cung ong dia mot nai chuoi.",
+  });
+  const userContent = JSON.parse(calls[0].body.messages[1].content);
+
+  assert.equal(body.meta.source, "provider_groq");
+  assert.equal(userContent.requiredDistinctiveAnchor, "nải chuối");
+  assert.equal(userContent.currentDetailCandidates[0], "nải chuối");
+});
+
+test("local anchor extraction prefers named repeated cancellation over broad customer words", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  const calls = mockGroq({
+    content: providerPayload({
+      noticedDetail: "chị Mai hủy hai lần",
+      loiOngDia:
+        "Chị Mai hủy hai lần làm con thấy cái ghế trống cũng biết thở dài.",
+      ongNhacNhe:
+        "Ông đoán con hơi quê với lịch hẹn, nhưng vía nghề đâu nằm trong một cái cancel.",
+      viecNhoHomNay:
+        "Con nhắn một câu gọn để giữ lịch rõ ràng.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Chị Mai hủy hai lần làm con thấy kỳ với khách quá.",
+  });
+  const userContent = JSON.parse(calls[0].body.messages[1].content);
+
+  assert.equal(body.meta.source, "provider_groq");
+  assert.equal(userContent.requiredDistinctiveAnchor, "chị Mai hủy hai lần");
+});
+
+test("quality repair is capped at one compact provider call", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  const calls = mockGroq({
+    content: providerPayload({
+      noticedDetail: "tiem",
+      loiOngDia:
+        "Con, khi tiệm bận rộn, lòng lo lắng về tiền như gió thổi qua cửa sổ.",
+      ongNhacNhe:
+        "Ông thấy con cần lập financial plan và giữ bình tĩnh.",
+      viecNhoHomNay:
+        "Con hãy ghi mục tiêu tiết kiệm 10% doanh thu hôm nay.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer:
+      "Ong Dia phu ho cho tiem con tuan nay busy. Con hua neu ban ron lam co tien con cung ong dia mot nai chuoi.",
+  });
+  const originalUserContent = calls[0].body.messages[1].content;
+  const repairUserContent = calls[1].body.messages[1].content;
+
+  assert.equal(body.meta.source, "fallback_generic_listener_response");
+  assert.equal(calls.length, 2);
+  assert.equal(JSON.parse(repairUserContent).requiredDistinctiveAnchor, "nải chuối");
+  assert.ok(repairUserContent.length < originalUserContent.length);
+  assert.ok(calls[1].body.messages[0].content.length < calls[0].body.messages[0].content.length);
+  assert.equal(body.meta.repairUsed, true);
+  assert.equal(body.meta.validationFailure, "professional_boundary_or_invention");
+});
+
+test("safe token telemetry reports original and repair usage without prompt text", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "khách chê ombre xấu",
+      loiOngDia:
+        "Khách chê ombre xấu làm con buồn, nhưng phần này cần đổi màu và apply a base layer cho đều.",
+      ongNhacNhe:
+        "Ông đoán con nên customer consultation kỹ hơn trước khi làm design.",
+      viecNhoHomNay:
+        "Con practice the method rồi hỏi khách thích chuyển màu ra sao.",
+    }),
+    headers: {
+      "x-ratelimit-limit-requests": "1000",
+      "x-ratelimit-remaining-requests": "999",
+      "x-ratelimit-reset-requests": "1m",
+      "x-ratelimit-limit-tokens": "8000",
+      "x-ratelimit-remaining-tokens": "6000",
+      "x-ratelimit-reset-tokens": "20s",
+    },
+    usage: {
+      prompt_tokens: 2100,
+      completion_tokens: 200,
+      total_tokens: 2300,
+    },
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Khach che ombre cua con xau, con buon qua.",
+  });
+
+  assert.equal(body.meta.providerCalls.length, 2);
+  assert.equal(body.meta.providerCalls[0].phase, "original");
+  assert.equal(body.meta.providerCalls[1].phase, "repair");
+  assert.deepEqual(body.meta.tokenUsage, {
+    promptTokens: 4200,
+    completionTokens: 400,
+    totalTokens: 4600,
+  });
+  assert.equal(body.meta.providerCalls[0].tokenLimit, "8000");
+  assert.equal(body.meta.providerCalls[0].tokensReset, "20s");
+  assert.equal(JSON.stringify(body.meta).includes("Khach che"), false);
+});
+
 test("state exam prayer rejects sanitation checklist or exam-answer voice", async () => {
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   process.env.GROQ_API_KEY = "test-key";
@@ -968,6 +1203,152 @@ test("ombre complaint rejects nail-technician blending instruction", async () =>
   assert.equal(body.meta.source, "fallback_generic_listener_response");
 });
 
+test("exact ombre complaint rejects indirect nail-educator recommendations", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "khách chê ombre xấu",
+      loiOngDia:
+        "Khách chê ombre xấu làm con buồn, nhưng phần này cần đổi màu và apply a base layer cho đều.",
+      ongNhacNhe:
+        "Ông đoán con nên customer consultation kỹ hơn trước khi làm design.",
+      viecNhoHomNay:
+        "Con practice the method rồi hỏi khách thích chuyển màu ra sao.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Khach che ombre cua con xau, con buon qua.",
+  });
+
+  assert.equal(body.meta.source, "fallback_generic_listener_response");
+});
+
+test("incomplete or visibly truncated provider output is rejected", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "khách chê ombre xấu",
+      loiOngDia:
+        "Khách chê ombre xấu làm lòng con cụp xuống như cây nhang gặp gió.",
+      ongNhacNhe:
+        "Ông đoán con buồn vì một câu chê nghe như phán cả tay nghề.",
+      viecNhoHomNay:
+        "Con rửa tay, uống ngụm nước, rồi để câu đó nằm ngoài cửa Nể",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Khach che ombre cua con xau, con buon qua.",
+  });
+
+  assert.equal(body.meta.source, "fallback_generic_listener_response");
+});
+
+test("incomplete final fragment is trimmed locally when the remaining reply is coherent", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  const calls = mockGroq({
+    content: providerPayload({
+      noticedDetail: "khách chê ombre xấu",
+      loiOngDia:
+        "Khách chê ombre xấu làm lòng con cụp xuống như cây nhang gặp gió.",
+      ongNhacNhe:
+        "Ông đoán con buồn vì một câu chê nghe như phán cả tay nghề.",
+      viecNhoHomNay:
+        "Con rửa tay, uống ngụm nước, rồi để câu đó nằm ngoài cửa. Nể",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Khach che ombre cua con xau, con buon qua.",
+  });
+
+  assert.equal(body.meta.source, "provider_groq");
+  assert.equal(calls.length, 1);
+  assert.equal(body.meta.repairUsed, false);
+  assert.equal(body.meta.localNormalization.truncatedOutputTrimmed, true);
+  assert.equal(body.result.viecNhoHomNay, "Con rửa tay, uống ngụm nước, rồi để câu đó nằm ngoài cửa.");
+});
+
+test("unmatched trailing quote is trimmed locally without inventing text", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "khách chê ombre xấu",
+      loiOngDia:
+        "Khách chê ombre xấu làm lòng con cụp xuống như cây nhang gặp gió.",
+      ongNhacNhe:
+        "Ông đoán con buồn vì một câu chê nghe như phán cả tay nghề.",
+      viecNhoHomNay:
+        "Con rửa tay cho mát, rồi nhớ ombre không có quyền xử tội cả ngày. “Nể",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Khach che ombre cua con xau, con buon qua.",
+  });
+
+  assert.equal(body.meta.source, "provider_groq");
+  assert.equal(body.meta.repairUsed, false);
+  assert.equal(body.meta.localNormalization.truncatedOutputTrimmed, true);
+  assert.equal(
+    body.result.viecNhoHomNay,
+    "Con rửa tay cho mát, rồi nhớ ombre không có quyền xử tội cả ngày.",
+  );
+});
+
+test("valid complete provider response is unchanged by local normalization", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  const expected = providerPayload({
+    noticedDetail: "khách chê ombre xấu",
+    loiOngDia:
+      "Khách chê ombre xấu làm lòng con cụp xuống như cây nhang gặp gió.",
+    ongNhacNhe:
+      "Ông đoán con buồn vì một câu chê nghe như phán cả tay nghề.",
+    viecNhoHomNay:
+      "Con rửa tay, uống ngụm nước, rồi để câu đó nằm ngoài cửa.",
+  });
+  mockGroq({ content: expected });
+
+  const { body } = await callPrayer({
+    prayer: "Khach che ombre cua con xau, con buon qua.",
+  });
+
+  assert.equal(body.meta.source, "provider_groq");
+  assert.equal(body.meta.localNormalization.visitorAddressNormalized, false);
+  assert.equal(body.meta.localNormalization.truncatedOutputTrimmed, false);
+  assert.equal(
+    body.result.viecNhoHomNay,
+    "Con rửa tay, uống ngụm nước, rồi để câu đó nằm ngoài cửa.",
+  );
+});
+
+test("overlong normal provider output is rejected before display", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  const longSentence =
+    `${"ombre con buồn ".repeat(22)}khách chê ombre xấu.`;
+  mockGroq({
+    content: providerPayload({
+      noticedDetail: "khách chê ombre xấu",
+      loiOngDia: longSentence,
+      ongNhacNhe: longSentence,
+      viecNhoHomNay: longSentence,
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Khach che ombre cua con xau, con buon qua.",
+  });
+
+  assert.equal(body.meta.source, "fallback_generic_listener_response");
+});
+
 test("acrylic frustration rejects ratio chemistry instruction", async () => {
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   process.env.GROQ_API_KEY = "test-key";
@@ -988,6 +1369,31 @@ test("acrylic frustration rejects ratio chemistry instruction", async () => {
   });
 
   assert.equal(body.meta.source, "fallback_generic_listener_response");
+});
+
+test("local address normalization does not rescue technical nail instruction", async () => {
+  process.env.ONG_DIA_AI_PROVIDER = "groq";
+  process.env.GROQ_API_KEY = "test-key";
+  const calls = mockGroq({
+    content: providerPayload({
+      noticedDetail: "bột acrylic lúc khô lúc ướt",
+      loiOngDia:
+        "Anh đang bực vì bột acrylic lúc khô lúc ướt, vậy con chỉnh acrylic ratio đi.",
+      ongNhacNhe:
+        "Ông đoán con cần kiểm soát monomer ratio và polymer ratio.",
+      viecNhoHomNay:
+        "Con thử liquid to powder theo đúng product chemistry.",
+    }),
+  });
+
+  const { body } = await callPrayer({
+    prayer: "Hom nay bot acrylic cua con luc kho luc uot, lam con buc minh.",
+  });
+
+  assert.equal(body.meta.source, "fallback_generic_listener_response");
+  assert.equal(body.meta.validationFailure, "professional_boundary_or_invention");
+  assert.equal(body.meta.localNormalization.visitorAddressNormalized, true);
+  assert.equal(calls.length, 2);
 });
 
 test("clinical therapist language and invented debt are rejected", async () => {

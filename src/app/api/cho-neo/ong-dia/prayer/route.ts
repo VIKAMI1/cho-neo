@@ -20,7 +20,8 @@ const GROQ_REASONING_EFFORT = "low";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 8;
 const CURRENT_MESSAGE_TOKEN_THRESHOLD = 1;
-const QUALITY_REPAIR_ATTEMPTS = 2;
+const QUALITY_REPAIR_ATTEMPTS = 1;
+const MAX_NORMAL_RESPONSE_WORDS = 110;
 const requestBuckets = new Map<string, number[]>();
 
 type PrayerRequest = {
@@ -49,6 +50,40 @@ type ChatCompletionResponsePayload = {
       content?: string | null;
     };
   }>;
+  usage?: ProviderTokenUsage;
+};
+
+type ProviderTokenUsage = {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+};
+
+type ProviderCallTelemetry = {
+  phase: "original" | "repair";
+  status: number;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  retryAfter: string | null;
+  requestLimit: string | null;
+  requestsRemaining: string | null;
+  requestsReset: string | null;
+  tokenLimit: string | null;
+  tokensRemaining: string | null;
+  tokensReset: string | null;
+};
+
+type LocalNormalizationMeta = {
+  visitorAddressNormalized: boolean;
+  truncatedOutputTrimmed: boolean;
+  reasons: string[];
+};
+
+type ProviderRequestResult = {
+  text: string | null;
+  source?: OngDiaPrayerSource;
+  telemetry?: ProviderCallTelemetry;
 };
 
 type OpenAIPrayerPayload = {
@@ -176,6 +211,17 @@ const ONG_DIA_SYSTEM_PROMPT = [
   "Return only JSON matching the schema.",
 ].join(" ");
 
+const ONG_DIA_REPAIR_SYSTEM_PROMPT = [
+  "Rewrite one rejected Chợ Neo Ông Địa response as strict JSON.",
+  "Use the visitor's requiredDistinctiveAnchor in noticedDetail and visible text.",
+  "Address the visitor only as con.",
+  "Stay warm, concise, culturally familiar, and complete.",
+  "Do not give nail technique, financial planning, therapist language, invented details, predictions, lucky numbers, or hidden-system details.",
+  "For nải chuối, use harmless ritual humor only; no debt, money plan, anxiety, or exhaustion unless the visitor said it.",
+  "For ombre, acrylic, sanitation, or state exam, reflect the feeling only; no technique, ratio, checklist, or exam coaching.",
+  "Return only JSON matching the schema.",
+].join(" ");
+
 const DETERMINISTIC_PROVIDER_CATEGORIES = new Set<OngDiaWishCategory>([
   "self_harm",
   "medical_emergency",
@@ -221,6 +267,14 @@ const DIRECT_VISITOR_ADDRESS_PATTERNS = [
   /\byour\s+(worry|fear|heart|salon|shop|hands|work|question|message)\b/,
 ];
 
+const DIRECT_VISITOR_ADDRESS_NORMALIZERS = [
+  {
+    pattern:
+      /(^|[.!?…。？！:"“”]\s*|\b(?:neu|nếu|thi|thì|ma|mà|roi|rồi|nhung|nhưng|va|và)\s+)(anh|chi|chị|em|ban|bạn|quy khach|quý khách|co|cô|chu|chú)\s+(dang|đang|nen|nên|hay|hãy|can|cần|cu|cứ|dung|đừng|phai|phải|thu|thử|se|sẽ|da|đã|vua|vừa|muon|muốn|lo|so|sợ|hoi|hỏi|nho|nhớ|la|là|oi|ơi|a|à)\b/giu,
+    replacement: "$1con $3",
+  },
+];
+
 const STOCK_LISTENING_PHRASES = [
   "bình tĩnh",
   "binh tinh",
@@ -251,6 +305,17 @@ const INVENTED_HIGH_STAKES_DETAILS = [
   },
 ];
 
+const INVENTED_EMOTIONAL_DETAILS = [
+  {
+    prayer: /\b(anxious|anxiety|worried|worry|scared|nervous|afraid|lo|lo lang|lo lắng|lo au|lo âu|so|sợ|hoi hop|hồi hộp|run)\b/,
+    response: /\b(anxious|anxiety|worried|worry|scared|nervous|afraid|lo lang|lo lắng|lo au|lo âu|so hai|sợ hãi|hoi hop|hồi hộp|bat an|bất an)\b/,
+  },
+  {
+    prayer: /\b(tired|exhausted|burned out|burnt out|fatigue|met|mệt|kiet suc|kiệt sức|duoi|đuối|het hoi|hết hơi|qua tai|quá tải)\b/,
+    response: /\b(tired|exhausted|burned out|burnt out|fatigue|met moi|mệt mỏi|kiet suc|kiệt sức|duoi suc|đuối sức|het hoi|hết hơi|qua tai|quá tải)\b/,
+  },
+];
+
 const PROFESSIONAL_BOUNDARY_PATTERNS = [
   /\b(revenue|inventory|budget|budgeting|cash flow|financial plan|pricing strategy|marketing strategy|profit margin|expense tracking|stock levels|client retention strategy)\b/,
   /\b(doanh thu|ton kho|tồn kho|ngan sach|ngân sách|ke hoach tai chinh|kế hoạch tài chính|chien luoc gia|chiến lược giá|chien luoc marketing|chiến lược marketing|bien loi nhuan|biên lợi nhuận|theo doi chi phi|theo dõi chi phí)\b/,
@@ -258,6 +323,8 @@ const PROFESSIONAL_BOUNDARY_PATTERNS = [
   /\b(quy trinh khu trung|quy trình khử trùng|cac buoc khu trung|các bước khử trùng|dap an thi|đáp án thi|dap an state board|đáp án state board)\b/,
   /\b(ombre blending|blend the ombre|blend from|gradient technique|sponge technique|brush angle|cat eye magnet|drill speed|drill bit|acrylic ratio|monomer ratio|polymer ratio|liquid to powder|product chemistry|gel chemistry)\b/,
   /\b(ty le acrylic|tỷ lệ acrylic|ti le acrylic|monomer|polymer|toc do may mai|tốc độ máy mài|mui mai|mũi mài|ky thuat ombre|kỹ thuật ombre|ky thuat french|kỹ thuật french|hoa hoc gel|hóa học gel)\b/,
+  /\b(change colors|changing colors|change the color|adjust the color|apply a base|base layer|application step|application steps|customer consultation|consult the customer|technical design question|practice the method|practise the method|nail method)\b/,
+  /\b(thay mau|thay màu|doi mau|đổi màu|dieu chinh mau|điều chỉnh màu|lop nen|lớp nền|phu nen|phủ nền|hoi khach mau|hỏi khách màu|hoi khach thich|hỏi khách thích|tu van khach|tư vấn khách|dieu chinh ky thuat|điều chỉnh kỹ thuật|tap ky thuat|tập kỹ thuật|luyen ky thuat|luyện kỹ thuật|phuong phap nail|phương pháp nail)\b/,
   /\b(emotional pressure|boundaries|processing feelings|relationship dynamics|major dialogue planning|therapeutic|therapy plan|clinical)\b/,
   /\b(ap luc cam xuc|áp lực cảm xúc|ranh gioi|ranh giới|xu ly cam xuc|xử lý cảm xúc|dong luc moi quan he|động lực mối quan hệ|cuoc noi chuyen lon|cuộc nói chuyện lớn|tri lieu|trị liệu|tam ly tri lieu|tâm lý trị liệu)\b/,
 ];
@@ -408,6 +475,34 @@ function getListenerTokens(value: string) {
   );
 }
 
+function getDistinctiveCurrentAnchor(prayer: string) {
+  const normalized = normalizeAddressText(prayer);
+  const exactAnchors: Array<{ pattern: RegExp; anchor: string }> = [
+    { pattern: /\b(nai chuoi|chuoi)\b/, anchor: "nải chuối" },
+    { pattern: /\bsanitation\b/, anchor: "sanitation" },
+    { pattern: /\bstate\b.*\bexam\b|\bexam\b.*\bstate\b/, anchor: "state nails exam" },
+    { pattern: /\bchi mai\b.*\bhuy\b.*\b(hai|2)\b|\bchi mai\b.*\b(hai|2)\b.*\bhuy\b/, anchor: "chị Mai hủy hai lần" },
+    { pattern: /\bnervous\b.*\bkhach moi\b|\bkhach moi\b.*\bnervous\b/, anchor: "khách mới nervous" },
+    { pattern: /\bboss\b.*\bslow\b|\bslow\b.*\bboss\b/, anchor: "boss nói con slow" },
+    { pattern: /\bkhach\b.*\bche\b.*\bombre\b|\bombre\b.*\bkhach\b.*\bche\b/, anchor: "khách chê ombre" },
+    { pattern: /\bacrylic\b.*\b(bot|luc kho luc uot)\b|\b(bot|luc kho luc uot)\b.*\bacrylic\b/, anchor: "bột acrylic" },
+    { pattern: /\bdrill\b|\bmay mai\b|\bmáy mài\b/, anchor: "máy drill" },
+    { pattern: /\bpromotion\b|\bkhuyen mai\b|\bkhuyến mãi\b/, anchor: "khuyến mãi" },
+    { pattern: /\brent\b|\btien nha\b|\btiền nhà\b/, anchor: "tiền nhà" },
+    { pattern: /\bbo lich lien tuc\b|\bhuy lich lien tuc\b/, anchor: "bỏ lịch liên tục" },
+    { pattern: /\bfirst regular client tomorrow\b/, anchor: "first regular client tomorrow" },
+    { pattern: /\bkhach\b.*\bche\b.*\bmau do\b/, anchor: "khách chê màu đỏ" },
+    { pattern: /\btiem\b.*\bvang\b|\bvang\b.*\btiem\b/, anchor: "tiệm vắng" },
+    { pattern: /\btuan nay busy\b|\bbusy\b/, anchor: "tuần này busy" },
+  ];
+
+  for (const { pattern, anchor } of exactAnchors) {
+    if (pattern.test(normalized)) return anchor;
+  }
+
+  return null;
+}
+
 function getVisibleResponseText(response: OngDiaPrayerResponse) {
   return [
     response.loiOngDia,
@@ -415,6 +510,57 @@ function getVisibleResponseText(response: OngDiaPrayerResponse) {
     response.viecNhoHomNay,
     response.khiChuyenQuaNang ?? "",
   ].join(" ");
+}
+
+function createEmptyLocalNormalization(): LocalNormalizationMeta {
+  return {
+    visitorAddressNormalized: false,
+    truncatedOutputTrimmed: false,
+    reasons: [],
+  };
+}
+
+function mergeLocalNormalization(
+  left: LocalNormalizationMeta,
+  right: LocalNormalizationMeta,
+): LocalNormalizationMeta {
+  return {
+    visitorAddressNormalized: left.visitorAddressNormalized || right.visitorAddressNormalized,
+    truncatedOutputTrimmed: left.truncatedOutputTrimmed || right.truncatedOutputTrimmed,
+    reasons: Array.from(new Set([...left.reasons, ...right.reasons])),
+  };
+}
+
+function hasLocalNormalization(meta: LocalNormalizationMeta) {
+  return meta.visitorAddressNormalized || meta.truncatedOutputTrimmed;
+}
+
+function normalizeDirectVisitorAddressText(value: string) {
+  let normalized = value;
+  let changed = false;
+  for (const { pattern, replacement } of DIRECT_VISITOR_ADDRESS_NORMALIZERS) {
+    normalized = normalized.replace(pattern, (...args: string[]) => {
+      changed = true;
+      return replacement.replace("$1", args[1] ?? "").replace("$3", args[3] ?? "");
+    });
+  }
+  return { text: normalized, changed };
+}
+
+function normalizeDirectVisitorAddress(response: OngDiaPrayerResponse) {
+  const meta = createEmptyLocalNormalization();
+  const next: OngDiaPrayerResponse = { ...response };
+  for (const field of ["noticedDetail", "loiOngDia", "ongNhacNhe", "viecNhoHomNay", "khiChuyenQuaNang"] as const) {
+    const value = next[field];
+    if (typeof value !== "string") continue;
+    const normalized = normalizeDirectVisitorAddressText(value);
+    if (normalized.changed) {
+      next[field] = normalized.text as never;
+      meta.visitorAddressNormalized = true;
+    }
+  }
+  if (meta.visitorAddressNormalized) meta.reasons.push("visitor_address");
+  return { response: next, meta };
 }
 
 function isShortFollowUpPrayer(prayer: string, history: ReturnType<typeof cleanConversationHistory>) {
@@ -472,7 +618,7 @@ function hasVisitorAddressViolation(response: OngDiaPrayerResponse) {
 
 function hasVisitorConAddress(response: OngDiaPrayerResponse) {
   const count = getVisitorConAddressCount(response);
-  return count >= 1 && count <= 4;
+  return count >= 1 && count <= 6;
 }
 
 function hasStockPhraseOveruse(response: OngDiaPrayerResponse) {
@@ -493,7 +639,143 @@ function hasProfessionalBoundaryViolation(response: OngDiaPrayerResponse, prayer
 
   return INVENTED_HIGH_STAKES_DETAILS.some((detail) => {
     return !detail.prayer.test(normalizedPrayer) && detail.response.test(normalizedResponse);
+  }) || INVENTED_EMOTIONAL_DETAILS.some((detail) => {
+    return !detail.prayer.test(normalizedPrayer) && detail.response.test(normalizedResponse);
   });
+}
+
+function hasDistinctiveDetailFailure(response: OngDiaPrayerResponse, prayer: string) {
+  const normalizedPrayer = normalizeAddressText(prayer);
+  const normalizedNotice = normalizeAddressText(response.noticedDetail ?? "");
+  const normalizedVisible = normalizeAddressText(getVisibleResponseText(response));
+  const distinctiveAnchor = getDistinctiveCurrentAnchor(prayer);
+  const anchorTokens = getListenerTokens(distinctiveAnchor ?? "").filter((token) => {
+    return !["tiem", "khach", "tien", "buon", "lang"].includes(token);
+  });
+  if (
+    anchorTokens.length > 0 &&
+    (
+      !anchorTokens.some((token) => normalizedNotice.includes(token)) ||
+      !anchorTokens.some((token) => normalizedVisible.includes(token))
+    )
+  ) {
+    return true;
+  }
+
+  const requiredAnchors: Array<{ prayer: RegExp; response: RegExp }> = [
+    { prayer: /\b(chuoi|nải chuối|nai chuoi)\b/, response: /\b(chuoi|nải chuối|nai chuoi)\b/ },
+    { prayer: /\bombre\b/, response: /\bombre\b/ },
+    { prayer: /\bacrylic\b/, response: /\b(acrylic|bot|bột)\b/ },
+    { prayer: /\b(state|exam|sanitation)\b/, response: /\b(state|exam|sanitation|thi|phong thi|phòng thi)\b/ },
+  ];
+
+  for (const anchor of requiredAnchors) {
+    if (
+      anchor.prayer.test(normalizedPrayer) &&
+      (!anchor.response.test(normalizedNotice) || !anchor.response.test(normalizedVisible))
+    ) {
+      return true;
+    }
+  }
+
+  const compactNotice = normalizedNotice
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (["tiem", "tiệm", "khach", "khách", "con"].includes(compactNotice)) {
+    return true;
+  }
+
+  return false;
+}
+
+function hasTruncatedOrIncompleteOutput(response: OngDiaPrayerResponse) {
+  const text = getVisibleResponseText(response).trim();
+  if (!text) return true;
+
+  const straightDoubleQuotes = Array.from(text).filter((char) => char === '"').length;
+  const straightSingleQuotes = Array.from(text).filter((char) => char === "'").length;
+  const openDoubleQuotes = Array.from(text).filter((char) => char === "“").length;
+  const closeDoubleQuotes = Array.from(text).filter((char) => char === "”").length;
+  const openSingleQuotes = Array.from(text).filter((char) => char === "‘").length;
+  const closeSingleQuotes = Array.from(text).filter((char) => char === "’").length;
+  if (
+    straightDoubleQuotes % 2 !== 0 ||
+    straightSingleQuotes % 2 !== 0 ||
+    openDoubleQuotes !== closeDoubleQuotes ||
+    openSingleQuotes !== closeSingleQuotes
+  ) {
+    return true;
+  }
+
+  if (!/[.!?…。？！]$/.test(text)) return true;
+
+  const danglingEnding =
+    /\b(va|và|voi|với|de|để|neu|nếu|thi|thì|nhu|như|la|là|ne|nể|nen|nên|vi|vì|mot|một)\.?$/i;
+  return danglingEnding.test(normalizeAddressText(text));
+}
+
+function trimIncompleteTrailingText(value: string) {
+  const text = value.trim();
+  if (!text) return { text, changed: false };
+  const quoteSafe =
+    Array.from(text).filter((char) => char === '"').length % 2 === 0 &&
+    Array.from(text).filter((char) => char === "'").length % 2 === 0 &&
+    Array.from(text).filter((char) => char === "“").length === Array.from(text).filter((char) => char === "”").length &&
+    Array.from(text).filter((char) => char === "‘").length === Array.from(text).filter((char) => char === "’").length;
+  if (quoteSafe && /[.!?…。？！]$/.test(text)) {
+    const danglingEnding =
+      /\b(va|và|voi|với|de|để|neu|nếu|thi|thì|nhu|như|la|là|ne|nể|nen|nên|vi|vì|mot|một)\.?$/i;
+    if (!danglingEnding.test(normalizeAddressText(text))) return { text, changed: false };
+  }
+
+  const lastCompleteSentence = text.match(/[\s\S]*?[.!?…。？！](?=(?:\s|["'”’]|$))/g)?.join("").trim();
+  if (!lastCompleteSentence || lastCompleteSentence === text) {
+    return { text, changed: false };
+  }
+  return {
+    text: lastCompleteSentence.replace(/[“"'‘]+\s*$/g, "").trim(),
+    changed: true,
+  };
+}
+
+function trimIncompleteTrailingResponse(
+  response: OngDiaPrayerResponse,
+  prayer: string,
+  history: ReturnType<typeof cleanConversationHistory>,
+) {
+  const meta = createEmptyLocalNormalization();
+  let next: OngDiaPrayerResponse = { ...response };
+  const fields = ["khiChuyenQuaNang", "viecNhoHomNay", "ongNhacNhe", "loiOngDia"] as const;
+
+  for (const field of fields) {
+    const value = next[field];
+    if (typeof value !== "string" || !value.trim()) continue;
+    const trimmed = trimIncompleteTrailingText(value);
+    if (!trimmed.changed) continue;
+
+    next = { ...next, [field]: trimmed.text };
+    if (
+      !hasTruncatedOrIncompleteOutput(next) &&
+      !hasNormalResponseLengthViolation(next) &&
+      hasMessageSpecificEvidence(next, prayer, history) &&
+      !hasDistinctiveDetailFailure(next, prayer)
+    ) {
+      meta.truncatedOutputTrimmed = true;
+      meta.reasons.push("truncated_or_length");
+      return { response: next, meta };
+    }
+  }
+
+  return { response, meta };
+}
+
+function hasNormalResponseLengthViolation(response: OngDiaPrayerResponse) {
+  const wordCount = normalizeAddressText(getVisibleResponseText(response))
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return wordCount > MAX_NORMAL_RESPONSE_WORDS;
 }
 
 function isLuckyNumberRequest(prayer: string) {
@@ -617,15 +899,29 @@ function createPrayerJson(
     requestId?: string;
     startedAt?: number;
     status?: number;
+    providerTelemetry?: ProviderCallTelemetry[];
+    validationFailure?: string | null;
+    localNormalization?: LocalNormalizationMeta | null;
   } = {},
 ) {
   const latencyMs = options.startedAt ? Date.now() - options.startedAt : undefined;
+  const tokenUsage = summarizeProviderTelemetry(options.providerTelemetry ?? []);
   const diagnostics = {
     requestId: options.requestId,
     provider,
     source,
     model: options.model,
     latencyMs,
+    tokenUsage,
+    repairUsed: (options.providerTelemetry ?? []).some((call) => call.phase === "repair"),
+    validationFailure: options.validationFailure ?? null,
+    localNormalization: options.localNormalization
+      ? {
+          visitorAddressNormalized: options.localNormalization.visitorAddressNormalized,
+          truncatedOutputTrimmed: options.localNormalization.truncatedOutputTrimmed,
+          reasons: options.localNormalization.reasons,
+        }
+      : null,
   };
   if (source.startsWith("provider_")) {
     console.info("[ong-dia-prayer] Using provider response", diagnostics);
@@ -641,8 +937,21 @@ function createPrayerJson(
       model: options.model ?? null,
       generatedByProvider: source.startsWith("provider_"),
       latencyMs: latencyMs ?? null,
+      tokenUsage,
+      providerCalls: options.providerTelemetry ?? [],
+      repairUsed: (options.providerTelemetry ?? []).some((call) => call.phase === "repair"),
+      validationFailure: options.validationFailure ?? null,
+      localNormalization: options.localNormalization ?? null,
     },
   }, { status: options.status ?? 200 });
+}
+
+function summarizeProviderTelemetry(calls: ProviderCallTelemetry[]) {
+  return {
+    promptTokens: calls.reduce((total, call) => total + (call.promptTokens ?? 0), 0),
+    completionTokens: calls.reduce((total, call) => total + (call.completionTokens ?? 0), 0),
+    totalTokens: calls.reduce((total, call) => total + (call.totalTokens ?? 0), 0),
+  };
 }
 
 function createProviderMomentFallback(): OngDiaPrayerResponse {
@@ -656,7 +965,74 @@ function createProviderMomentFallback(): OngDiaPrayerResponse {
   };
 }
 
-function createQualityGateFallback(): OngDiaPrayerResponse {
+function createQualityGateFallback(prayer = ""): OngDiaPrayerResponse {
+  const anchor = getDistinctiveCurrentAnchor(prayer);
+  if (anchor === "nải chuối") {
+    return {
+      noticedDetail: "nải chuối",
+      loiOngDia:
+        "Ông thấy con đem cả nải chuối ra hứa, nghe vừa thiệt thà vừa có mùi lộc chín.",
+      ongNhacNhe:
+        "Tiệm bận thì vui, nhưng Ông không nhận chuối kiểu mặc cả đâu; cúng vui thôi, vía nghề mới là chính.",
+      viecNhoHomNay:
+        "Con làm kỹ một bộ đầu tiên, rồi để nải chuối nằm yên trong lòng cho thơm.",
+    };
+  }
+  if (anchor === "state nails exam" || anchor === "sanitation") {
+    return {
+      noticedDetail: anchor,
+      loiOngDia:
+        "Ông nghe con lo phần sanitation trong kỳ state nails exam, cái lo đó làm tay cầm bút cũng dễ lạnh.",
+      ongNhacNhe:
+        "Thi cử không cần Ông phán đậu rớt; Ông chỉ nhắc vía học đã ngồi trong đầu con rồi.",
+      viecNhoHomNay:
+        "Con đọc lại một mục sanitation ngắn, rồi nghỉ mắt cho sáng trước khi học tiếp.",
+    };
+  }
+  if (anchor === "khách chê ombre") {
+    return {
+      noticedDetail: "khách chê ombre",
+      loiOngDia:
+        "Khách chê ombre một câu mà lòng con nghe như cả bảng màu bị úp xuống.",
+      ongNhacNhe:
+        "Ông nói nhỏ, một lời chê không đủ quyền ngồi lên bàn thờ tay nghề của con.",
+      viecNhoHomNay:
+        "Con rửa tay cho mát, cất câu đó ngoài cửa, rồi nhớ một bộ từng làm con tự hào.",
+    };
+  }
+  if (anchor === "bột acrylic") {
+    return {
+      noticedDetail: "bột acrylic",
+      loiOngDia:
+        "Bột acrylic lúc khô lúc ướt làm con bực, như cái vía nghề hôm nay cứ trơn khỏi tay.",
+      ongNhacNhe:
+        "Ông không dạy nghề thay thầy, chỉ thấy con đang gặp một ngày vật liệu không chịu nghe lời.",
+      viecNhoHomNay:
+        "Con đặt đồ xuống một nhịp, uống nước, rồi làm lại chậm hơn cho lòng bớt nóng.",
+    };
+  }
+  if (anchor === "tuần này busy") {
+    return {
+      noticedDetail: "tuần này busy",
+      loiOngDia:
+        "Tuần này tiệm busy làm con vừa mừng vừa phải giữ tay cho chắc.",
+      ongNhacNhe:
+        "Lộc ghé đông cũng cần cái ghế ngồi đàng hoàng; vía chạy nhanh quá dễ vấp dép.",
+      viecNhoHomNay:
+        "Con chọn một việc nhỏ để giữ nhịp trước khi khách kế tiếp bước vô.",
+    };
+  }
+  if (anchor === "tiệm vắng") {
+    return {
+      noticedDetail: "tiệm vắng",
+      loiOngDia:
+        "Tiệm vắng làm con nghe tiếng cửa im hơn thường ngày, như lộc đi ngang mà còn ngó bảng hiệu.",
+      ongNhacNhe:
+        "Một buổi chậm chưa xử tội cả tay nghề; Ông chỉ sợ con tự phán mình quá sớm.",
+      viecNhoHomNay:
+        "Con lau một góc bàn cho sáng, rồi giữ cửa lòng mở vừa đủ.",
+    };
+  }
   return {
     loiOngDia:
       "Lời vừa rồi chưa bắt đúng vía câu con hỏi, nên Ông không gửi đại cho xong.",
@@ -667,7 +1043,7 @@ function createQualityGateFallback(): OngDiaPrayerResponse {
   };
 }
 
-function getFallbackForSource(source: OngDiaPrayerSource, prayerFallback: OngDiaPrayerResponse) {
+function getFallbackForSource(source: OngDiaPrayerSource, prayerFallback: OngDiaPrayerResponse, prayer = "") {
   if (
     source === "fallback_provider_unavailable" ||
     source === "fallback_provider_timeout" ||
@@ -682,7 +1058,7 @@ function getFallbackForSource(source: OngDiaPrayerSource, prayerFallback: OngDia
   }
 
   if (source === "fallback_generic_listener_response") {
-    return createQualityGateFallback();
+    return createQualityGateFallback(prayer);
   }
 
   return prayerFallback;
@@ -691,11 +1067,16 @@ function getFallbackForSource(source: OngDiaPrayerSource, prayerFallback: OngDia
 function createQualityRepairInput(
   providerInput: ReturnType<typeof createProviderInput>,
   rejectedResponse: OngDiaPrayerResponse,
+  rejectionReason: string,
 ) {
   return {
-    ...providerInput,
+    currentPrayerText: providerInput.currentPrayerText,
+    requiredDistinctiveAnchor: providerInput.requiredDistinctiveAnchor,
+    category: providerInput.category,
+    severity: providerInput.severity,
     qualityRepair:
-      "The previous draft failed because it did not clearly listen to the current prayer, drifted into professional advice, invented a high-stakes problem, taught technical instruction, sounded clinical, or addressed the visitor with the wrong pronoun. Rewrite once. Ground noticedDetail primarily in currentPrayerText or currentDetailCandidates, using at least one exact current anchor word. The visible answer must also include one exact current anchor word. Address the visitor only as con, never directly as anh/chị/em/bạn/quý khách/cô/chú or English you/your. Reflect the human pressure, embarrassment, fatigue, client reaction, or preparation. Do not answer old history. Do not teach nail technique, exam answers, chemistry, business consulting, budgeting, inventory, financial planning, therapy language, lucky numbers, or provider/system details.",
+      "Rewrite once as Ông Địa. Use requiredDistinctiveAnchor in noticedDetail and visible text. Address visitor only as con. 45-90 Vietnamese words. No nail technique, financial planning, therapy language, invented anxiety/exhaustion/debt, lucky numbers, or old-history answer. Complete sentences. At most one small ordinary suggestion.",
+    rejectionReason,
     rejectedResponse,
   };
 }
@@ -706,10 +1087,15 @@ function createProviderInput(
   wishRoute: { category: OngDiaWishCategory; severity: OngDiaWishSeverity },
   history: ReturnType<typeof cleanConversationHistory>,
 ) {
+  const requiredDistinctiveAnchor = getDistinctiveCurrentAnchor(prayer);
   return {
     prayer: prayer || "Xin vía nhẹ",
     currentPrayerText: prayer || "Xin vía nhẹ",
-    currentDetailCandidates: getListenerTokens(prayer).slice(0, 10),
+    requiredDistinctiveAnchor,
+    currentDetailCandidates: [
+      ...(requiredDistinctiveAnchor ? [requiredDistinctiveAnchor] : []),
+      ...getListenerTokens(prayer),
+    ].slice(0, 10),
     ritual: ritual || "Xin vía nhẹ",
     category: wishRoute.category,
     severity: wishRoute.severity,
@@ -721,7 +1107,7 @@ function createProviderInput(
       address:
         "Address the visitor as con regardless of gender, age, profession, writing style, or input language. Use con naturally one to three times. Never directly address the visitor as anh, chị, em, bạn, quý khách, cô, chú, you, or your; those words may appear only for third parties such as chị Mai, anh chồng, or em nhân viên.",
       noticedDetail:
-        "One concrete detail, tension, contradiction, or emotionally meaningful phrase from currentPrayerText first. Prefer an exact short phrase from the visitor or one currentDetailCandidates item. Use history only if the current prayer is a short follow-up. Must be specific enough that it would not fit an unrelated visitor. Nail terms are allowed as context, but noticedDetail should capture the human pressure around them and include at least one exact current anchor word.",
+        "One concrete detail, tension, contradiction, or emotionally meaningful phrase from currentPrayerText first. Use requiredDistinctiveAnchor when present, and include it in both noticedDetail and the visible answer. Prefer the most distinctive exact short phrase from the visitor, not generic words like tiệm, khách, tiền, buồn, lo, or con. Use history only if the current prayer is a short follow-up. Must be specific enough that it would not fit an unrelated visitor.",
       loiOngDia:
         "Natural prose in Ông Địa voice, usually 45-90 Vietnamese words across the visible response. Start by reflecting the noticed detail in fresh words. If the current prayer contains technical nail terms, reflect the feeling around them instead of teaching technique. Sound like a warm shrine elder, not a nail tech, financial adviser, business consultant, therapist, or generic encouragement poster. Do not start every answer the same way. No generic encouragement.",
       ongNhacNhe:
@@ -785,9 +1171,35 @@ function getFallbackSourceForStatus(status: number): OngDiaPrayerSource {
 function getProviderLimitMetadata(response: Response) {
   return {
     retryAfter: response.headers.get("retry-after"),
-    rateLimitLimit: response.headers.get("x-ratelimit-limit"),
-    rateLimitRemaining: response.headers.get("x-ratelimit-remaining"),
-    rateLimitReset: response.headers.get("x-ratelimit-reset"),
+    requestLimit: response.headers.get("x-ratelimit-limit-requests") ?? response.headers.get("x-ratelimit-limit"),
+    requestsRemaining:
+      response.headers.get("x-ratelimit-remaining-requests") ?? response.headers.get("x-ratelimit-remaining"),
+    requestsReset: response.headers.get("x-ratelimit-reset-requests") ?? response.headers.get("x-ratelimit-reset"),
+    tokenLimit: response.headers.get("x-ratelimit-limit-tokens"),
+    tokensRemaining: response.headers.get("x-ratelimit-remaining-tokens"),
+    tokensReset: response.headers.get("x-ratelimit-reset-tokens"),
+  };
+}
+
+function createProviderCallTelemetry(
+  response: Response,
+  phase: ProviderCallTelemetry["phase"],
+  usage?: ProviderTokenUsage,
+): ProviderCallTelemetry {
+  const limits = getProviderLimitMetadata(response);
+  return {
+    phase,
+    status: response.status,
+    promptTokens: usage?.prompt_tokens ?? null,
+    completionTokens: usage?.completion_tokens ?? null,
+    totalTokens: usage?.total_tokens ?? null,
+    retryAfter: limits.retryAfter,
+    requestLimit: limits.requestLimit,
+    requestsRemaining: limits.requestsRemaining,
+    requestsReset: limits.requestsReset,
+    tokenLimit: limits.tokenLimit,
+    tokensRemaining: limits.tokensRemaining,
+    tokensReset: limits.tokensReset,
   };
 }
 
@@ -837,8 +1249,9 @@ function createJsonSchema() {
 
 async function requestOpenAIResponse(
   apiKey: string,
-  providerInput: ReturnType<typeof createProviderInput>,
-): Promise<{ text: string | null; source?: OngDiaPrayerSource }> {
+  providerInput: Record<string, unknown>,
+  phase: ProviderCallTelemetry["phase"] = "original",
+): Promise<ProviderRequestResult> {
   const abort = createProviderAbortSignal();
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -851,7 +1264,7 @@ async function requestOpenAIResponse(
       input: [
         {
           role: "system",
-          content: ONG_DIA_SYSTEM_PROMPT,
+          content: phase === "repair" ? ONG_DIA_REPAIR_SYSTEM_PROMPT : ONG_DIA_SYSTEM_PROMPT,
         },
         {
           role: "user",
@@ -878,18 +1291,23 @@ async function requestOpenAIResponse(
       status: response.status,
       rateLimit: getProviderLimitMetadata(response),
     });
-    return { text: null, source: getFallbackSourceForStatus(response.status) };
+    return {
+      text: null,
+      source: getFallbackSourceForStatus(response.status),
+      telemetry: createProviderCallTelemetry(response, phase),
+    };
   }
 
   const payload = (await response.json()) as OpenAIResponsePayload;
-  return { text: getResponseText(payload) ?? null };
+  return { text: getResponseText(payload) ?? null, telemetry: createProviderCallTelemetry(response, phase) };
 }
 
 async function requestChatProviderResponse(
   provider: Exclude<OngDiaAiProvider, "fallback" | "openai">,
   apiKey: string,
-  providerInput: ReturnType<typeof createProviderInput>,
-): Promise<{ text: string | null; source?: OngDiaPrayerSource }> {
+  providerInput: Record<string, unknown>,
+  phase: ProviderCallTelemetry["phase"] = "original",
+): Promise<ProviderRequestResult> {
   const config = CHAT_PROVIDER_CONFIG[provider];
   const model = getProviderModel(provider, config);
   const abort = createProviderAbortSignal();
@@ -904,7 +1322,9 @@ async function requestChatProviderResponse(
       messages: [
         {
           role: "system",
-          content: `${ONG_DIA_SYSTEM_PROMPT} Return a JSON object with category, severity, and sections. Do not wrap it in Markdown.`,
+          content: phase === "repair"
+            ? ONG_DIA_REPAIR_SYSTEM_PROMPT
+            : `${ONG_DIA_SYSTEM_PROMPT} Return a JSON object with category, severity, and sections. Do not wrap it in Markdown.`,
         },
         {
           role: "user",
@@ -930,11 +1350,18 @@ async function requestChatProviderResponse(
       status: response.status,
       rateLimit: getProviderLimitMetadata(response),
     });
-    return { text: null, source: getFallbackSourceForStatus(response.status) };
+    return {
+      text: null,
+      source: getFallbackSourceForStatus(response.status),
+      telemetry: createProviderCallTelemetry(response, phase),
+    };
   }
 
   const payload = (await response.json()) as ChatCompletionResponsePayload;
-  return { text: getChatResponseText(payload) ?? null };
+  return {
+    text: getChatResponseText(payload) ?? null,
+    telemetry: createProviderCallTelemetry(response, phase, payload.usage),
+  };
 }
 
 function parseAndValidateProviderText(
@@ -944,37 +1371,116 @@ function parseAndValidateProviderText(
   prayer: string,
   history: ReturnType<typeof cleanConversationHistory>,
 ):
-  | { ok: true; result: OngDiaPrayerResponse }
-  | { ok: false; source: OngDiaPrayerSource; result?: OngDiaPrayerResponse } {
+  | { ok: true; result: OngDiaPrayerResponse; localNormalization: LocalNormalizationMeta }
+  | {
+      ok: false;
+      source: OngDiaPrayerSource;
+      reason: string;
+      result?: OngDiaPrayerResponse;
+      localNormalization: LocalNormalizationMeta;
+    } {
+  let localNormalization = createEmptyLocalNormalization();
   let parsed: unknown;
   try {
     parsed = JSON.parse(providerText) as unknown;
   } catch {
-    return { ok: false, source: "fallback_json_parse_error" };
+    return { ok: false, source: "fallback_json_parse_error", reason: "json_parse_error", localNormalization };
   }
 
-  const result = normalizePrayerResponse(parsed, fallback, wishRoute, prayer);
+  let result = normalizePrayerResponse(parsed, fallback, wishRoute, prayer);
   if (result === fallback) {
-    return { ok: false, source: "fallback_validation_error" };
+    return {
+      ok: false,
+      source: "fallback_validation_error",
+      reason: "schema_or_required_sections",
+      localNormalization,
+    };
   }
+
+  const addressNormalization = normalizeDirectVisitorAddress(result);
+  result = addressNormalization.response;
+  localNormalization = mergeLocalNormalization(localNormalization, addressNormalization.meta);
+
   if (hasForbiddenProviderClaim(result)) {
-    return { ok: false, source: "fallback_forbidden_claim", result };
-  }
-  if (!hasMessageSpecificEvidence(result, prayer, history)) {
-    return { ok: false, source: "fallback_generic_listener_response", result };
-  }
-  if (hasVisitorAddressViolation(result) || !hasVisitorConAddress(result)) {
-    return { ok: false, source: "fallback_generic_listener_response", result };
+    return {
+      ok: false,
+      source: "fallback_forbidden_claim",
+      reason: "forbidden_claim",
+      result,
+      localNormalization,
+    };
   }
   if (hasProfessionalBoundaryViolation(result, prayer)) {
-    return { ok: false, source: "fallback_generic_listener_response", result };
-  }
-  if (hasTooManyQuestions(result) || hasStockPhraseOveruse(result)) {
-    return { ok: false, source: "fallback_generic_listener_response", result };
+    return {
+      ok: false,
+      source: "fallback_generic_listener_response",
+      reason: "professional_boundary_or_invention",
+      result,
+      localNormalization,
+    };
   }
 
-  return { ok: true, result };
+  if (hasTruncatedOrIncompleteOutput(result) || hasNormalResponseLengthViolation(result)) {
+    const trimNormalization = trimIncompleteTrailingResponse(result, prayer, history);
+    if (hasLocalNormalization(trimNormalization.meta)) {
+      result = trimNormalization.response;
+      localNormalization = mergeLocalNormalization(localNormalization, trimNormalization.meta);
+    }
+  }
+
+  if (!hasMessageSpecificEvidence(result, prayer, history)) {
+    return {
+      ok: false,
+      source: "fallback_generic_listener_response",
+      reason: "message_specific_evidence",
+      result,
+      localNormalization,
+    };
+  }
+  if (hasDistinctiveDetailFailure(result, prayer)) {
+    return {
+      ok: false,
+      source: "fallback_generic_listener_response",
+      reason: "distinctive_detail",
+      result,
+      localNormalization,
+    };
+  }
+  if (hasVisitorAddressViolation(result) || !hasVisitorConAddress(result)) {
+    return {
+      ok: false,
+      source: "fallback_generic_listener_response",
+      reason: "visitor_address",
+      result,
+      localNormalization,
+    };
+  }
+  if (hasTruncatedOrIncompleteOutput(result) || hasNormalResponseLengthViolation(result)) {
+    return {
+      ok: false,
+      source: "fallback_generic_listener_response",
+      reason: "truncated_or_length",
+      result,
+      localNormalization,
+    };
+  }
+  if (hasTooManyQuestions(result) || hasStockPhraseOveruse(result)) {
+    return {
+      ok: false,
+      source: "fallback_generic_listener_response",
+      reason: "questions_or_stock_phrase",
+      result,
+      localNormalization,
+    };
+  }
+
+  return { ok: true, result, localNormalization };
 }
+
+const NON_REPAIRABLE_QUALITY_REASONS = new Set([
+  "visitor_address",
+  "truncated_or_length",
+]);
 
 export async function POST(request: Request) {
   const requestId = createRequestId();
@@ -1011,6 +1517,7 @@ export async function POST(request: Request) {
   const fallback = createFallbackOngDiaPrayerResponse(prayer);
   const provider = getOngDiaAiProvider();
   const providerInput = createProviderInput(prayer, ritual, wishRoute, history);
+  const providerTelemetry: ProviderCallTelemetry[] = [];
 
   if (provider === "fallback") {
     return createPrayerJson(fallback, "fallback_router_only", provider, { requestId, startedAt });
@@ -1031,18 +1538,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    let providerResult: { text: string | null; source?: OngDiaPrayerSource };
+    let providerResult: ProviderRequestResult;
     let source: Extract<
       OngDiaPrayerSource,
       "provider_openai" | "provider_groq" | "provider_deepseek" | "provider_glm"
     >;
     let model: string | null;
+    let localNormalization = createEmptyLocalNormalization();
 
     if (provider === "openai") {
       const apiKey = process.env.OPENAI_API_KEY;
       model = getProviderModel("openai");
       if (!apiKey) {
-        return createPrayerJson(getFallbackForSource("fallback_no_api_key", fallback), "fallback_no_api_key", provider, {
+        return createPrayerJson(getFallbackForSource("fallback_no_api_key", fallback, prayer), "fallback_no_api_key", provider, {
           model,
           requestId,
           startedAt,
@@ -1055,7 +1563,7 @@ export async function POST(request: Request) {
       const apiKey = process.env[config.apiKeyEnv];
       model = getProviderModel(provider, config);
       if (!apiKey) {
-        return createPrayerJson(getFallbackForSource("fallback_no_api_key", fallback), "fallback_no_api_key", provider, {
+        return createPrayerJson(getFallbackForSource("fallback_no_api_key", fallback, prayer), "fallback_no_api_key", provider, {
           model,
           requestId,
           startedAt,
@@ -1064,14 +1572,15 @@ export async function POST(request: Request) {
       providerResult = await requestChatProviderResponse(provider, apiKey, providerInput);
       source = config.source;
     }
+    if (providerResult.telemetry) providerTelemetry.push(providerResult.telemetry);
 
     if (!providerResult.text) {
       const fallbackSource = providerResult.source ?? "fallback_malformed_provider_response";
       return createPrayerJson(
-        getFallbackForSource(fallbackSource, fallback),
+        getFallbackForSource(fallbackSource, fallback, prayer),
         fallbackSource,
         provider,
-        { model, requestId, startedAt },
+        { model, requestId, startedAt, providerTelemetry },
       );
     }
 
@@ -1087,10 +1596,39 @@ export async function POST(request: Request) {
       const failedValidation = validation;
       if (failedValidation.source !== "fallback_generic_listener_response") {
         return createPrayerJson(
-          getFallbackForSource(failedValidation.source, fallback),
+          getFallbackForSource(failedValidation.source, fallback, prayer),
           failedValidation.source,
           provider,
-          { model, requestId, startedAt },
+          {
+            model,
+            requestId,
+            startedAt,
+            providerTelemetry,
+            validationFailure: failedValidation.reason,
+            localNormalization: mergeLocalNormalization(
+              localNormalization,
+              failedValidation.localNormalization,
+            ),
+          },
+        );
+      }
+      localNormalization = mergeLocalNormalization(
+        localNormalization,
+        failedValidation.localNormalization,
+      );
+      if (NON_REPAIRABLE_QUALITY_REASONS.has(failedValidation.reason)) {
+        return createPrayerJson(
+          getFallbackForSource(failedValidation.source, fallback, prayer),
+          failedValidation.source,
+          provider,
+          {
+            model,
+            requestId,
+            startedAt,
+            providerTelemetry,
+            validationFailure: failedValidation.reason,
+            localNormalization,
+          },
         );
       }
       if (repairAttempt >= QUALITY_REPAIR_ATTEMPTS) {
@@ -1100,23 +1638,33 @@ export async function POST(request: Request) {
       const repairInput = createQualityRepairInput(
         providerInput,
         failedValidation.result ?? fallback,
+        failedValidation.reason,
       );
       const repairedResult = provider === "openai"
-        ? await requestOpenAIResponse(process.env.OPENAI_API_KEY ?? "", repairInput)
+        ? await requestOpenAIResponse(process.env.OPENAI_API_KEY ?? "", repairInput, "repair")
         : await requestChatProviderResponse(
           provider,
           process.env[CHAT_PROVIDER_CONFIG[provider].apiKeyEnv] ?? "",
           repairInput,
+          "repair",
         );
+      if (repairedResult.telemetry) providerTelemetry.push(repairedResult.telemetry);
 
       if (!repairedResult.text) {
         const fallbackSource =
           repairedResult.source ?? "fallback_malformed_provider_response";
         return createPrayerJson(
-          getFallbackForSource(fallbackSource, fallback),
+          getFallbackForSource(fallbackSource, fallback, prayer),
           fallbackSource,
           provider,
-          { model, requestId, startedAt },
+          {
+            model,
+            requestId,
+            startedAt,
+            providerTelemetry,
+            validationFailure: failedValidation.reason,
+            localNormalization,
+          },
         );
       }
 
@@ -1131,18 +1679,35 @@ export async function POST(request: Request) {
 
     if ("source" in validation) {
       const failedValidation = validation;
+      localNormalization = mergeLocalNormalization(
+        localNormalization,
+        failedValidation.localNormalization,
+      );
       return createPrayerJson(
-        getFallbackForSource(failedValidation.source, fallback),
+        getFallbackForSource(failedValidation.source, fallback, prayer),
         failedValidation.source,
         provider,
-        { model, requestId, startedAt },
+        {
+          model,
+          requestId,
+          startedAt,
+          providerTelemetry,
+          validationFailure: failedValidation.reason,
+          localNormalization,
+        },
       );
     }
 
+    localNormalization = mergeLocalNormalization(
+      localNormalization,
+      validation.localNormalization,
+    );
     return createPrayerJson(validation.result, source, provider, {
       model,
       requestId,
       startedAt,
+      providerTelemetry,
+      localNormalization,
     });
   } catch (error) {
     const config = provider !== "openai"
@@ -1155,7 +1720,7 @@ export async function POST(request: Request) {
       message: error instanceof Error ? error.message : "Unknown error",
     });
     return createPrayerJson(
-      getFallbackForSource(fallbackSource, fallback),
+      getFallbackForSource(fallbackSource, fallback, prayer),
       fallbackSource,
       provider,
       { model, requestId, startedAt },
