@@ -864,7 +864,8 @@ test("visible Ong Dia page posts typed conversations to the single prayer endpoi
   assert.equal(page.includes('fetch("/api/cho-neo/ong-dia/prayer"'), true);
   assert.equal(page.includes("experience,"), true);
   assert.equal(page.includes("history,"), true);
-  assert.equal(page.includes('smallPrayer.trim() ? "conversation" : "ritual"'), true);
+  assert.equal(page.includes('const experience = smallPrayer.trim() ? "conversation" : "ritual";'), true);
+  assert.equal(page.includes(' ? "conversation" : "ritual"'), true);
 });
 
 test("visible Ong Dia page keeps ritual lane deterministic", () => {
@@ -893,8 +894,182 @@ test("visible Ong Dia page keeps the shrine UI text reduced", () => {
   assert.equal(page.includes("Lần đầu ghé bàn Ông Địa"), false);
   assert.equal(page.includes("Qua phòng Xin Xăm</Link>"), false);
   assert.equal(page.includes("Mở một lộc nhỏ</button>"), false);
-  assert.equal(page.includes("Xin vía nhé"), true);
+  assert.equal(page.includes("Thắp nhang xin lời"), true);
   assert.equal(page.includes('className="ong-dia-sr-only"'), true);
+});
+
+test("visible Ong Dia V1 keeps an open invitation without topic chips", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("Hôm nay trong lòng có chuyện gì?"), true);
+  for (const subject of ["Công việc", "Tiền bạc", "Tình cảm", "Chỉ muốn nhẹ lòng"]) {
+    assert.equal(page.includes(subject), false);
+  }
+  assert.equal(page.includes("Cứ nói điều đang ở trong lòng..."), true);
+  assert.equal(page.includes("<textarea"), true);
+  assert.equal(page.match(/<textarea/g)?.length ?? 0, 1);
+  assert.equal(page.includes("ONG_DIA_SUBJECT_CHOICES"), false);
+  assert.equal(page.includes("ong-dia-subject-chips"), false);
+  assert.equal(page.includes("selectedSubject"), false);
+  assert.equal(page.includes("ong_dia_v1_subject_selected"), false);
+});
+
+test("visible Ong Dia V1 controls use rectangular rounded-corner styling", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const prayerPanelCss = page.slice(
+    page.indexOf(".ong-dia-prayer-panel textarea"),
+    page.indexOf(".ong-dia-prayer-panel textarea::placeholder"),
+  );
+  const prayerActionsStart = page.indexOf(".ong-dia-prayer-actions button,");
+  const prayerActionsCss = page.slice(
+    prayerActionsStart,
+    page.indexOf(".ong-dia-result-card", prayerActionsStart),
+  );
+  const keepsakeActionsCss = page.slice(
+    page.indexOf(".ong-dia-keepsake-actions button"),
+    page.indexOf(".ong-dia-keepsake-actions button:focus-visible"),
+  );
+  const routeActionsStart = page.indexOf(
+    ".ong-dia-blessing-actions a {",
+    page.indexOf(".ong-dia-blessing-actions {"),
+  );
+  const routeActionsCss = page.slice(
+    routeActionsStart,
+    page.indexOf(".ong-dia-return-copy"),
+  );
+  assert.match(prayerPanelCss, /border-radius: 12px/);
+  assert.match(prayerActionsCss, /border-radius: 12px/);
+  assert.match(keepsakeActionsCss, /border-radius: 12px/);
+  assert.match(routeActionsCss, /border-radius: 12px/);
+  assert.doesNotMatch(prayerPanelCss, /border-radius: 999px/);
+  assert.doesNotMatch(prayerActionsCss, /border-radius: 999px/);
+  assert.doesNotMatch(keepsakeActionsCss, /border-radius: 999px/);
+  assert.doesNotMatch(routeActionsCss, /border-radius: 999px/);
+});
+
+test("visible Ong Dia V1 has explicit ritual and honest continuing-loading states", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("ONG_DIA_RITUAL_ANIMATION_MS = 1800"), true);
+  assert.equal(page.includes('setRitualPhase("ritual")'), true);
+  assert.equal(page.includes('setRitualPhase("pondering")'), true);
+  assert.equal(page.includes("Ông Địa đang nghe..."), true);
+  assert.equal(page.includes("Ông Địa đang ngẫm một chút..."), true);
+  assert.equal(page.includes("await ritualPromise;"), true);
+});
+
+test("visible Ong Dia V1 reduced-motion path shortens ritual and removes decorative movement", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("function getOngDiaRitualAnimationMs"), true);
+  assert.match(page, /prefers-reduced-motion: reduce[\s\S]*\? 180/);
+  assert.match(page, /@media \(prefers-reduced-motion: reduce\)[\s\S]*ong-dia-altar-glint/);
+  assert.match(page, /@media \(prefers-reduced-motion: reduce\)[\s\S]*display: none;/);
+});
+
+test("visible Ong Dia V1 renders a keepsake card instead of raw provider output", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("Lời Ông Địa hôm nay"), true);
+  assert.equal(page.includes('className={`ong-dia-keepsake-card'), true);
+  assert.equal(page.includes("ong-dia-keepsake-main"), true);
+  assert.equal(page.includes("Ông nhắc nhẹ"), true);
+  assert.equal(page.includes("Việc nhỏ hôm nay"), true);
+  assert.equal(page.includes("prayerProviderNotice ?"), false);
+  assert.equal(page.includes("ong-dia-provider-notice\">{prayerProviderNotice}"), false);
+});
+
+test("visible Ong Dia V1 safe share payload excludes raw prayer and hidden state", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const shareText = page.slice(
+    page.indexOf("function createOngDiaShareText"),
+    page.indexOf("function getOngDiaShareUrl"),
+  );
+  assert.match(shareText, /response\.loiOngDia/);
+  assert.match(shareText, /response\.ongNhacNhe/);
+  assert.match(shareText, /response\.viecNhoHomNay/);
+  assert.doesNotMatch(shareText, /smallPrayer|subject|history|anonymousSessionId|meta|prayerForEndpoint/);
+  assert.equal(page.includes("navigator.share"), true);
+  assert.match(page, /navigator\.share\(\{[\s\S]*title: "Lời Ông Địa hôm nay"[\s\S]*text,[\s\S]*url,/);
+});
+
+test("visible Ong Dia V1 clipboard fallback tracks only after copy succeeds", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const shareHandler = page.slice(
+    page.indexOf("async function handleShareKeepsake"),
+    page.indexOf("async function handleCopyKeepsake"),
+  );
+  const copyHandler = page.slice(
+    page.indexOf("async function handleCopyKeepsake"),
+    page.indexOf("function handleOutboundClick"),
+  );
+  assert.match(shareHandler, /await navigator\.clipboard\.writeText/);
+  assert.match(shareHandler, /trackChoNeoBetaEvent\("ong_dia_v1_copy_success"/);
+  assert.match(copyHandler, /await navigator\.clipboard\.writeText/);
+  assert.match(copyHandler, /trackChoNeoBetaEvent\("ong_dia_v1_copy_success"/);
+});
+
+test("visible Ong Dia V1 follow-up prepares input without duplicating previous card", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const followup = page.slice(
+    page.indexOf("function handleFollowUpStart"),
+    page.indexOf("async function handleShareKeepsake"),
+  );
+  assert.match(followup, /setPrayerResponse\(null\)/);
+  assert.match(followup, /setSmallPrayer\(""\)/);
+  assert.match(followup, /setFollowUpMode\(true\)/);
+  assert.match(followup, /prayerInputRef\.current\?\.focus\(\)/);
+  assert.equal(page.includes("Con hỏi thêm nhẹ thôi..."), true);
+  assert.equal(page.includes("appendPrayerConversationTurn(current, prayerForEndpoint"), true);
+});
+
+test("visible Ong Dia V1 shows daily-return copy and subtle outbound routes", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("Mai ghé lại, lòng đổi thì lời cũng đổi."), true);
+  assert.equal(page.includes('href="/xin-xam"'), true);
+  assert.equal(page.includes('href="/cho-neo/gossip"'), true);
+  assert.equal(page.includes("Qua ngồi một chút"), true);
+  assert.equal(page.includes('handleOutboundClick("xin-xam")'), true);
+  assert.equal(page.includes('handleOutboundClick("quan-tam")'), true);
+});
+
+test("visible Ong Dia V1 actual next-day return event uses only local success dates", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("choNeo.ongDiaV1.lastSuccessDate"), true);
+  assert.equal(page.includes("choNeo.ongDiaV1.returnEventDate"), true);
+  assert.match(page, /lastSuccessDate &&[\s\S]*lastSuccessDate < todayKey[\s\S]*lastReturnEventDate !== todayKey/);
+  assert.match(page, /trackChoNeoBetaEvent\("ong_dia_v1_next_day_returned"/);
+  assert.match(page, /rememberOngDiaV1SuccessDate\(todayKey\)/);
+});
+
+test("visible Ong Dia V1 analytics events are wired through existing beta analytics only", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const analyticsPath = path.join(repoRoot, "src/lib/cho-neo/beta-analytics.ts");
+  const analytics = fs.readFileSync(analyticsPath, "utf8");
+  for (const eventName of [
+    "ong_dia_v1_viewed",
+    "ong_dia_v1_submitted",
+    "ong_dia_v1_response_shown",
+    "ong_dia_v1_share_success",
+    "ong_dia_v1_copy_success",
+    "ong_dia_v1_followup_started",
+    "ong_dia_v1_outbound_clicked",
+    "ong_dia_v1_next_day_returned",
+  ]) {
+    assert.equal(analytics.includes(eventName), true);
+    assert.equal(page.includes(eventName), true);
+  }
+  assert.equal(analytics.includes("ong_dia_v1_subject_selected"), false);
+  assert.equal(page.includes("ong_dia_v1_subject_selected"), false);
+  const submitBlock = page.slice(
+    page.indexOf('trackChoNeoBetaEvent("ong_dia_v1_submitted"'),
+    page.indexOf("const ritualPromise"),
+  );
+  const responseShownBlock = page.slice(
+    page.indexOf('trackChoNeoBetaEvent("ong_dia_v1_response_shown"'),
+    page.indexOf("});", page.indexOf('trackChoNeoBetaEvent("ong_dia_v1_response_shown"')) + 4,
+  );
+  assert.doesNotMatch(submitBlock, /smallPrayer|prayerForEndpoint|history|content|loiOngDia|ongNhacNhe|viecNhoHomNay/);
+  assert.doesNotMatch(responseShownBlock, /smallPrayer|prayerForEndpoint|history|content|loiOngDia|ongNhacNhe|viecNhoHomNay/);
+  assert.equal(page.includes("@supabase"), false);
+  assert.equal(page.includes("/login"), false);
+  assert.doesNotMatch(page, /payment|checkout|stripe|feed|database/i);
 });
 
 test("visible Ong Dia page keeps accepted success from being overwritten by late fallback", () => {

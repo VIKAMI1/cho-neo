@@ -10,12 +10,13 @@ import {
   loadOrCreateDailyMessage,
   touchShrineMemory,
 } from "@/lib/cho-neo/ong-dia-ritual";
-import {
-  createFallbackOngDiaPrayerResponse,
-  type OngDiaPrayerResponse,
-} from "@/lib/cho-neo/ong-dia-prayer";
+import { type OngDiaPrayerResponse } from "@/lib/cho-neo/ong-dia-prayer";
+import { trackChoNeoBetaEvent } from "@/lib/cho-neo/beta-analytics";
 
 const SHRINE_STAGE_IMAGE = "/images/cho-neo/Ong_Dia_Shrine.png";
+const ONG_DIA_V1_SUCCESS_DATE_KEY = "choNeo.ongDiaV1.lastSuccessDate";
+const ONG_DIA_V1_RETURN_EVENT_DATE_KEY = "choNeo.ongDiaV1.returnEventDate";
+const ONG_DIA_RITUAL_ANIMATION_MS = 1800;
 
 type OngDiaDailyMessage = ReturnType<typeof loadOrCreateDailyMessage>;
 
@@ -27,6 +28,7 @@ type LocUiResult = {
 };
 
 type PrayerExperience = "conversation" | "ritual" | "xin_xam";
+type RitualPhase = "idle" | "ritual" | "pondering";
 
 type PrayerConversationTurn = {
   role: "user" | "assistant";
@@ -61,6 +63,67 @@ function getPrayerClearAnimationMs() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ? 180
     : PRAYER_CLEAR_ANIMATION_MS;
+}
+
+function getOngDiaRitualAnimationMs() {
+  if (typeof window === "undefined") return ONG_DIA_RITUAL_ANIMATION_MS;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? 180
+    : ONG_DIA_RITUAL_ANIMATION_MS;
+}
+
+function createOngDiaShareText(response: OngDiaPrayerResponse) {
+  return [
+    "Lời Ông Địa hôm nay",
+    "",
+    response.loiOngDia,
+    response.ongNhacNhe,
+    response.viecNhoHomNay,
+    response.khiChuyenQuaNang ?? "",
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+}
+
+function getOngDiaShareUrl() {
+  if (typeof window === "undefined") {
+    return "https://cho-neo.vercel.app/cho-neo/ong-dia";
+  }
+  return `${window.location.origin}/cho-neo/ong-dia`;
+}
+
+function rememberOngDiaV1SuccessDate(dayKey: string) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(ONG_DIA_V1_SUCCESS_DATE_KEY, dayKey);
+  } catch {
+    // Local return memory is optional and never blocks the shrine.
+  }
+}
+
+function trackOngDiaV1NextDayReturn(todayKey: string) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const lastSuccessDate = window.localStorage.getItem(ONG_DIA_V1_SUCCESS_DATE_KEY);
+    const lastReturnEventDate = window.localStorage.getItem(
+      ONG_DIA_V1_RETURN_EVENT_DATE_KEY,
+    );
+    if (
+      lastSuccessDate &&
+      lastSuccessDate < todayKey &&
+      lastReturnEventDate !== todayKey
+    ) {
+      trackChoNeoBetaEvent("ong_dia_v1_next_day_returned", {
+        room: "ong-dia-shrine",
+        details: { lastSuccessDate },
+      });
+      window.localStorage.setItem(ONG_DIA_V1_RETURN_EVENT_DATE_KEY, todayKey);
+    }
+  } catch {
+    // Analytics memory is best-effort.
+  }
 }
 
 function createPrayerProviderNotice(meta?: PrayerResponseMeta) {
@@ -184,6 +247,9 @@ function OngDiaShrineAtmosphere({ blessingSignal }: { blessingSignal: number }) 
           <span />
         </div>
       ) : null}
+      {blessingSignal > 0 ? (
+        <div key={`glint-${blessingSignal}`} className="ong-dia-altar-glint" />
+      ) : null}
     </div>
   );
 }
@@ -204,6 +270,9 @@ export default function OngDiaPage() {
     PrayerConversationTurn[]
   >([]);
   const [smallPrayer, setSmallPrayer] = useState("");
+  const [ritualPhase, setRitualPhase] = useState<RitualPhase>("idle");
+  const [followUpMode, setFollowUpMode] = useState(false);
+  const [shareNotice, setShareNotice] = useState("");
   const [isPrayerClearing, setIsPrayerClearing] = useState(false);
   const [prayerClearConfirmation, setPrayerClearConfirmation] = useState("");
   const [locResult, setLocResult] = useState<LocUiResult | null>(null);
@@ -223,6 +292,8 @@ export default function OngDiaPage() {
   useEffect(() => {
     const todayKey = getLocalDayKey(new Date());
     touchShrineMemory(todayKey);
+    trackOngDiaV1NextDayReturn(todayKey);
+    trackChoNeoBetaEvent("ong_dia_v1_viewed", { room: "ong-dia-shrine" });
     setDailyMessage(loadOrCreateDailyMessage(todayKey));
   }, []);
 
@@ -248,6 +319,9 @@ export default function OngDiaPage() {
     setPrayerConversationHistory([]);
     setPrayerProviderNotice("");
     setPrayerCompactFallback("");
+    setRitualPhase("idle");
+    setFollowUpMode(false);
+    setShareNotice("");
     setIsPrayerResponseLoading(false);
     setIsPrayerClearing(false);
     setSmallPrayer("");
@@ -328,8 +402,8 @@ export default function OngDiaPage() {
     if (prayerRequestInFlightRef.current) return;
     prayerRequestInFlightRef.current = true;
 
-    const prayer = (prayerOverride ?? smallPrayer).trim();
-    const fallback = createFallbackOngDiaPrayerResponse(prayer);
+    const prayerForEndpoint = (prayerOverride ?? smallPrayer).trim();
+    const hasFreeText = Boolean(prayerForEndpoint);
     const history =
       experience === "conversation" ? prayerConversationHistory : [];
 
@@ -376,47 +450,72 @@ export default function OngDiaPage() {
     };
 
     showBlessingMessage();
-    setPrayerResponse(experience === "conversation" ? null : fallback);
+    setPrayerResponse(null);
     setPrayerProviderNotice("");
     setPrayerCompactFallback("");
     setPrayerClearConfirmation("");
+    setShareNotice("");
     setIsPrayerClearing(false);
     setIsPrayerResponseLoading(true);
+    setRitualPhase("ritual");
     if (shouldTriggerAtmosphere) {
       triggerBlessingAtmosphere();
     }
 
+    trackChoNeoBetaEvent("ong_dia_v1_submitted", {
+      room: "ong-dia-shrine",
+      details: {
+        hasFreeText,
+        experience,
+      },
+    });
+
+    const ritualPromise = new Promise<void>((resolve) => {
+      setTimeout(resolve, getOngDiaRitualAnimationMs());
+    });
+
     try {
-      const response = await fetch("/api/cho-neo/ong-dia/prayer", {
+      const responsePromise = fetch("/api/cho-neo/ong-dia/prayer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         signal: abortController.signal,
         body: JSON.stringify({
-          prayer,
+          prayer: prayerForEndpoint,
           ritual,
           experience,
           history,
         }),
+      }).then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as {
+          result?: OngDiaPrayerResponse;
+          meta?: PrayerResponseMeta;
+        };
       });
+
+      let payload: Awaited<typeof responsePromise> | undefined;
+      await Promise.race([
+        responsePromise.then((nextPayload) => {
+          payload = nextPayload;
+        }),
+        ritualPromise,
+      ]);
 
       if (!isCurrentPrayerTurn()) return;
 
-      if (!response.ok) {
-        showPrayerFallback();
-        return;
+      if (payload === undefined) {
+        setRitualPhase("pondering");
+        payload = await responsePromise;
       }
 
-      const payload = (await response.json()) as {
-        result?: OngDiaPrayerResponse;
-        meta?: PrayerResponseMeta;
-      };
+      await ritualPromise;
 
       if (!isCurrentPrayerTurn()) return;
 
       if (
-        payload.result?.loiOngDia &&
+        payload?.result?.loiOngDia &&
         payload.result.ongNhacNhe &&
         payload.result.viecNhoHomNay
       ) {
@@ -428,8 +527,19 @@ export default function OngDiaPage() {
           const accepted = acceptPrayerSuccess(payload.result, payload.meta);
           if (accepted && experience === "conversation") {
             setPrayerConversationHistory((current) =>
-              appendPrayerConversationTurn(current, prayer, payload.result!),
+              appendPrayerConversationTurn(current, prayerForEndpoint, payload.result!),
             );
+          }
+          if (accepted) {
+            const todayKey = getLocalDayKey(new Date());
+            rememberOngDiaV1SuccessDate(todayKey);
+            trackChoNeoBetaEvent("ong_dia_v1_response_shown", {
+              room: "ong-dia-shrine",
+              details: {
+                experience,
+                source: payload.meta?.source,
+              },
+            });
           }
         } else {
           showPrayerFallback();
@@ -450,6 +560,7 @@ export default function OngDiaPage() {
         prayerAbortControllerRef.current = null;
         prayerRequestInFlightRef.current = false;
         setIsPrayerResponseLoading(false);
+        setRitualPhase("idle");
       }
     }
   }
@@ -457,6 +568,76 @@ export default function OngDiaPage() {
   function handleBlessingRequest() {
     const experience = smallPrayer.trim() ? "conversation" : "ritual";
     void requestPrayerResponse("Xin vía nhẹ", undefined, true, experience);
+  }
+
+  function handleFollowUpStart() {
+    setPrayerResponse(null);
+    setPrayerProviderNotice("");
+    setPrayerCompactFallback("");
+    setPrayerClearConfirmation("");
+    setShareNotice("");
+    setSmallPrayer("");
+    setFollowUpMode(true);
+    trackChoNeoBetaEvent("ong_dia_v1_followup_started", {
+      room: "ong-dia-shrine",
+      details: { historyTurns: prayerConversationHistory.length },
+    });
+    window.requestAnimationFrame(() => {
+      prayerInputRef.current?.focus();
+    });
+  }
+
+  async function handleShareKeepsake() {
+    if (!prayerResponse) return;
+
+    const text = createOngDiaShareText(prayerResponse);
+    const url = getOngDiaShareUrl();
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Lời Ông Địa hôm nay",
+          text,
+          url,
+        });
+        setShareNotice("Đã mở chia sẻ lời Ông Địa.");
+        trackChoNeoBetaEvent("ong_dia_v1_share_success", {
+          room: "ong-dia-shrine",
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${text}\n\n${url}`);
+      setShareNotice("Đã copy lời Ông Địa.");
+      trackChoNeoBetaEvent("ong_dia_v1_copy_success", {
+        room: "ong-dia-shrine",
+        details: { fallbackFromShare: true },
+      });
+    } catch {
+      setShareNotice("Chưa chia sẻ được. Con thử Copy nha.");
+    }
+  }
+
+  async function handleCopyKeepsake() {
+    if (!prayerResponse) return;
+
+    try {
+      const text = `${createOngDiaShareText(prayerResponse)}\n\n${getOngDiaShareUrl()}`;
+      await navigator.clipboard.writeText(text);
+      setShareNotice("Đã copy lời Ông Địa.");
+      trackChoNeoBetaEvent("ong_dia_v1_copy_success", {
+        room: "ong-dia-shrine",
+      });
+    } catch {
+      setShareNotice("Chưa copy được trên trình duyệt này.");
+    }
+  }
+
+  function handleOutboundClick(destination: "xin-xam" | "quan-tam") {
+    trackChoNeoBetaEvent("ong_dia_v1_outbound_clicked", {
+      room: "ong-dia-shrine",
+      details: { destination },
+    });
   }
 
   function handleLocRequest() {
@@ -523,7 +704,9 @@ export default function OngDiaPage() {
 
       <section className="ong-dia-blessing-card" aria-label="Xin vía Ông Địa">
         <div className="ong-dia-daily-message">
-          <h2>{dailyMessage?.title ?? "Có tâm thì nghề ở lâu."}</h2>
+          <p>Bàn Ông Địa</p>
+          <h2>Hôm nay trong lòng có chuyện gì?</h2>
+          <span>{dailyMessage?.title ?? "Có tâm thì nghề ở lâu."}</span>
         </div>
 
         {blessingMessage ? (
@@ -555,35 +738,48 @@ export default function OngDiaPage() {
 
         {prayerResponse ? (
           <article
-            className={`ong-dia-prayer-response ${
+            className={`ong-dia-keepsake-card ${
               isPrayerClearing ? "ong-dia-prayer-response-clearing" : ""
             }`}
             aria-live="polite"
             aria-busy={isPrayerClearing || isPrayerResponseLoading}
           >
-            {isPrayerResponseLoading ? (
-              <p className="ong-dia-response-loading">Ông Địa đang nghe...</p>
-            ) : null}
-            <div className="ong-dia-response-line" aria-label="Lời Ông Địa">
-              <i className="ong-dia-response-mark" aria-hidden="true" />
+            <div className="ong-dia-keepsake-heading">
+              <p>Lời Ông Địa hôm nay</p>
+              <span aria-hidden="true" />
+            </div>
+            <div className="ong-dia-keepsake-line ong-dia-keepsake-main">
               <span>{prayerResponse.loiOngDia}</span>
             </div>
-            <div className="ong-dia-response-line" aria-label="Ông nhắc nhẹ">
-              <i className="ong-dia-response-mark" aria-hidden="true" />
+            <div className="ong-dia-keepsake-line">
+              <small>Ông nhắc nhẹ</small>
               <span>{prayerResponse.ongNhacNhe}</span>
             </div>
-            <div className="ong-dia-response-line" aria-label="Việc nhỏ hôm nay">
-              <i className="ong-dia-response-mark" aria-hidden="true" />
+            <div className="ong-dia-keepsake-line">
+              <small>Việc nhỏ hôm nay</small>
               <span>{prayerResponse.viecNhoHomNay}</span>
             </div>
             {prayerResponse.khiChuyenQuaNang ? (
-              <div className="ong-dia-response-line" aria-label="Khi chuyện quá nặng">
-                <i className="ong-dia-response-mark" aria-hidden="true" />
+              <div className="ong-dia-keepsake-line">
+                <small>Khi chuyện quá nặng</small>
                 <span>{prayerResponse.khiChuyenQuaNang}</span>
               </div>
             ) : null}
-            {prayerProviderNotice ? (
-              <p className="ong-dia-provider-notice">{prayerProviderNotice}</p>
+            <div className="ong-dia-keepsake-actions" aria-label="Hành động với lời Ông Địa">
+              <button type="button" onClick={handleShareKeepsake}>
+                Share
+              </button>
+              <button type="button" onClick={handleCopyKeepsake}>
+                Copy
+              </button>
+              <button type="button" onClick={handleFollowUpStart}>
+                Hỏi thêm một câu
+              </button>
+            </div>
+            {shareNotice ? (
+              <p className="ong-dia-share-notice" role="status" aria-live="polite">
+                {shareNotice}
+              </p>
             ) : null}
           </article>
         ) : null}
@@ -598,33 +794,76 @@ export default function OngDiaPage() {
             value={smallPrayer}
             onChange={(event) => setSmallPrayer(event.target.value)}
             maxLength={160}
-            placeholder="Ông Địa ơi, cho con bình tĩnh hôm nay..."
+            placeholder={
+              followUpMode
+                ? "Con hỏi thêm nhẹ thôi..."
+                : "Cứ nói điều đang ở trong lòng..."
+            }
           />
+          {ritualPhase !== "idle" || isPrayerResponseLoading ? (
+            <p className="ong-dia-ritual-status" role="status" aria-live="polite">
+              {ritualPhase === "pondering"
+                ? "Ông Địa đang ngẫm một chút..."
+                : "Ông Địa đang nghe..."}
+            </p>
+          ) : null}
           <div className="ong-dia-prayer-actions">
-            <button
-              type="button"
-              onClick={handleBlessingRequest}
-              disabled={isPrayerResponseLoading}
-            >
-              {isPrayerResponseLoading ? "Đang nghe..." : "Xin vía nhé"}
-            </button>
-            <button
-              type="button"
-              className="ong-dia-clear-prayer-button"
-              onClick={handleClearPrayerConversation}
-              aria-label="Xóa lời khấn"
-              title="Xóa lời khấn"
-              disabled={
-                isPrayerClearing ||
-                (!prayerResponse &&
-                  prayerConversationHistory.length === 0 &&
-                  !prayerProviderNotice &&
-                  !prayerCompactFallback &&
-                  !isPrayerResponseLoading)
-              }
-            >
-              <span aria-hidden="true">×</span>
-            </button>
+            <div className="ong-dia-prayer-actions-left">
+              <button
+                type="button"
+                onClick={handleBlessingRequest}
+                disabled={isPrayerResponseLoading}
+              >
+                {isPrayerResponseLoading ? "Đang nghe..." : "Thắp nhang xin lời"}
+              </button>
+              <button
+                type="button"
+                className="ong-dia-clear-prayer-button"
+                onClick={handleClearPrayerConversation}
+                aria-label="Xóa lời khấn"
+                title="Xóa lời khấn"
+                disabled={
+                  isPrayerClearing ||
+                  (!prayerResponse &&
+                    prayerConversationHistory.length === 0 &&
+                    !prayerProviderNotice &&
+                    !prayerCompactFallback &&
+                    !isPrayerResponseLoading)
+                }
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div className="ong-dia-blessing-actions" aria-label="Lối đi tiếp">
+              <Link
+                href="/xin-xam"
+                aria-label="Xin Xăm"
+                title="Xin Xăm"
+                onClick={() => handleOutboundClick("xin-xam")}
+              >
+                <svg
+                  className="ong-dia-fortune-stick-icon"
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  focusable="false"
+                >
+                  <path d="M8.4 4.2 11 17.8" />
+                  <path d="M15.6 4.2 13 17.8" />
+                  <path d="M8.1 18.2h7.8" />
+                  <path d="M9.2 21h5.6" />
+                  <path d="M7.1 8.4h9.8" />
+                </svg>
+                <span>Xin Xăm</span>
+              </Link>
+              <Link
+                href="/cho-neo/gossip"
+                aria-label="Qua ngồi một chút ở Quán Tám"
+                title="Qua ngồi một chút"
+                onClick={() => handleOutboundClick("quan-tam")}
+              >
+                <span>Qua ngồi một chút</span>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -663,26 +902,12 @@ export default function OngDiaPage() {
           khỏe, pháp lý, hay tương lai.
         </p>
 
-        <div className="ong-dia-blessing-actions">
-          <Link
-            href="/xin-xam"
-            aria-label="Xin Xăm"
-            title="Xin Xăm"
-          >
-            <svg
-              className="ong-dia-fortune-stick-icon"
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              focusable="false"
-            >
-              <path d="M8.4 4.2 11 17.8" />
-              <path d="M15.6 4.2 13 17.8" />
-              <path d="M8.1 18.2h7.8" />
-              <path d="M9.2 21h5.6" />
-              <path d="M7.1 8.4h9.8" />
-            </svg>
-          </Link>
-        </div>
+        {prayerResponse ? (
+          <p className="ong-dia-return-copy">
+            Mai ghé lại, lòng đổi thì lời cũng đổi.
+          </p>
+        ) : null}
+
       </section>
 
       <style>{`
@@ -752,8 +977,9 @@ export default function OngDiaPage() {
         .ong-dia-copy h1 {
           margin-top: 0.35rem;
           color: #fff0c2;
-          font-size: clamp(2.05rem, 5vw, 4.75rem);
-          line-height: 0.95;
+          font-size: clamp(2.25rem, 3vw, 2.375rem);
+          font-weight: 600;
+          line-height: 1.02;
           text-shadow: 0 0 28px rgba(255, 159, 53, 0.42);
         }
 
@@ -861,6 +1087,7 @@ export default function OngDiaPage() {
         .ong-dia-lantern-glow,
         .ong-dia-incense-smoke,
         .ong-dia-dust-motes,
+        .ong-dia-altar-glint,
         .ong-dia-wish-response {
           position: absolute;
           pointer-events: none;
@@ -1122,6 +1349,21 @@ export default function OngDiaPage() {
           animation: ong-dia-wish-listened 2.2s ease-out both;
         }
 
+        .ong-dia-altar-glint {
+          left: 47.5%;
+          top: 61.5%;
+          z-index: 4;
+          width: 9%;
+          aspect-ratio: 1 / 1;
+          border-radius: 999px;
+          background:
+            radial-gradient(circle, rgba(255, 245, 198, 0.9), rgba(255, 192, 86, 0.34) 24%, transparent 58%);
+          mix-blend-mode: screen;
+          opacity: 0;
+          filter: blur(0.5px);
+          animation: ong-dia-altar-glint 1.8s ease-out both;
+        }
+
         .ong-dia-wish-response span {
           position: absolute;
           left: 62%;
@@ -1302,6 +1544,19 @@ export default function OngDiaPage() {
           }
         }
 
+        @keyframes ong-dia-altar-glint {
+          0%,
+          100% {
+            opacity: 0;
+            transform: scale(0.72);
+          }
+
+          38% {
+            opacity: 0.72;
+            transform: scale(1);
+          }
+        }
+
         .ong-dia-center-guide {
           position: absolute;
           left: 50%;
@@ -1340,8 +1595,9 @@ export default function OngDiaPage() {
 
         .ong-dia-blessing-card h2 {
           color: #fff0c2;
-          font-size: clamp(1.5rem, 3vw, 2.4rem);
-          line-height: 1;
+          font-size: clamp(1.6875rem, 2.1vw, 1.8125rem);
+          font-weight: 600;
+          line-height: 1.12;
         }
 
         .ong-dia-blessing-card p {
@@ -1375,7 +1631,22 @@ export default function OngDiaPage() {
 
         .ong-dia-daily-message {
           display: grid;
-          gap: 0.25rem;
+          gap: 0.3rem;
+        }
+
+        .ong-dia-daily-message p {
+          margin: 0;
+          color: #ffd48b !important;
+          font-size: 0.72rem;
+          font-weight: 900;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+
+        .ong-dia-daily-message span {
+          color: rgba(255, 239, 203, 0.7);
+          font-size: 0.94rem;
+          line-height: 1.45;
         }
 
         .ong-dia-loc-notice,
@@ -1471,6 +1742,137 @@ export default function OngDiaPage() {
           will-change: opacity, transform, filter;
         }
 
+        .ong-dia-keepsake-card {
+          position: relative;
+          display: grid;
+          gap: 0.78rem;
+          overflow: hidden;
+          border: 1px solid rgba(255, 218, 157, 0.34);
+          border-radius: 18px;
+          background:
+            linear-gradient(135deg, rgba(255, 244, 221, 0.18), transparent 42%),
+            radial-gradient(circle at 88% 10%, rgba(245, 158, 11, 0.2), transparent 30%),
+            rgba(255, 244, 221, 0.09);
+          padding: clamp(0.95rem, 2vw, 1.25rem);
+          box-shadow:
+            0 18px 42px rgba(0, 0, 0, 0.24),
+            inset 0 1px 0 rgba(255, 244, 221, 0.14);
+          transition:
+            opacity 1.5s ease,
+            transform 1.5s ease,
+            filter 1.5s ease;
+        }
+
+        .ong-dia-keepsake-card::before {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          content: "";
+          background:
+            linear-gradient(90deg, rgba(255, 212, 139, 0.2), transparent 24% 76%, rgba(255, 212, 139, 0.12)),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 34%);
+        }
+
+        .ong-dia-keepsake-heading,
+        .ong-dia-keepsake-line,
+        .ong-dia-keepsake-actions,
+        .ong-dia-share-notice {
+          position: relative;
+          z-index: 1;
+        }
+
+        .ong-dia-keepsake-heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+
+        .ong-dia-keepsake-heading p {
+          margin: 0;
+          color: #ffe7ae !important;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: clamp(1.2rem, 2.8vw, 1.75rem);
+          font-weight: 800;
+          line-height: 1.1;
+        }
+
+        .ong-dia-keepsake-heading span {
+          width: 2.3rem;
+          height: 2px;
+          border-radius: 999px;
+          background: rgba(255, 212, 139, 0.54);
+          box-shadow: 0 0 16px rgba(255, 190, 89, 0.44);
+        }
+
+        .ong-dia-keepsake-line {
+          display: grid;
+          gap: 0.32rem;
+          border-top: 1px solid rgba(255, 212, 139, 0.14);
+          padding-top: 0.72rem;
+        }
+
+        .ong-dia-keepsake-main {
+          border-top: 0;
+          padding-top: 0;
+        }
+
+        .ong-dia-keepsake-line small {
+          color: rgba(255, 236, 196, 0.78);
+          font-size: 0.72rem;
+          font-weight: 760;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .ong-dia-keepsake-line span {
+          color: rgba(255, 247, 232, 0.9);
+          font-size: clamp(0.98rem, 1.5vw, 1.05rem);
+          line-height: 1.48;
+        }
+
+        .ong-dia-keepsake-main span {
+          color: #fff7ed;
+          font-size: clamp(1.08rem, 2vw, 1.22rem);
+          line-height: 1.45;
+        }
+
+        .ong-dia-keepsake-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          padding-top: 0.2rem;
+        }
+
+        .ong-dia-keepsake-actions button {
+          min-height: 40px;
+          border: 1px solid rgba(255, 212, 139, 0.24);
+          border-radius: 12px;
+          background: rgba(26, 12, 7, 0.38);
+          color: #ffe7ae;
+          padding: 0.46rem 0.72rem;
+          font: inherit;
+          font-size: 0.82rem;
+          font-weight: 780;
+          cursor: pointer;
+        }
+
+        .ong-dia-keepsake-actions button:first-child {
+          background: rgba(255, 212, 139, 0.16);
+          color: #ffe7ae;
+        }
+
+        .ong-dia-keepsake-actions button:focus-visible,
+        .ong-dia-blessing-actions a:focus-visible {
+          outline: 3px solid rgba(255, 232, 179, 0.42);
+          outline-offset: 2px;
+        }
+
+        .ong-dia-share-notice {
+          color: rgba(255, 239, 203, 0.78) !important;
+          font-size: 0.84rem;
+        }
+
         .ong-dia-prayer-response-clearing {
           opacity: 0;
           transform: translateY(-10px);
@@ -1523,7 +1925,7 @@ export default function OngDiaPage() {
 
         .ong-dia-response-loading {
           border: 1px solid rgba(255, 212, 139, 0.16);
-          border-radius: 999px;
+          border-radius: 12px;
           background: rgba(255, 244, 221, 0.08);
           padding: 0.5rem 0.7rem;
           width: fit-content;
@@ -1547,11 +1949,11 @@ export default function OngDiaPage() {
 
         .ong-dia-prayer-panel {
           display: grid;
-          gap: 0.65rem;
-          border: 1px solid rgba(255, 212, 139, 0.18);
-          border-radius: 18px;
-          background: rgba(255, 244, 221, 0.08);
-          padding: 0.85rem;
+          gap: 0.72rem;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          padding: 0.1rem 0 0;
         }
 
         .ong-dia-prayer-panel label {
@@ -1572,17 +1974,19 @@ export default function OngDiaPage() {
 
         .ong-dia-prayer-panel textarea {
           width: 100%;
-          min-height: 92px;
+          min-height: 104px;
           resize: vertical;
-          border: 1px solid rgba(255, 212, 139, 0.22);
-          border-radius: 16px;
-          background: rgba(22, 8, 4, 0.55);
+          border: 1px solid rgba(255, 212, 139, 0.24);
+          border-radius: 12px;
+          background: rgba(23, 9, 5, 0.5);
           color: #fff4dd;
-          padding: 0.8rem 0.85rem;
+          padding: 0.85rem 0.9rem;
           font: inherit;
-          font-size: 0.96rem;
-          line-height: 1.42;
+          font-size: 0.98rem;
+          font-weight: 500;
+          line-height: 1.48;
           outline: none;
+          box-shadow: inset 0 1px 0 rgba(255, 244, 221, 0.05);
         }
 
         .ong-dia-prayer-panel textarea::placeholder {
@@ -1597,7 +2001,36 @@ export default function OngDiaPage() {
         .ong-dia-prayer-actions {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.55rem;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.58rem;
+          width: 100%;
+        }
+
+        .ong-dia-prayer-actions-left,
+        .ong-dia-blessing-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.58rem;
+          max-width: 100%;
+        }
+
+        .ong-dia-prayer-actions-left {
+          justify-content: flex-start;
+        }
+
+        .ong-dia-ritual-status {
+          width: fit-content;
+          border: 1px solid rgba(255, 212, 139, 0.18);
+          border-radius: 12px;
+          background: rgba(255, 244, 221, 0.08);
+          color: rgba(255, 244, 221, 0.86) !important;
+          padding: 0.5rem 0.7rem;
+          font-size: 0.78rem;
+          font-weight: 760;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
         }
 
         .ong-dia-prayer-actions button,
@@ -1605,23 +2038,27 @@ export default function OngDiaPage() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-height: 46px;
+          height: 44px;
+          min-height: 44px;
           border: 1px solid rgba(255, 212, 139, 0.24);
-          border-radius: 999px;
-          padding: 0.45rem 0.8rem;
+          border-radius: 12px;
+          padding: 0.5rem 0.85rem;
           font: inherit;
           font-size: 0.86rem;
-          font-weight: 900;
+          font-weight: 780;
+          line-height: 1;
           text-decoration: none;
           text-align: center;
           overflow-wrap: anywhere;
           touch-action: manipulation;
+          white-space: nowrap;
         }
 
         .ong-dia-prayer-actions button {
           color: #251006;
-          background: rgba(255, 212, 139, 0.86);
+          background: linear-gradient(180deg, rgba(245, 202, 124, 0.96), rgba(208, 139, 64, 0.92));
           cursor: pointer;
+          box-shadow: 0 12px 24px rgba(50, 20, 6, 0.2);
         }
 
         .ong-dia-prayer-actions button:disabled {
@@ -1629,13 +2066,8 @@ export default function OngDiaPage() {
           opacity: 0.72;
         }
 
-        .ong-dia-prayer-actions button:last-child {
-          background: #ffd48b;
-          box-shadow: 0 0 28px rgba(255, 180, 82, 0.25);
-        }
-
         .ong-dia-prayer-actions .ong-dia-clear-prayer-button {
-          width: 46px;
+          width: 44px;
           padding: 0;
           color: #fff4dd;
           background: rgba(43, 19, 11, 0.42);
@@ -1688,15 +2120,28 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-blessing-actions {
-          display: flex;
           justify-content: flex-end;
         }
 
         .ong-dia-blessing-actions a {
-          width: 46px;
-          padding: 0;
+          min-width: 46px;
+          border-radius: 12px;
+          padding: 0.48rem 0.72rem;
           color: #ffe7ae;
-          background: rgba(255, 255, 255, 0.07);
+          background: rgba(255, 244, 221, 0.06);
+          gap: 0.42rem;
+          box-shadow: none;
+        }
+
+        .ong-dia-blessing-actions a span {
+          color: inherit;
+          font-size: 0.82rem;
+          font-weight: 760;
+        }
+
+        .ong-dia-return-copy {
+          color: rgba(255, 239, 203, 0.72) !important;
+          font-size: 0.9rem;
         }
 
         .ong-dia-fortune-stick-icon {
@@ -1732,7 +2177,8 @@ export default function OngDiaPage() {
 
           .ong-dia-copy h1 {
             margin-top: 0.22rem;
-            font-size: clamp(1.55rem, 8vw, 2.2rem);
+            font-size: clamp(1.8125rem, 7vw, 1.9375rem);
+            font-weight: 600;
             line-height: 1;
           }
 
@@ -1834,7 +2280,8 @@ export default function OngDiaPage() {
           }
 
           .ong-dia-blessing-card h2 {
-            font-size: clamp(1.15rem, 5.7vw, 1.35rem);
+            font-size: clamp(1.375rem, 5.8vw, 1.5rem);
+            font-weight: 600;
             line-height: 1.12;
           }
 
@@ -1852,13 +2299,20 @@ export default function OngDiaPage() {
             font-size: 1rem;
           }
 
-          .ong-dia-prayer-actions,
           .ong-dia-result-card {
             grid-template-columns: 1fr;
           }
 
           .ong-dia-prayer-actions {
-            display: grid;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            row-gap: 0.58rem;
+          }
+
+          .ong-dia-prayer-actions-left,
+          .ong-dia-blessing-actions {
+            align-items: center;
           }
 
           .ong-dia-blessing-actions {
@@ -1892,6 +2346,7 @@ export default function OngDiaPage() {
           .ong-dia-lantern-glow,
           .ong-dia-incense-smoke span,
           .ong-dia-dust-motes span,
+          .ong-dia-altar-glint,
           .ong-dia-wish-response,
           .ong-dia-wish-response span {
             animation: none;
@@ -1915,11 +2370,13 @@ export default function OngDiaPage() {
           }
 
           .ong-dia-dust-motes,
+          .ong-dia-altar-glint,
           .ong-dia-wish-response {
             display: none;
           }
 
-          .ong-dia-prayer-response {
+          .ong-dia-prayer-response,
+          .ong-dia-keepsake-card {
             transition:
               opacity 0.18s ease,
               filter 0.18s ease;
