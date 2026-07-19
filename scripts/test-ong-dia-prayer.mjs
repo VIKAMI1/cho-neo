@@ -881,7 +881,60 @@ test("visible Ong Dia page prevents duplicate client submissions", () => {
   assert.equal(page.includes("if (prayerRequestInFlightRef.current) return;"), true);
   assert.equal(page.includes("prayerRequestInFlightRef.current = true;"), true);
   assert.equal(page.includes("prayerRequestInFlightRef.current = false;"), true);
-  assert.equal(page.match(/disabled=\{isPrayerResponseLoading\}/g)?.length ?? 0, 2);
+  assert.equal(page.match(/disabled=\{isPrayerResponseLoading\}/g)?.length ?? 0, 1);
+});
+
+test("visible Ong Dia page keeps the shrine UI text reduced", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("Ong Dia Shrine"), false);
+  assert.equal(page.includes("Warm shrine stage"), false);
+  assert.equal(page.includes("Back to Village"), false);
+  assert.equal(page.includes("Small prayer"), false);
+  assert.equal(page.includes("Lần đầu ghé bàn Ông Địa"), false);
+  assert.equal(page.includes("Qua phòng Xin Xăm</Link>"), false);
+  assert.equal(page.includes("Mở một lộc nhỏ</button>"), false);
+  assert.equal(page.includes("Xin vía nhé"), true);
+  assert.equal(page.includes('className="ong-dia-sr-only"'), true);
+});
+
+test("visible Ong Dia page keeps accepted success from being overwritten by late fallback", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("type PrayerTurn = {"), true);
+  assert.equal(page.includes("successAccepted: boolean;"), true);
+  assert.equal(page.includes("successAccepted: true"), true);
+  assert.match(
+    page,
+    /const showPrayerFallback = \(\) => \{[\s\S]*activePrayerTurnRef\.current\?\.successAccepted[\s\S]*return false;/,
+  );
+  assert.equal(
+    page.includes("Ông chưa nghe rõ lời con. Chờ một chút rồi thử lại nha."),
+    true,
+  );
+});
+
+test("visible Ong Dia page ignores stale prayer turns", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.match(
+    page,
+    /const isCurrentPrayerTurn = \(\) =>[\s\S]*prayerRequestTokenRef\.current === prayerRequestToken[\s\S]*activePrayerTurnRef\.current\?\.id === prayerRequestToken;/,
+  );
+  assert.equal(page.match(/if \(!isCurrentPrayerTurn\(\)\) return;/g)?.length ?? 0, 2);
+  assert.equal(page.includes("activePrayerTurnRef.current = null;"), true);
+});
+
+test("visible Ong Dia page shows compact fallback only when current request has no success", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("const COMPACT_PRAYER_FALLBACK"), true);
+  assert.equal(page.includes("setPrayerCompactFallback(COMPACT_PRAYER_FALLBACK);"), true);
+  assert.equal(page.includes('className="ong-dia-compact-fallback"'), true);
+  assert.equal(page.includes('role="status" aria-live="polite"'), true);
+  assert.equal(page.includes("setPrayerResponse(null);"), true);
+});
+
+test("visible Ong Dia page uses one fetch path and no speech listener auto-submit", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.match(/fetch\("\/api\/cho-neo\/ong-dia\/prayer"/g)?.length ?? 0, 1);
+  assert.equal(/SpeechRecognition|webkitSpeechRecognition|onend|speech/i.test(page), false);
 });
 
 test("visible Ong Dia page bounds conversation history to the last six turns", () => {
