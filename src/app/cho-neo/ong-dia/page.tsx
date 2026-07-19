@@ -39,6 +39,24 @@ type PrayerResponseMeta = {
   generatedByProvider?: boolean;
 };
 
+const PRAYER_CLEAR_CONFIRMATION =
+  "Lời khấn đã tan theo khói. Chợ Neo không lưu lại.";
+const PRAYER_PRIVACY_NOTE =
+  "Chợ Neo không giữ lời khấn của con. Cuộc trò chuyện chỉ tồn tại trong phiên này và sẽ tan đi khi con rời Bàn Ông Địa hoặc bấm Xóa lời khấn.";
+const PRAYER_CLEAR_ANIMATION_MS = 1500;
+const ONG_DIA_CONVERSATION_STORAGE_PREFIXES = [
+  "choNeo.ongDiaConversation",
+  "choNeo.ongDiaPrayerConversation",
+  "choNeo.ongDiaPrayerSession",
+];
+
+function getPrayerClearAnimationMs() {
+  if (typeof window === "undefined") return PRAYER_CLEAR_ANIMATION_MS;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? 180
+    : PRAYER_CLEAR_ANIMATION_MS;
+}
+
 function createPrayerProviderNotice(meta?: PrayerResponseMeta) {
   if (!meta || meta.generatedByProvider) return "";
 
@@ -86,6 +104,31 @@ function appendPrayerConversationTurn(
   ];
 
   return nextTurns.slice(-6);
+}
+
+function clearOngDiaConversationStorage() {
+  if (typeof window === "undefined") return;
+
+  const clearMatchingKeys = (storage: Storage) => {
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (
+        key &&
+        ONG_DIA_CONVERSATION_STORAGE_PREFIXES.some((prefix) =>
+          key.startsWith(prefix),
+        )
+      ) {
+        storage.removeItem(key);
+      }
+    }
+  };
+
+  try {
+    clearMatchingKeys(window.sessionStorage);
+    clearMatchingKeys(window.localStorage);
+  } catch {
+    // Conversation state is ephemeral; storage cleanup is best-effort.
+  }
 }
 
 function OngDiaShrineAtmosphere({ blessingSignal }: { blessingSignal: number }) {
@@ -139,10 +182,16 @@ export default function OngDiaPage() {
     PrayerConversationTurn[]
   >([]);
   const [smallPrayer, setSmallPrayer] = useState("");
+  const [isPrayerClearing, setIsPrayerClearing] = useState(false);
+  const [prayerClearConfirmation, setPrayerClearConfirmation] = useState("");
   const [locResult, setLocResult] = useState<LocUiResult | null>(null);
   const [locNotice, setLocNotice] = useState("");
   const blessingMessageIndexRef = useRef(0);
   const prayerRequestInFlightRef = useRef(false);
+  const prayerRequestTokenRef = useRef(0);
+  const prayerAbortControllerRef = useRef<AbortController | null>(null);
+  const prayerInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const prayerClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastBlessingVisualAtRef = useRef(0);
   const blessingVisualTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -165,8 +214,66 @@ export default function OngDiaPage() {
       if (blessingVisualTimerRef.current) {
         clearTimeout(blessingVisualTimerRef.current);
       }
+      if (prayerClearTimerRef.current) {
+        clearTimeout(prayerClearTimerRef.current);
+      }
+      prayerRequestTokenRef.current += 1;
+      prayerAbortControllerRef.current?.abort();
+      prayerAbortControllerRef.current = null;
+      prayerRequestInFlightRef.current = false;
+      clearOngDiaConversationStorage();
     };
   }, []);
+
+  function finishPrayerClear(shouldFocusInput = true) {
+    setPrayerResponse(null);
+    setPrayerConversationHistory([]);
+    setPrayerProviderNotice("");
+    setIsPrayerResponseLoading(false);
+    setIsPrayerClearing(false);
+    setSmallPrayer("");
+    setBlessingMessage("");
+    setLocResult(null);
+    setLocNotice("");
+    setPrayerClearConfirmation(PRAYER_CLEAR_CONFIRMATION);
+    prayerRequestInFlightRef.current = false;
+    prayerAbortControllerRef.current = null;
+    clearOngDiaConversationStorage();
+
+    if (shouldFocusInput) {
+      window.requestAnimationFrame(() => {
+        prayerInputRef.current?.focus();
+      });
+    }
+  }
+
+  function handleClearPrayerConversation() {
+    if (
+      isPrayerClearing ||
+      (!prayerResponse &&
+        prayerConversationHistory.length === 0 &&
+        !prayerProviderNotice &&
+        !isPrayerResponseLoading)
+    ) {
+      return;
+    }
+
+    if (prayerClearTimerRef.current) {
+      clearTimeout(prayerClearTimerRef.current);
+    }
+
+    setIsPrayerClearing(true);
+    setPrayerClearConfirmation("");
+    prayerRequestTokenRef.current += 1;
+    prayerAbortControllerRef.current?.abort();
+    prayerAbortControllerRef.current = null;
+    prayerRequestInFlightRef.current = false;
+
+    prayerClearTimerRef.current = setTimeout(() => {
+      finishPrayerClear();
+      prayerClearTimerRef.current = null;
+    }, getPrayerClearAnimationMs());
+  }
 
   function showBlessingMessage() {
     blessingMessageIndexRef.current += 1;
@@ -204,9 +311,20 @@ export default function OngDiaPage() {
     const history =
       experience === "conversation" ? prayerConversationHistory : [];
 
+    if (prayerClearTimerRef.current) {
+      clearTimeout(prayerClearTimerRef.current);
+      prayerClearTimerRef.current = null;
+    }
+    const prayerRequestToken = prayerRequestTokenRef.current + 1;
+    prayerRequestTokenRef.current = prayerRequestToken;
+    const abortController = new AbortController();
+    prayerAbortControllerRef.current = abortController;
+
     showBlessingMessage();
     setPrayerResponse(fallback);
     setPrayerProviderNotice("");
+    setPrayerClearConfirmation("");
+    setIsPrayerClearing(false);
     setIsPrayerResponseLoading(true);
     if (shouldTriggerAtmosphere) {
       triggerBlessingAtmosphere();
@@ -218,6 +336,7 @@ export default function OngDiaPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        signal: abortController.signal,
         body: JSON.stringify({
           prayer,
           ritual,
@@ -225,6 +344,8 @@ export default function OngDiaPage() {
           history,
         }),
       });
+
+      if (prayerRequestTokenRef.current !== prayerRequestToken) return;
 
       if (!response.ok) {
         setPrayerProviderNotice(
@@ -237,6 +358,8 @@ export default function OngDiaPage() {
         result?: OngDiaPrayerResponse;
         meta?: PrayerResponseMeta;
       };
+
+      if (prayerRequestTokenRef.current !== prayerRequestToken) return;
 
       if (
         payload.result?.loiOngDia &&
@@ -255,14 +378,23 @@ export default function OngDiaPage() {
           "Ông Địa nghe chưa rõ, nên giữ tạm một lời nhẹ cho con.",
         );
       }
-    } catch {
+    } catch (error) {
+      if (
+        prayerRequestTokenRef.current !== prayerRequestToken ||
+        (error instanceof DOMException && error.name === "AbortError")
+      ) {
+        return;
+      }
       setPrayerResponse(fallback);
       setPrayerProviderNotice(
         "Đường nghe lời đang chập chờn. Con thử lại một nhịp nữa nha.",
       );
     } finally {
-      prayerRequestInFlightRef.current = false;
-      setIsPrayerResponseLoading(false);
+      if (prayerRequestTokenRef.current === prayerRequestToken) {
+        prayerAbortControllerRef.current = null;
+        prayerRequestInFlightRef.current = false;
+        setIsPrayerResponseLoading(false);
+      }
     }
   }
 
@@ -272,10 +404,13 @@ export default function OngDiaPage() {
   }
 
   function handleLocRequest() {
-    const wish = smallPrayer.trim() || "Xin giữ lòng vững hôm nay.";
-    const result = createLocMemoryForWish(wish);
+    const prayer = smallPrayer.trim() || "Xin giữ lòng vững hôm nay.";
+    const locMemoryWish = smallPrayer.trim()
+      ? "Xin một lộc nhỏ theo lời khấn riêng."
+      : "Xin giữ lòng vững hôm nay.";
+    const result = createLocMemoryForWish(locMemoryWish);
 
-    void requestPrayerResponse("Mở một lộc nhỏ", wish, result.ok, "ritual");
+    void requestPrayerResponse("Mở một lộc nhỏ", prayer, result.ok, "ritual");
 
     if (!result.ok) {
       setLocNotice(result.message);
@@ -357,8 +492,22 @@ export default function OngDiaPage() {
           </p>
         ) : null}
 
+        <p className="ong-dia-privacy-note">{PRAYER_PRIVACY_NOTE}</p>
+
+        {prayerClearConfirmation ? (
+          <p className="ong-dia-clear-confirmation" aria-live="polite">
+            {prayerClearConfirmation}
+          </p>
+        ) : null}
+
         {prayerResponse ? (
-          <article className="ong-dia-prayer-response" aria-live="polite">
+          <article
+            className={`ong-dia-prayer-response ${
+              isPrayerClearing ? "ong-dia-prayer-response-clearing" : ""
+            }`}
+            aria-live="polite"
+            aria-busy={isPrayerClearing || isPrayerResponseLoading}
+          >
             {isPrayerResponseLoading ? (
               <p className="ong-dia-response-loading">Ông Địa đang nghe...</p>
             ) : null}
@@ -393,6 +542,7 @@ export default function OngDiaPage() {
           </label>
           <textarea
             id="ong-dia-prayer"
+            ref={prayerInputRef}
             value={smallPrayer}
             onChange={(event) => setSmallPrayer(event.target.value)}
             maxLength={160}
@@ -412,6 +562,20 @@ export default function OngDiaPage() {
               disabled={isPrayerResponseLoading}
             >
               Mở một lộc nhỏ
+            </button>
+            <button
+              type="button"
+              className="ong-dia-clear-prayer-button"
+              onClick={handleClearPrayerConversation}
+              disabled={
+                isPrayerClearing ||
+                (!prayerResponse &&
+                  prayerConversationHistory.length === 0 &&
+                  !prayerProviderNotice &&
+                  !isPrayerResponseLoading)
+              }
+            >
+              Xóa lời khấn
             </button>
           </div>
         </div>
@@ -1138,7 +1302,9 @@ export default function OngDiaPage() {
 
         .ong-dia-soft-blessing,
         .ong-dia-loc-notice,
-        .ong-dia-safety-copy {
+        .ong-dia-safety-copy,
+        .ong-dia-privacy-note,
+        .ong-dia-clear-confirmation {
           margin: 0;
           border: 1px solid rgba(255, 212, 139, 0.18);
           border-radius: 16px;
@@ -1147,8 +1313,20 @@ export default function OngDiaPage() {
           line-height: 1.45;
         }
 
-        .ong-dia-soft-blessing {
+        .ong-dia-soft-blessing,
+        .ong-dia-clear-confirmation {
           color: #fff0c2 !important;
+        }
+
+        .ong-dia-privacy-note {
+          color: rgba(255, 239, 203, 0.74) !important;
+          font-size: 0.88rem;
+        }
+
+        .ong-dia-clear-confirmation {
+          border-color: rgba(255, 212, 139, 0.24);
+          background: rgba(255, 212, 139, 0.1);
+          font-size: 0.9rem;
         }
 
         .ong-dia-prayer-response {
@@ -1161,6 +1339,18 @@ export default function OngDiaPage() {
             linear-gradient(135deg, rgba(255, 244, 221, 0.13), transparent 42%),
             rgba(255, 244, 221, 0.08);
           padding: 0.85rem;
+          transition:
+            opacity 1.5s ease,
+            transform 1.5s ease,
+            filter 1.5s ease;
+          will-change: opacity, transform, filter;
+        }
+
+        .ong-dia-prayer-response-clearing {
+          opacity: 0;
+          transform: translateY(-10px);
+          filter: blur(2px);
+          pointer-events: none;
         }
 
         .ong-dia-prayer-response div {
@@ -1302,6 +1492,18 @@ export default function OngDiaPage() {
         .ong-dia-prayer-actions button:last-child {
           background: #ffd48b;
           box-shadow: 0 0 28px rgba(255, 180, 82, 0.25);
+        }
+
+        .ong-dia-prayer-actions .ong-dia-clear-prayer-button {
+          color: #fff4dd;
+          background: rgba(43, 19, 11, 0.42);
+          border-color: rgba(255, 212, 139, 0.22);
+          box-shadow: none;
+        }
+
+        .ong-dia-prayer-actions .ong-dia-clear-prayer-button:disabled {
+          cursor: default;
+          opacity: 0.45;
         }
 
         .ong-dia-result-card {
@@ -1555,6 +1757,17 @@ export default function OngDiaPage() {
           .ong-dia-dust-motes,
           .ong-dia-wish-response {
             display: none;
+          }
+
+          .ong-dia-prayer-response {
+            transition:
+              opacity 0.18s ease,
+              filter 0.18s ease;
+          }
+
+          .ong-dia-prayer-response-clearing {
+            transform: none;
+            filter: blur(1px);
           }
         }
       `}</style>

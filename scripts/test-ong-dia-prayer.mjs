@@ -870,7 +870,7 @@ test("visible Ong Dia page posts typed conversations to the single prayer endpoi
 test("visible Ong Dia page keeps ritual lane deterministic", () => {
   const page = fs.readFileSync(pagePath, "utf8");
   assert.equal(
-    page.includes('requestPrayerResponse("Mở một lộc nhỏ", wish, result.ok, "ritual")'),
+    page.includes('requestPrayerResponse("Mở một lộc nhỏ", prayer, result.ok, "ritual")'),
     true,
   );
   assert.equal(page.includes('experience: "xin_xam"'), false);
@@ -889,6 +889,68 @@ test("visible Ong Dia page bounds conversation history to the last six turns", (
   assert.equal(page.includes("return nextTurns.slice(-6);"), true);
   assert.equal(page.includes('experience === "conversation" ? prayerConversationHistory : []'), true);
   assert.equal(page.includes("setPrayerConversationHistory"), true);
+});
+
+test("visible Ong Dia page shows the private conversation-clearing note and action", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("Chợ Neo không giữ lời khấn của con."), true);
+  assert.equal(page.includes("Cuộc trò chuyện chỉ tồn tại trong phiên này"), true);
+  assert.equal(page.includes("Xóa lời khấn"), true);
+  assert.equal(page.includes("Lời khấn đã tan theo khói. Chợ Neo không lưu lại."), true);
+  assert.equal(page.includes('className="ong-dia-privacy-note"'), true);
+  assert.equal(page.includes('className="ong-dia-clear-confirmation" aria-live="polite"'), true);
+});
+
+test("visible Ong Dia clear action removes ephemeral conversation state and returns focus", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("function finishPrayerClear"), true);
+  assert.equal(page.includes("setPrayerResponse(null);"), true);
+  assert.equal(page.includes("setPrayerConversationHistory([]);"), true);
+  assert.equal(page.includes('setPrayerProviderNotice("");'), true);
+  assert.equal(page.includes("setIsPrayerResponseLoading(false);"), true);
+  assert.equal(page.includes('setSmallPrayer("");'), true);
+  assert.equal(page.includes('setBlessingMessage("");'), true);
+  assert.equal(page.includes("setLocResult(null);"), true);
+  assert.equal(page.includes('setLocNotice("");'), true);
+  assert.equal(page.includes("prayerRequestInFlightRef.current = false;"), true);
+  assert.equal(page.includes("prayerInputRef.current?.focus();"), true);
+});
+
+test("visible Ong Dia clear action aborts pending requests and removes only conversation storage", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("prayerAbortControllerRef.current?.abort();"), true);
+  assert.equal(page.includes("prayerRequestTokenRef.current += 1;"), true);
+  assert.equal(page.includes("clearOngDiaConversationStorage();"), true);
+  assert.equal(page.includes("choNeo.ongDiaConversation"), true);
+  assert.equal(page.includes("choNeo.ongDiaPrayerConversation"), true);
+  assert.equal(page.includes("choNeo.ongDiaPrayerSession"), true);
+  assert.equal(page.includes("SHRINE_MEMORY_KEY"), false);
+  assert.equal(page.includes("LOC_MEMORY_KEY"), false);
+});
+
+test("visible Ong Dia lộc ritual does not store the typed prayer text as local memory", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes('const prayer = smallPrayer.trim() || "Xin giữ lòng vững hôm nay.";'), true);
+  assert.equal(page.includes('const locMemoryWish = smallPrayer.trim()'), true);
+  assert.equal(page.includes('"Xin một lộc nhỏ theo lời khấn riêng."'), true);
+  assert.equal(page.includes("createLocMemoryForWish(locMemoryWish)"), true);
+  assert.equal(page.includes("createLocMemoryForWish(wish)"), false);
+});
+
+test("visible Ong Dia page clears conversation storage when leaving the page", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.match(
+    page,
+    /return \(\) => \{[\s\S]*clearOngDiaConversationStorage\(\);[\s\S]*\};/,
+  );
+});
+
+test("visible Ong Dia clear animation respects reduced motion", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.equal(page.includes("PRAYER_CLEAR_ANIMATION_MS = 1500"), true);
+  assert.equal(page.includes('window.matchMedia("(prefers-reduced-motion: reduce)")'), true);
+  assert.match(page, /@media \(prefers-reduced-motion: reduce\)[\s\S]*ong-dia-prayer-response/);
+  assert.equal(page.includes("filter: blur(1px);"), true);
 });
 
 test("provider instructions define the nail knowledge boundary", async () => {
