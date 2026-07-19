@@ -29,6 +29,7 @@ export type OngDiaWishCategory =
 export type OngDiaWishSeverity = "low" | "medium" | "high";
 
 export type OngDiaPrayerResponse = {
+  noticedDetail?: string;
   loiOngDia: string;
   ongNhacNhe: string;
   viecNhoHomNay: string;
@@ -415,9 +416,9 @@ const DETERMINISTIC_SAFETY_LINES: Partial<Record<OngDiaWishCategory, string>> = 
   medical_emergency:
     "Nếu có dấu hiệu nguy hiểm cho thân thể, đi cấp cứu hoặc gọi hỗ trợ y tế ngay.",
   gambling_debt:
-    "Đừng vay thêm để che nợ cũ. Nói với một người đáng tin và giữ giấy tờ, tiền nhà trước.",
+    "Dừng chuyện gỡ trước. Nói với một người đáng tin và giữ giấy tờ, tiền nhà trước.",
   severe_debt_crisis:
-    "Đừng vay thêm để che nợ cũ. Nói với một người đáng tin và giữ giấy tờ, tiền nhà trước.",
+    "Dừng ký thêm điều gì mới trong lúc rối. Nói với một người đáng tin và giữ giấy tờ, tiền nhà trước.",
   coercion_blackmail:
     "Nếu con bị ép, bị dọa, hoặc bị giữ hình ảnh riêng tư, nói với người đáng tin và tìm chỗ hỗ trợ an toàn gần mình.",
   sexual_exploitation:
@@ -451,7 +452,13 @@ function normalizePrayerText(value: string) {
 }
 
 function hasAnyKeyword(source: string, keywords: string[]) {
-  return keywords.some((keyword) => source.includes(keyword));
+  return keywords.some((keyword) => hasKeywordMatch(source, keyword));
+}
+
+function hasKeywordMatch(source: string, keyword: string) {
+  const normalizedKeyword = normalizePrayerText(keyword);
+  const escapedKeyword = normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escapedKeyword}([^a-z0-9]|$)`).test(source);
 }
 
 function categoryHasMatch(original: string, normalized: string, category: OngDiaWishCategory) {
@@ -514,7 +521,10 @@ export function detectImmediateRisk(prayer: string): OngDiaWishRoute | null {
 function matchesCategory(prayer: string, normalized: string, category: OngDiaWishCategory) {
   return CATEGORY_KEYWORDS[category].some((keyword) => {
     const normalizedKeyword = normalizePrayerText(keyword);
-    return prayer.includes(keyword.toLowerCase()) || normalized.includes(normalizedKeyword);
+    return (
+      hasKeywordMatch(prayer, keyword.toLowerCase()) ||
+      hasKeywordMatch(normalized, normalizedKeyword)
+    );
   });
 }
 
@@ -639,7 +649,7 @@ export function createFallbackOngDiaPrayerResponse(
         loiOngDia:
           "Ông nghe lòng con đang nặng. Nợ với cờ bạc là chuyện không nên để một người ôm hết.",
         ongNhacNhe:
-          "Trước hết giữ tiền nhà, giấy tờ, và sự an toàn của con. Đừng lấy nợ mới che nợ cũ.",
+          "Trước hết giữ tiền nhà, giấy tờ, và sự an toàn của con. Đừng để ý muốn gỡ kéo tay đi xa hơn.",
         viecNhoHomNay:
           "Ghi rõ khoản nợ, ai đang giữ tiền, rồi nói với một người thân đáng tin.",
         khiChuyenQuaNang:
@@ -650,7 +660,7 @@ export function createFallbackOngDiaPrayerResponse(
         loiOngDia:
           "Ông nghe chuyện tiền đang đè lên ngực con. Nợ càng rối càng phải giữ một đường sáng, đừng chạy trong tối.",
         ongNhacNhe:
-          "Con cần bảo vệ tiền nhà, giấy tờ, và đừng để sợ hãi kéo mình vay thêm.",
+          "Con cần bảo vệ tiền nhà, giấy tờ, và đừng để sợ hãi kéo mình ký thêm điều mới.",
         viecNhoHomNay:
           "Viết rõ từng khoản nợ, ngừng ký thêm, rồi nói với một người đáng tin hôm nay.",
       };
@@ -659,7 +669,7 @@ export function createFallbackOngDiaPrayerResponse(
         loiOngDia:
           "Lộc không chỉ là tiền vô, lộc còn là tránh mất thêm. Chuyện tiền nặng thì đi từng khoản, đừng ôm thành một cục tối.",
         ongNhacNhe:
-          "Con cần nhìn rõ khoản nào gấp, khoản nào còn nói chuyện được, khoản nào không nên vay thêm để che.",
+          "Con cần nhìn rõ khoản nào gấp, khoản nào còn nói chuyện được, khoản nào phải tạm dừng trước.",
         viecNhoHomNay:
           "Viết ba khoản quan trọng nhất, rồi chọn một cuộc gọi hoặc một tin nhắn cần làm trước.",
       };
