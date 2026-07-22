@@ -968,8 +968,10 @@ function createPrayerJson(
     provider,
     source,
     model: options.model,
+    generatedByProvider,
     latencyMs,
     tokenUsage,
+    providerCalls: options.providerTelemetry ?? [],
     repairUsed: (options.providerTelemetry ?? []).some((call) => call.phase === "repair"),
     validationFailure: options.validationFailure ?? null,
     localNormalization: options.localNormalization
@@ -987,20 +989,25 @@ function createPrayerJson(
   }
   return NextResponse.json({
     result,
-    meta: {
-      requestId: options.requestId ?? null,
-      provider,
-      source,
-      model: options.model ?? null,
-      generatedByProvider,
-      latencyMs: latencyMs ?? null,
-      tokenUsage,
-      providerCalls: options.providerTelemetry ?? [],
-      repairUsed: (options.providerTelemetry ?? []).some((call) => call.phase === "repair"),
-      validationFailure: options.validationFailure ?? null,
-      localNormalization: options.localNormalization ?? null,
+    ui: {
+      presentation: shouldUseCompactRetryPresentation(source)
+        ? "compact_retry"
+        : "keepsake",
     },
   }, { status: options.status ?? 200 });
+}
+
+function shouldUseCompactRetryPresentation(source: OngDiaPrayerSource) {
+  if (source === "openai_success" || source.startsWith("provider_")) {
+    return false;
+  }
+  if (
+    source === "fallback_safety_guardrail" ||
+    source === "fallback_deterministic_ritual"
+  ) {
+    return false;
+  }
+  return source.startsWith("fallback_") || source.startsWith("openai_");
 }
 
 function summarizeProviderTelemetry(calls: ProviderCallTelemetry[]) {

@@ -87,11 +87,59 @@ function makeRequest(body, headers = {}) {
 }
 
 async function callPrayer(body, headers) {
-  const response = await POST(makeRequest(body, headers));
+  const originalInfo = console.info;
+  const originalWarn = console.warn;
+  let capturedDiagnostics = null;
+  function captureDiagnosticLog(...args) {
+    const [message, details] = args;
+    if (
+      typeof message === "string" &&
+      message.startsWith("[ong-dia-prayer] Using ") &&
+      details &&
+      typeof details === "object"
+    ) {
+      capturedDiagnostics = details;
+    }
+  }
+  console.info = (...args) => {
+    captureDiagnosticLog(...args);
+  };
+  console.warn = (...args) => {
+    captureDiagnosticLog(...args);
+  };
+  let response;
+  try {
+    response = await POST(makeRequest(body, headers));
+  } finally {
+    console.info = originalInfo;
+    console.warn = originalWarn;
+  }
+  const responseBody = await response.json();
+  if (capturedDiagnostics) {
+    responseBody.meta = capturedDiagnostics;
+  }
   return {
     status: response.status,
-    body: await response.json(),
+    body: responseBody,
   };
+}
+
+async function callPublicPrayer(body, headers) {
+  const originalInfo = console.info;
+  const originalWarn = console.warn;
+  console.info = () => {};
+  console.warn = () => {};
+  try {
+    const response = await POST(makeRequest(body, headers));
+    return {
+      status: response.status,
+      body: await response.json(),
+      headers: Object.fromEntries(response.headers.entries()),
+    };
+  } finally {
+    console.info = originalInfo;
+    console.warn = originalWarn;
+  }
 }
 
 function providerPayload({
@@ -223,6 +271,47 @@ test("default conversation uses OpenAI Responses structured output", async () =>
   assert.equal(calls[0].body.text.format.schema.properties.viecNhoHomNay, undefined);
   assert.match(calls[0].body.instructions, /You are Ông Địa in Chợ Neo/);
   assert.doesNotMatch(JSON.stringify(body.meta), /tiệm đông khách|Làm sao/);
+});
+
+test("public OpenAI success response omits provider diagnostics", async () => {
+  delete process.env.ONG_DIA_PROVIDER;
+  delete process.env.ONG_DIA_AI_PROVIDER;
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  process.env.OPENAI_ONG_DIA_MODEL = "gpt-4.1-mini-test";
+  mockOpenAI();
+
+  const { status, body, headers } = await callPublicPrayer({
+    prayer: "Làm sao cho tiệm đông khách, Ông Địa ơi?",
+  });
+
+  assert.equal(status, 200);
+  assert.equal(body.result.loiOngDia.length > 0, true);
+  assert.equal(body.ui.presentation, "keepsake");
+  assert.equal("meta" in body, false);
+  assert.equal("provider" in body, false);
+  assert.equal("source" in body, false);
+  assert.equal("model" in body, false);
+  assert.doesNotMatch(JSON.stringify(body), /openai_success|provider_openai|gpt-4\.1|provider|source|model|tokenUsage|providerCalls|validationFailure/i);
+  assert.doesNotMatch(JSON.stringify(headers), /openai_success|provider_openai|gpt-4\.1|provider|source|model/i);
+});
+
+test("public technical fallback response omits provider diagnostics", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  delete process.env.OPENAI_API_KEY;
+
+  const { status, body, headers } = await callPublicPrayer({
+    prayer: "Hôm nay con buồn quá.",
+  });
+
+  assert.equal(status, 200);
+  assert.equal(body.result.loiOngDia.length > 0, true);
+  assert.equal(body.ui.presentation, "compact_retry");
+  assert.equal("meta" in body, false);
+  assert.equal("provider" in body, false);
+  assert.equal("source" in body, false);
+  assert.equal("model" in body, false);
+  assert.doesNotMatch(JSON.stringify(body), /fallback_no_api_key|openai|provider|source|model|tokenUsage|providerCalls|validationFailure/i);
+  assert.doesNotMatch(JSON.stringify(headers), /fallback_no_api_key|openai|provider|source|model/i);
 });
 
 test("ordinary sadness marriage money family and uncertainty prompts go directly to OpenAI", async () => {
@@ -1527,9 +1616,10 @@ test("visible Ong Dia page shows compact fallback only when current request has 
   assert.equal(page.includes('className="ong-dia-compact-fallback"'), true);
   assert.equal(page.includes('role="status" aria-live="polite"'), true);
   assert.equal(page.includes("setPrayerResponse(null);"), true);
-  assert.equal(page.includes("TECHNICAL_PRAYER_FALLBACK_SOURCES"), true);
-  assert.equal(page.includes('"openai_invalid_output"'), true);
-  assert.equal(page.includes('"fallback_provider_rate_limited"'), true);
+  assert.equal(page.includes('presentation?: "keepsake" | "compact_retry"'), true);
+  assert.equal(page.includes('ui?.presentation === "compact_retry"'), true);
+  assert.doesNotMatch(page, /TECHNICAL_PRAYER_FALLBACK_SOURCES|openai_invalid_output|fallback_provider_rate_limited/);
+  assert.doesNotMatch(page, /payload\.meta|meta\.source|generatedByProvider|provider_openai|openai_success/);
 });
 
 test("visible Ong Dia page uses one fetch path and no speech listener auto-submit", () => {

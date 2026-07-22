@@ -46,9 +46,8 @@ type PrayerTurn = {
   successAccepted: boolean;
 };
 
-type PrayerResponseMeta = {
-  source?: string;
-  generatedByProvider?: boolean;
+type PrayerResponseUi = {
+  presentation?: "keepsake" | "compact_retry";
 };
 
 type LastPrayerRequest = {
@@ -137,66 +136,11 @@ function trackOngDiaV1NextDayReturn(todayKey: string) {
   }
 }
 
-function createPrayerProviderNotice(meta?: PrayerResponseMeta) {
-  if (!meta || meta.generatedByProvider) return "";
-
-  if (meta.source === "fallback_deterministic_ritual") {
-    return "Ông Địa giữ lời vía sẵn cho nghi lễ nhỏ này.";
-  }
-
-  if (meta.source === "fallback_safety_guardrail") {
-    return "Ông Địa giữ lời an toàn trước, rồi mới nói chuyện nhẹ sau.";
-  }
-
-  if (meta.source === "fallback_no_api_key") {
-    return "Hôm nay đường hương chưa mở, Ông Địa giữ lời vía sẵn.";
-  }
-
-  if (meta.source === "fallback_provider_timeout") {
-    return "Đường hương chậm một nhịp, Ông Địa giữ lời vía sẵn.";
-  }
-
-  if (meta.source === "fallback_provider_rate_limited") {
-    return "Đường hương đang đông, Ông Địa giữ lời vía sẵn trước.";
-  }
-
-  if (meta.source?.startsWith("fallback_")) {
-    return "Đường hương chưa thông, Ông Địa giữ lời vía sẵn.";
-  }
-
-  return "";
-}
-
-function isProviderPrayerSuccess(meta?: PrayerResponseMeta) {
-  return meta?.generatedByProvider === true || meta?.source?.startsWith("provider_");
-}
-
-const TECHNICAL_PRAYER_FALLBACK_SOURCES = new Set([
-  "fallback_no_api_key",
-  "fallback_provider_unavailable",
-  "fallback_provider_timeout",
-  "fallback_provider_rate_limited",
-  "fallback_malformed_provider_response",
-  "fallback_json_parse_error",
-  "fallback_validation_error",
-  "openai_timeout",
-  "openai_rate_limited",
-  "openai_unavailable",
-  "openai_invalid_output",
-]);
-
 function shouldUseCompactPrayerFallback(
   experience: PrayerExperience,
-  meta?: PrayerResponseMeta,
+  ui?: PrayerResponseUi,
 ) {
-  if (experience !== "conversation") return false;
-  if (!meta?.source) return false;
-  if (TECHNICAL_PRAYER_FALLBACK_SOURCES.has(meta.source)) return true;
-  if (!meta.source.startsWith("fallback_")) return false;
-  return ![
-    "fallback_safety_guardrail",
-    "fallback_deterministic_ritual",
-  ].includes(meta.source);
+  return experience === "conversation" && ui?.presentation === "compact_retry";
 }
 
 function appendPrayerConversationTurn(
@@ -464,7 +408,6 @@ export default function OngDiaPage() {
 
     const acceptPrayerSuccess = (
       result: OngDiaPrayerResponse,
-      meta?: PrayerResponseMeta,
     ) => {
       if (!isCurrentPrayerTurn()) return false;
       activePrayerTurnRef.current = {
@@ -473,7 +416,7 @@ export default function OngDiaPage() {
       };
       setPrayerResponse(result);
       setPrayerCompactFallback("");
-      setPrayerProviderNotice(createPrayerProviderNotice(meta));
+      setPrayerProviderNotice("");
       return true;
     };
 
@@ -529,7 +472,7 @@ export default function OngDiaPage() {
         if (!response.ok) return null;
         return (await response.json()) as {
           result?: OngDiaPrayerResponse;
-          meta?: PrayerResponseMeta;
+          ui?: PrayerResponseUi;
         };
       });
 
@@ -555,10 +498,9 @@ export default function OngDiaPage() {
       if (payload?.result?.loiOngDia) {
         const isAuthoritativeResult =
           experience !== "conversation" ||
-          isProviderPrayerSuccess(payload.meta) ||
-          !shouldUseCompactPrayerFallback(experience, payload.meta);
+          !shouldUseCompactPrayerFallback(experience, payload.ui);
         if (isAuthoritativeResult) {
-          const accepted = acceptPrayerSuccess(payload.result, payload.meta);
+          const accepted = acceptPrayerSuccess(payload.result);
           if (accepted && experience === "conversation") {
             setPrayerConversationHistory((current) =>
               appendPrayerConversationTurn(current, prayerForEndpoint, payload.result!),
@@ -571,7 +513,6 @@ export default function OngDiaPage() {
               room: "ong-dia-shrine",
               details: {
                 experience,
-                source: payload.meta?.source,
               },
             });
           }
