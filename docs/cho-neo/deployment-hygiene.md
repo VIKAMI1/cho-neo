@@ -43,8 +43,9 @@ npx vercel --prod
 - Shared Quán Tám memory: production should set `NEXT_PUBLIC_SUPABASE_URL` and
   a public Supabase key. Host-only moderation tools additionally require
   `SUPABASE_SERVICE_ROLE_KEY` and `CHO_NEO_HOST_TOOLS_KEY`.
-- Emergency posting switch: set `CHO_NEO_GOSSIP_POSTING_DISABLED=1` to disable
-  new front-counter posts while leaving the room readable.
+- Emergency posting switch: set `CHO_NEO_GOSSIP_POSTING_DISABLED=1` or
+  `CHO_NEO_GOSSIP_POSTING_DISABLED=true` to disable new front-counter posts
+  while leaving the room readable.
 - If Ông Địa provider traffic fails, do not change UI copy first. Check
   `/api/health`, server logs for `[ong-dia-prayer]`, provider status, and
   environment variable presence.

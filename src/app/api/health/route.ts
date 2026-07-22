@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isChoNeoGossipPostingDisabled } from "@/lib/cho-neo/env-flags";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +23,7 @@ export function GET() {
               process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
             ),
         ),
-        gossipPostingDisabled:
-          process.env.CHO_NEO_GOSSIP_POSTING_DISABLED === "1",
+        gossipPostingDisabled: isChoNeoGossipPostingDisabled(),
       },
     },
     {

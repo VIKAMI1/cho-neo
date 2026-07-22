@@ -4,6 +4,7 @@ import {
   CHO_NEO_AVATARS,
   isValidVillageNickname,
 } from "@/lib/cho-neo/avatar-identity";
+import { isChoNeoGossipPostingDisabled } from "@/lib/cho-neo/env-flags";
 import {
   FRONT_COUNTER_MESSAGE_CAP,
   FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
@@ -383,7 +384,7 @@ function isMissingModerationColumns(error: { code?: string; message?: string }) 
 }
 
 function isPostingDisabled() {
-  return process.env.CHO_NEO_GOSSIP_POSTING_DISABLED === "1";
+  return isChoNeoGossipPostingDisabled();
 }
 
 function getClientKey(request: Request) {

@@ -89,6 +89,7 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "cho-neo-readiness-"));
 const routePath = path.join(repoRoot, "src/app/api/cho-neo/gossip/front-counter/messages/route.ts");
 const avatarPath = path.join(repoRoot, "src/lib/cho-neo/avatar-identity.ts");
 const frontCounterLibPath = path.join(repoRoot, "src/lib/cho-neo/gossip-front-counter.ts");
+const envFlagsPath = path.join(repoRoot, "src/lib/cho-neo/env-flags.ts");
 const tempRoutePath = path.join(tempDir, "front-counter-route-under-test.ts");
 const routeSource = fs
   .readFileSync(routePath, "utf8")
@@ -114,6 +115,10 @@ const routeSource = fs
     `from ${JSON.stringify(pathToFileURL(avatarPath).href)};`,
   )
   .replace(
+    'from "@/lib/cho-neo/env-flags";',
+    `from ${JSON.stringify(pathToFileURL(envFlagsPath).href)};`,
+  )
+  .replace(
     `import {
   FRONT_COUNTER_MESSAGE_CAP,
   FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
@@ -132,6 +137,7 @@ type FrontCounterMessage = {
 
 fs.writeFileSync(tempRoutePath, routeSource);
 const { POST } = await import(pathToFileURL(tempRoutePath).href);
+const { isChoNeoGossipPostingDisabled } = await import(pathToFileURL(envFlagsPath).href);
 
 const ORIGINAL_ENV = {
   CHO_NEO_GOSSIP_POSTING_DISABLED: process.env.CHO_NEO_GOSSIP_POSTING_DISABLED,
@@ -178,6 +184,60 @@ test("front-counter emergency switch disables posting while preserving a safe er
   assert.equal(response.status, 503);
   assert.equal(body.reason, "posting-disabled");
   assert.doesNotMatch(JSON.stringify(body), /Supabase|service role|API key|OPENAI/i);
+});
+
+test("posting disabled flag accepts normal boolean-style disabled values", async () => {
+  const cases = [
+    ["1", true],
+    ["true", true],
+    ["  TRUE  ", true],
+    ["yes", true],
+    ["on", true],
+    ["false", false],
+    ["0", false],
+    ["no", false],
+    ["off", false],
+    ["", false],
+    [undefined, false],
+  ];
+
+  assert.match(healthRoute, /isChoNeoGossipPostingDisabled\(\)/);
+  assert.match(frontCounterRoute, /isChoNeoGossipPostingDisabled\(\)/);
+
+  for (const [value, expected] of cases) {
+    if (value === undefined) {
+      delete process.env.CHO_NEO_GOSSIP_POSTING_DISABLED;
+    } else {
+      process.env.CHO_NEO_GOSSIP_POSTING_DISABLED = value;
+    }
+    assert.equal(isChoNeoGossipPostingDisabled(), expected, `flag value ${String(value)}`);
+  }
+
+  restoreEnv();
+});
+
+test("health reporting and server enforcement agree for posting disable flag", async () => {
+  for (const value of [" true ", "FALSE"]) {
+    process.env.CHO_NEO_GOSSIP_POSTING_DISABLED = value;
+    const effectiveDisabled = isChoNeoGossipPostingDisabled();
+    const response = await POST(
+      postRequest({
+        avatarId: "front-counter-pro",
+        nickname: "Test",
+        text: "Một câu đủ dài để thử.",
+      }),
+    );
+    const body = await response.json();
+
+    if (effectiveDisabled) {
+      assert.equal(response.status, 503);
+      assert.equal(body.reason, "posting-disabled");
+    } else {
+      assert.notEqual(body.reason, "posting-disabled");
+    }
+  }
+
+  restoreEnv();
 });
 
 test("front-counter post rate limit triggers before backend dependency writes", async () => {
