@@ -107,8 +107,8 @@ export function ChoNeoVillageShell() {
             <div className="guide-preview">
               <strong>Nhìn cửa rồi chọn chỗ ngồi.</strong>
               <span>
-                Quán Tám, Bàn Ông Địa, và Khoe Set đang mở trước. Các cửa còn
-                lại giữ đèn chờ làng đông hơn.
+                Quán Tám và Bàn Ông Địa đang mở trước. Các cửa còn lại giữ đèn
+                chờ làng đông hơn.
               </span>
               <small>Hover or tap a door on the map for more detail.</small>
             </div>

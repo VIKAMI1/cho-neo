@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import ChoNeoThemeParkAudio from "@/components/cho-neo/ChoNeoThemeParkAudio";
 import {
   createLocMemoryForWish,
   getLocalDayKey,
@@ -11,7 +12,11 @@ import {
   touchShrineMemory,
 } from "@/lib/cho-neo/ong-dia-ritual";
 import { type OngDiaPrayerResponse } from "@/lib/cho-neo/ong-dia-prayer";
-import { trackChoNeoBetaEvent } from "@/lib/cho-neo/beta-analytics";
+import {
+  getChoNeoBetaSessionId,
+  getChoNeoDeviceType,
+  trackChoNeoBetaEvent,
+} from "@/lib/cho-neo/beta-analytics";
 
 const SHRINE_STAGE_IMAGE = "/images/cho-neo/Ong_Dia_Shrine.png";
 const ONG_DIA_V1_SUCCESS_DATE_KEY = "choNeo.ongDiaV1.lastSuccessDate";
@@ -29,6 +34,7 @@ type LocUiResult = {
 
 type PrayerExperience = "conversation" | "ritual" | "xin_xam";
 type RitualPhase = "idle" | "ritual" | "pondering";
+type OngDiaFeedbackStatus = "idle" | "saving" | "saved" | "error";
 
 type PrayerConversationTurn = {
   role: "user" | "assistant";
@@ -45,18 +51,26 @@ type PrayerResponseMeta = {
   generatedByProvider?: boolean;
 };
 
+type LastPrayerRequest = {
+  experience: PrayerExperience;
+  prayer: string;
+  ritual?: string;
+};
+
 const PRAYER_CLEAR_CONFIRMATION =
   "Lời khấn đã tan theo khói. Chợ Neo không lưu lại.";
 const PRAYER_PRIVACY_NOTE =
   "Chợ Neo không giữ lời khấn của con. Cuộc trò chuyện chỉ tồn tại trong phiên này và sẽ tan đi khi con rời Bàn Ông Địa hoặc bấm Xóa lời khấn.";
 const PRAYER_CLEAR_ANIMATION_MS = 1500;
 const COMPACT_PRAYER_FALLBACK =
-  "Ông chưa nghe rõ lời con. Chờ một chút rồi thử lại nha.";
+  "Ông Địa đang nghỉ một nhịp. Con thử lại sau nhé.";
 const ONG_DIA_CONVERSATION_STORAGE_PREFIXES = [
   "choNeo.ongDiaConversation",
   "choNeo.ongDiaPrayerConversation",
   "choNeo.ongDiaPrayerSession",
 ];
+const ONG_DIA_RITUAL_FEEDBACK_CHOICES = ["Có", "Không", "Có thể"] as const;
+const ONG_DIA_AFTER_CHAT_FEEDBACK_CHOICES = ["Có", "Một chút", "Chưa"] as const;
 
 function getPrayerClearAnimationMs() {
   if (typeof window === "undefined") return PRAYER_CLEAR_ANIMATION_MS;
@@ -77,9 +91,6 @@ function createOngDiaShareText(response: OngDiaPrayerResponse) {
     "Lời Ông Địa hôm nay",
     "",
     response.loiOngDia,
-    response.ongNhacNhe,
-    response.viecNhoHomNay,
-    response.khiChuyenQuaNang ?? "",
   ]
     .filter((line) => line !== "")
     .join("\n");
@@ -138,19 +149,19 @@ function createPrayerProviderNotice(meta?: PrayerResponseMeta) {
   }
 
   if (meta.source === "fallback_no_api_key") {
-    return "Hôm nay đường AI chưa mở, Ông Địa dùng lời giữ vía sẵn.";
+    return "Hôm nay đường hương chưa mở, Ông Địa giữ lời vía sẵn.";
   }
 
   if (meta.source === "fallback_provider_timeout") {
-    return "Ông Địa nghe chậm quá, nên trả lời bằng lời giữ vía sẵn.";
+    return "Đường hương chậm một nhịp, Ông Địa giữ lời vía sẵn.";
   }
 
   if (meta.source === "fallback_provider_rate_limited") {
-    return "Đường AI đang đông, Ông Địa dùng lời giữ vía sẵn trước.";
+    return "Đường hương đang đông, Ông Địa giữ lời vía sẵn trước.";
   }
 
   if (meta.source?.startsWith("fallback_")) {
-    return "Ông Địa chưa gọi được AI, nên dùng lời giữ vía sẵn.";
+    return "Đường hương chưa thông, Ông Địa giữ lời vía sẵn.";
   }
 
   return "";
@@ -160,12 +171,28 @@ function isProviderPrayerSuccess(meta?: PrayerResponseMeta) {
   return meta?.generatedByProvider === true || meta?.source?.startsWith("provider_");
 }
 
+const TECHNICAL_PRAYER_FALLBACK_SOURCES = new Set([
+  "fallback_no_api_key",
+  "fallback_provider_unavailable",
+  "fallback_provider_timeout",
+  "fallback_provider_rate_limited",
+  "fallback_malformed_provider_response",
+  "fallback_json_parse_error",
+  "fallback_validation_error",
+  "openai_timeout",
+  "openai_rate_limited",
+  "openai_unavailable",
+  "openai_invalid_output",
+]);
+
 function shouldUseCompactPrayerFallback(
   experience: PrayerExperience,
   meta?: PrayerResponseMeta,
 ) {
   if (experience !== "conversation") return false;
-  if (!meta?.source?.startsWith("fallback_")) return false;
+  if (!meta?.source) return false;
+  if (TECHNICAL_PRAYER_FALLBACK_SOURCES.has(meta.source)) return true;
+  if (!meta.source.startsWith("fallback_")) return false;
   return ![
     "fallback_safety_guardrail",
     "fallback_deterministic_ritual",
@@ -182,9 +209,7 @@ function appendPrayerConversationTurn(
     { role: "user", content: userPrayer || "Xin vía nhẹ" },
     {
       role: "assistant",
-      content: [response.loiOngDia, response.ongNhacNhe, response.viecNhoHomNay]
-        .filter(Boolean)
-        .join(" "),
+      content: response.loiOngDia,
     },
   ];
 
@@ -277,11 +302,19 @@ export default function OngDiaPage() {
   const [prayerClearConfirmation, setPrayerClearConfirmation] = useState("");
   const [locResult, setLocResult] = useState<LocUiResult | null>(null);
   const [locNotice, setLocNotice] = useState("");
+  const [isOngDiaFeedbackOpen, setIsOngDiaFeedbackOpen] = useState(false);
+  const [ongDiaFeedbackStatus, setOngDiaFeedbackStatus] =
+    useState<OngDiaFeedbackStatus>("idle");
+  const [ongDiaRitualFeedback, setOngDiaRitualFeedback] = useState("");
+  const [ongDiaHelpFeedback, setOngDiaHelpFeedback] = useState("");
+  const [ongDiaAfterChatFeedback, setOngDiaAfterChatFeedback] = useState("");
+  const [ongDiaFinalFeedback, setOngDiaFinalFeedback] = useState("");
   const blessingMessageIndexRef = useRef(0);
   const prayerRequestInFlightRef = useRef(false);
   const prayerRequestTokenRef = useRef(0);
   const activePrayerTurnRef = useRef<PrayerTurn | null>(null);
   const prayerAbortControllerRef = useRef<AbortController | null>(null);
+  const lastPrayerRequestRef = useRef<LastPrayerRequest | null>(null);
   const prayerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const prayerClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastBlessingVisualAtRef = useRef(0);
@@ -406,6 +439,11 @@ export default function OngDiaPage() {
     const hasFreeText = Boolean(prayerForEndpoint);
     const history =
       experience === "conversation" ? prayerConversationHistory : [];
+    lastPrayerRequestRef.current = {
+      experience,
+      prayer: prayerForEndpoint,
+      ritual,
+    };
 
     if (prayerClearTimerRef.current) {
       clearTimeout(prayerClearTimerRef.current);
@@ -514,11 +552,7 @@ export default function OngDiaPage() {
 
       if (!isCurrentPrayerTurn()) return;
 
-      if (
-        payload?.result?.loiOngDia &&
-        payload.result.ongNhacNhe &&
-        payload.result.viecNhoHomNay
-      ) {
+      if (payload?.result?.loiOngDia) {
         const isAuthoritativeResult =
           experience !== "conversation" ||
           isProviderPrayerSuccess(payload.meta) ||
@@ -568,6 +602,17 @@ export default function OngDiaPage() {
   function handleBlessingRequest() {
     const experience = smallPrayer.trim() ? "conversation" : "ritual";
     void requestPrayerResponse("Xin vía nhẹ", undefined, true, experience);
+  }
+
+  function handleRetryPrayerRequest() {
+    const lastRequest = lastPrayerRequestRef.current;
+    if (!lastRequest || isPrayerResponseLoading) return;
+    void requestPrayerResponse(
+      lastRequest.ritual ?? "Xin vía nhẹ",
+      lastRequest.prayer,
+      true,
+      lastRequest.experience,
+    );
   }
 
   function handleFollowUpStart() {
@@ -640,6 +685,68 @@ export default function OngDiaPage() {
     });
   }
 
+  function openOngDiaFeedback() {
+    setIsOngDiaFeedbackOpen(true);
+    setOngDiaFeedbackStatus("idle");
+    trackChoNeoBetaEvent("feedback_opened", {
+      room: "ong-dia-shrine",
+      details: { page: "ong-dia", source: "ong-dia-header" },
+    });
+  }
+
+  function closeOngDiaFeedback() {
+    setIsOngDiaFeedbackOpen(false);
+    trackChoNeoBetaEvent("feedback_closed", {
+      room: "ong-dia-shrine",
+      details: { page: "ong-dia", source: "ong-dia-header" },
+    });
+  }
+
+  async function submitOngDiaFeedback() {
+    setOngDiaFeedbackStatus("saving");
+
+    try {
+      const response = await fetch("/api/cho-neo/beta-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "feedback",
+          timestamp: new Date().toISOString(),
+          path: "/cho-neo/ong-dia",
+          room: "ong-dia-shrine",
+          deviceType: getChoNeoDeviceType(),
+          anonymousSessionId: getChoNeoBetaSessionId(),
+          answers: {
+            page: "ong-dia",
+            ritualInterest: ongDiaRitualFeedback,
+            afterChatFeeling: ongDiaAfterChatFeedback,
+            responseShown: Boolean(prayerResponse),
+          },
+          comments: {
+            hopedHelp: ongDiaHelpFeedback,
+            finalComment: ongDiaFinalFeedback,
+          },
+          details: {
+            page: "ong-dia",
+            responseShown: Boolean(prayerResponse),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Feedback save failed");
+      }
+
+      setOngDiaFeedbackStatus("saved");
+      trackChoNeoBetaEvent("feedback_submitted", {
+        room: "ong-dia-shrine",
+        details: { page: "ong-dia", responseShown: Boolean(prayerResponse) },
+      });
+    } catch {
+      setOngDiaFeedbackStatus("error");
+    }
+  }
+
   function handleLocRequest() {
     const prayer = smallPrayer.trim() || "Xin giữ lòng vững hôm nay.";
     const locMemoryWish = smallPrayer.trim()
@@ -673,15 +780,130 @@ export default function OngDiaPage() {
           <h1 id="ong-dia-title">Ghé Ông Địa</h1>
         </div>
 
-        <Link
-          href="/cho-neo"
-          className="ong-dia-back"
-          aria-label="Về Sân Làng"
-          title="Về Sân Làng"
-        >
-          <span aria-hidden="true">←</span>
-        </Link>
+        <div className="ong-dia-header-actions" aria-label="Điều khiển trang Ông Địa">
+          <ChoNeoThemeParkAudio
+            className="ong-dia-header-music"
+            variant="compact"
+          />
+          <button
+            type="button"
+            className="ong-dia-feedback-trigger"
+            onClick={openOngDiaFeedback}
+            aria-haspopup="dialog"
+            aria-expanded={isOngDiaFeedbackOpen}
+          >
+            Góp ý
+          </button>
+          <Link
+            href="/cho-neo"
+            className="ong-dia-back"
+            aria-label="Về Sân Làng"
+            title="Về Sân Làng"
+          >
+            <span aria-hidden="true">←</span>
+          </Link>
+        </div>
       </section>
+
+      {isOngDiaFeedbackOpen ? (
+        <section
+          className="ong-dia-feedback-panel"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="ong-dia-feedback-title"
+        >
+          <header>
+            <div>
+              <p id="ong-dia-feedback-title">Góp ý Ông Địa</p>
+              <span>Không cần tài khoản. Không gửi lời khấn hay lịch sử trò chuyện.</span>
+            </div>
+            <button
+              type="button"
+              onClick={closeOngDiaFeedback}
+              aria-label="Đóng góp ý Ông Địa"
+            >
+              ×
+            </button>
+          </header>
+
+          <div className="ong-dia-feedback-body">
+            <fieldset>
+              <legend>
+                Bạn có muốn có thêm nghi thức nhỏ như thắp nhang hoặc dâng chè cho Ông Địa không?
+              </legend>
+              <div className="ong-dia-feedback-options">
+                {ONG_DIA_RITUAL_FEEDBACK_CHOICES.map((choice) => (
+                  <button
+                    key={choice}
+                    type="button"
+                    className={ongDiaRitualFeedback === choice ? "selected" : ""}
+                    onClick={() => setOngDiaRitualFeedback(choice)}
+                    aria-pressed={ongDiaRitualFeedback === choice}
+                  >
+                    {choice}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <label>
+              <span>Khi ghé Ông Địa, bạn mong Ông giúp điều gì nhất?</span>
+              <input
+                value={ongDiaHelpFeedback}
+                onChange={(event) => setOngDiaHelpFeedback(event.target.value)}
+                maxLength={220}
+                placeholder="Viết ngắn thôi cũng được..."
+              />
+            </label>
+
+            <fieldset>
+              <legend>
+                Sau khi trò chuyện, bạn có thấy nhẹ lòng hoặc sáng ý hơn không?
+              </legend>
+              <div className="ong-dia-feedback-options">
+                {ONG_DIA_AFTER_CHAT_FEEDBACK_CHOICES.map((choice) => (
+                  <button
+                    key={choice}
+                    type="button"
+                    className={ongDiaAfterChatFeedback === choice ? "selected" : ""}
+                    onClick={() => setOngDiaAfterChatFeedback(choice)}
+                    aria-pressed={ongDiaAfterChatFeedback === choice}
+                  >
+                    {choice}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <label>
+              <span>Bạn muốn góp thêm điều gì?</span>
+              <textarea
+                value={ongDiaFinalFeedback}
+                onChange={(event) => setOngDiaFinalFeedback(event.target.value)}
+                maxLength={600}
+                placeholder="Góp thêm một ý nhỏ..."
+              />
+            </label>
+          </div>
+
+          <footer>
+            <p aria-live="polite">
+              {ongDiaFeedbackStatus === "saved"
+                ? "Cảm ơn nha. Góp ý đã gửi về Chợ Neo."
+                : ongDiaFeedbackStatus === "error"
+                  ? "Chưa gửi được. Bạn thử lại sau nha."
+                  : "Góp ý này riêng tư, không đăng ra bàn chung."}
+            </p>
+            <button
+              type="button"
+              onClick={submitOngDiaFeedback}
+              disabled={ongDiaFeedbackStatus === "saving"}
+            >
+              {ongDiaFeedbackStatus === "saving" ? "Đang gửi..." : "Gửi góp ý"}
+            </button>
+          </footer>
+        </section>
+      ) : null}
 
       <section className="ong-dia-stage-wrap" aria-label="Sân khấu Ông Địa">
         <div
@@ -731,9 +953,16 @@ export default function OngDiaPage() {
         ) : null}
 
         {prayerCompactFallback ? (
-          <p className="ong-dia-compact-fallback" role="status" aria-live="polite">
-            {prayerCompactFallback}
-          </p>
+          <div className="ong-dia-compact-fallback" role="status" aria-live="polite">
+            <span>{prayerCompactFallback}</span>
+            <button
+              type="button"
+              onClick={handleRetryPrayerRequest}
+              disabled={isPrayerResponseLoading}
+            >
+              Thử lại
+            </button>
+          </div>
         ) : null}
 
         {prayerResponse ? (
@@ -751,20 +980,6 @@ export default function OngDiaPage() {
             <div className="ong-dia-keepsake-line ong-dia-keepsake-main">
               <span>{prayerResponse.loiOngDia}</span>
             </div>
-            <div className="ong-dia-keepsake-line">
-              <small>Ông nhắc nhẹ</small>
-              <span>{prayerResponse.ongNhacNhe}</span>
-            </div>
-            <div className="ong-dia-keepsake-line">
-              <small>Việc nhỏ hôm nay</small>
-              <span>{prayerResponse.viecNhoHomNay}</span>
-            </div>
-            {prayerResponse.khiChuyenQuaNang ? (
-              <div className="ong-dia-keepsake-line">
-                <small>Khi chuyện quá nặng</small>
-                <span>{prayerResponse.khiChuyenQuaNang}</span>
-              </div>
-            ) : null}
             <div className="ong-dia-keepsake-actions" aria-label="Hành động với lời Ông Địa">
               <button type="button" onClick={handleShareKeepsake}>
                 Share
@@ -1007,6 +1222,46 @@ export default function OngDiaPage() {
           color: rgba(255, 244, 221, 0.62);
         }
 
+        .ong-dia-header-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 0.55rem;
+          flex: 0 0 auto;
+          min-width: 0;
+        }
+
+        .ong-dia-header-music {
+          flex: 0 0 auto;
+        }
+
+        .ong-dia-feedback-trigger {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          height: 44px;
+          min-width: 82px;
+          padding: 0 0.85rem;
+          border: 1px solid rgba(255, 212, 139, 0.3);
+          border-radius: 12px;
+          color: #ffe7ae;
+          background: rgba(52, 22, 12, 0.66);
+          box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
+          cursor: pointer;
+          font: inherit;
+          font-size: 0.88rem;
+          font-weight: 650;
+          line-height: 1;
+          white-space: nowrap;
+        }
+
+        .ong-dia-feedback-trigger:hover,
+        .ong-dia-feedback-trigger:focus-visible {
+          border-color: rgba(255, 212, 139, 0.52);
+          background: rgba(72, 31, 16, 0.78);
+          outline: none;
+        }
+
         .ong-dia-back {
           display: inline-flex;
           align-items: center;
@@ -1025,6 +1280,178 @@ export default function OngDiaPage() {
         .ong-dia-back span {
           font-size: 1.22rem;
           line-height: 1;
+        }
+
+        .ong-dia-feedback-panel {
+          width: min(680px, 100%);
+          margin: 0 auto 1rem;
+          border: 1px solid rgba(255, 212, 139, 0.24);
+          border-radius: 18px;
+          background:
+            linear-gradient(135deg, rgba(255, 214, 142, 0.12), transparent 38%),
+            rgba(41, 18, 11, 0.94);
+          box-shadow: 0 24px 58px rgba(0, 0, 0, 0.34);
+          color: #fff4dd;
+          overflow: hidden;
+        }
+
+        .ong-dia-feedback-panel header,
+        .ong-dia-feedback-panel footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.8rem;
+          padding: 0.9rem 1rem;
+          border-bottom: 1px solid rgba(255, 212, 139, 0.14);
+        }
+
+        .ong-dia-feedback-panel footer {
+          border-top: 1px solid rgba(255, 212, 139, 0.14);
+          border-bottom: 0;
+        }
+
+        .ong-dia-feedback-panel p,
+        .ong-dia-feedback-panel span,
+        .ong-dia-feedback-panel legend {
+          margin: 0;
+        }
+
+        .ong-dia-feedback-panel header p {
+          color: #fff0c2;
+          font-size: 1rem;
+          font-weight: 680;
+          line-height: 1.2;
+        }
+
+        .ong-dia-feedback-panel header span,
+        .ong-dia-feedback-panel footer p {
+          display: block;
+          margin-top: 0.22rem;
+          color: rgba(255, 244, 221, 0.68);
+          font-size: 0.82rem;
+          line-height: 1.35;
+        }
+
+        .ong-dia-feedback-panel header button,
+        .ong-dia-feedback-panel footer button,
+        .ong-dia-feedback-options button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 40px;
+          border: 1px solid rgba(255, 212, 139, 0.24);
+          border-radius: 12px;
+          color: #ffe7ae;
+          background: rgba(255, 244, 221, 0.07);
+          cursor: pointer;
+          font: inherit;
+          font-size: 0.86rem;
+          font-weight: 650;
+        }
+
+        .ong-dia-feedback-panel header button {
+          flex: 0 0 auto;
+          width: 40px;
+          padding: 0;
+          font-size: 1.2rem;
+        }
+
+        .ong-dia-feedback-panel footer button {
+          flex: 0 0 auto;
+          height: 44px;
+          padding: 0 0.95rem;
+          background: rgba(92, 42, 19, 0.82);
+        }
+
+        .ong-dia-feedback-panel footer button:disabled {
+          cursor: wait;
+          opacity: 0.72;
+        }
+
+        .ong-dia-feedback-panel header button:hover,
+        .ong-dia-feedback-panel header button:focus-visible,
+        .ong-dia-feedback-panel footer button:hover,
+        .ong-dia-feedback-panel footer button:focus-visible,
+        .ong-dia-feedback-options button:hover,
+        .ong-dia-feedback-options button:focus-visible {
+          border-color: rgba(255, 212, 139, 0.5);
+          outline: none;
+        }
+
+        .ong-dia-feedback-body {
+          display: grid;
+          gap: 0.9rem;
+          padding: 1rem;
+        }
+
+        .ong-dia-feedback-body fieldset,
+        .ong-dia-feedback-body label {
+          display: grid;
+          gap: 0.55rem;
+          min-width: 0;
+          margin: 0;
+          border: 0;
+          padding: 0;
+        }
+
+        .ong-dia-feedback-body legend,
+        .ong-dia-feedback-body label span {
+          color: #fff0c2;
+          font-size: 0.92rem;
+          font-weight: 620;
+          line-height: 1.35;
+        }
+
+        .ong-dia-feedback-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+        }
+
+        .ong-dia-feedback-options button {
+          min-width: 76px;
+          padding: 0 0.75rem;
+        }
+
+        .ong-dia-feedback-options .selected {
+          border-color: rgba(255, 212, 139, 0.72);
+          background: rgba(255, 212, 139, 0.16);
+          color: #fff7df;
+        }
+
+        .ong-dia-feedback-body input,
+        .ong-dia-feedback-body textarea {
+          width: 100%;
+          border: 1px solid rgba(255, 212, 139, 0.24);
+          border-radius: 12px;
+          color: #fff4dd;
+          background: rgba(15, 8, 5, 0.28);
+          font: inherit;
+          font-size: 0.94rem;
+          line-height: 1.45;
+          outline: none;
+        }
+
+        .ong-dia-feedback-body input {
+          height: 44px;
+          padding: 0 0.8rem;
+        }
+
+        .ong-dia-feedback-body textarea {
+          min-height: 88px;
+          padding: 0.7rem 0.8rem;
+          resize: vertical;
+        }
+
+        .ong-dia-feedback-body input::placeholder,
+        .ong-dia-feedback-body textarea::placeholder {
+          color: rgba(255, 244, 221, 0.42);
+        }
+
+        .ong-dia-feedback-body input:focus,
+        .ong-dia-feedback-body textarea:focus {
+          border-color: rgba(255, 212, 139, 0.58);
+          background: rgba(15, 8, 5, 0.36);
         }
 
         .ong-dia-stage-wrap {
@@ -1681,10 +2108,33 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-compact-fallback {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.6rem;
           border-color: rgba(255, 186, 83, 0.2);
           background: rgba(255, 244, 221, 0.08);
           color: #ffe7ae !important;
           font-size: 0.94rem;
+        }
+
+        .ong-dia-compact-fallback button {
+          min-height: 38px;
+          border: 1px solid rgba(255, 212, 139, 0.28);
+          border-radius: 12px;
+          padding: 0.48rem 0.72rem;
+          color: #fff4dd;
+          background: rgba(124, 45, 18, 0.54);
+          font: inherit;
+          font-size: 0.84rem;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .ong-dia-compact-fallback button:disabled {
+          cursor: not-allowed;
+          opacity: 0.58;
         }
 
         .ong-dia-privacy-note {
@@ -2190,12 +2640,50 @@ export default function OngDiaPage() {
             display: none;
           }
 
+          .ong-dia-header-actions {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            gap: 0.45rem;
+            width: 100%;
+          }
+
+          .ong-dia-feedback-trigger {
+            height: 44px;
+            min-width: 76px;
+            font-size: 0.84rem;
+          }
+
           .ong-dia-back {
             order: -1;
-            width: fit-content;
+            width: 44px;
             min-width: 44px;
-            min-height: 42px;
+            height: 44px;
+            min-height: 44px;
             padding: 0;
+          }
+
+          .ong-dia-feedback-panel {
+            margin-bottom: 0.65rem;
+            border-radius: 16px;
+          }
+
+          .ong-dia-feedback-panel header,
+          .ong-dia-feedback-panel footer {
+            align-items: flex-start;
+            padding: 0.78rem;
+          }
+
+          .ong-dia-feedback-panel footer {
+            flex-direction: column;
+          }
+
+          .ong-dia-feedback-panel footer button {
+            width: 100%;
+          }
+
+          .ong-dia-feedback-body {
+            padding: 0.78rem;
+            gap: 0.75rem;
           }
 
           .ong-dia-stage-wrap {

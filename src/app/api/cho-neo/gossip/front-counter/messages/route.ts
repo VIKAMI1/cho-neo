@@ -18,6 +18,11 @@ const LEGACY_MESSAGE_SELECT =
   "id, room_id, avatar_id, nickname, text, reactions, hidden_at, created_at";
 const SUPABASE_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const POST_RATE_LIMIT_WINDOW_MS = 60_000;
+const POST_RATE_LIMIT_MAX = 5;
+const DUPLICATE_WINDOW_MS = 10 * 60_000;
+const postRateBuckets = new Map<string, number[]>();
+const recentPostFingerprints = new Map<string, number>();
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +97,7 @@ export async function GET(request: Request) {
 
   const messages = ((data ?? []) as GossipMessageRow[])
     .reverse()
-    .map(rowToMessage);
+    .map(rowToPublicMessage);
 
   return NextResponse.json(
     { messages, mode: "shared" },
@@ -148,6 +153,29 @@ async function getHostReviewMessages(hostKey: string) {
 }
 
 export async function POST(request: Request) {
+  if (isPostingDisabled()) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_POSTING_DISABLED",
+        error: "Quán đang tạm ngưng nhận câu mới, nhưng vẫn đọc được như thường.",
+        reason: "posting-disabled",
+      },
+      { status: 503 }
+    );
+  }
+
+  const clientKey = getClientKey(request);
+  if (isPostRateLimited(clientKey)) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_POST_RATE_LIMITED",
+        error: "Con gửi hơi nhanh. Nghỉ một nhịp rồi góp tiếp nha.",
+        reason: "post-rate-limited",
+      },
+      { status: 429 }
+    );
+  }
+
   const supabase = createChoNeoSupabaseClient();
 
   if (!supabase) {
@@ -181,6 +209,29 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: `Message must be ${FRONT_COUNTER_MESSAGE_TEXT_LIMIT} characters or fewer.` },
       { status: 400 }
+    );
+  }
+
+  const unsafeTextReason = getUnsafeTextReason(text);
+  if (unsafeTextReason) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_UNSAFE_TEXT",
+        error: "Giữ câu này chung chung hơn một chút: không link, không HTML, không thông tin riêng tư.",
+        reason: unsafeTextReason,
+      },
+      { status: 400 }
+    );
+  }
+
+  if (isDuplicatePost(clientKey, text)) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_DUPLICATE_POST",
+        error: "Câu này vừa được đặt lên bàn rồi.",
+        reason: "duplicate-post",
+      },
+      { status: 409 }
     );
   }
 
@@ -231,8 +282,10 @@ export async function POST(request: Request) {
     });
   }
 
+  rememberPostFingerprint(clientKey, text);
+
   return NextResponse.json(
-    { message: rowToMessage(savedRow), mode: "shared" },
+    { message: rowToPublicMessage(savedRow), mode: "shared" },
     { headers: { "Cache-Control": "no-store" }, status: 201 }
   );
 }
@@ -329,6 +382,78 @@ function isMissingModerationColumns(error: { code?: string; message?: string }) 
   );
 }
 
+function isPostingDisabled() {
+  return process.env.CHO_NEO_GOSSIP_POSTING_DISABLED === "1";
+}
+
+function getClientKey(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  const userAgent = request.headers.get("user-agent")?.slice(0, 80) ?? "unknown";
+  return `${(forwarded || realIp || "local").slice(0, 80)}:${userAgent}`;
+}
+
+function isPostRateLimited(clientKey: string, now = Date.now()) {
+  const recent = (postRateBuckets.get(clientKey) ?? []).filter(
+    (timestamp) => now - timestamp < POST_RATE_LIMIT_WINDOW_MS,
+  );
+  if (recent.length >= POST_RATE_LIMIT_MAX) {
+    postRateBuckets.set(clientKey, recent);
+    return true;
+  }
+
+  recent.push(now);
+  postRateBuckets.set(clientKey, recent);
+  return false;
+}
+
+function normalizePostFingerprint(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getPostFingerprint(clientKey: string, text: string) {
+  return `${clientKey}:${normalizePostFingerprint(text)}`;
+}
+
+function isDuplicatePost(clientKey: string, text: string, now = Date.now()) {
+  const fingerprint = getPostFingerprint(clientKey, text);
+  const lastSeenAt = recentPostFingerprints.get(fingerprint);
+  prunePostFingerprints(now);
+  return Boolean(lastSeenAt && now - lastSeenAt < DUPLICATE_WINDOW_MS);
+}
+
+function rememberPostFingerprint(clientKey: string, text: string, now = Date.now()) {
+  prunePostFingerprints(now);
+  recentPostFingerprints.set(getPostFingerprint(clientKey, text), now);
+}
+
+function prunePostFingerprints(now = Date.now()) {
+  for (const [fingerprint, timestamp] of recentPostFingerprints) {
+    if (now - timestamp >= DUPLICATE_WINDOW_MS) {
+      recentPostFingerprints.delete(fingerprint);
+    }
+  }
+}
+
+function getUnsafeTextReason(text: string) {
+  if (/<\/?[a-z][\s\S]*>/i.test(text)) return "html";
+  if (/\b(?:https?:\/\/|www\.)\S+/i.test(text)) return "url";
+  if (/\b(?:javascript:|data:text\/html|<script)\b/i.test(text)) return "script";
+  if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)) return "email";
+  if (/(?:\+?\d[\d\s().-]{7,}\d)/.test(text)) return "phone";
+  if (/\b(?:zalo|facebook|instagram|tiktok)\s*[:@]/i.test(text)) {
+    return "social-contact";
+  }
+  return null;
+}
+
 async function reportMessage(messageId: string) {
   const supabase = createChoNeoSupabaseServiceClient();
 
@@ -373,7 +498,7 @@ async function reportMessage(messageId: string) {
     });
   }
 
-  return updatedMessageResponse(data as GossipMessageRow[] | null);
+  return publicUpdatedMessageResponse(data as GossipMessageRow[] | null);
 }
 
 async function lookupMessageForPatch(
@@ -560,6 +685,34 @@ function updatedMessageResponse(rows: GossipMessageRow[] | null) {
   );
 }
 
+function publicUpdatedMessageResponse(rows: GossipMessageRow[] | null) {
+  if (!rows || rows.length === 0) {
+    return messageNotFoundResponse();
+  }
+
+  if (rows.length > 1) {
+    console.error("[cho-neo:gossip-front-counter]", {
+      operation: "PATCH",
+      reason: "multiple-messages-updated",
+      updatedRows: rows.length,
+    });
+
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_MULTIPLE_MESSAGES_UPDATED",
+        error: "Host tools touched more than one message.",
+        reason: "multiple-messages-updated",
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(
+    { message: rowToPublicMessage(rows[0]), mode: "shared" },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
 function messageNotFoundResponse() {
   return NextResponse.json(
     {
@@ -590,6 +743,17 @@ function rowToMessage(row: GossipMessageRow): FrontCounterMessage {
   };
 }
 
+function rowToPublicMessage(row: GossipMessageRow): FrontCounterMessage {
+  return {
+    avatarId: row.avatar_id,
+    createdAt: row.created_at,
+    id: row.id,
+    nickname: row.nickname,
+    reactions: row.reactions ?? {},
+    text: row.text,
+  };
+}
+
 function sharedMemoryUnavailable(input: {
   detail: string;
   operation: "GET" | "PATCH" | "POST";
@@ -604,7 +768,6 @@ function sharedMemoryUnavailable(input: {
   return NextResponse.json(
     {
       code: "SHARED_GOSSIP_MEMORY_UNAVAILABLE",
-      detail: input.detail,
       error: "Shared Gossip Café memory is unavailable.",
       reason: input.reason,
     },

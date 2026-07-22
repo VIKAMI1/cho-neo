@@ -23,8 +23,10 @@ const CHO_NEO_THEME_TRACKS: ChoNeoThemeTrack[] = [
 
 export default function ChoNeoThemeParkAudio({
   className = '',
+  variant = 'full',
 }: {
   className?: string;
+  variant?: 'full' | 'compact';
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [trackId, setTrackId] = useState(CHO_NEO_THEME_TRACKS[0].id);
@@ -76,13 +78,28 @@ export default function ChoNeoThemeParkAudio({
 
   return (
     <div
-      className={`cho-neo-theme-audio ${className}`}
+      className={`cho-neo-theme-audio ${
+        variant === 'compact' ? 'cho-neo-theme-audio-compact' : ''
+      } ${className}`}
       aria-label="Chợ Neo music player"
     >
       <audio ref={audioRef} loop preload="metadata" playsInline>
         <source src={selectedTrack.src} type="audio/mpeg" />
       </audio>
 
+      {variant === 'compact' ? (
+        <button
+          type="button"
+          className="theme-music-compact-toggle"
+          onClick={toggleMusic}
+          aria-label={isPlaying ? 'Tắt nhạc Chợ Neo' : 'Mở nhạc Chợ Neo'}
+          aria-pressed={isPlaying}
+        >
+          {isPlaying ? '♫ Tắt nhạc' : '♫ Mở nhạc'}
+        </button>
+      ) : null}
+
+      {variant === 'full' ? (
       <div className="theme-audio-controls">
         <button
           type="button"
@@ -109,6 +126,7 @@ export default function ChoNeoThemeParkAudio({
         </label>
 
       </div>
+      ) : null}
 
       <style>{`
         .cho-neo-theme-audio,
@@ -171,6 +189,43 @@ export default function ChoNeoThemeParkAudio({
           line-height: 1;
         }
 
+        .cho-neo-theme-audio-compact {
+          min-height: 44px;
+          padding: 0;
+          border: 0;
+          border-radius: 12px;
+          background: transparent;
+          box-shadow: none;
+          backdrop-filter: none;
+        }
+
+        .theme-music-compact-toggle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 104px;
+          height: 44px;
+          padding: 0 0.8rem;
+          border: 1px solid rgba(255, 212, 139, 0.3);
+          border-radius: 12px;
+          color: #ffe7ae;
+          background: rgba(52, 22, 12, 0.66);
+          box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
+          cursor: pointer;
+          font: inherit;
+          font-size: 0.88rem;
+          font-weight: 650;
+          line-height: 1;
+          white-space: nowrap;
+        }
+
+        .theme-music-compact-toggle:hover,
+        .theme-music-compact-toggle:focus-visible {
+          border-color: rgba(255, 212, 139, 0.52);
+          background: rgba(72, 31, 16, 0.78);
+          outline: none;
+        }
+
         .theme-audio-controls {
           display: grid;
           grid-template-columns: 32px minmax(180px, 1fr);
@@ -214,7 +269,7 @@ export default function ChoNeoThemeParkAudio({
         }
 
         @media (max-width: 760px) {
-          .cho-neo-theme-audio {
+          .cho-neo-theme-audio:not(.cho-neo-theme-audio-compact) {
             flex: 1 1 0;
             width: 100%;
             min-width: 0;
@@ -238,6 +293,20 @@ export default function ChoNeoThemeParkAudio({
           .theme-audio-controls select {
             min-height: 34px;
             padding: 6px 8px;
+          }
+
+          .cho-neo-theme-audio-compact {
+            flex: 0 0 auto;
+            width: auto;
+            min-height: 44px;
+            padding: 0;
+            border-radius: 12px;
+          }
+
+          .theme-music-compact-toggle {
+            min-width: 102px;
+            height: 44px;
+            font-size: 0.84rem;
           }
         }
       `}</style>

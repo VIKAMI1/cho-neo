@@ -25,6 +25,11 @@ export type XinXamStick = {
   periodKey?: string;
 };
 
+export type XinXamLocSo = {
+  mainNumbers: number[];
+  bonusNumber: number;
+};
+
 export type XinXamTopicOption = {
   key: XinXamTopic;
   label: string;
@@ -68,6 +73,61 @@ export const XIN_XAM_TOPICS: XinXamTopicOption[] = [
     helper: "Sức khỏe tinh thần, nghỉ ngơi, ranh giới riêng.",
   },
 ];
+
+function hashXinXamSeed(seed: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function nextXinXamRandom(seed: number) {
+  let value = seed || 0x6d2b79f5;
+  return () => {
+    value += 0x6d2b79f5;
+    let next = value;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function drawUniqueNumber(
+  random: () => number,
+  max: number,
+  used: Set<number>,
+) {
+  let candidate = Math.floor(random() * max) + 1;
+  while (used.has(candidate)) {
+    candidate = (candidate % max) + 1;
+  }
+  used.add(candidate);
+  return candidate;
+}
+
+export function getXinXamLocalDateKey(date = new Date()) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+export function createXinXamLocSo(
+  stickId: string,
+  topic: XinXamTopic,
+  dateKey = getXinXamLocalDateKey(),
+): XinXamLocSo {
+  const random = nextXinXamRandom(hashXinXamSeed(`${dateKey}:${topic}:${stickId}`));
+  const used = new Set<number>();
+  const mainNumbers = Array.from({ length: 6 }, () =>
+    drawUniqueNumber(random, 49, used),
+  ).sort((left, right) => left - right);
+  const bonusNumber = drawUniqueNumber(random, 50, used);
+  return { mainNumbers, bonusNumber };
+}
 
 export const ONG_DIA_DAILY_MESSAGES: OngDiaDailyMessage[] = [
   {

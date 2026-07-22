@@ -12,6 +12,7 @@ const routePath = path.join(
   "src/app/api/cho-neo/ong-dia/prayer/route.ts",
 );
 const prayerLibPath = path.join(repoRoot, "src/lib/cho-neo/ong-dia-prayer.ts");
+const openAIPath = path.join(repoRoot, "node_modules/openai/index.js");
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "ong-dia-prayer-test-"));
 const tempRoutePath = path.join(tempDir, "route-under-test.ts");
 
@@ -29,6 +30,10 @@ const routeSource = fs
 };`,
   )
   .replace(
+    'import OpenAI from "openai";',
+    `import OpenAI from ${JSON.stringify(pathToFileURL(openAIPath).href)};`,
+  )
+  .replace(
     'from "@/lib/cho-neo/ong-dia-prayer";',
     `from ${JSON.stringify(pathToFileURL(prayerLibPath).href)};`,
   );
@@ -38,9 +43,17 @@ fs.writeFileSync(tempRoutePath, routeSource);
 const { POST } = await import(pathToFileURL(tempRoutePath).href);
 const { routeOngDiaWish } = await import(pathToFileURL(prayerLibPath).href);
 const pagePath = path.join(repoRoot, "src/app/cho-neo/ong-dia/page.tsx");
+const themeAudioPath = path.join(
+  repoRoot,
+  "src/components/cho-neo/ChoNeoThemeParkAudio.tsx",
+);
 
 const ORIGINAL_ENV = {
+  ONG_DIA_PROVIDER: process.env.ONG_DIA_PROVIDER,
   ONG_DIA_AI_PROVIDER: process.env.ONG_DIA_AI_PROVIDER,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  OPENAI_ONG_DIA_MODEL: process.env.OPENAI_ONG_DIA_MODEL,
+  OPENAI_MODEL: process.env.OPENAI_MODEL,
   GROQ_API_KEY: process.env.GROQ_API_KEY,
   GROQ_MODEL: process.env.GROQ_MODEL,
   ONG_DIA_AI_TIMEOUT_MS: process.env.ONG_DIA_AI_TIMEOUT_MS,
@@ -101,6 +114,57 @@ function providerPayload({
   });
 }
 
+function openAIProviderPayload({
+  loiOngDia = "Ông nghe con lo chuyện tiệm đông khách, cái lo đó rất thật; hôm nay con thử nhắn lại ba khách cũ bằng một câu ngắn, ấm, không năn nỉ.",
+} = {}) {
+  return JSON.stringify({
+    loiOngDia,
+  });
+}
+
+function mockOpenAI({
+  status = 200,
+  content = openAIProviderPayload(),
+  delayMs = 0,
+  usage = { input_tokens: 180, output_tokens: 75, total_tokens: 255 },
+} = {}) {
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), init, body: JSON.parse(init.body) });
+    if (delayMs > 0) {
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(resolve, delayMs);
+        init.signal?.addEventListener("abort", () => {
+          clearTimeout(timeout);
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        id: "resp_test",
+        object: "response",
+        created_at: 0,
+        status: status === 200 ? "completed" : "failed",
+        model: "gpt-test",
+        output_text: content,
+        output: [
+          {
+            id: "msg_test",
+            type: "message",
+            role: "assistant",
+            status: "completed",
+            content: [{ type: "output_text", text: content, annotations: [] }],
+          },
+        ],
+        usage,
+      }),
+      { status, headers: { "content-type": "application/json" } },
+    );
+  };
+  return calls;
+}
+
 function mockGroq({
   status = 200,
   content = providerPayload(),
@@ -129,6 +193,301 @@ function mockGroq({
 }
 
 test.afterEach(restoreGlobals);
+
+test("default conversation uses OpenAI Responses structured output", async () => {
+  delete process.env.ONG_DIA_PROVIDER;
+  delete process.env.ONG_DIA_AI_PROVIDER;
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  process.env.OPENAI_ONG_DIA_MODEL = "gpt-4.1-mini-test";
+  const calls = mockOpenAI();
+
+  const { body } = await callPrayer({
+    prayer: "Làm sao cho tiệm đông khách, Ông Địa ơi?",
+  });
+
+  assert.equal(body.meta.provider, "openai");
+  assert.equal(body.meta.source, "openai_success");
+  assert.equal(body.meta.model, "gpt-4.1-mini-test");
+  assert.equal(body.meta.generatedByProvider, true);
+  assert.equal(body.result.loiOngDia.includes("tiệm đông khách"), true);
+  assert.equal("ongNhacNhe" in body.result, false);
+  assert.equal("viecNhoHomNay" in body.result, false);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/responses$/);
+  assert.equal(calls[0].body.model, "gpt-4.1-mini-test");
+  assert.equal(calls[0].body.store, false);
+  assert.equal(calls[0].body.text.format.type, "json_schema");
+  assert.deepEqual(calls[0].body.text.format.schema.required, ["loiOngDia"]);
+  assert.equal(calls[0].body.text.format.schema.properties.noticedDetail, undefined);
+  assert.equal(calls[0].body.text.format.schema.properties.ongNhacNhe, undefined);
+  assert.equal(calls[0].body.text.format.schema.properties.viecNhoHomNay, undefined);
+  assert.match(calls[0].body.instructions, /You are Ông Địa in Chợ Neo/);
+  assert.doesNotMatch(JSON.stringify(body.meta), /tiệm đông khách|Làm sao/);
+});
+
+test("ordinary sadness marriage money family and uncertainty prompts go directly to OpenAI", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  const prompts = [
+    "Hôm nay con buồn quá.",
+    "Con đang lo tiền bạc.",
+    "Con với chồng đang giận nhau.",
+    "Gia đình con đang có chuyện.",
+    "Con không biết nên bắt đầu từ đâu.",
+  ];
+
+  for (const prompt of prompts) {
+    const calls = mockOpenAI({
+      content: openAIProviderPayload({
+        loiOngDia: `Ông nghe chuyện này của con: ${prompt} Lòng rối thì đừng bắt nó đứng nghiêm liền; con chọn một việc nhỏ nhất làm trước trong hôm nay.`,
+      }),
+    });
+    const { status, body } = await callPrayer({ prayer: prompt });
+
+    assert.equal(status, 200);
+    assert.equal(body.meta.source, "openai_success");
+    assert.equal(body.result.loiOngDia.includes(prompt), true);
+    assert.equal("viecNhoHomNay" in body.result, false);
+    assert.equal(calls.length, 1);
+    assert.doesNotMatch(JSON.stringify(body), /Ông chưa nghe rõ/);
+  }
+});
+
+test("ten ordinary acceptance prompts receive relevant OpenAI keepsake fields", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  const prompts = [
+    "Làm sao cho tiệm đông khách, Ông Địa ơi?",
+    "Hôm nay con buồn quá.",
+    "Con đang lo tiền bạc.",
+    "Con với chồng đang giận nhau.",
+    "Ngày mai con có nên gọi khách cũ không?",
+    "Công việc của con dạo này không thuận.",
+    "Con thấy mệt và mất phương hướng.",
+    "Gia đình con đang có chuyện.",
+    "Khách cứ hỏi giá rồi không mua.",
+    "Con không biết nên bắt đầu từ đâu.",
+  ];
+
+  for (const prompt of prompts) {
+    const anchor = prompt.replace(/[?.!]+$/g, "");
+    const calls = mockOpenAI({
+      content: openAIProviderPayload({
+        loiOngDia: `Ông nghe rõ chuyện "${anchor}" của con. Chuyện đời có lúc kẹt như cửa kéo, đẩy mạnh quá lại ồn; con chọn một bước nhỏ làm trong hôm nay, rồi dừng lại thở một nhịp.`,
+      }),
+    });
+
+    const { status, body } = await callPrayer({ prayer: prompt });
+    const visible = body.result.loiOngDia;
+
+    assert.equal(status, 200);
+    assert.equal(body.meta.source, "openai_success");
+    assert.equal(body.result.loiOngDia.length > 0, true);
+    assert.equal("ongNhacNhe" in body.result, false);
+    assert.equal("viecNhoHomNay" in body.result, false);
+    assert.match(visible, new RegExp(anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(visible, /con chọn một bước nhỏ/i);
+    assert.doesNotMatch(visible, /Ông chưa nghe rõ|provider|system|OpenAI|\bAI\b|model/i);
+    assert.equal(calls.length, 1);
+    assert.doesNotMatch(JSON.stringify(body.meta), new RegExp(anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+});
+
+test("missing OpenAI key returns honest technical fallback", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  delete process.env.OPENAI_API_KEY;
+
+  const { body } = await callPrayer({ prayer: "Hôm nay con buồn quá." });
+  const visible = [
+    body.result.loiOngDia,
+    body.result.ongNhacNhe,
+    body.result.viecNhoHomNay,
+  ].join(" ");
+
+  assert.equal(body.meta.provider, "openai");
+  assert.equal(body.meta.source, "fallback_no_api_key");
+  assert.match(body.result.loiOngDia, /buồn|lòng/i);
+  assert.doesNotMatch(visible, /Ông chưa nghe rõ|không hiểu|chưa rõ|không đổ lỗi|không phải lỗi|xin lời lại|provider|system|OpenAI|\bAI\b|model/i);
+});
+
+test("OpenAI timeout and rate limit use internal reason codes without visitor-facing debug wording", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  process.env.ONG_DIA_AI_TIMEOUT_MS = "1000";
+  mockOpenAI({ delayMs: 1200 });
+  const timeout = await callPrayer({ prayer: "Con đang lo tiền bạc." });
+  const timeoutVisible = [
+    timeout.body.result.loiOngDia,
+    timeout.body.result.ongNhacNhe,
+    timeout.body.result.viecNhoHomNay,
+  ].join(" ");
+
+  assert.equal(timeout.body.meta.source, "openai_timeout");
+  assert.match(timeout.body.result.loiOngDia, /tiền|nặng/i);
+  assert.doesNotMatch(timeoutVisible, /Ông chưa nghe rõ|không hiểu|chưa rõ|không đổ lỗi|không phải lỗi|xin lời lại|provider|system|OpenAI|\bAI\b|model/i);
+
+  mockOpenAI({ status: 429 });
+  const rateLimited = await callPrayer({ prayer: "Con đang lo tiền bạc." });
+  const rateLimitedVisible = [
+    rateLimited.body.result.loiOngDia,
+    rateLimited.body.result.ongNhacNhe,
+    rateLimited.body.result.viecNhoHomNay,
+  ].join(" ");
+
+  assert.equal(rateLimited.body.meta.source, "openai_rate_limited");
+  assert.match(rateLimited.body.result.loiOngDia, /tiền|nặng/i);
+  assert.doesNotMatch(rateLimitedVisible, /Ông chưa nghe rõ|không hiểu|chưa rõ|không đổ lỗi|không phải lỗi|xin lời lại|provider|system|OpenAI|\bAI\b|model/i);
+});
+
+test("OpenAI malformed structured output returns openai_invalid_output", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  mockOpenAI({ content: JSON.stringify({ loiOngDia: "", ongNhacNhe: "", viecNhoHomNay: "" }) });
+
+  const { body } = await callPrayer({ prayer: "Công việc của con dạo này không thuận." });
+
+  assert.equal(body.meta.source, "openai_invalid_output");
+  assert.equal(body.meta.validationFailure, "schema_or_length");
+  assert.match(body.result.loiOngDia, /tiệm|khách|công việc/i);
+  assert.doesNotMatch(
+    [body.result.loiOngDia, body.result.ongNhacNhe, body.result.viecNhoHomNay].join(" "),
+    /Ông chưa nghe rõ|không hiểu|chưa rõ|không đổ lỗi|không phải lỗi|xin lời lại|provider|system|OpenAI|\bAI\b|model/i,
+  );
+});
+
+test("technical OpenAI fallback payloads contain no visitor-facing debug wording", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  delete process.env.OPENAI_API_KEY;
+  const prompts = [
+    {
+      prayer: "Làm sao cho tiệm đông khách, Ông Địa ơi?",
+      expected: /tiệm|khách|công việc/i,
+    },
+    {
+      prayer: "Con với chồng đang giận nhau.",
+      expected: /vợ chồng|chồng|căng/i,
+    },
+    {
+      prayer: "Chồng con bị thất nghiệp Ông Địa ơi.",
+      expected: /thất nghiệp|mất việc|trong nhà/i,
+    },
+    {
+      prayer: "Chong con bi that nghiep Ong Dia oi",
+      expected: /thất nghiệp|mất việc|trong nhà/i,
+    },
+    {
+      prayer: "Hôm nay con buồn quá.",
+      expected: /buồn|lòng/i,
+    },
+    {
+      prayer: "Con lỗ chứng khoán nhiều quá.",
+      expected: /tiền|nặng|mất/i,
+    },
+  ];
+
+  for (const { prayer, expected } of prompts) {
+    const { status, body } = await callPrayer({ prayer });
+    const visible = [
+      body.result.loiOngDia,
+      body.result.ongNhacNhe,
+      body.result.viecNhoHomNay,
+    ].join(" ");
+
+    assert.equal(status, 200);
+    assert.equal(body.meta.source, "fallback_no_api_key");
+    assert.match(visible, expected);
+    assert.match(visible, /Ông|con/);
+    assert.doesNotMatch(visible, /Ông chưa nghe rõ|không hiểu|chưa rõ|không đổ lỗi|không phải lỗi|xin lời lại|provider|system|OpenAI|\bAI\b|model|bận ngẫm một chút|generic|fallback/i);
+    assert.doesNotMatch(JSON.stringify(body.meta), new RegExp(prayer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+});
+
+test("OpenAI success handles stock loss prompts without fallback wording", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  const prompts = [
+    "Con bị thua stock xuống quá, mất nhiều tiền quá Ông Địa ơi.",
+    "Con bi thua stock xuong qua, mat nhieu tien qua Ong Dia oi.",
+    "Con lỗ chứng khoán nhiều quá.",
+    "Con đang hoảng vì mất tiền.",
+  ];
+
+  for (const prompt of prompts) {
+    const calls = mockOpenAI({
+      content: openAIProviderPayload({
+        loiOngDia:
+          "Ông nghe con mất nhiều tiền vì stock/chứng khoán, cú rơi đó làm lòng choáng là phải. Lúc đang hoảng thì tay rất dễ bấm thêm để gỡ; con ghi lại số tiền còn lại, dừng quyết định nóng hôm nay, rồi nói với một người đáng tin.",
+      }),
+    });
+    const { body } = await callPrayer({ prayer: prompt });
+    const visible = body.result.loiOngDia;
+
+    assert.equal(body.meta.source, "openai_success");
+    assert.equal(calls.length, 1);
+    assert.match(visible, /mất nhiều tiền|stock|chứng khoán|hoảng/i);
+    assert.match(visible, /dừng quyết định nóng|đứng yên|bấm thêm để gỡ/i);
+    assert.doesNotMatch(visible, /Ông chưa nghe rõ|không hiểu|chưa rõ|không đổ lỗi|không phải lỗi|xin lời lại|provider|system|OpenAI|\bAI\b|model/i);
+  }
+});
+
+test("clear no-dau and light typo prompts go directly to OpenAI when configured", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  const prompts = [
+    "Chong con bi that nghiep Ong Dia oi",
+    "Con buon qua",
+    "Khach hoi gia roi khong mua",
+    "Lam sao cho tiem dong khach",
+  ];
+
+  for (const prompt of prompts) {
+    const calls = mockOpenAI({
+      content: openAIProviderPayload({
+        loiOngDia: `Ông nghe chuyện con gửi trong câu này: ${prompt} Lòng đang nặng thì mình chậm tay lại một nhịp trước đã; con chọn một bước nhỏ làm ngay hôm nay.`,
+      }),
+    });
+    const { status, body } = await callPrayer({ prayer: prompt });
+
+    assert.equal(status, 200);
+    assert.equal(body.meta.source, "openai_success");
+    assert.equal(calls.length, 1);
+    assert.match(body.result.loiOngDia, /Ông nghe chuyện con gửi/);
+    assert.doesNotMatch(JSON.stringify(body), /Ông chưa nghe rõ|không hiểu|chưa rõ/);
+  }
+});
+
+test("repeated technical fallback turns keep route payload free of debug copy", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  const prompts = [
+    "Làm sao cho tiệm đông khách, Ông Địa ơi?",
+    "Con với chồng đang giận nhau.",
+    "Hôm nay con buồn quá.",
+  ];
+
+  for (const prayer of prompts) {
+    mockOpenAI({ status: 429 });
+    const { body } = await callPrayer({
+      prayer,
+      history: [
+        { role: "user", content: "Con hỏi chuyện trước đó." },
+        {
+          role: "assistant",
+          content: "Ông nghe rồi, con cứ nói tiếp điều đang nặng lòng.",
+        },
+      ],
+    });
+    const visible = [
+      body.result.loiOngDia,
+      body.result.ongNhacNhe,
+      body.result.viecNhoHomNay,
+    ].join(" ");
+
+    assert.equal(body.meta.source, "openai_rate_limited");
+    assert.match(visible, /Ông|con/);
+    assert.doesNotMatch(visible, /Ông đang bận ngẫm một chút|Ông chưa nghe rõ|không đổ lỗi|không phải lỗi|xin lời lại|provider|system/i);
+  }
+});
 
 test("Vietnamese conversation uses Groq GPT-OSS and returns provider metadata", async () => {
   process.env.ONG_DIA_AI_PROVIDER = "groq";
@@ -277,7 +636,8 @@ test("Groq rate limiting returns explicit rate-limit fallback", async () => {
   const { body } = await callPrayer({ prayer: "Ông ơi con hỏi chuyện khách." });
 
   assert.equal(body.meta.source, "fallback_provider_rate_limited");
-  assert.match(body.result.loiOngDia, /chập chờn|chưa nghe rõ/);
+  assert.match(body.result.loiOngDia, /tiệm|khách|công việc/i);
+  assert.doesNotMatch(JSON.stringify(body), /Ông chưa nghe rõ/);
   assert.doesNotMatch(JSON.stringify(body.result), /tiệm im|sợ hụt tiền|thô tục|lời nguyền/i);
 });
 
@@ -882,7 +1242,8 @@ test("visible Ong Dia page prevents duplicate client submissions", () => {
   assert.equal(page.includes("if (prayerRequestInFlightRef.current) return;"), true);
   assert.equal(page.includes("prayerRequestInFlightRef.current = true;"), true);
   assert.equal(page.includes("prayerRequestInFlightRef.current = false;"), true);
-  assert.equal(page.match(/disabled=\{isPrayerResponseLoading\}/g)?.length ?? 0, 1);
+  assert.match(page, /onClick=\{handleBlessingRequest\}[\s\S]*disabled=\{isPrayerResponseLoading\}/);
+  assert.match(page, /onClick=\{handleRetryPrayerRequest\}[\s\S]*disabled=\{isPrayerResponseLoading\}/);
 });
 
 test("visible Ong Dia page keeps the shrine UI text reduced", () => {
@@ -906,7 +1267,11 @@ test("visible Ong Dia V1 keeps an open invitation without topic chips", () => {
   }
   assert.equal(page.includes("Cứ nói điều đang ở trong lòng..."), true);
   assert.equal(page.includes("<textarea"), true);
-  assert.equal(page.match(/<textarea/g)?.length ?? 0, 1);
+  const prayerForm = page.slice(
+    page.indexOf('<div className="ong-dia-prayer-panel"'),
+    page.indexOf('<div className="ong-dia-prayer-actions"'),
+  );
+  assert.equal(prayerForm.match(/<textarea/g)?.length ?? 0, 1);
   assert.equal(page.includes("ONG_DIA_SUBJECT_CHOICES"), false);
   assert.equal(page.includes("ong-dia-subject-chips"), false);
   assert.equal(page.includes("selectedSubject"), false);
@@ -915,6 +1280,7 @@ test("visible Ong Dia V1 keeps an open invitation without topic chips", () => {
 
 test("visible Ong Dia V1 controls use rectangular rounded-corner styling", () => {
   const page = fs.readFileSync(pagePath, "utf8");
+  const themeAudio = fs.readFileSync(themeAudioPath, "utf8");
   const prayerPanelCss = page.slice(
     page.indexOf(".ong-dia-prayer-panel textarea"),
     page.indexOf(".ong-dia-prayer-panel textarea::placeholder"),
@@ -940,10 +1306,64 @@ test("visible Ong Dia V1 controls use rectangular rounded-corner styling", () =>
   assert.match(prayerActionsCss, /border-radius: 12px/);
   assert.match(keepsakeActionsCss, /border-radius: 12px/);
   assert.match(routeActionsCss, /border-radius: 12px/);
+  assert.match(page, /\.ong-dia-feedback-trigger[\s\S]*height: 44px/);
+  assert.match(page, /\.ong-dia-feedback-trigger[\s\S]*border-radius: 12px/);
+  assert.match(themeAudio, /\.theme-music-compact-toggle[\s\S]*height: 44px/);
+  assert.match(themeAudio, /\.theme-music-compact-toggle[\s\S]*border-radius: 12px/);
   assert.doesNotMatch(prayerPanelCss, /border-radius: 999px/);
   assert.doesNotMatch(prayerActionsCss, /border-radius: 999px/);
   assert.doesNotMatch(keepsakeActionsCss, /border-radius: 999px/);
   assert.doesNotMatch(routeActionsCss, /border-radius: 999px/);
+  assert.doesNotMatch(themeAudio, /\.theme-music-compact-toggle[\s\S]*border-radius: 999px/);
+});
+
+test("visible Ong Dia page reuses shared compact music control in the header", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const themeAudio = fs.readFileSync(themeAudioPath, "utf8");
+  const headerActions = page.slice(
+    page.indexOf('<div className="ong-dia-header-actions"'),
+    page.indexOf("</section>", page.indexOf('<div className="ong-dia-header-actions"')),
+  );
+  const prayerActions = page.slice(
+    page.indexOf('<div className="ong-dia-prayer-actions"'),
+    page.indexOf("</div>", page.indexOf('<div className="ong-dia-prayer-actions"')),
+  );
+
+  assert.equal(page.includes("import ChoNeoThemeParkAudio"), true);
+  assert.match(headerActions, /<ChoNeoThemeParkAudio[\s\S]*variant="compact"/);
+  assert.match(headerActions, /className="ong-dia-header-music"/);
+  assert.match(headerActions, />\s*Góp ý\s*<\/button>/);
+  assert.doesNotMatch(prayerActions, /ChoNeoThemeParkAudio|Góp ý|Mở nhạc|Tắt nhạc/);
+  assert.equal(themeAudio.includes("variant?: 'full' | 'compact'"), true);
+  assert.equal(themeAudio.includes("♫ Mở nhạc"), true);
+  assert.equal(themeAudio.includes("♫ Tắt nhạc"), true);
+  assert.equal(themeAudio.includes("aria-pressed={isPlaying}"), true);
+  assert.equal(themeAudio.includes("preload=\"metadata\""), true);
+  assert.equal(themeAudio.includes("autoPlay"), false);
+});
+
+test("visible Ong Dia feedback panel uses existing anonymous feedback path without prayer content", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const submitBlock = page.slice(
+    page.indexOf("async function submitOngDiaFeedback"),
+    page.indexOf("function handleLocRequest"),
+  );
+
+  assert.equal(page.includes("Bạn có muốn có thêm nghi thức nhỏ như thắp nhang hoặc dâng chè cho Ông Địa không?"), true);
+  assert.equal(page.includes("Khi ghé Ông Địa, bạn mong Ông giúp điều gì nhất?"), true);
+  assert.equal(page.includes("Sau khi trò chuyện, bạn có thấy nhẹ lòng hoặc sáng ý hơn không?"), true);
+  assert.equal(page.includes("Bạn muốn góp thêm điều gì?"), true);
+  assert.equal(page.includes("Không cần tài khoản. Không gửi lời khấn hay lịch sử trò chuyện."), true);
+  assert.match(submitBlock, /fetch\("\/api\/cho-neo\/beta-feedback"/);
+  assert.match(submitBlock, /kind: "feedback"/);
+  assert.match(submitBlock, /page: "ong-dia"/);
+  assert.match(submitBlock, /responseShown: Boolean\(prayerResponse\)/);
+  assert.match(submitBlock, /getChoNeoBetaSessionId\(\)/);
+  assert.match(submitBlock, /getChoNeoDeviceType\(\)/);
+  assert.match(submitBlock, /trackChoNeoBetaEvent\("feedback_submitted"/);
+  assert.doesNotMatch(submitBlock, /smallPrayer|prayerForEndpoint|prayerConversationHistory|conversationHistory|history|loiOngDia|ongNhacNhe|viecNhoHomNay|prayerResponse\./);
+  assert.equal(page.includes("/api/cho-neo/ong-dia/feedback"), false);
+  assert.equal(page.includes("contact:"), false);
 });
 
 test("visible Ong Dia V1 has explicit ritual and honest continuing-loading states", () => {
@@ -969,8 +1389,9 @@ test("visible Ong Dia V1 renders a keepsake card instead of raw provider output"
   assert.equal(page.includes("Lời Ông Địa hôm nay"), true);
   assert.equal(page.includes('className={`ong-dia-keepsake-card'), true);
   assert.equal(page.includes("ong-dia-keepsake-main"), true);
-  assert.equal(page.includes("Ông nhắc nhẹ"), true);
-  assert.equal(page.includes("Việc nhỏ hôm nay"), true);
+  assert.equal(page.includes("Ông nhắc nhẹ"), false);
+  assert.equal(page.includes("Việc nhỏ hôm nay"), false);
+  assert.doesNotMatch(page, /prayerResponse\.ongNhacNhe|prayerResponse\.viecNhoHomNay/);
   assert.equal(page.includes("prayerProviderNotice ?"), false);
   assert.equal(page.includes("ong-dia-provider-notice\">{prayerProviderNotice}"), false);
 });
@@ -982,8 +1403,8 @@ test("visible Ong Dia V1 safe share payload excludes raw prayer and hidden state
     page.indexOf("function getOngDiaShareUrl"),
   );
   assert.match(shareText, /response\.loiOngDia/);
-  assert.match(shareText, /response\.ongNhacNhe/);
-  assert.match(shareText, /response\.viecNhoHomNay/);
+  assert.doesNotMatch(shareText, /response\.ongNhacNhe/);
+  assert.doesNotMatch(shareText, /response\.viecNhoHomNay/);
   assert.doesNotMatch(shareText, /smallPrayer|subject|history|anonymousSessionId|meta|prayerForEndpoint/);
   assert.equal(page.includes("navigator.share"), true);
   assert.match(page, /navigator\.share\(\{[\s\S]*title: "Lời Ông Địa hôm nay"[\s\S]*text,[\s\S]*url,/);
@@ -1069,7 +1490,7 @@ test("visible Ong Dia V1 analytics events are wired through existing beta analyt
   assert.doesNotMatch(responseShownBlock, /smallPrayer|prayerForEndpoint|history|content|loiOngDia|ongNhacNhe|viecNhoHomNay/);
   assert.equal(page.includes("@supabase"), false);
   assert.equal(page.includes("/login"), false);
-  assert.doesNotMatch(page, /payment|checkout|stripe|feed|database/i);
+  assert.doesNotMatch(page, /payment|checkout|stripe|\bfeed\b|database/i);
 });
 
 test("visible Ong Dia page keeps accepted success from being overwritten by late fallback", () => {
@@ -1082,9 +1503,11 @@ test("visible Ong Dia page keeps accepted success from being overwritten by late
     /const showPrayerFallback = \(\) => \{[\s\S]*activePrayerTurnRef\.current\?\.successAccepted[\s\S]*return false;/,
   );
   assert.equal(
-    page.includes("Ông chưa nghe rõ lời con. Chờ một chút rồi thử lại nha."),
+    page.includes("Ông Địa đang nghỉ một nhịp. Con thử lại sau nhé."),
     true,
   );
+  assert.equal(page.includes("handleRetryPrayerRequest"), true);
+  assert.equal(page.includes("Thử lại"), true);
 });
 
 test("visible Ong Dia page ignores stale prayer turns", () => {
@@ -1104,6 +1527,9 @@ test("visible Ong Dia page shows compact fallback only when current request has 
   assert.equal(page.includes('className="ong-dia-compact-fallback"'), true);
   assert.equal(page.includes('role="status" aria-live="polite"'), true);
   assert.equal(page.includes("setPrayerResponse(null);"), true);
+  assert.equal(page.includes("TECHNICAL_PRAYER_FALLBACK_SOURCES"), true);
+  assert.equal(page.includes('"openai_invalid_output"'), true);
+  assert.equal(page.includes('"fallback_provider_rate_limited"'), true);
 });
 
 test("visible Ong Dia page uses one fetch path and no speech listener auto-submit", () => {

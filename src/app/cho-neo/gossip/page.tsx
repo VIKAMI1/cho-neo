@@ -670,7 +670,7 @@ const tables = [
       "Chia sẻ màu/set thoải mái. Đừng đăng mặt khách hoặc thông tin riêng nha.",
     imageCaptionMaxChars: 180,
     maxPostChars: 220,
-    status: "active",
+    status: "inactive",
     tableStatus: "Quiet",
     initials: [],
     tone: "cyan",
@@ -701,7 +701,7 @@ const tables = [
     hostNudge:
       "Xả nhẹ cho đỡ mệt. Đừng gọi tên khách, tiệm, hay thợ trực tiếp nha.",
     maxPostChars: 350,
-    status: "active",
+    status: "inactive",
     tableStatus: "Lively",
     initials: ["Anh", "Bao", "Nhi", "SL", "PQ", "TV"],
     tone: "gold",
@@ -733,7 +733,7 @@ const tables = [
     hostNudge:
       "Ngồi nhẹ thôi. Viết điều cần nói, không cần dài, không cần hoàn hảo.",
     maxPostChars: 350,
-    status: "active",
+    status: "inactive",
     tableStatus: "Listening",
     initials: ["Linh", "Duc"],
     tone: "green",
@@ -896,7 +896,9 @@ export default function ChoNeoGossipPage() {
   const [tableNoteDraft, setTableNoteDraft] = useState("");
   const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
   const [tableHostNudgeVisible, setTableHostNudgeVisible] = useState(false);
+  const frontCounterDraftRef = useRef("");
   const frontCounterInputRef = useRef<HTMLInputElement | null>(null);
+  const frontCounterPostingRef = useRef(false);
   const tableNoteInputRef = useRef<HTMLInputElement | null>(null);
   const selectedTable = useMemo(
     () => activeTables.find((table) => table.legacyName === selectedTableName) ?? null,
@@ -978,9 +980,7 @@ export default function ChoNeoGossipPage() {
   const frontCounterMeaningfulCharacters =
     getMeaningfulCharacterCount(frontCounterDraft);
   const canSubmitFrontCounterMessage =
-    frontCounterDraft.trim().length > 0 &&
-    frontCounterMeaningfulCharacters >= FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS &&
-    !frontCounterPosting;
+    frontCounterDraft.trim().length > 0 && !frontCounterPosting;
   const selectedTablePostLimit =
     selectedTable?.maxPostChars ?? TABLE_NOTE_MESSAGE_LIMIT;
   const remainingTableNoteCharacters =
@@ -1135,9 +1135,13 @@ export default function ChoNeoGossipPage() {
   async function handleFrontCounterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const text = frontCounterDraft.trim();
+    await submitFrontCounterDraft();
+  }
 
-    if (!identity || !isCurrentIdentitySeated || frontCounterPosting) {
+  async function submitFrontCounterDraft() {
+    const text = frontCounterDraftRef.current.trim();
+
+    if (frontCounterPosting || frontCounterPostingRef.current) {
       return;
     }
 
@@ -1153,6 +1157,8 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
+    const activeIdentity = ensureFrontCounterComposerReady();
+    frontCounterPostingRef.current = true;
     setFrontCounterPosting(true);
     setFrontCounterPostNotice(null);
 
@@ -1161,8 +1167,8 @@ export default function ChoNeoGossipPage() {
 
       try {
         const savedMessage = await postSharedFrontCounterMessage({
-          avatarId: identity.avatarId,
-          nickname: identity.nickname,
+          avatarId: activeIdentity.avatarId,
+          nickname: activeIdentity.nickname,
           text,
         });
 
@@ -1181,11 +1187,14 @@ export default function ChoNeoGossipPage() {
 
         setFrontCounterMessages(decoratedSharedMessages);
         setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(decoratedSharedMessages));
+        frontCounterDraftRef.current = "";
         setFrontCounterDraft("");
         setFrontCounterMemoryNotice(null);
         setFrontCounterPostNotice(
           "Đã đăng ở Quầy Xã Giao. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Social Counter. Thanks for keeping it useful."
         );
+        releaseFrontCounterPostingGuard();
+        setFrontCounterPosting(false);
         return;
       } catch {
         setFrontCounterMemoryMode("local");
@@ -1193,17 +1202,29 @@ export default function ChoNeoGossipPage() {
         setFrontCounterMemoryNotice(
           "Shared village memory is unavailable right now, so this post is saved on this device."
         );
-      } finally {
-        setFrontCounterPosting(false);
       }
     }
 
-    saveFrontCounterMessageLocally({
-      author: getCurrentAuthorSnapshot(),
-      identity,
-      text,
-    });
-    setFrontCounterPosting(false);
+    try {
+      saveFrontCounterMessageLocally({
+        author: getCurrentAuthorSnapshot(),
+        identity: activeIdentity,
+        text,
+      });
+    } catch {
+      setFrontCounterPostNotice(
+        "Chưa đăng được câu này. Bạn thử lại sau nha. / This post could not be saved. Please try again."
+      );
+    } finally {
+      releaseFrontCounterPostingGuard();
+      setFrontCounterPosting(false);
+    }
+  }
+
+  function releaseFrontCounterPostingGuard() {
+    window.setTimeout(() => {
+      frontCounterPostingRef.current = false;
+    }, 0);
   }
 
   function saveFrontCounterMessageLocally(input: {
@@ -1224,6 +1245,7 @@ export default function ChoNeoGossipPage() {
       messages: nextMessages,
       seatedIdentity: nextSeat,
     });
+    frontCounterDraftRef.current = "";
     setFrontCounterDraft("");
     setFrontCounterPostNotice(
       "Đã đăng ở Quầy Xã Giao. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Social Counter. Thanks for keeping it useful."
@@ -1579,10 +1601,23 @@ export default function ChoNeoGossipPage() {
   }
 
   function takeFrontCounterSeat() {
+    ensureFrontCounterComposerReady();
+  }
+
+  function ensureFrontCounterComposerReady() {
     const activeIdentity = identity ?? createQuietGossipIdentity();
-    const nextSeat = createFrontCounterSeat(activeIdentity);
-    setSeatedIdentity(nextSeat);
-    saveFrontCounterSeat(nextSeat);
+
+    if (
+      !seatedIdentity ||
+      seatedIdentity.avatarId !== activeIdentity.avatarId ||
+      seatedIdentity.nickname !== activeIdentity.nickname
+    ) {
+      const nextSeat = createFrontCounterSeat(activeIdentity);
+      setSeatedIdentity(nextSeat);
+      saveFrontCounterSeat(nextSeat);
+    }
+
+    return activeIdentity;
   }
 
   function enterFrontCounterTable() {
@@ -2199,6 +2234,15 @@ export default function ChoNeoGossipPage() {
                       </div>
                       <form
                         className="front-counter-stage-form"
+                        onClick={(event) => {
+                          if (
+                            event.target instanceof HTMLElement &&
+                            !event.target.closest("button")
+                          ) {
+                            ensureFrontCounterComposerReady();
+                            frontCounterInputRef.current?.focus();
+                          }
+                        }}
                         onSubmit={handleFrontCounterSubmit}
                       >
                         {renderAvatarPassportChip()}
@@ -2234,17 +2278,16 @@ export default function ChoNeoGossipPage() {
                             </button>
                           )}
                           <input
-                            disabled={
-                              !identity ||
-                              !isCurrentIdentitySeated ||
-                              frontCounterPosting
-                            }
+                            disabled={frontCounterPosting}
                             id="front-counter-stage-message"
                             maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
                             onChange={(event) => {
+                              ensureFrontCounterComposerReady();
+                              frontCounterDraftRef.current = event.target.value;
                               setFrontCounterDraft(event.target.value);
                               setFrontCounterPostNotice(null);
                             }}
+                            onFocus={ensureFrontCounterComposerReady}
                             placeholder={
                               "Góp một câu..."
                             }
@@ -2254,19 +2297,19 @@ export default function ChoNeoGossipPage() {
                           />
                           <button
                             disabled={
-                              !identity ||
-                              !isCurrentIdentitySeated ||
                               !canSubmitFrontCounterMessage ||
                               frontCounterPosting
                             }
-                            type="submit"
+                            onClick={() => {
+                              void submitFrontCounterDraft();
+                            }}
+                            type="button"
                           >
                             <span className="front-counter-send-icon" aria-hidden="true">
                               ↗
                             </span>
                             <span className="front-counter-send-copy">
-                              {frontCounterPosting ? "Đang đăng..." : "Đăng"}
-                              <small>{frontCounterPosting ? "Posting..." : "Post"}</small>
+                              {frontCounterPosting ? "Đang đăng..." : "Đăng Post"}
                             </span>
                           </button>
                         </div>

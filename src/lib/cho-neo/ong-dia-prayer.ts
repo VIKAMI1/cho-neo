@@ -31,8 +31,8 @@ export type OngDiaWishSeverity = "low" | "medium" | "high";
 export type OngDiaPrayerResponse = {
   noticedDetail?: string;
   loiOngDia: string;
-  ongNhacNhe: string;
-  viecNhoHomNay: string;
+  ongNhacNhe?: string;
+  viecNhoHomNay?: string;
   khiChuyenQuaNang?: string;
 };
 
@@ -78,6 +78,14 @@ const CATEGORY_KEYWORDS: Record<OngDiaWishCategory, string[]> = {
     "money",
     "mượn tiền",
     "muon tien",
+    "chứng khoán",
+    "chung khoan",
+    "stock",
+    "lỗ",
+    "lo",
+    "mất tiền",
+    "mat tien",
+    "thua stock",
     "lottery",
     "nợ",
     "no",
