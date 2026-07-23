@@ -287,6 +287,9 @@ const QUAN_TAM_NIGHT_ARTWORK_SRC = "/images/cho-neo/quan-tam-gossip.png";
 const QUAY_XA_GIAO_DAY_ARTWORK_SRC =
   "/images/cho-neo/Quay-Xa-Giao-Daytime.png";
 const QUAY_XA_GIAO_NIGHT_ARTWORK_SRC = "/images/cho-neo/Quay-Xa-Giao.png";
+const BAN_CHUYEN_NGHE_DAY_ARTWORK_SRC = "/images/cho-neo/Ban-Chuyen-Nghe-New.png";
+const BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC =
+  "/images/cho-neo/Ban-Chuyen-Nghe-Nighttime.png";
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
 const GOSSIP_RULES_ACCEPTED_KEY = "choNeoGossipRulesAcceptedV1";
@@ -440,7 +443,7 @@ const LOCAL_TABLE_CONFIG = {
       { vi: "Không spam supplier.", en: "No supplier spam." },
       { vi: "Giữ tên khách và thợ riêng tư.", en: "Keep clients and techs private." },
     ],
-    composerPlaceholder: "Hỏi hoặc chia sẻ một chuyện nghề...",
+    composerPlaceholder: "Góp chuyện nghề...",
     helper: {
       vi: "Nói rõ bối cảnh: khách, giá, lịch, dịch vụ, hay cách tiệm chạy.",
       en: "Share context: clients, pricing, schedule, services, or shop flow.",
@@ -862,6 +865,9 @@ function getQuanTamArtworkSources(date = new Date()) {
   const isDaytime = isChoNeoDaytime(date);
 
   return {
+    shopTalk: isDaytime
+      ? BAN_CHUYEN_NGHE_DAY_ARTWORK_SRC
+      : BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC,
     frontCounter: isDaytime
       ? QUAY_XA_GIAO_DAY_ARTWORK_SRC
       : QUAY_XA_GIAO_NIGHT_ARTWORK_SRC,
@@ -889,6 +895,7 @@ function getNextQuanTamArtworkBoundaryMs(date = new Date()) {
 
 function useQuanTamArtworkSources() {
   const [artworkSources, setArtworkSources] = useState({
+    shopTalk: BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC,
     frontCounter: QUAY_XA_GIAO_NIGHT_ARTWORK_SRC,
     lobby: QUAN_TAM_NIGHT_ARTWORK_SRC,
   });
@@ -975,6 +982,7 @@ export default function ChoNeoGossipPage() {
   const isFrontCounter = selectedTable?.id === "front-counter";
   const isTrendTable = selectedTable?.id === "color-trend";
   const isLocalSessionTable = selectedTable?.mode === "local-session";
+  const isShopTalkTable = selectedTable?.id === "shop-talk";
   const localTableConfig = isLocalSessionTable
     ? LOCAL_TABLE_CONFIG[selectedTable.id as keyof typeof LOCAL_TABLE_CONFIG]
     : null;
@@ -2029,7 +2037,11 @@ export default function ChoNeoGossipPage() {
                 {isLocalSessionTable && localTableConfig ? (
                   <QuanTamTableShell
                     ariaLabel={`${getTableNameCopy(selectedTable.name).vi} selected table`}
-                    artwork={selectedTable.artwork}
+                    artwork={
+                      isShopTalkTable
+                        ? quanTamArtworkSources.shopTalk
+                        : selectedTable.artwork
+                    }
                     artworkAlt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
                     className={`local-table-stage-${selectedTable.id}`}
                     countLabel={getCompactTableCountLabel(selectedTable)}
@@ -2044,10 +2056,14 @@ export default function ChoNeoGossipPage() {
                     <section className="local-table-prompts" aria-label={`${getTableNameCopy(selectedTable.name).vi} starter prompts`}>
                       <div>
                         <strong>
-                          Gợi ý mở chuyện
-                          <span>Starter prompts</span>
+                          {isShopTalkTable ? "Gợi mở chuyện" : "Gợi ý mở chuyện"}
+                          {isShopTalkTable ? null : <span>Starter prompts</span>}
                         </strong>
-                        <small>Có câu mở đầu, bạn thêm giọng của mình.</small>
+                        <small>
+                          {isShopTalkTable
+                            ? "Chọn một ý rồi thêm giọng của mình."
+                            : "Có câu mở đầu, bạn thêm giọng của mình."}
+                        </small>
                       </div>
                       <div className="local-table-chip-row">
                         {selectedTable.topicChips.map((chip) => (
@@ -2110,12 +2126,14 @@ export default function ChoNeoGossipPage() {
                     >
                       <label htmlFor="table-note-message">
                         Góp một câu vào bàn
-                        <span>Add one note to the table</span>
+                        {isShopTalkTable ? null : <span>Add one note to the table</span>}
                       </label>
-                      <p className="posting-helper table-safety-line">
-                        Nói nhẹ. Giữ tên riêng tư.
-                        <span>Keep it gentle. Keep names private.</span>
-                      </p>
+                      {isShopTalkTable ? null : (
+                        <p className="posting-helper table-safety-line">
+                          Nói nhẹ. Giữ tên riêng tư.
+                          <span>Keep it gentle. Keep names private.</span>
+                        </p>
+                      )}
                       {renderAvatarPassportChip()}
                       <div className="message-row">
                         <input
@@ -2132,7 +2150,7 @@ export default function ChoNeoGossipPage() {
                         />
                         <button disabled={!canSubmitTableNote} type="submit">
                           Góp chuyện
-                          <span>Add note</span>
+                          {isShopTalkTable ? null : <span>Add note</span>}
                         </button>
                       </div>
                       {tableNoteNotice ? (
@@ -2150,17 +2168,19 @@ export default function ChoNeoGossipPage() {
                       ) : null}
                     </form>
 
-                    <details className="table-light-rules">
-                      <summary>Nội quy nhẹ</summary>
-                      <div>
-                        {selectedTable.rules.map((rule) => (
-                          <p key={rule.vi}>
-                            {rule.vi}
-                            <span>{rule.en}</span>
-                          </p>
-                        ))}
-                      </div>
-                    </details>
+                    {isShopTalkTable ? null : (
+                      <details className="table-light-rules">
+                        <summary>Nội quy nhẹ</summary>
+                        <div>
+                          {selectedTable.rules.map((rule) => (
+                            <p key={rule.vi}>
+                              {rule.vi}
+                              <span>{rule.en}</span>
+                            </p>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </QuanTamTableShell>
                 ) : null}
 
@@ -5382,6 +5402,295 @@ export default function ChoNeoGossipPage() {
 
         .local-table-stage-shop-talk {
           --local-table-accent: #f59e0b;
+        }
+
+        .local-table-stage-shop-talk {
+          gap: 12px;
+          margin-top: 8px;
+        }
+
+        .local-table-stage-shop-talk .compact-table-header {
+          flex-wrap: wrap;
+          justify-content: flex-start;
+          gap: 8px;
+          margin-bottom: 0;
+        }
+
+        .local-table-stage-shop-talk .compact-table-back,
+        .local-table-stage-shop-talk .compact-table-enter,
+        .local-table-stage-shop-talk .compact-table-count {
+          display: inline-flex;
+          min-height: 40px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 650;
+          line-height: 1.1;
+          letter-spacing: 0;
+          box-shadow:
+            0 8px 18px rgba(18, 10, 8, 0.14),
+            inset 0 1px 0 rgba(255, 247, 237, 0.08);
+        }
+
+        .local-table-stage-shop-talk .compact-table-back {
+          padding: 7px 11px;
+          color: rgba(255, 247, 237, 0.86);
+          background: rgba(54, 32, 27, 0.5);
+        }
+
+        .local-table-stage-shop-talk .compact-table-enter {
+          flex-direction: column;
+          padding: 6px 11px;
+          color: #fffefc;
+          border: 1px solid rgba(115, 55, 49, 0.26);
+          background: #b85f55;
+        }
+
+        .local-table-stage-shop-talk .compact-table-enter span {
+          margin-top: 1px;
+          font-size: 10px;
+          font-weight: 600;
+          opacity: 0.86;
+        }
+
+        .local-table-stage-shop-talk .compact-table-count {
+          margin-left: 0;
+          padding: 7px 11px;
+          color: rgba(255, 247, 237, 0.78);
+          background: rgba(54, 32, 27, 0.42);
+          text-align: center;
+        }
+
+        .local-table-stage-shop-talk .quan-tam-music-control {
+          flex: 0 1 260px;
+          min-height: 40px;
+          border-radius: 12px;
+        }
+
+        .local-table-stage-shop-talk .local-table-heading h2 {
+          color: #fff7ed;
+          font-size: clamp(28px, 4vw, 38px);
+          font-weight: 650;
+          line-height: 1;
+        }
+
+        .local-table-stage-shop-talk .local-table-heading h2 span {
+          margin-top: 3px;
+          color: rgba(255, 247, 237, 0.64);
+          font-size: 0.38em;
+          font-weight: 500;
+        }
+
+        .local-table-stage-shop-talk .local-table-subtitle {
+          max-width: 660px;
+          margin-top: -2px;
+          color: rgba(255, 247, 237, 0.78);
+          font-size: 14px;
+          font-weight: 500;
+          line-height: 1.42;
+        }
+
+        .local-table-stage-shop-talk .local-table-subtitle span {
+          display: none;
+        }
+
+        .local-table-stage-shop-talk .local-table-artwork {
+          border-radius: 24px;
+          background: #1f1412;
+        }
+
+        .local-table-stage-shop-talk .local-table-artwork img {
+          aspect-ratio: 1671 / 941;
+          object-fit: contain;
+          object-position: center;
+          background: #1f1412;
+        }
+
+        .local-table-stage-shop-talk .local-table-prompts {
+          gap: 8px;
+          padding: 10px;
+          border-color: rgba(199, 186, 177, 0.64);
+          border-radius: 14px;
+          background: linear-gradient(180deg, #fffefc, #fbf2ec);
+          box-shadow: 0 12px 24px rgba(27, 18, 14, 0.16);
+        }
+
+        .local-table-stage-shop-talk .local-table-prompts > div:first-child {
+          align-items: baseline;
+        }
+
+        .local-table-stage-shop-talk .local-table-prompts strong {
+          color: #2f2926;
+          font-size: 14px;
+          font-weight: 650;
+        }
+
+        .local-table-stage-shop-talk .local-table-prompts small {
+          color: #6b625d;
+          font-size: 12px;
+          font-weight: 600;
+          text-align: right;
+        }
+
+        .local-table-stage-shop-talk .local-table-chip-row {
+          gap: 7px;
+        }
+
+        .local-table-stage-shop-talk .local-table-chip {
+          grid-template-columns: 10px max-content;
+          gap: 6px;
+          min-height: 34px;
+          border-color: #c7bab1;
+          border-radius: 12px;
+          padding: 6px 10px;
+          color: #4f4641;
+          background: #fffefc;
+          font-size: 12px;
+          font-weight: 650;
+        }
+
+        .local-table-stage-shop-talk .local-table-chip > span {
+          width: 10px;
+          height: 10px;
+        }
+
+        .local-table-stage-shop-talk .local-table-thread {
+          gap: 10px;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+        }
+
+        .local-table-stage-shop-talk .local-table-thread-heading {
+          padding: 0 2px;
+        }
+
+        .local-table-stage-shop-talk .local-table-thread-heading strong {
+          color: rgba(255, 247, 237, 0.84);
+          font-size: 13px;
+          font-weight: 650;
+        }
+
+        .local-table-stage-shop-talk .local-table-thread-heading strong span {
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 11px;
+          font-weight: 500;
+        }
+
+        .local-table-stage-shop-talk .local-table-note {
+          padding: 15px 16px;
+          border: 1px solid #c7bab1;
+          border-radius: 18px;
+          color: #2f2926;
+          background: linear-gradient(180deg, #fffefc, #fff8f1);
+          box-shadow:
+            0 14px 30px rgba(27, 18, 14, 0.22),
+            0 0 0 1px rgba(255, 254, 252, 0.72);
+        }
+
+        .local-table-stage-shop-talk .local-table-note p {
+          margin-top: 6px;
+          color: #2f2926;
+          font-size: 15px;
+          font-weight: 650;
+          line-height: 1.52;
+        }
+
+        .local-table-stage-shop-talk .post-author-chip strong {
+          color: #2f2926;
+          font-size: 15px;
+          font-weight: 650;
+        }
+
+        .local-table-stage-shop-talk .post-author-chip small {
+          color: #6b625d;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .local-table-stage-shop-talk .local-table-form {
+          gap: 10px;
+          padding: 16px;
+          border: 1px solid #c7bab1;
+          border-radius: 18px;
+          background: linear-gradient(180deg, #fffefc, #fbf2ec);
+          box-shadow:
+            0 18px 38px rgba(27, 18, 14, 0.24),
+            0 0 0 1px rgba(255, 254, 252, 0.72),
+            inset 0 1px 0 rgba(255, 255, 255, 0.82);
+        }
+
+        .local-table-stage-shop-talk .local-table-form label {
+          color: #2f2926;
+          font-size: 14px;
+          font-weight: 650;
+          letter-spacing: 0;
+        }
+
+        .local-table-stage-shop-talk .composer-avatar-passport {
+          border-color: rgba(199, 186, 177, 0.84);
+          border-radius: 14px;
+          color: #2f2926;
+          background: rgba(255, 254, 252, 0.92);
+          box-shadow: 0 8px 18px rgba(27, 18, 14, 0.1);
+        }
+
+        .local-table-stage-shop-talk .composer-avatar-passport strong,
+        .local-table-stage-shop-talk .composer-avatar-action {
+          color: #2f2926;
+          font-weight: 650;
+        }
+
+        .local-table-stage-shop-talk .composer-avatar-passport small {
+          color: #6b625d;
+          font-weight: 600;
+        }
+
+        .local-table-stage-shop-talk .message-row {
+          gap: 10px;
+        }
+
+        .local-table-stage-shop-talk .message-row input {
+          min-height: 48px;
+          border-color: #c7bab1;
+          border-radius: 14px;
+          padding: 12px 14px;
+          color: #2f2926;
+          background: #fffefc;
+          font-size: 16px;
+          font-weight: 600;
+        }
+
+        .local-table-stage-shop-talk .message-row input::placeholder {
+          color: #756c67;
+          opacity: 1;
+        }
+
+        .local-table-stage-shop-talk .message-row input:focus {
+          border-color: #8d7d74;
+          box-shadow: 0 0 0 3px rgba(184, 95, 85, 0.16);
+        }
+
+        .local-table-stage-shop-talk .message-row button {
+          min-height: 48px;
+          padding: 10px 17px;
+          border: 1px solid rgba(115, 55, 49, 0.26);
+          border-radius: 12px;
+          color: #fffefc;
+          background: #b85f55;
+          font-size: 14px;
+          font-weight: 700;
+          box-shadow: 0 12px 22px rgba(97, 45, 39, 0.28);
+        }
+
+        .local-table-stage-shop-talk .message-row button:disabled {
+          color: rgba(255, 254, 252, 0.88);
+          background: #c9948d;
+          box-shadow: none;
+          opacity: 1;
         }
 
         .local-table-stage-vent-table {
@@ -8968,6 +9277,22 @@ export default function ChoNeoGossipPage() {
 
           .local-table-artwork img {
             aspect-ratio: 16 / 10;
+          }
+
+          .local-table-stage-shop-talk .local-table-artwork img {
+            aspect-ratio: 1671 / 941;
+            object-fit: contain;
+          }
+
+          .local-table-stage-shop-talk .compact-table-header {
+            gap: 7px;
+          }
+
+          .local-table-stage-shop-talk .compact-table-back,
+          .local-table-stage-shop-talk .compact-table-enter,
+          .local-table-stage-shop-talk .compact-table-count {
+            min-height: 38px;
+            border-radius: 12px;
           }
 
           .local-table-prompts,

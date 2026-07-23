@@ -41,6 +41,8 @@ function createArtworkHarness() {
     const QUAN_TAM_NIGHT_ARTWORK_SRC = "/images/cho-neo/quan-tam-gossip.png";
     const QUAY_XA_GIAO_DAY_ARTWORK_SRC = "/images/cho-neo/Quay-Xa-Giao-Daytime.png";
     const QUAY_XA_GIAO_NIGHT_ARTWORK_SRC = "/images/cho-neo/Quay-Xa-Giao.png";
+    const BAN_CHUYEN_NGHE_DAY_ARTWORK_SRC = "/images/cho-neo/Ban-Chuyen-Nghe-New.png";
+    const BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC = "/images/cho-neo/Ban-Chuyen-Nghe-Nighttime.png";
     ${extractNamedFunction(page, "isChoNeoDaytime")}
     ${extractNamedFunction(page, "getQuanTamArtworkSources")}
     ${extractNamedFunction(page, "getNextQuanTamArtworkBoundaryMs")}
@@ -53,6 +55,8 @@ function createArtworkHarness() {
         quanTamNight: QUAN_TAM_NIGHT_ARTWORK_SRC,
         quayXaGiaoDay: QUAY_XA_GIAO_DAY_ARTWORK_SRC,
         quayXaGiaoNight: QUAY_XA_GIAO_NIGHT_ARTWORK_SRC,
+        banChuyenNgheDay: BAN_CHUYEN_NGHE_DAY_ARTWORK_SRC,
+        banChuyenNgheNight: BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC,
       },
     };
   `;
@@ -151,10 +155,12 @@ test("Quán Tám and Quầy Xã Giao artwork switch between local daytime and ex
   assert.equal(isChoNeoDaytime(dayEnd), true);
   assert.equal(isChoNeoDaytime(nightStart), false);
   assert.deepEqual(getQuanTamArtworkSources(dayStart), {
+    shopTalk: paths.banChuyenNgheDay,
     frontCounter: paths.quayXaGiaoDay,
     lobby: paths.quanTamDay,
   });
   assert.deepEqual(getQuanTamArtworkSources(nightStart), {
+    shopTalk: paths.banChuyenNgheNight,
     frontCounter: paths.quayXaGiaoNight,
     lobby: paths.quanTamNight,
   });
@@ -179,7 +185,7 @@ test("Quán Tám artwork timer updates at 06:00 and 18:00 without hydration chur
     getNextQuanTamArtworkBoundaryMs(new Date("2026-07-22T18:00:00")),
     12 * 60 * 60 * 1000
   );
-  assert.match(page, /useState\(\{\s*frontCounter: QUAY_XA_GIAO_NIGHT_ARTWORK_SRC,\s*lobby: QUAN_TAM_NIGHT_ARTWORK_SRC,\s*\}\)/);
+  assert.match(page, /useState\(\{\s*shopTalk: BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC,\s*frontCounter: QUAY_XA_GIAO_NIGHT_ARTWORK_SRC,\s*lobby: QUAN_TAM_NIGHT_ARTWORK_SRC,\s*\}\)/);
   assert.match(page, /window\.clearTimeout\(timeoutId\);/);
 });
 
@@ -206,4 +212,42 @@ test("front counter composer and bubbles use clearer readable surfaces", () => {
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-safety[\s\S]*font-size: 14px;/);
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-message-row > button:not\(\.front-counter-input-avatar\) \{[\s\S]*min-height: 48px;[\s\S]*background: #b85f55;/);
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-message-row > button:not\(\.front-counter-input-avatar\):disabled \{[\s\S]*background: #c9948d;[\s\S]*opacity: 1;/);
+});
+
+test("Bàn Chuyện Nghề keeps focused prompts, nighttime artwork, and no duplicate rules", () => {
+  includesAll(page, [
+    'const BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC =\n  "/images/cho-neo/Ban-Chuyen-Nghe-Nighttime.png";',
+    'artwork={\n                      isShopTalkTable\n                        ? quanTamArtworkSources.shopTalk\n                        : selectedTable.artwork\n                    }',
+    'Gợi mở chuyện',
+    "Khách khó tính",
+    "Giá & thời gian",
+    "Ngày bận",
+    "Dịch vụ bán chạy",
+    "Nhân sự",
+    "{isShopTalkTable ? null : (\n                      <details className=\"table-light-rules\">",
+  ]);
+
+  assert.match(page, /\.local-table-stage-shop-talk \.local-table-artwork img \{[\s\S]*aspect-ratio: 1671 \/ 941;[\s\S]*object-fit: contain;/);
+  assert.doesNotMatch(
+    page,
+    /local-table-stage-shop-talk[\s\S]*summary>Nội quy nhẹ/,
+    "shop-talk scoped UI should not add a duplicate Nội quy nhẹ section"
+  );
+});
+
+test("Bàn Chuyện Nghề uses separate readable post cards and compact composer", () => {
+  assert.match(page, /\.local-table-stage-shop-talk \.local-table-thread \{[\s\S]*border: 0;[\s\S]*background: transparent;/);
+  assert.match(page, /\.local-table-stage-shop-talk \.local-table-note \{[\s\S]*border: 1px solid #c7bab1;[\s\S]*background: linear-gradient\(180deg, #fffefc, #fff8f1\);/);
+  assert.match(page, /\.local-table-stage-shop-talk \.local-table-note p \{[\s\S]*font-size: 15px;[\s\S]*line-height: 1\.52;/);
+  assert.match(page, /\.local-table-stage-shop-talk \.local-table-form \{[\s\S]*background: linear-gradient\(180deg, #fffefc, #fbf2ec\);/);
+  assert.match(page, /\.local-table-stage-shop-talk \.local-table-form label \{[\s\S]*font-size: 14px;[\s\S]*font-weight: 650;/);
+  assert.match(page, /\.local-table-stage-shop-talk \.message-row input \{[\s\S]*min-height: 48px;[\s\S]*font-size: 16px;/);
+  assert.match(page, /\.local-table-stage-shop-talk \.message-row button \{[\s\S]*min-height: 48px;[\s\S]*border-radius: 12px;[\s\S]*background: #b85f55;/);
+  assert.match(page, /\.local-table-stage-shop-talk \.message-row button:disabled \{[\s\S]*background: #c9948d;[\s\S]*opacity: 1;/);
+});
+
+test("Bàn Chuyện Nghề header controls stay compact rounded rectangles", () => {
+  assert.match(page, /\.local-table-stage-shop-talk \.compact-table-header \{[\s\S]*flex-wrap: wrap;[\s\S]*gap: 8px;/);
+  assert.match(page, /\.local-table-stage-shop-talk \.compact-table-back,[\s\S]*\.local-table-stage-shop-talk \.compact-table-count \{[\s\S]*min-height: 40px;[\s\S]*border-radius: 12px;/);
+  assert.match(page, /\.local-table-stage-shop-talk \.compact-table-enter \{[\s\S]*border: 1px solid rgba\(115, 55, 49, 0\.26\);[\s\S]*background: #b85f55;/);
 });
