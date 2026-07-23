@@ -1912,11 +1912,13 @@ export default function ChoNeoGossipPage() {
 
               <div
                 className={`detail-panel ${
-                  isFrontCounter ? "detail-panel-front-counter" : ""
+                  isFrontCounter || isShopTalkTable ? "detail-panel-front-counter" : ""
+                } ${
+                  isShopTalkTable ? "detail-panel-shop-talk" : ""
                 } ${
                   isTrendTable ? "detail-panel-trend-table" : ""
                 } ${
-                  isLocalSessionTable ? "detail-panel-local-table" : ""
+                  isLocalSessionTable && !isShopTalkTable ? "detail-panel-local-table" : ""
                 } ${
                   isFrontCounter && frontCounterDrawerOpen
                     ? "front-counter-drawer-open"
@@ -1932,7 +1934,7 @@ export default function ChoNeoGossipPage() {
                   />
                 ) : null}
 
-                {isFrontCounter ? (
+                {isFrontCounter || isShopTalkTable ? (
                   <div className="front-counter-quick-controls">
                     <button
                       className="compact-table-back front-counter-back-control"
@@ -1943,18 +1945,22 @@ export default function ChoNeoGossipPage() {
                     </button>
                     <button
                       className={`front-counter-seat-control ${
-                        isCurrentIdentitySeated ? "front-counter-seat-control-seated" : ""
+                        isFrontCounter && isCurrentIdentitySeated
+                          ? "front-counter-seat-control-seated"
+                          : ""
                       }`}
                       type="button"
-                      onClick={enterFrontCounterTable}
+                      onClick={isFrontCounter ? enterFrontCounterTable : enterSelectedTable}
                       aria-label={
-                        isCurrentIdentitySeated
+                        isFrontCounter && isCurrentIdentitySeated
                           ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
-                          : "Vào bàn / Take a seat"
+                          : `Vào ${getTableNameCopy(selectedTable.name).vi} / Take a seat`
                       }
                     >
-                      {isCurrentIdentitySeated ? "Đang ngồi" : "Vào bàn"}
-                      <span>{isCurrentIdentitySeated ? "Seated" : "Take a seat"}</span>
+                      {isFrontCounter && isCurrentIdentitySeated ? "Đang ngồi" : "Vào bàn"}
+                      <span>
+                        {isFrontCounter && isCurrentIdentitySeated ? "Seated" : "Take a seat"}
+                      </span>
                     </button>
                     <div className="front-counter-music-shell">
                       {quanTamMusicControl}
@@ -2034,14 +2040,10 @@ export default function ChoNeoGossipPage() {
                   </div>
                 ) : null}
 
-                {isLocalSessionTable && localTableConfig ? (
+                {isLocalSessionTable && localTableConfig && !isShopTalkTable ? (
                   <QuanTamTableShell
                     ariaLabel={`${getTableNameCopy(selectedTable.name).vi} selected table`}
-                    artwork={
-                      isShopTalkTable
-                        ? quanTamArtworkSources.shopTalk
-                        : selectedTable.artwork
-                    }
+                    artwork={selectedTable.artwork}
                     artworkAlt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
                     className={`local-table-stage-${selectedTable.id}`}
                     countLabel={getCompactTableCountLabel(selectedTable)}
@@ -2056,13 +2058,11 @@ export default function ChoNeoGossipPage() {
                     <section className="local-table-prompts" aria-label={`${getTableNameCopy(selectedTable.name).vi} starter prompts`}>
                       <div>
                         <strong>
-                          {isShopTalkTable ? "Gợi mở chuyện" : "Gợi ý mở chuyện"}
-                          {isShopTalkTable ? null : <span>Starter prompts</span>}
+                          Gợi ý mở chuyện
+                          <span>Starter prompts</span>
                         </strong>
                         <small>
-                          {isShopTalkTable
-                            ? "Chọn một ý rồi thêm giọng của mình."
-                            : "Có câu mở đầu, bạn thêm giọng của mình."}
+                          Có câu mở đầu, bạn thêm giọng của mình.
                         </small>
                       </div>
                       <div className="local-table-chip-row">
@@ -2126,14 +2126,12 @@ export default function ChoNeoGossipPage() {
                     >
                       <label htmlFor="table-note-message">
                         Góp một câu vào bàn
-                        {isShopTalkTable ? null : <span>Add one note to the table</span>}
+                        <span>Add one note to the table</span>
                       </label>
-                      {isShopTalkTable ? null : (
-                        <p className="posting-helper table-safety-line">
-                          Nói nhẹ. Giữ tên riêng tư.
-                          <span>Keep it gentle. Keep names private.</span>
-                        </p>
-                      )}
+                      <p className="posting-helper table-safety-line">
+                        Nói nhẹ. Giữ tên riêng tư.
+                        <span>Keep it gentle. Keep names private.</span>
+                      </p>
                       {renderAvatarPassportChip()}
                       <div className="message-row">
                         <input
@@ -2150,7 +2148,7 @@ export default function ChoNeoGossipPage() {
                         />
                         <button disabled={!canSubmitTableNote} type="submit">
                           Góp chuyện
-                          {isShopTalkTable ? null : <span>Add note</span>}
+                          <span>Add note</span>
                         </button>
                       </div>
                       {tableNoteNotice ? (
@@ -2168,20 +2166,222 @@ export default function ChoNeoGossipPage() {
                       ) : null}
                     </form>
 
-                    {isShopTalkTable ? null : (
-                      <details className="table-light-rules">
-                        <summary>Nội quy nhẹ</summary>
+                    <details className="table-light-rules">
+                      <summary>Nội quy nhẹ</summary>
+                      <div>
+                        {selectedTable.rules.map((rule) => (
+                          <p key={rule.vi}>
+                            {rule.vi}
+                            <span>{rule.en}</span>
+                          </p>
+                        ))}
+                      </div>
+                    </details>
+                  </QuanTamTableShell>
+                ) : null}
+
+                {isShopTalkTable && localTableConfig ? (
+                  <div
+                    className="front-counter-table-scene shop-talk-table-scene"
+                    aria-label="Bàn Chuyện Nghề table scene"
+                  >
+                    <div className="front-counter-focused-stage shop-talk-focused-stage">
+                      <div className="front-counter-artwork-frame">
+                        <div className="front-counter-artwork-surface">
+                          <img
+                            alt="Bàn Chuyện Nghề nail salon room with warm tables, technician, client, NeoPao screen, appointment book, and conversation space"
+                            className="front-counter-focused-image"
+                            src={quanTamArtworkSources.shopTalk}
+                          />
+                          <div className="front-counter-scene-ambience" aria-hidden="true">
+                            <span className="front-counter-ambient-glow front-counter-ambient-lantern" />
+                            <span className="front-counter-ambient-glow front-counter-ambient-counter" />
+                            <span className="front-counter-ambient-steam" />
+                            <span className="front-counter-ambient-reflection" />
+                          </div>
+                          <div className="front-counter-focused-scrim" aria-hidden="true" />
+                        </div>
+                        <div className="shop-talk-room-caption">
+                          <strong>
+                            {getTableNameCopy(selectedTable.name).vi}
+                            <span>{getTableNameCopy(selectedTable.name).en}</span>
+                          </strong>
+                          <p>{selectedTable.subtitle}</p>
+                        </div>
+                      </div>
+                      <div
+                        className="front-counter-stage-bubbles shop-talk-stage-feed"
+                        aria-label="Bàn Chuyện Nghề visible notes"
+                      >
+                        {selectedMessages.length ? (
+                          selectedMessages.map((message, index) => {
+                            const conversationMessage =
+                              "name" in message ? message : null;
+
+                            if (!conversationMessage) {
+                              return null;
+                            }
+
+                            const messageAuthor = conversationMessage.author;
+                            const displayName =
+                              messageAuthor?.nickname ?? conversationMessage.name;
+                            const displayInitials = getNicknameInitials(displayName);
+
+                            return (
+                              <article
+                                className={`front-counter-stage-bubble ${
+                                  index % 2
+                                    ? "front-counter-stage-bubble-right"
+                                    : "front-counter-stage-bubble-left"
+                                }`}
+                                key={`${conversationMessage.name}-${conversationMessage.text}-${index}`}
+                              >
+                                <div className="front-counter-bubble-header">
+                                  {messageAuthor?.avatarSrc ? (
+                                    <img
+                                      alt=""
+                                      className="front-counter-bubble-avatar-image"
+                                      src={messageAuthor.avatarSrc}
+                                    />
+                                  ) : (
+                                    <span
+                                      className="front-counter-bubble-avatar avatar-ember"
+                                      aria-hidden="true"
+                                    >
+                                      {displayInitials.slice(0, 1)}
+                                    </span>
+                                  )}
+                                  <div>
+                                    <strong>
+                                      {displayInitials}
+                                      <span>{displayName}</span>
+                                    </strong>
+                                    {messageAuthor?.mood ? (
+                                      <small>{messageAuthor.mood}</small>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <p>{conversationMessage.text}</p>
+                              </article>
+                            );
+                          })
+                        ) : (
+                          <div className="front-counter-stage-bubble front-counter-stage-bubble-left">
+                            <div className="front-counter-bubble-header">
+                              <span
+                                className="front-counter-bubble-avatar avatar-ember"
+                                aria-hidden="true"
+                              >
+                                BN
+                              </span>
+                              <div>
+                                <strong>
+                                  Bàn nghề
+                                  <span>Shop Talk</span>
+                                </strong>
+                              </div>
+                            </div>
+                            <p>{selectedTable.emptyState?.viTitle ?? selectedTable.topic}</p>
+                          </div>
+                        )}
+                      </div>
+                      <form
+                        className="front-counter-stage-form shop-talk-stage-form"
+                        onClick={(event) => {
+                          if (
+                            event.target instanceof HTMLElement &&
+                            !event.target.closest("button, a")
+                          ) {
+                            tableNoteInputRef.current?.focus();
+                          }
+                        }}
+                        onSubmit={handleTableNoteSubmit}
+                      >
+                        {renderAvatarPassportChip()}
+                        <div className="front-counter-stage-message-row">
+                          <button
+                            aria-label="Use your Chợ Neo avatar"
+                            className="front-counter-input-avatar"
+                            onClick={enterSelectedTable}
+                            type="button"
+                          >
+                            {avatarProfile ? (
+                              <>
+                                <img alt="" src={avatarProfile.avatarSrc} />
+                                <strong>
+                                  {getNicknameInitials(
+                                    avatarProfile.nickname || "Bạn làng"
+                                  )}
+                                </strong>
+                              </>
+                            ) : (
+                              <>
+                                <span aria-hidden="true">☕</span>
+                                <strong>?</strong>
+                              </>
+                            )}
+                          </button>
+                          <input
+                            id="table-note-message"
+                            maxLength={selectedTablePostLimit}
+                            onChange={(event) => {
+                              setTableNoteDraft(event.target.value);
+                              setTableNoteNotice(null);
+                            }}
+                            placeholder={selectedTable.composerPlaceholder}
+                            ref={tableNoteInputRef}
+                            type="text"
+                            value={tableNoteDraft}
+                          />
+                          <button disabled={!canSubmitTableNote} type="submit">
+                            <span className="front-counter-send-icon" aria-hidden="true">
+                              ↗
+                            </span>
+                            <span className="front-counter-send-copy">Góp chuyện</span>
+                          </button>
+                        </div>
+                        <p className="front-counter-stage-safety">
+                          <span className="front-counter-safety-leaf" aria-hidden="true">
+                            ❧
+                          </span>
+                          <span>
+                            Nói nhẹ. Giữ tên riêng tư.
+                            <small>Keep it gentle. Keep names private.</small>
+                          </span>
+                        </p>
+                        {tableNoteNotice ? (
+                          <p className="front-counter-stage-feedback">
+                            {tableNoteNotice}
+                          </p>
+                        ) : shouldShowTableNoteCharacterCount ? (
+                          <p className="front-counter-stage-count">
+                            Còn {remainingTableNoteCharacters} ký tự
+                            <span>{remainingTableNoteCharacters} left</span>
+                          </p>
+                        ) : null}
+                      </form>
+                      <section
+                        className="front-counter-stage-form shop-talk-prompt-strip"
+                        aria-label="Bàn Chuyện Nghề starter prompts"
+                      >
                         <div>
-                          {selectedTable.rules.map((rule) => (
-                            <p key={rule.vi}>
-                              {rule.vi}
-                              <span>{rule.en}</span>
-                            </p>
+                          <strong>Gợi mở chuyện</strong>
+                        </div>
+                        <div className="shop-talk-prompt-row">
+                          {selectedTable.topicChips.map((chip) => (
+                            <button
+                              className={`shop-talk-prompt-chip trend-chip-${chip.tone}`}
+                              key={chip.vi}
+                              onClick={() => useLocalTablePrompt(chip)}
+                              type="button"
+                            >
+                              {chip.vi}
+                            </button>
                           ))}
                         </div>
-                      </details>
-                    )}
-                  </QuanTamTableShell>
+                      </section>
+                    </div>
+                  </div>
                 ) : null}
 
                 {isFrontCounter ? (
@@ -4962,6 +5162,10 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
+        .detail-panel-shop-talk .front-counter-quick-controls {
+          margin-bottom: 8px;
+        }
+
         .table-detail:has(.detail-panel-trend-table) {
           width: min(980px, 100%);
           margin-top: 0;
@@ -5398,299 +5602,6 @@ export default function ChoNeoGossipPage() {
           color: rgba(92, 45, 24, 0.52);
           font-size: 9px;
           font-weight: 750;
-        }
-
-        .local-table-stage-shop-talk {
-          --local-table-accent: #f59e0b;
-        }
-
-        .local-table-stage-shop-talk {
-          gap: 12px;
-          margin-top: 8px;
-        }
-
-        .local-table-stage-shop-talk .compact-table-header {
-          flex-wrap: wrap;
-          justify-content: flex-start;
-          gap: 8px;
-          margin-bottom: 0;
-        }
-
-        .local-table-stage-shop-talk .compact-table-back,
-        .local-table-stage-shop-talk .compact-table-enter,
-        .local-table-stage-shop-talk .compact-table-count {
-          display: inline-flex;
-          min-height: 40px;
-          align-items: center;
-          justify-content: center;
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 650;
-          line-height: 1.1;
-          letter-spacing: 0;
-          box-shadow:
-            0 8px 18px rgba(18, 10, 8, 0.14),
-            inset 0 1px 0 rgba(255, 247, 237, 0.08);
-        }
-
-        .local-table-stage-shop-talk .compact-table-back {
-          padding: 7px 11px;
-          color: rgba(255, 247, 237, 0.86);
-          background: rgba(54, 32, 27, 0.5);
-        }
-
-        .local-table-stage-shop-talk .compact-table-enter {
-          flex-direction: column;
-          padding: 6px 11px;
-          color: #fffefc;
-          border: 1px solid rgba(115, 55, 49, 0.26);
-          background: #b85f55;
-        }
-
-        .local-table-stage-shop-talk .compact-table-enter span {
-          margin-top: 1px;
-          font-size: 10px;
-          font-weight: 600;
-          opacity: 0.86;
-        }
-
-        .local-table-stage-shop-talk .compact-table-count {
-          margin-left: 0;
-          padding: 7px 11px;
-          color: rgba(255, 247, 237, 0.78);
-          background: rgba(54, 32, 27, 0.42);
-          text-align: center;
-        }
-
-        .local-table-stage-shop-talk .quan-tam-music-control {
-          flex: 0 1 260px;
-          min-height: 40px;
-          border-radius: 12px;
-        }
-
-        .local-table-stage-shop-talk .local-table-heading h2 {
-          color: #fff7ed;
-          font-size: clamp(28px, 4vw, 38px);
-          font-weight: 650;
-          line-height: 1;
-        }
-
-        .local-table-stage-shop-talk .local-table-heading h2 span {
-          margin-top: 3px;
-          color: rgba(255, 247, 237, 0.64);
-          font-size: 0.38em;
-          font-weight: 500;
-        }
-
-        .local-table-stage-shop-talk .local-table-subtitle {
-          max-width: 660px;
-          margin-top: -2px;
-          color: rgba(255, 247, 237, 0.78);
-          font-size: 14px;
-          font-weight: 500;
-          line-height: 1.42;
-        }
-
-        .local-table-stage-shop-talk .local-table-subtitle span {
-          display: none;
-        }
-
-        .local-table-stage-shop-talk .local-table-artwork {
-          border-radius: 24px;
-          background: #1f1412;
-        }
-
-        .local-table-stage-shop-talk .local-table-artwork img {
-          aspect-ratio: 1671 / 941;
-          object-fit: contain;
-          object-position: center;
-          background: #1f1412;
-        }
-
-        .local-table-stage-shop-talk .local-table-prompts {
-          gap: 8px;
-          padding: 10px;
-          border-color: rgba(199, 186, 177, 0.64);
-          border-radius: 14px;
-          background: linear-gradient(180deg, #fffefc, #fbf2ec);
-          box-shadow: 0 12px 24px rgba(27, 18, 14, 0.16);
-        }
-
-        .local-table-stage-shop-talk .local-table-prompts > div:first-child {
-          align-items: baseline;
-        }
-
-        .local-table-stage-shop-talk .local-table-prompts strong {
-          color: #2f2926;
-          font-size: 14px;
-          font-weight: 650;
-        }
-
-        .local-table-stage-shop-talk .local-table-prompts small {
-          color: #6b625d;
-          font-size: 12px;
-          font-weight: 600;
-          text-align: right;
-        }
-
-        .local-table-stage-shop-talk .local-table-chip-row {
-          gap: 7px;
-        }
-
-        .local-table-stage-shop-talk .local-table-chip {
-          grid-template-columns: 10px max-content;
-          gap: 6px;
-          min-height: 34px;
-          border-color: #c7bab1;
-          border-radius: 12px;
-          padding: 6px 10px;
-          color: #4f4641;
-          background: #fffefc;
-          font-size: 12px;
-          font-weight: 650;
-        }
-
-        .local-table-stage-shop-talk .local-table-chip > span {
-          width: 10px;
-          height: 10px;
-        }
-
-        .local-table-stage-shop-talk .local-table-thread {
-          gap: 10px;
-          padding: 0;
-          border: 0;
-          border-radius: 0;
-          background: transparent;
-          box-shadow: none;
-        }
-
-        .local-table-stage-shop-talk .local-table-thread-heading {
-          padding: 0 2px;
-        }
-
-        .local-table-stage-shop-talk .local-table-thread-heading strong {
-          color: rgba(255, 247, 237, 0.84);
-          font-size: 13px;
-          font-weight: 650;
-        }
-
-        .local-table-stage-shop-talk .local-table-thread-heading strong span {
-          color: rgba(255, 247, 237, 0.58);
-          font-size: 11px;
-          font-weight: 500;
-        }
-
-        .local-table-stage-shop-talk .local-table-note {
-          padding: 15px 16px;
-          border: 1px solid #c7bab1;
-          border-radius: 18px;
-          color: #2f2926;
-          background: linear-gradient(180deg, #fffefc, #fff8f1);
-          box-shadow:
-            0 14px 30px rgba(27, 18, 14, 0.22),
-            0 0 0 1px rgba(255, 254, 252, 0.72);
-        }
-
-        .local-table-stage-shop-talk .local-table-note p {
-          margin-top: 6px;
-          color: #2f2926;
-          font-size: 15px;
-          font-weight: 650;
-          line-height: 1.52;
-        }
-
-        .local-table-stage-shop-talk .post-author-chip strong {
-          color: #2f2926;
-          font-size: 15px;
-          font-weight: 650;
-        }
-
-        .local-table-stage-shop-talk .post-author-chip small {
-          color: #6b625d;
-          font-size: 13px;
-          font-weight: 600;
-        }
-
-        .local-table-stage-shop-talk .local-table-form {
-          gap: 10px;
-          padding: 16px;
-          border: 1px solid #c7bab1;
-          border-radius: 18px;
-          background: linear-gradient(180deg, #fffefc, #fbf2ec);
-          box-shadow:
-            0 18px 38px rgba(27, 18, 14, 0.24),
-            0 0 0 1px rgba(255, 254, 252, 0.72),
-            inset 0 1px 0 rgba(255, 255, 255, 0.82);
-        }
-
-        .local-table-stage-shop-talk .local-table-form label {
-          color: #2f2926;
-          font-size: 14px;
-          font-weight: 650;
-          letter-spacing: 0;
-        }
-
-        .local-table-stage-shop-talk .composer-avatar-passport {
-          border-color: rgba(199, 186, 177, 0.84);
-          border-radius: 14px;
-          color: #2f2926;
-          background: rgba(255, 254, 252, 0.92);
-          box-shadow: 0 8px 18px rgba(27, 18, 14, 0.1);
-        }
-
-        .local-table-stage-shop-talk .composer-avatar-passport strong,
-        .local-table-stage-shop-talk .composer-avatar-action {
-          color: #2f2926;
-          font-weight: 650;
-        }
-
-        .local-table-stage-shop-talk .composer-avatar-passport small {
-          color: #6b625d;
-          font-weight: 600;
-        }
-
-        .local-table-stage-shop-talk .message-row {
-          gap: 10px;
-        }
-
-        .local-table-stage-shop-talk .message-row input {
-          min-height: 48px;
-          border-color: #c7bab1;
-          border-radius: 14px;
-          padding: 12px 14px;
-          color: #2f2926;
-          background: #fffefc;
-          font-size: 16px;
-          font-weight: 600;
-        }
-
-        .local-table-stage-shop-talk .message-row input::placeholder {
-          color: #756c67;
-          opacity: 1;
-        }
-
-        .local-table-stage-shop-talk .message-row input:focus {
-          border-color: #8d7d74;
-          box-shadow: 0 0 0 3px rgba(184, 95, 85, 0.16);
-        }
-
-        .local-table-stage-shop-talk .message-row button {
-          min-height: 48px;
-          padding: 10px 17px;
-          border: 1px solid rgba(115, 55, 49, 0.26);
-          border-radius: 12px;
-          color: #fffefc;
-          background: #b85f55;
-          font-size: 14px;
-          font-weight: 700;
-          box-shadow: 0 12px 22px rgba(97, 45, 39, 0.28);
-        }
-
-        .local-table-stage-shop-talk .message-row button:disabled {
-          color: rgba(255, 254, 252, 0.88);
-          background: #c9948d;
-          box-shadow: none;
-          opacity: 1;
         }
 
         .local-table-stage-vent-table {
@@ -6416,6 +6327,51 @@ export default function ChoNeoGossipPage() {
           object-position: center;
           transform: none;
           filter: saturate(1.04) brightness(1.03) contrast(0.98);
+        }
+
+        .shop-talk-focused-stage .front-counter-artwork-surface {
+          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.776));
+          aspect-ratio: 1671 / 941;
+        }
+
+        .shop-talk-focused-stage .front-counter-focused-image {
+          object-fit: contain;
+          background: #1f1412;
+        }
+
+        .shop-talk-room-caption {
+          display: grid;
+          gap: 4px;
+          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.776));
+          margin: 9px auto 0;
+          color: rgba(255, 247, 237, 0.78);
+        }
+
+        .shop-talk-room-caption strong {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 8px;
+          color: #fff7ed;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: clamp(19px, 2.5vw, 28px);
+          font-weight: 500;
+          line-height: 1.05;
+        }
+
+        .shop-talk-room-caption strong span {
+          color: rgba(255, 247, 237, 0.58);
+          font-size: 0.48em;
+          font-weight: 400;
+        }
+
+        .shop-talk-room-caption p {
+          max-width: 680px;
+          margin: 0;
+          color: rgba(255, 247, 237, 0.72);
+          font-size: 13px;
+          font-weight: 500;
+          line-height: 1.38;
         }
 
         .front-counter-scene-ambience {
@@ -7306,6 +7262,13 @@ export default function ChoNeoGossipPage() {
           font-weight: 700;
         }
 
+        .front-counter-focused-stage .front-counter-input-avatar img {
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          object-fit: cover;
+        }
+
         .front-counter-focused-stage .front-counter-stage-message-row input {
           min-height: 48px;
           border-color: #c7bab1;
@@ -7583,6 +7546,56 @@ export default function ChoNeoGossipPage() {
           border-color: #a8978d;
           color: #2f2926;
           background: #fffefc;
+        }
+
+        .shop-talk-prompt-strip {
+          gap: 8px;
+          padding: 12px;
+        }
+
+        .shop-talk-prompt-strip strong {
+          display: block;
+          color: #2f2926;
+          font-size: 14px;
+          font-weight: 650;
+        }
+
+        .shop-talk-prompt-row {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+          scrollbar-width: thin;
+        }
+
+        .shop-talk-prompt-chip {
+          flex: 0 0 auto;
+          min-height: 34px;
+          padding: 7px 11px;
+          border: 1px solid #c7bab1;
+          border-radius: 12px;
+          color: #4f4641;
+          background: #fffefc;
+          font: inherit;
+          font-size: 12px;
+          font-weight: 650;
+          cursor: pointer;
+          transition:
+            border-color 160ms ease,
+            background 160ms ease,
+            color 160ms ease;
+        }
+
+        .shop-talk-prompt-chip:hover,
+        .shop-talk-prompt-chip:focus-visible {
+          border-color: #a8978d;
+          color: #2f2926;
+          background: #fff8f1;
+        }
+
+        .shop-talk-prompt-chip:focus-visible {
+          outline: 3px solid rgba(184, 95, 85, 0.18);
+          outline-offset: 2px;
         }
 
         .detail-panel-front-counter > .host-tools-panel,
@@ -9279,22 +9292,6 @@ export default function ChoNeoGossipPage() {
             aspect-ratio: 16 / 10;
           }
 
-          .local-table-stage-shop-talk .local-table-artwork img {
-            aspect-ratio: 1671 / 941;
-            object-fit: contain;
-          }
-
-          .local-table-stage-shop-talk .compact-table-header {
-            gap: 7px;
-          }
-
-          .local-table-stage-shop-talk .compact-table-back,
-          .local-table-stage-shop-talk .compact-table-enter,
-          .local-table-stage-shop-talk .compact-table-count {
-            min-height: 38px;
-            border-radius: 12px;
-          }
-
           .local-table-prompts,
           .local-table-thread,
           .local-table-rules {
@@ -9500,6 +9497,10 @@ export default function ChoNeoGossipPage() {
 
           .front-counter-stage-bubble:nth-last-child(n+3) {
             display: none;
+          }
+
+          .shop-talk-stage-feed .front-counter-stage-bubble:nth-last-child(n+3) {
+            display: grid;
           }
 
           .front-counter-stage-bubble-right {

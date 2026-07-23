@@ -35,6 +35,16 @@ function extractNamedFunction(source, name) {
   assert.fail(`Expected ${name} body to close`);
 }
 
+function extractSnippetBetween(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  assert.ok(start > -1, `Expected marker to exist: ${startMarker}`);
+
+  const end = source.indexOf(endMarker, start);
+  assert.ok(end > start, `Expected end marker after ${startMarker}: ${endMarker}`);
+
+  return source.slice(start, end);
+}
+
 function createArtworkHarness() {
   const harnessSource = `
     const QUAN_TAM_DAY_ARTWORK_SRC = "/images/cho-neo/Quan-Tam-Daytime.png";
@@ -214,40 +224,92 @@ test("front counter composer and bubbles use clearer readable surfaces", () => {
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-message-row > button:not\(\.front-counter-input-avatar\):disabled \{[\s\S]*background: #c9948d;[\s\S]*opacity: 1;/);
 });
 
-test("Bàn Chuyện Nghề keeps focused prompts, nighttime artwork, and no duplicate rules", () => {
+test("Bàn Chuyện Nghề uses the shared front-counter room structure", () => {
+  const shopTalkBranch = extractSnippetBetween(
+    page,
+    "{isShopTalkTable && localTableConfig ? (",
+    "{isFrontCounter ? ("
+  );
+
   includesAll(page, [
     'const BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC =\n  "/images/cho-neo/Ban-Chuyen-Nghe-Nighttime.png";',
-    'artwork={\n                      isShopTalkTable\n                        ? quanTamArtworkSources.shopTalk\n                        : selectedTable.artwork\n                    }',
+    'isFrontCounter || isShopTalkTable ? "detail-panel-front-counter" : ""',
+    'isShopTalkTable ? "detail-panel-shop-talk" : ""',
+    "isLocalSessionTable && !isShopTalkTable ? \"detail-panel-local-table\" : \"\"",
+  ]);
+
+  includesAll(shopTalkBranch, [
+    'className="front-counter-table-scene shop-talk-table-scene"',
+    'className="front-counter-focused-stage shop-talk-focused-stage"',
+    'className="front-counter-artwork-frame"',
+    'className="front-counter-artwork-surface"',
+    'className="front-counter-focused-image"',
+    "src={quanTamArtworkSources.shopTalk}",
+    'className="front-counter-stage-bubbles shop-talk-stage-feed"',
+    "front-counter-stage-bubble",
+    'className="front-counter-stage-form shop-talk-stage-form"',
+    'className="front-counter-stage-message-row"',
+    'className="front-counter-stage-safety"',
+  ]);
+});
+
+test("Bàn Chuyện Nghề keeps five prompts below the shared composer and no duplicate rules", () => {
+  const shopTalkBranch = extractSnippetBetween(
+    page,
+    "{isShopTalkTable && localTableConfig ? (",
+    "{isFrontCounter ? ("
+  );
+
+  includesAll(shopTalkBranch, [
+    'className="front-counter-stage-form shop-talk-stage-form"',
+    'className="front-counter-stage-form shop-talk-prompt-strip"',
     'Gợi mở chuyện',
+    "selectedTable.topicChips.map((chip) =>",
+    "onClick={() => useLocalTablePrompt(chip)}",
+  ]);
+
+  includesAll(page, [
     "Khách khó tính",
     "Giá & thời gian",
     "Ngày bận",
     "Dịch vụ bán chạy",
-    "Nhân sự",
-    "{isShopTalkTable ? null : (\n                      <details className=\"table-light-rules\">",
+    "Nhân sự"
   ]);
 
-  assert.match(page, /\.local-table-stage-shop-talk \.local-table-artwork img \{[\s\S]*aspect-ratio: 1671 \/ 941;[\s\S]*object-fit: contain;/);
+  assert.ok(
+    shopTalkBranch.indexOf('className="front-counter-stage-form shop-talk-prompt-strip"') >
+      shopTalkBranch.indexOf('className="front-counter-stage-form shop-talk-stage-form"'),
+    "starter prompts should render after the compact composer"
+  );
   assert.doesNotMatch(
-    page,
-    /local-table-stage-shop-talk[\s\S]*summary>Nội quy nhẹ/,
-    "shop-talk scoped UI should not add a duplicate Nội quy nhẹ section"
+    shopTalkBranch,
+    /Nội quy nhẹ|table-light-rules|local-table-stage-shop-talk/,
+    "shop-talk branch should not include duplicate rules or the old local-table visual system"
   );
 });
 
-test("Bàn Chuyện Nghề uses separate readable post cards and compact composer", () => {
-  assert.match(page, /\.local-table-stage-shop-talk \.local-table-thread \{[\s\S]*border: 0;[\s\S]*background: transparent;/);
-  assert.match(page, /\.local-table-stage-shop-talk \.local-table-note \{[\s\S]*border: 1px solid #c7bab1;[\s\S]*background: linear-gradient\(180deg, #fffefc, #fff8f1\);/);
-  assert.match(page, /\.local-table-stage-shop-talk \.local-table-note p \{[\s\S]*font-size: 15px;[\s\S]*line-height: 1\.52;/);
-  assert.match(page, /\.local-table-stage-shop-talk \.local-table-form \{[\s\S]*background: linear-gradient\(180deg, #fffefc, #fbf2ec\);/);
-  assert.match(page, /\.local-table-stage-shop-talk \.local-table-form label \{[\s\S]*font-size: 14px;[\s\S]*font-weight: 650;/);
-  assert.match(page, /\.local-table-stage-shop-talk \.message-row input \{[\s\S]*min-height: 48px;[\s\S]*font-size: 16px;/);
-  assert.match(page, /\.local-table-stage-shop-talk \.message-row button \{[\s\S]*min-height: 48px;[\s\S]*border-radius: 12px;[\s\S]*background: #b85f55;/);
-  assert.match(page, /\.local-table-stage-shop-talk \.message-row button:disabled \{[\s\S]*background: #c9948d;[\s\S]*opacity: 1;/);
+test("Bàn Chuyện Nghề keeps shared two-column post grid and readable surfaces", () => {
+  assert.match(page, /\.front-counter-stage-bubbles \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(page, /\.front-counter-stage-bubble \{[\s\S]*border: 1px solid #c7bab1;[\s\S]*background:[\s\S]*linear-gradient\(180deg, #fffefc, #fff8f1\);/);
+  assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-form \{[\s\S]*background:[\s\S]*linear-gradient\(180deg, #fffefc, #fbf2ec\);/);
+  assert.match(page, /\.shop-talk-focused-stage \.front-counter-artwork-surface \{[\s\S]*aspect-ratio: 1671 \/ 941;/);
+  assert.match(page, /\.shop-talk-focused-stage \.front-counter-focused-image \{[\s\S]*object-fit: contain;/);
 });
 
-test("Bàn Chuyện Nghề header controls stay compact rounded rectangles", () => {
-  assert.match(page, /\.local-table-stage-shop-talk \.compact-table-header \{[\s\S]*flex-wrap: wrap;[\s\S]*gap: 8px;/);
-  assert.match(page, /\.local-table-stage-shop-talk \.compact-table-back,[\s\S]*\.local-table-stage-shop-talk \.compact-table-count \{[\s\S]*min-height: 40px;[\s\S]*border-radius: 12px;/);
-  assert.match(page, /\.local-table-stage-shop-talk \.compact-table-enter \{[\s\S]*border: 1px solid rgba\(115, 55, 49, 0\.26\);[\s\S]*background: #b85f55;/);
+test("Bàn Chuyện Nghề header controls use the same compact front-counter controls", () => {
+  const controlsBranch = extractSnippetBetween(
+    page,
+    "{isFrontCounter || isShopTalkTable ? (",
+    "<TableHostNudge"
+  );
+
+  includesAll(controlsBranch, [
+    'className="front-counter-quick-controls"',
+    'className="compact-table-back front-counter-back-control"',
+    "front-counter-seat-control",
+    'className="front-counter-music-shell"',
+    'className="compact-table-count front-counter-count-control"',
+  ]);
+  assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);
+  assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 14px;/);
 });
