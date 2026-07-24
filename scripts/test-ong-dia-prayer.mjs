@@ -48,6 +48,23 @@ const themeAudioPath = path.join(
   "src/components/cho-neo/ChoNeoThemeParkAudio.tsx",
 );
 
+function extractNamedFunction(source, functionName) {
+  const start = source.indexOf(`function ${functionName}`);
+  assert.notEqual(start, -1, `Expected ${functionName} to exist`);
+  const bodyStart = source.indexOf("{", start);
+  assert.notEqual(bodyStart, -1, `Expected ${functionName} to have a body`);
+
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === "{") depth += 1;
+    if (character === "}") depth -= 1;
+    if (depth === 0) return source.slice(start, index + 1);
+  }
+
+  throw new Error(`Could not extract ${functionName}`);
+}
+
 const ORIGINAL_ENV = {
   ONG_DIA_PROVIDER: process.env.ONG_DIA_PROVIDER,
   ONG_DIA_AI_PROVIDER: process.env.ONG_DIA_AI_PROVIDER,
@@ -1346,6 +1363,70 @@ test("visible Ong Dia page keeps the shrine UI text reduced", () => {
   assert.equal(page.includes("Mở một lộc nhỏ</button>"), false);
   assert.equal(page.includes("Thắp nhang xin lời"), true);
   assert.equal(page.includes('className="ong-dia-sr-only"'), true);
+});
+
+test("visible Ong Dia page uses existing daytime art and nighttime shrine art", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const harness = new Function(
+    `
+      const SHRINE_STAGE_DAY_IMAGE = "/images/cho-neo/Ong_Dia_Shrine.png";
+      const SHRINE_STAGE_NIGHT_IMAGE = "/images/cho-neo/Ong-Dia-Shrine-Nighttime.png";
+      ${extractNamedFunction(page, "isOngDiaDaytime")}
+      ${extractNamedFunction(page, "getOngDiaShrineStageImage")}
+      ${extractNamedFunction(page, "getNextOngDiaArtworkBoundaryMs")}
+      return {
+        isOngDiaDaytime,
+        getOngDiaShrineStageImage,
+        getNextOngDiaArtworkBoundaryMs,
+      };
+    `,
+  )();
+
+  assert.equal(page.includes('const SHRINE_STAGE_DAY_IMAGE = "/images/cho-neo/Ong_Dia_Shrine.png";'), true);
+  assert.equal(page.includes('"/images/cho-neo/Ong-Dia-Shrine-Nighttime.png"'), true);
+  assert.equal(harness.isOngDiaDaytime(new Date("2026-07-22T05:59:00")), false);
+  assert.equal(harness.isOngDiaDaytime(new Date("2026-07-22T06:00:00")), true);
+  assert.equal(harness.isOngDiaDaytime(new Date("2026-07-22T17:59:00")), true);
+  assert.equal(harness.isOngDiaDaytime(new Date("2026-07-22T18:00:00")), false);
+  assert.equal(
+    harness.getOngDiaShrineStageImage(new Date("2026-07-22T09:00:00")),
+    "/images/cho-neo/Ong_Dia_Shrine.png",
+  );
+  assert.equal(
+    harness.getOngDiaShrineStageImage(new Date("2026-07-22T22:00:00")),
+    "/images/cho-neo/Ong-Dia-Shrine-Nighttime.png",
+  );
+  assert.equal(
+    harness.getNextOngDiaArtworkBoundaryMs(new Date("2026-07-22T17:59:00")),
+    60_000,
+  );
+  assert.equal(
+    harness.getNextOngDiaArtworkBoundaryMs(new Date("2026-07-22T18:00:00")),
+    43_200_000,
+  );
+  assert.match(page, /useOngDiaShrineStageImage[\s\S]*window\.clearTimeout\(timeoutId\)/);
+});
+
+test("visible Ong Dia artwork keeps natural fit and cannot block prayer controls", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  const stageCss = page.slice(
+    page.indexOf(".ong-dia-stage {"),
+    page.indexOf(".ong-dia-stage::after"),
+  );
+  const mobileStageCss = page.slice(
+    page.indexOf(".ong-dia-stage {", page.indexOf("@media (max-width: 760px)")),
+    page.indexOf(".ong-dia-stage::after", page.indexOf("@media (max-width: 760px)")),
+  );
+
+  assert.match(stageCss, /aspect-ratio: 1448 \/ 1086/);
+  assert.match(stageCss, /width: 100%/);
+  assert.match(stageCss, /\.ong-dia-stage-image \{[\s\S]*object-fit: contain/);
+  assert.match(stageCss, /\.ong-dia-stage-image \{[\s\S]*pointer-events: none/);
+  assert.match(mobileStageCss, /aspect-ratio: 1448 \/ 1086/);
+  assert.match(mobileStageCss, /max-height: 42svh/);
+  assert.match(mobileStageCss, /\.ong-dia-stage-image \{[\s\S]*object-fit: contain/);
+  assert.match(page, /\.ong-dia-page \{[\s\S]*overflow-x: hidden/);
+  assert.match(page, /\.ong-dia-atmosphere \{[\s\S]*pointer-events: none/);
 });
 
 test("visible Ong Dia V1 keeps an open invitation without topic chips", () => {

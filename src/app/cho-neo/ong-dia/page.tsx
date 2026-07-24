@@ -18,7 +18,9 @@ import {
   trackChoNeoBetaEvent,
 } from "@/lib/cho-neo/beta-analytics";
 
-const SHRINE_STAGE_IMAGE = "/images/cho-neo/Ong_Dia_Shrine.png";
+const SHRINE_STAGE_DAY_IMAGE = "/images/cho-neo/Ong_Dia_Shrine.png";
+const SHRINE_STAGE_NIGHT_IMAGE =
+  "/images/cho-neo/Ong-Dia-Shrine-Nighttime.png";
 const ONG_DIA_V1_SUCCESS_DATE_KEY = "choNeo.ongDiaV1.lastSuccessDate";
 const ONG_DIA_V1_RETURN_EVENT_DATE_KEY = "choNeo.ongDiaV1.returnEventDate";
 const ONG_DIA_RITUAL_ANIMATION_MS = 1800;
@@ -70,6 +72,59 @@ const ONG_DIA_CONVERSATION_STORAGE_PREFIXES = [
 ];
 const ONG_DIA_RITUAL_FEEDBACK_CHOICES = ["Có", "Không", "Có thể"] as const;
 const ONG_DIA_AFTER_CHAT_FEEDBACK_CHOICES = ["Có", "Một chút", "Chưa"] as const;
+
+function isOngDiaDaytime(date = new Date()) {
+  const hour = date.getHours();
+
+  return hour >= 6 && hour < 18;
+}
+
+function getOngDiaShrineStageImage(date = new Date()) {
+  return isOngDiaDaytime(date) ? SHRINE_STAGE_DAY_IMAGE : SHRINE_STAGE_NIGHT_IMAGE;
+}
+
+function getNextOngDiaArtworkBoundaryMs(date = new Date()) {
+  const nextBoundary = new Date(date);
+  const hour = date.getHours();
+
+  nextBoundary.setMinutes(0, 0, 0);
+
+  if (hour < 6) {
+    nextBoundary.setHours(6);
+  } else if (hour < 18) {
+    nextBoundary.setHours(18);
+  } else {
+    nextBoundary.setDate(nextBoundary.getDate() + 1);
+    nextBoundary.setHours(6);
+  }
+
+  return Math.max(1000, nextBoundary.getTime() - date.getTime());
+}
+
+function useOngDiaShrineStageImage() {
+  const [stageImage, setStageImage] = useState(SHRINE_STAGE_DAY_IMAGE);
+
+  useEffect(() => {
+    let timeoutId: number | null = null;
+
+    const syncStageImage = () => {
+      const now = new Date();
+      setStageImage(getOngDiaShrineStageImage(now));
+      timeoutId = window.setTimeout(
+        syncStageImage,
+        getNextOngDiaArtworkBoundaryMs(now),
+      );
+    };
+
+    syncStageImage();
+
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  return stageImage;
+}
 
 function getPrayerClearAnimationMs() {
   if (typeof window === "undefined") return PRAYER_CLEAR_ANIMATION_MS;
@@ -224,6 +279,7 @@ function OngDiaShrineAtmosphere({ blessingSignal }: { blessingSignal: number }) 
 }
 
 export default function OngDiaPage() {
+  const shrineStageImage = useOngDiaShrineStageImage();
   const [dailyMessage, setDailyMessage] = useState<OngDiaDailyMessage | null>(
     null,
   );
@@ -853,7 +909,7 @@ export default function OngDiaPage() {
           }`}
         >
           <Image
-            src={SHRINE_STAGE_IMAGE}
+            src={shrineStageImage}
             alt="Warm Vietnamese Ông Địa shrine stage with altar offerings, fruit, chè trays, lanterns, a resting cat, and a Shiba Inu"
             fill
             priority
@@ -1419,8 +1475,9 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-stage-image {
-          object-fit: cover;
+          object-fit: contain;
           object-position: center;
+          pointer-events: none;
           z-index: 0;
         }
 
@@ -2639,7 +2696,7 @@ export default function OngDiaPage() {
           }
 
           .ong-dia-stage-image {
-            object-fit: cover;
+            object-fit: contain;
             object-position: 50% 50%;
           }
 
