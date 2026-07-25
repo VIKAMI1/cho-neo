@@ -5,7 +5,7 @@ export default function ChoNeoLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      <ChoNeoThemeParkAudio />
+      <ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" />
     </>
   );
 }

@@ -79,8 +79,9 @@ test("Chợ Neo route layout uses one shared theme player through room navigatio
     layout,
     /import ChoNeoThemeParkAudio from "@\/components\/cho-neo\/ChoNeoThemeParkAudio";/,
   );
-  assert.match(layout, /<ChoNeoThemeParkAudio \/>/);
+  assert.match(layout, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
   assert.match(layout, /\{children\}/);
+  assert.match(player, /\.cho-neo-layout-theme-audio[\s\S]*position: fixed/);
   assert.doesNotMatch(mainPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(villageShell, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(ongDiaPage, /ChoNeoThemeParkAudio/);
