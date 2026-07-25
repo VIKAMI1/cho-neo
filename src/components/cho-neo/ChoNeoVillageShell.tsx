@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ChoNeoBetaFeedback } from "./ChoNeoBetaFeedback";
-import ChoNeoThemeParkAudio from "./ChoNeoThemeParkAudio";
 import { ChoNeoTimeAmbience, ChoNeoTimeMoodLabel } from "./ChoNeoTimeAmbience";
 import { ChoNeoVillageMap } from "./ChoNeoVillageMap";
 import { choNeoRooms } from "@/lib/cho-neo/rooms";
@@ -60,7 +59,6 @@ export function ChoNeoVillageShell() {
             </span>
           </Link>
 
-          <ChoNeoThemeParkAudio className="village-theme-audio" />
           <ChoNeoBetaFeedback />
         </header>
 

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import ChoNeoThemeParkAudio from "@/components/cho-neo/ChoNeoThemeParkAudio";
 import {
   createLocMemoryForWish,
   getLocalDayKey,
@@ -778,10 +777,6 @@ export default function OngDiaPage() {
         </div>
 
         <div className="ong-dia-header-actions" aria-label="Điều khiển trang Ông Địa">
-          <ChoNeoThemeParkAudio
-            className="ong-dia-header-music"
-            variant="compact"
-          />
           <button
             type="button"
             className="ong-dia-feedback-trigger"

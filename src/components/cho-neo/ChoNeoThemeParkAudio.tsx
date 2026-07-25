@@ -5,18 +5,27 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 type ChoNeoThemeTrack = {
   id: string;
   label: string;
+  artist: string;
   src: string;
 };
 
 const CHO_NEO_THEME_TRACKS: ChoNeoThemeTrack[] = [
   {
+    id: 'main-theme-vietnamese-style-1',
+    label: 'Chợ Neo – Vietnamese Style 1',
+    artist: 'VIKAMICANADA AI Music',
+    src: '/Cho_Neo_music/cho-neo-main-theme-vietnamese-style-1.mp3',
+  },
+  {
     id: 'top-1-main-theme-3',
     label: 'Chợ Neo Main Theme',
+    artist: 'VIKAMICANADA AI Music',
     src: '/Cho_Neo_music/cho-neo-theme-park-top-1-main-theme-3.mp3',
   },
   {
     id: 'runner-up-sky-lift',
     label: 'Sky Lift',
+    artist: 'VIKAMICANADA AI Music',
     src: '/Cho_Neo_music/cho-neo-theme-park-runner-up-sky-lift.mp3',
   },
 ];
