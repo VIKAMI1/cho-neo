@@ -777,6 +777,10 @@ export default function OngDiaPage() {
         </div>
 
         <div className="ong-dia-header-actions" aria-label="Điều khiển trang Ông Địa">
+          <span
+            className="cho-neo-shared-music-slot ong-dia-header-music"
+            data-cho-neo-shared-music-slot
+          />
           <button
             type="button"
             className="ong-dia-feedback-trigger"

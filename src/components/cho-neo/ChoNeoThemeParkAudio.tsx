@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type ChoNeoThemeTrack = {
   id: string;
@@ -38,6 +39,7 @@ export default function ChoNeoThemeParkAudio({
   variant?: 'full' | 'compact';
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
   const [trackId, setTrackId] = useState(CHO_NEO_THEME_TRACKS[0].id);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume] = useState(0.34);
@@ -54,6 +56,19 @@ export default function ChoNeoThemeParkAudio({
   }, [volume]);
 
   useEffect(() => {
+    function syncPortalTarget() {
+      setPortalTarget(document.querySelector('[data-cho-neo-shared-music-slot]'));
+    }
+
+    syncPortalTarget();
+
+    const observer = new MutationObserver(syncPortalTarget);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -66,6 +81,15 @@ export default function ChoNeoThemeParkAudio({
       setIsPlaying(false);
     });
   }, [selectedTrack.src]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !isPlaying) return;
+
+    audio.play().catch(() => {
+      setIsPlaying(false);
+    });
+  }, [isPlaying, portalTarget]);
 
   async function toggleMusic() {
     const audio = audioRef.current;
@@ -85,7 +109,7 @@ export default function ChoNeoThemeParkAudio({
     }
   }
 
-  return (
+  const player = (
     <div
       className={`cho-neo-theme-audio ${
         variant === 'compact' ? 'cho-neo-theme-audio-compact' : ''
@@ -120,7 +144,7 @@ export default function ChoNeoThemeParkAudio({
           <span aria-hidden="true">{isPlaying ? 'Ⅱ' : '♪'}</span>
         </button>
 
-        <label>
+        <label className="theme-track-select-label">
           <select
             value={trackId}
             onChange={(event) => setTrackId(event.target.value)}
@@ -173,10 +197,56 @@ export default function ChoNeoThemeParkAudio({
         }
 
         .cho-neo-layout-theme-audio {
-          position: fixed;
-          top: max(20px, env(safe-area-inset-top));
-          right: calc(max(20px, env(safe-area-inset-right)) + 88px);
+          position: relative;
           z-index: 80;
+          width: 56px;
+          height: 56px;
+          min-height: 56px;
+          padding: 0;
+          border-color: rgba(248, 211, 145, 0.3);
+          border-radius: 999px;
+          background:
+            radial-gradient(circle at 50% 24%, rgba(255, 214, 222, 0.16), transparent 20%),
+            linear-gradient(180deg, rgba(73, 35, 45, 0.9), rgba(16, 9, 18, 0.94));
+          box-shadow:
+            0 7px 18px rgba(0, 0, 0, 0.18),
+            inset 0 1px 0 rgba(255, 247, 237, 0.1);
+        }
+
+        .cho-neo-layout-theme-audio .theme-audio-controls {
+          display: grid;
+          grid-template-columns: 1fr;
+          place-items: center;
+          width: 100%;
+          height: 100%;
+        }
+
+        .cho-neo-layout-theme-audio .theme-music-toggle {
+          width: 100%;
+          height: 100%;
+          border: 0;
+          color: #ffd4dc;
+          background: transparent;
+          box-shadow: none;
+          font-size: 27px;
+          text-shadow: 0 4px 12px rgba(255, 166, 180, 0.2);
+        }
+
+        .cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"] {
+          color: #f8d391;
+          text-shadow:
+            0 0 12px rgba(248, 211, 145, 0.45),
+            0 4px 12px rgba(255, 166, 180, 0.18);
+        }
+
+        .cho-neo-layout-theme-audio .theme-track-select-label {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+          clip-path: inset(50%);
+          white-space: nowrap;
         }
 
         .theme-music-toggle {
@@ -286,9 +356,7 @@ export default function ChoNeoThemeParkAudio({
 
         @media (max-width: 760px) {
           .cho-neo-layout-theme-audio {
-            top: calc(max(12px, env(safe-area-inset-top)) + 58px);
-            right: max(12px, env(safe-area-inset-right));
-            left: max(12px, env(safe-area-inset-left));
+            width: 56px;
           }
 
           .cho-neo-theme-audio:not(.cho-neo-theme-audio-compact) {
@@ -334,4 +402,6 @@ export default function ChoNeoThemeParkAudio({
       `}</style>
     </div>
   );
+
+  return portalTarget ? createPortal(player, portalTarget) : player;
 }

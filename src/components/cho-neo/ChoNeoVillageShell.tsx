@@ -59,6 +59,10 @@ export function ChoNeoVillageShell() {
             </span>
           </Link>
 
+          <span
+            className="cho-neo-shared-music-slot village-theme-audio"
+            data-cho-neo-shared-music-slot
+          />
           <ChoNeoBetaFeedback />
         </header>
 
@@ -75,7 +79,7 @@ export function ChoNeoVillageShell() {
 
             <div className="guide-list">
               {choNeoRooms.map((room, index) => (
-                <a
+                <Link
                   className={`guide-row guide-row-${room.status} guide-row-${room.tone}`}
                   href={room.href}
                   key={room.id}
@@ -98,7 +102,7 @@ export function ChoNeoVillageShell() {
                   {room.status === "soon" ? (
                     <span className="guide-state">Sắp</span>
                   ) : null}
-                </a>
+                </Link>
               ))}
             </div>
 
@@ -169,7 +173,7 @@ export function ChoNeoVillageShell() {
           position: relative;
           z-index: 8;
           display: grid;
-          grid-template-columns: minmax(230px, 1fr) max-content max-content minmax(230px, 290px) max-content;
+          grid-template-columns: minmax(230px, 1fr) max-content max-content max-content max-content;
           align-items: center;
           gap: clamp(8px, 0.8vw, 12px);
           min-width: 0;
@@ -283,6 +287,16 @@ export function ChoNeoVillageShell() {
           color: rgba(248, 211, 145, 0.62);
           font-style: italic;
           font-weight: 740;
+        }
+
+        .cho-neo-shared-music-slot {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          justify-self: end;
+          width: 56px;
+          min-width: 56px;
+          height: 56px;
         }
 
         .village-guide-link {
@@ -1295,7 +1309,7 @@ export function ChoNeoVillageShell() {
           }
 
           .village-topbar {
-            grid-template-columns: minmax(220px, 1fr) max-content max-content minmax(210px, 280px) max-content;
+            grid-template-columns: minmax(220px, 1fr) max-content max-content max-content max-content;
             gap: 8px;
             height: 72px;
             min-height: 72px;
@@ -1305,8 +1319,8 @@ export function ChoNeoVillageShell() {
           .village-theme-audio {
             grid-column: auto;
             grid-row: auto;
-            width: 100%;
-            max-width: 280px;
+            width: 56px;
+            max-width: 56px;
           }
 
           .cho-neo-feedback-button {
@@ -1338,7 +1352,7 @@ export function ChoNeoVillageShell() {
 
         @media (max-width: 900px) and (min-width: 761px) {
           .village-topbar {
-            grid-template-columns: minmax(190px, 1fr) max-content max-content minmax(160px, 220px) max-content;
+            grid-template-columns: minmax(190px, 1fr) max-content max-content max-content max-content;
             gap: 8px;
           }
 
@@ -1441,10 +1455,11 @@ export function ChoNeoVillageShell() {
           }
 
           .village-theme-audio {
-            grid-column: 1 / 3;
+            grid-column: 2;
             grid-row: 3;
-            width: 100%;
-            max-width: none;
+            width: 56px;
+            max-width: 56px;
+            justify-self: end;
           }
 
           .village-nav-icon {

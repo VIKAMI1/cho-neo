@@ -81,11 +81,27 @@ test("Chợ Neo route layout uses one shared theme player through room navigatio
   );
   assert.match(layout, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
   assert.match(layout, /\{children\}/);
-  assert.match(player, /\.cho-neo-layout-theme-audio[\s\S]*position: fixed/);
+  assert.match(player, /document\.querySelector\('\[data-cho-neo-shared-music-slot\]'\)/);
+  assert.match(player, /createPortal\(player, portalTarget\)/);
+  assert.match(villageShell, /data-cho-neo-shared-music-slot/);
+  assert.match(ongDiaPage, /data-cho-neo-shared-music-slot/);
+  assert.match(player, /\.cho-neo-layout-theme-audio[\s\S]*border-radius: 999px/);
+  assert.match(player, /\.cho-neo-layout-theme-audio \.theme-track-select-label[\s\S]*clip-path: inset\(50%\)/);
   assert.doesNotMatch(mainPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(villageShell, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(ongDiaPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(mainPage, /cho-neo-main-theme-vietnamese-style-1\.mp3/);
+});
+
+test("Chợ Neo shared music control keeps existing toggle and track wiring", () => {
+  assert.match(player, /className="theme-music-toggle"/);
+  assert.match(player, /onClick=\{toggleMusic\}/);
+  assert.match(player, /\{isPlaying \? 'Ⅱ' : '♪'\}/);
+  assert.match(player, /className="theme-track-select-label"/);
+  assert.match(player, /value=\{trackId\}/);
+  assert.match(player, /onChange=\{\(event\) => setTrackId\(event\.target\.value\)\}/);
+  assert.match(player, /aria-label="Choose Chợ Neo music track"/);
+  assert.match(player, /\}, \[isPlaying, portalTarget\]\)/);
 });
 
 test("Chợ Neo Vietnamese Style 1 MP3 exists in public music assets", () => {
