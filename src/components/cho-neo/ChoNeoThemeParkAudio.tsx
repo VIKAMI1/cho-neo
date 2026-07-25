@@ -172,6 +172,13 @@ export default function ChoNeoThemeParkAudio({
           display: none;
         }
 
+        .cho-neo-layout-theme-audio {
+          position: fixed;
+          top: max(20px, env(safe-area-inset-top));
+          right: calc(max(20px, env(safe-area-inset-right)) + 88px);
+          z-index: 80;
+        }
+
         .theme-music-toggle {
           display: grid;
           flex: 0 0 auto;
@@ -278,6 +285,12 @@ export default function ChoNeoThemeParkAudio({
         }
 
         @media (max-width: 760px) {
+          .cho-neo-layout-theme-audio {
+            top: calc(max(12px, env(safe-area-inset-top)) + 58px);
+            right: max(12px, env(safe-area-inset-right));
+            left: max(12px, env(safe-area-inset-left));
+          }
+
           .cho-neo-theme-audio:not(.cho-neo-theme-audio-compact) {
             flex: 1 1 0;
             width: 100%;
