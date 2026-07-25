@@ -9,6 +9,7 @@ const playerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoThemeParkAudio.tsx",
 );
+const playlistPath = path.join(repoRoot, "src/lib/cho-neo/music-playlist.ts");
 const mainPagePath = path.join(repoRoot, "src/app/cho-neo/page.tsx");
 const layoutPath = path.join(repoRoot, "src/app/cho-neo/layout.tsx");
 const villageShellPath = path.join(
@@ -22,48 +23,35 @@ const musicPath = path.join(
 );
 
 const player = fs.readFileSync(playerPath, "utf8");
+const playlist = fs.readFileSync(playlistPath, "utf8");
 const mainPage = fs.readFileSync(mainPagePath, "utf8");
 const layout = fs.readFileSync(layoutPath, "utf8");
 const villageShell = fs.readFileSync(villageShellPath, "utf8");
 const ongDiaPage = fs.readFileSync(ongDiaPagePath, "utf8");
 
-function extractTrackEntries(source) {
-  const start = source.indexOf("const CHO_NEO_THEME_TRACKS");
-  assert.notEqual(start, -1, "central Chợ Neo theme playlist should exist");
-  const arrayStart = source.indexOf("[", start);
-  const arrayEnd = source.indexOf("];", arrayStart);
-  assert.notEqual(arrayStart, -1);
-  assert.notEqual(arrayEnd, -1);
-  return source.slice(arrayStart, arrayEnd + 1);
-}
-
 test("Chợ Neo theme player starts with Vietnamese Style 1 main theme", () => {
-  const tracks = extractTrackEntries(player);
-  const firstTrack = tracks.slice(tracks.indexOf("{"), tracks.indexOf("},") + 1);
-
-  assert.match(firstTrack, /id: 'main-theme-vietnamese-style-1'/);
-  assert.match(firstTrack, /label: 'Chợ Neo – Vietnamese Style 1'/);
-  assert.match(firstTrack, /artist: 'VIKAMICANADA AI Music'/);
+  assert.match(playlist, /id: "main-theme-vietnamese-style-1"/);
+  assert.match(playlist, /title: "Chợ Neo — Vietnamese Style 1"/);
   assert.match(
-    firstTrack,
-    /src: '\/Cho_Neo_music\/cho-neo-main-theme-vietnamese-style-1\.mp3'/,
+    playlist,
+    /src: "\/Cho_Neo_music\/cho-neo-main-theme-vietnamese-style-1\.mp3"/,
   );
-  assert.match(player, /useState\(CHO_NEO_THEME_TRACKS\[0\]\.id\)/);
+  assert.match(playlist, /order: 1/);
+  assert.match(player, /useState\(getStoredTrackId\)/);
 });
 
 test("Chợ Neo theme player preserves existing central playlist entries", () => {
-  const tracks = extractTrackEntries(player);
-
-  assert.match(tracks, /id: 'top-1-main-theme-3'/);
+  assert.match(playlist, /id: "top-1-main-theme-3"/);
   assert.match(
-    tracks,
-    /src: '\/Cho_Neo_music\/cho-neo-theme-park-top-1-main-theme-3\.mp3'/,
+    playlist,
+    /src: "\/Cho_Neo_music\/cho-neo-theme-park-top-1-main-theme-3\.mp3"/,
   );
-  assert.match(tracks, /id: 'runner-up-sky-lift'/);
+  assert.match(playlist, /id: "runner-up-sky-lift"/);
   assert.match(
-    tracks,
-    /src: '\/Cho_Neo_music\/cho-neo-theme-park-runner-up-sky-lift\.mp3'/,
+    playlist,
+    /src: "\/Cho_Neo_music\/cho-neo-theme-park-runner-up-sky-lift\.mp3"/,
   );
+  assert.doesNotMatch(player, /const CHO_NEO_THEME_TRACKS/);
 });
 
 test("Chợ Neo theme player keeps user-initiated playback behavior", () => {
@@ -71,6 +59,7 @@ test("Chợ Neo theme player keeps user-initiated playback behavior", () => {
   assert.match(player, /aria-pressed=\{isPlaying\}/);
   assert.match(player, /audio\.volume = volume/);
   assert.match(player, /setIsPlaying\(false\)/);
+  assert.match(player, /audio\.currentTime = 0/);
   assert.equal(player.includes("autoPlay"), false);
 });
 
@@ -86,21 +75,28 @@ test("Chợ Neo route layout uses one shared theme player through room navigatio
   assert.match(villageShell, /data-cho-neo-shared-music-slot/);
   assert.match(ongDiaPage, /data-cho-neo-shared-music-slot/);
   assert.match(player, /\.cho-neo-layout-theme-audio[\s\S]*border-radius: 999px/);
-  assert.match(player, /\.cho-neo-layout-theme-audio \.theme-track-select-label[\s\S]*clip-path: inset\(50%\)/);
+  assert.doesNotMatch(player, /theme-track-select-label/);
   assert.doesNotMatch(mainPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(villageShell, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(ongDiaPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(mainPage, /cho-neo-main-theme-vietnamese-style-1\.mp3/);
 });
 
-test("Chợ Neo shared music control keeps existing toggle and track wiring", () => {
+test("Chợ Neo shared music control opens the canonical 17-song panel", () => {
   assert.match(player, /className="theme-music-toggle"/);
-  assert.match(player, /onClick=\{toggleMusic\}/);
+  assert.match(player, /setIsPanelOpen\(\(open\) => !open\)/);
+  assert.match(player, /aria-expanded=\{isPanelOpen\}/);
+  assert.match(player, /aria-controls=\{panelId\}/);
   assert.match(player, /\{isPlaying \? 'Ⅱ' : '♪'\}/);
-  assert.match(player, /className="theme-track-select-label"/);
-  assert.match(player, /value=\{trackId\}/);
-  assert.match(player, /onChange=\{\(event\) => setTrackId\(event\.target\.value\)\}/);
-  assert.match(player, /aria-label="Choose Chợ Neo music track"/);
+  assert.match(player, /Danh sách nhạc Chợ Neo/);
+  assert.match(player, /theme-music-panel/);
+  assert.match(player, /theme-song-list/);
+  assert.match(player, /enabledChoNeoMusicTracks\.map/);
+  assert.match(player, /aria-current=\{isSelected \? 'true' : undefined\}/);
+  assert.match(player, /onClick=\{\(\) => selectTrack\(track\.id, true\)\}/);
+  assert.doesNotMatch(player, /<select/);
+  assert.match(player, /CHO_NEO_MUSIC_COMMAND_EVENT/);
+  assert.match(player, /getAdjacentChoNeoMusicTrack/);
   assert.match(player, /\}, \[isPlaying, portalTarget\]\)/);
 });
 

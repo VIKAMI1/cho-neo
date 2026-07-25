@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { ChoNeoBetaFeedback } from "@/components/cho-neo/ChoNeoBetaFeedback";
 import {
   CHO_NEO_AVATARS,
   type ChoNeoIdentity,
@@ -64,97 +65,6 @@ type ChoNeoAvatarProfile = {
   updatedAt: string;
 };
 
-type QuanTamMusicTrack = {
-  id: string;
-  label: string;
-  src: string;
-};
-
-const QUAN_TAM_MUSIC_TRACKS: QuanTamMusicTrack[] = [
-  {
-    id: "cho-neo-main-theme",
-    label: "Chợ Neo Main Theme",
-    src: "/Cho_Neo_music/cho-neo-theme-park-top-1-main-theme-3.mp3",
-  },
-  {
-    id: "sky-lift",
-    label: "Sky Lift",
-    src: "/Cho_Neo_music/cho-neo-theme-park-runner-up-sky-lift.mp3",
-  },
-];
-
-function QuanTamMusicNoteIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="quan-tam-music-icon"
-      focusable="false"
-      viewBox="0 0 32 32"
-    >
-      <path d="M20.8 5.6v15.3a5.1 5.1 0 1 1-2.3-4.3V9.2l-8.7 1.9v11a5.1 5.1 0 1 1-2.3-4.3V8.9l13.3-3.3Z" />
-    </svg>
-  );
-}
-
-function QuanTamMusicControl({
-  className = "",
-  isPlaying,
-  onToggle,
-  onTrackChange,
-  selectedTrackId,
-}: {
-  className?: string;
-  isPlaying: boolean;
-  onToggle: () => void;
-  onTrackChange: (trackId: string) => void;
-  selectedTrackId: string;
-}) {
-  const selectedTrack =
-    QUAN_TAM_MUSIC_TRACKS.find((track) => track.id === selectedTrackId) ??
-    QUAN_TAM_MUSIC_TRACKS[0];
-
-  return (
-    <div
-      className={`quan-tam-music-control ${
-        isPlaying ? "quan-tam-music-control-on" : ""
-      } ${className}`}
-      aria-label="Nhạc Quán Tám"
-    >
-      <button
-        aria-label={isPlaying ? "Tắt nhạc" : "Mở nhạc"}
-        aria-pressed={isPlaying}
-        className="quan-tam-music-toggle"
-        onClick={onToggle}
-        title={isPlaying ? "Tắt nhạc" : "Mở nhạc"}
-        type="button"
-      >
-        <QuanTamMusicNoteIcon />
-      </button>
-      <label className="quan-tam-track-picker">
-        <span className="sr-only">Chọn nhạc</span>
-        <select
-          aria-label="Chọn nhạc"
-          onChange={(event) => onTrackChange(event.target.value)}
-          title="Chọn nhạc"
-          value={selectedTrack.id}
-        >
-          {QUAN_TAM_MUSIC_TRACKS.map((track) => (
-            <option key={track.id} value={track.id}>
-              {track.label}
-            </option>
-          ))}
-        </select>
-        <span className="quan-tam-track-title" aria-hidden="true">
-          {selectedTrack.label}
-        </span>
-        <span className="quan-tam-track-chevron" aria-hidden="true">
-          ▾
-        </span>
-      </label>
-    </div>
-  );
-}
-
 function TableHostNudge({
   message,
   onClose,
@@ -183,12 +93,10 @@ function TableHostNudge({
 
 function CompactTableHeader({
   countLabel,
-  musicControl,
   onBack,
   onEnter,
 }: {
   countLabel: string;
-  musicControl?: ReactNode;
   onBack: () => void;
   onEnter?: () => void;
 }) {
@@ -203,7 +111,6 @@ function CompactTableHeader({
           <span>Take a seat</span>
         </button>
       ) : null}
-      {musicControl}
       <span className="compact-table-count">{countLabel}</span>
     </div>
   );
@@ -216,7 +123,6 @@ function QuanTamTableShell({
   children,
   className,
   countLabel,
-  musicControl,
   note,
   onBack,
   onEnter,
@@ -230,7 +136,6 @@ function QuanTamTableShell({
   children: ReactNode;
   className?: string;
   countLabel: string;
-  musicControl?: ReactNode;
   note: string;
   onBack: () => void;
   onEnter?: () => void;
@@ -245,7 +150,6 @@ function QuanTamTableShell({
     >
       <CompactTableHeader
         countLabel={countLabel}
-        musicControl={musicControl}
         onBack={onBack}
         onEnter={onEnter}
       />
@@ -941,11 +845,6 @@ export default function ChoNeoGossipPage() {
   const [frontCounterPostNotice, setFrontCounterPostNotice] = useState<
     string | null
   >(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [quanTamMusicTrackId, setQuanTamMusicTrackId] = useState(
-    QUAN_TAM_MUSIC_TRACKS[0].id
-  );
-  const [quanTamMusicPlaying, setQuanTamMusicPlaying] = useState(false);
   const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
   const [avatarProfile, setAvatarProfile] =
     useState<ChoNeoAvatarProfile | null>(null);
@@ -986,60 +885,6 @@ export default function ChoNeoGossipPage() {
   const localTableConfig = isLocalSessionTable
     ? LOCAL_TABLE_CONFIG[selectedTable.id as keyof typeof LOCAL_TABLE_CONFIG]
     : null;
-  const selectedQuanTamTrack =
-    QUAN_TAM_MUSIC_TRACKS.find((track) => track.id === quanTamMusicTrackId) ??
-    QUAN_TAM_MUSIC_TRACKS[0];
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = 0.34;
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    audio.pause();
-    audio.load();
-
-    if (!quanTamMusicPlaying) return;
-
-    audio.play().catch(() => {
-      setQuanTamMusicPlaying(false);
-    });
-  }, [selectedQuanTamTrack.src]);
-
-  async function toggleQuanTamMusic() {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (quanTamMusicPlaying) {
-      audio.pause();
-      setQuanTamMusicPlaying(false);
-      return;
-    }
-
-    try {
-      await audio.play();
-      setQuanTamMusicPlaying(true);
-    } catch {
-      setQuanTamMusicPlaying(false);
-    }
-  }
-
-  function changeQuanTamTrack(trackId: string) {
-    setQuanTamMusicTrackId(trackId);
-  }
-
-  const quanTamMusicControl = (
-    <QuanTamMusicControl
-      isPlaying={quanTamMusicPlaying}
-      onToggle={toggleQuanTamMusic}
-      onTrackChange={changeQuanTamTrack}
-      selectedTrackId={quanTamMusicTrackId}
-    />
-  );
   const selectedMessages: Array<ConversationMessage | FrontCounterMessage> =
     isFrontCounter
       ? frontCounterMessages.filter(isVisibleFrontCounterMessage)
@@ -1847,9 +1692,6 @@ export default function ChoNeoGossipPage() {
   return (
     <main className="cafe-page">
       <ChoNeoTimeAmbience />
-      <audio ref={audioRef} loop preload="metadata" playsInline>
-        <source src={selectedQuanTamTrack.src} type="audio/mpeg" />
-      </audio>
       <div className="room-glow" />
       <div className="floor-grid" />
 
@@ -1869,6 +1711,13 @@ export default function ChoNeoGossipPage() {
             </p>
           </div>
 
+          <div className="cafe-hero-actions" aria-label="Quán Tám quick actions">
+            <span
+              className="cho-neo-shared-music-slot cafe-theme-audio"
+              data-cho-neo-shared-music-slot
+            />
+            <ChoNeoBetaFeedback />
+          </div>
         </header>
 
         {!selectedTable ? (
@@ -1928,7 +1777,6 @@ export default function ChoNeoGossipPage() {
                 {isTrendTable ? (
                   <CompactTableHeader
                     countLabel={getCompactTableCountLabel(selectedTable)}
-                    musicControl={quanTamMusicControl}
                     onEnter={enterSelectedTable}
                     onBack={() => setSelectedTableName(null)}
                   />
@@ -1962,9 +1810,6 @@ export default function ChoNeoGossipPage() {
                         {isFrontCounter && isCurrentIdentitySeated ? "Seated" : "Take a seat"}
                       </span>
                     </button>
-                    <div className="front-counter-music-shell">
-                      {quanTamMusicControl}
-                    </div>
                     <span className="compact-table-count front-counter-count-control">
                       {getCompactTableCountLabel(selectedTable)}
                     </span>
@@ -2047,7 +1892,6 @@ export default function ChoNeoGossipPage() {
                     artworkAlt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
                     className={`local-table-stage-${selectedTable.id}`}
                     countLabel={getCompactTableCountLabel(selectedTable)}
-                    musicControl={quanTamMusicControl}
                     note={selectedTable.note}
                     onBack={() => setSelectedTableName(null)}
                     onEnter={enterSelectedTable}
@@ -3497,6 +3341,22 @@ export default function ChoNeoGossipPage() {
           padding: 0 2px;
         }
 
+        .cafe-hero-actions {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .cafe-theme-audio {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: center;
+        }
+
         .eyebrow {
           margin: 0 0 8px;
           color: #fde68a;
@@ -4682,6 +4542,23 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
+        .cafe-page:has(.table-detail) .cafe-hero {
+          position: absolute;
+          top: 14px;
+          right: 16px;
+          z-index: 90;
+          display: flex;
+          padding: 0;
+        }
+
+        .cafe-page:has(.table-detail) .cafe-hero > div:first-child {
+          display: none;
+        }
+
+        .cafe-page:has(.table-detail) .cafe-hero-actions {
+          gap: 10px;
+        }
+
         .cafe-page:has(.detail-panel-front-counter) .cafe-shell {
           padding: clamp(10px, 2vw, 18px);
         }
@@ -4893,119 +4770,6 @@ export default function ChoNeoGossipPage() {
           color: #f7d594;
           border-color: rgba(247, 213, 148, 0.38);
           background: rgba(94, 40, 46, 0.42);
-        }
-
-        .front-counter-music-shell {
-          flex: 0 1 290px;
-          min-width: 220px;
-        }
-
-        .quan-tam-music-control {
-          position: relative;
-          display: grid;
-          flex: 0 1 290px;
-          grid-template-columns: 38px minmax(0, 1fr);
-          align-items: center;
-          gap: 7px;
-          width: min(290px, 100%);
-          min-width: min(220px, 100%);
-          min-height: 44px;
-          padding: 4px 9px 4px 4px;
-          border: 1px solid rgba(244, 198, 118, 0.22);
-          border-radius: 14px;
-          color: rgba(255, 247, 237, 0.82);
-          background: rgba(31, 20, 18, 0.66);
-          box-shadow:
-            0 8px 20px rgba(18, 10, 8, 0.18),
-            inset 0 1px 0 rgba(255, 247, 237, 0.08);
-          backdrop-filter: blur(14px);
-        }
-
-        .quan-tam-music-toggle {
-          display: grid;
-          place-items: center;
-          width: 36px;
-          height: 36px;
-          padding: 0;
-          border: 1px solid rgba(244, 198, 118, 0.2);
-          border-radius: 12px;
-          color: rgba(255, 247, 237, 0.62);
-          background: rgba(255, 247, 237, 0.04);
-          font: inherit;
-          cursor: pointer;
-          transition:
-            border-color 160ms ease,
-            color 160ms ease,
-            background 160ms ease,
-            box-shadow 160ms ease;
-        }
-
-        .quan-tam-music-control-on .quan-tam-music-toggle {
-          color: #f6cf83;
-          border-color: rgba(246, 207, 131, 0.4);
-          background: rgba(92, 45, 24, 0.52);
-          box-shadow: 0 0 18px rgba(246, 207, 131, 0.18);
-        }
-
-        .quan-tam-music-control-on .quan-tam-music-icon {
-          animation: quanTamMusicBreath 4.8s ease-in-out infinite;
-        }
-
-        .quan-tam-music-icon {
-          width: 20px;
-          height: 20px;
-          fill: currentColor;
-        }
-
-        .quan-tam-track-picker {
-          position: relative;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          align-items: center;
-          min-width: 0;
-          height: 36px;
-          color: rgba(255, 247, 237, 0.8);
-        }
-
-        .quan-tam-track-picker select {
-          position: absolute;
-          inset: 0;
-          z-index: 2;
-          width: 100%;
-          height: 100%;
-          border: 0;
-          border-radius: 10px;
-          opacity: 0;
-          cursor: pointer;
-        }
-
-        .quan-tam-track-title {
-          overflow: hidden;
-          padding: 0 4px;
-          color: rgba(255, 247, 237, 0.82);
-          font-size: 12px;
-          font-weight: 400;
-          line-height: 1.1;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .quan-tam-track-chevron {
-          color: rgba(255, 247, 237, 0.52);
-          font-size: 11px;
-          line-height: 1;
-        }
-
-        .quan-tam-track-picker:hover .quan-tam-track-title,
-        .quan-tam-track-picker:focus-within .quan-tam-track-title,
-        .quan-tam-music-toggle:hover {
-          color: #fff7ed;
-        }
-
-        .quan-tam-music-toggle:focus-visible,
-        .quan-tam-track-picker select:focus-visible {
-          outline: 2px solid rgba(246, 207, 131, 0.82);
-          outline-offset: 2px;
         }
 
         .front-counter-back-control,
@@ -7642,11 +7406,6 @@ export default function ChoNeoGossipPage() {
           72% { opacity: 0.3; transform: translateX(4px) rotate(-5deg); }
         }
 
-        @keyframes quanTamMusicBreath {
-          0%, 100% { opacity: 0.82; transform: scale(1); }
-          48% { opacity: 1; transform: scale(1.08); }
-        }
-
         @keyframes frontCounterNoteIn {
           from { opacity: 0; transform: translateY(7px); }
           to { opacity: 1; transform: translateY(0); }
@@ -7679,7 +7438,6 @@ export default function ChoNeoGossipPage() {
           .front-counter-ambient-glow,
           .front-counter-ambient-steam,
           .front-counter-ambient-reflection,
-          .quan-tam-music-control-on .quan-tam-music-icon,
           .front-counter-stage-bubble,
           .front-counter-stage-drawer,
           .trend-table-stage::after {
@@ -8817,6 +8575,10 @@ export default function ChoNeoGossipPage() {
             gap: 10px;
           }
 
+          .cafe-hero-actions {
+            align-self: flex-end;
+          }
+
           .cafe-stage-controls {
             align-items: stretch;
           }
@@ -8916,20 +8678,6 @@ export default function ChoNeoGossipPage() {
             font-size: 11px;
           }
 
-          .front-counter-music-shell {
-            flex: 1 1 210px;
-            min-width: min(210px, 54vw);
-          }
-
-          .quan-tam-music-control {
-            flex: 1 1 190px;
-            grid-template-columns: 38px minmax(0, 1fr);
-            width: min(250px, 100%);
-            min-width: min(190px, 62vw);
-            min-height: 44px;
-            padding: 4px 8px 4px 4px;
-          }
-
           .front-counter-quick-controls .compact-table-back,
           .front-counter-quick-controls .compact-table-count {
             min-height: 44px;
@@ -8938,8 +8686,7 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-quick-controls span,
-          .front-counter-seat-control span,
-          .quan-tam-track-title {
+          .front-counter-seat-control span {
             white-space: nowrap;
           }
 
