@@ -777,6 +777,10 @@ async function importGossipRoute() {
   let source = fs.readFileSync(routePath, "utf8");
   source = source
     .replace(
+      'import { createClient } from "@supabase/supabase-js";',
+      `import { createClient } from ${JSON.stringify(import.meta.resolve("@supabase/supabase-js"))};`,
+    )
+    .replace(
       'import { NextResponse } from "next/server";',
       `const NextResponse = {
   json(body, init) {
