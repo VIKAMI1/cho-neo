@@ -6,6 +6,10 @@ import {
 } from "@/lib/cho-neo/avatar-identity";
 import { isChoNeoGossipPostingDisabled } from "@/lib/cho-neo/env-flags";
 import {
+  CHO_NEO_GUEST_PROFILE_TABLE,
+  mapChoNeoGuestProfileRow,
+} from "@/lib/cho-neo/guest-pass";
+import {
   FRONT_COUNTER_MESSAGE_CAP,
   FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
   type FrontCounterMessage,
@@ -17,17 +21,24 @@ const MESSAGE_SELECT =
   "id, room_id, avatar_id, nickname, text, reactions, report_count, reported_at, hidden_at, removed_at, created_at";
 const LEGACY_MESSAGE_SELECT =
   "id, room_id, avatar_id, nickname, text, reactions, hidden_at, created_at";
+const OWNED_MESSAGE_SELECT =
+  "id, room_id, author_user_id, avatar_id, nickname, text, reactions, hidden_at, created_at";
 const SUPABASE_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const POST_RATE_LIMIT_WINDOW_MS = 60_000;
 const POST_RATE_LIMIT_MAX = 5;
+const REPORT_RATE_LIMIT_WINDOW_MS = 60_000;
+const REPORT_RATE_LIMIT_MAX = 10;
 const DUPLICATE_WINDOW_MS = 10 * 60_000;
 const postRateBuckets = new Map<string, number[]>();
+const reportRateBuckets = new Map<string, number[]>();
 const recentPostFingerprints = new Map<string, number>();
+const recentReportFingerprints = new Map<string, number>();
 
 export const dynamic = "force-dynamic";
 
 type GossipMessageRow = {
+  author_user_id?: string | null;
   avatar_id: string;
   created_at: string;
   hidden_at?: string | null;
@@ -177,20 +188,45 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = createChoNeoSupabaseClient();
+  const userId = await getAuthenticatedChoNeoUserId(request);
+  if (!userId) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_PASS_REQUIRED",
+        error: "Nhận Thẻ Chợ Neo trước khi góp chuyện nha.",
+        reason: "missing-cho-neo-pass",
+      },
+      { status: 401 }
+    );
+  }
+
+  const supabase = createChoNeoSupabaseServiceClient();
 
   if (!supabase) {
     return sharedMemoryUnavailable({
-      detail: "Missing Supabase URL or key for Cho Neo shared memory.",
+      detail: "Missing Supabase service role key for Cho Neo shared memory.",
       operation: "POST",
-      reason: "missing-env",
+      reason: "missing-service-role",
     });
   }
 
   const body = await request.json().catch(() => null);
-  const avatarId = typeof body?.avatarId === "string" ? body.avatarId.trim() : "";
-  const nickname = typeof body?.nickname === "string" ? body.nickname.trim() : "";
   const text = typeof body?.text === "string" ? body.text.trim() : "";
+
+  const profile = await getActiveChoNeoGuestProfile(supabase, userId);
+  if (!profile) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_ACTIVE_PASS_REQUIRED",
+        error: "Thẻ Chợ Neo chưa sẵn sàng để góp chuyện.",
+        reason: "inactive-cho-neo-pass",
+      },
+      { status: 400 }
+    );
+  }
+
+  const avatarId = profile.avatarKey ?? profile.avatar.id;
+  const nickname = profile.displayName;
 
   if (!CHO_NEO_AVATARS.some((avatar) => avatar.id === avatarId)) {
     return NextResponse.json({ error: "Choose a valid Cho Neo avatar." }, { status: 400 });
@@ -239,13 +275,14 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .insert({
+      author_user_id: userId,
       avatar_id: avatarId,
       nickname,
       reactions: {},
       room_id: FRONT_COUNTER_ROOM_ID,
       text,
     })
-    .select(LEGACY_MESSAGE_SELECT)
+    .select(OWNED_MESSAGE_SELECT)
     .single();
 
   if (error) {
@@ -291,6 +328,47 @@ export async function POST(request: Request) {
   );
 }
 
+async function getAuthenticatedChoNeoUserId(request: Request) {
+  const authorization = request.headers.get("authorization") ?? "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!token || !supabaseUrl || !supabaseKey) {
+    return null;
+  }
+
+  const { data, error } = await createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+    },
+  }).auth.getUser(token);
+
+  if (error || !data.user) {
+    return null;
+  }
+
+  return data.user.id;
+}
+
+async function getActiveChoNeoGuestProfile(
+  supabase: { from: (table: string) => any },
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from(CHO_NEO_GUEST_PROFILE_TABLE)
+    .select("user_id, display_name, normalized_display_name, avatar_key, status")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return mapChoNeoGuestProfileRow(data);
+}
+
 export async function PATCH(request: Request) {
   const body = await request.json().catch(() => null);
   const action = typeof body?.action === "string" ? body.action : "";
@@ -319,7 +397,7 @@ export async function PATCH(request: Request) {
   }
 
   if (action === "report") {
-    return reportMessage(messageId);
+    return reportMessage(request, messageId);
   }
 
   if (
@@ -455,7 +533,19 @@ function getUnsafeTextReason(text: string) {
   return null;
 }
 
-async function reportMessage(messageId: string) {
+async function reportMessage(request: Request, messageId: string) {
+  const reporterUserId = await getAuthenticatedChoNeoUserId(request);
+  if (!reporterUserId) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_PASS_REQUIRED",
+        error: "Nhận Thẻ Chợ Neo trước khi báo cáo nha.",
+        reason: "missing-cho-neo-pass",
+      },
+      { status: 401 }
+    );
+  }
+
   const supabase = createChoNeoSupabaseServiceClient();
 
   if (!supabase) {
@@ -464,6 +554,41 @@ async function reportMessage(messageId: string) {
       operation: "PATCH",
       reason: "missing-service-role",
     });
+  }
+
+  const profile = await getActiveChoNeoGuestProfile(supabase, reporterUserId);
+  if (!profile) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_ACTIVE_PASS_REQUIRED",
+        error: "Thẻ Chợ Neo chưa sẵn sàng để báo cáo.",
+        reason: "inactive-cho-neo-pass",
+      },
+      { status: 400 }
+    );
+  }
+
+  const clientKey = getClientKey(request);
+  if (isReportRateLimited(clientKey)) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_REPORT_RATE_LIMITED",
+        error: "Con báo cáo hơi nhanh. Nghỉ một nhịp rồi thử lại nha.",
+        reason: "report-rate-limited",
+      },
+      { status: 429 }
+    );
+  }
+
+  if (isDuplicateReport(reporterUserId, messageId)) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_DUPLICATE_REPORT",
+        error: "Câu này đã được báo cáo rồi.",
+        reason: "duplicate-report",
+      },
+      { status: 409 }
+    );
   }
 
   const lookupResult = await lookupMessageForPatch(supabase, messageId, {
@@ -499,7 +624,55 @@ async function reportMessage(messageId: string) {
     });
   }
 
+  rememberReportFingerprint(reporterUserId, messageId);
+
   return publicUpdatedMessageResponse(data as GossipMessageRow[] | null);
+}
+
+function isReportRateLimited(clientKey: string, now = Date.now()) {
+  const recent = (reportRateBuckets.get(clientKey) ?? []).filter(
+    (timestamp) => now - timestamp < REPORT_RATE_LIMIT_WINDOW_MS,
+  );
+  if (recent.length >= REPORT_RATE_LIMIT_MAX) {
+    reportRateBuckets.set(clientKey, recent);
+    return true;
+  }
+
+  recent.push(now);
+  reportRateBuckets.set(clientKey, recent);
+  return false;
+}
+
+function getReportFingerprint(reporterUserId: string, messageId: string) {
+  return `${reporterUserId}:${messageId}`;
+}
+
+function isDuplicateReport(
+  reporterUserId: string,
+  messageId: string,
+  now = Date.now(),
+) {
+  const fingerprint = getReportFingerprint(reporterUserId, messageId);
+  const lastSeenAt = recentReportFingerprints.get(fingerprint);
+  pruneReportFingerprints(now);
+  return Boolean(lastSeenAt && now - lastSeenAt < DUPLICATE_WINDOW_MS);
+}
+
+function rememberReportFingerprint(
+  reporterUserId: string,
+  messageId: string,
+  now = Date.now(),
+) {
+  pruneReportFingerprints(now);
+  recentReportFingerprints.set(getReportFingerprint(reporterUserId, messageId), now);
+}
+
+function pruneReportFingerprints(now = Date.now()) {
+  for (const [fingerprint, timestamp] of recentReportFingerprints) {
+    if (now - timestamp >= DUPLICATE_WINDOW_MS) {
+      recentReportFingerprints.delete(fingerprint);
+    }
+  }
 }
 
 async function lookupMessageForPatch(

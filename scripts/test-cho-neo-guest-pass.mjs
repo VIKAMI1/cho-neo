@@ -33,10 +33,23 @@ const voteRepositoryPath = path.join(
   repoRoot,
   "src/lib/cho-neo/room-vote-repository.ts",
 );
+const gossipPagePath = path.join(repoRoot, "src/app/cho-neo/gossip/page.tsx");
+const gossipRoutePath = path.join(
+  repoRoot,
+  "src/app/api/cho-neo/gossip/front-counter/messages/route.ts",
+);
+const gossipClientPath = path.join(
+  repoRoot,
+  "src/lib/cho-neo/gossip-front-counter.ts",
+);
 const schemaPath = path.join(repoRoot, "docs/cho-neo/room-vote-v1.sql");
 const migrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260726185000_cho_neo_guest_pass_v1.sql",
+);
+const gossipMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260726193000_harden_cho_neo_gossip_writes.sql",
 );
 const opsDocPath = path.join(repoRoot, "docs/cho-neo/guest-pass-v1.md");
 
@@ -52,8 +65,12 @@ const profile = fs.readFileSync(profilePath, "utf8");
 const voteApi = fs.readFileSync(voteApiPath, "utf8");
 const voteService = fs.readFileSync(voteServicePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
+const gossipPage = fs.readFileSync(gossipPagePath, "utf8");
+const gossipRoute = fs.readFileSync(gossipRoutePath, "utf8");
+const gossipClient = fs.readFileSync(gossipClientPath, "utf8");
 const schema = fs.readFileSync(schemaPath, "utf8");
 const migration = fs.readFileSync(migrationPath, "utf8");
+const gossipMigration = fs.readFileSync(gossipMigrationPath, "utf8");
 const opsDoc = fs.readFileSync(opsDocPath, "utf8");
 const module = await importGuestPassModule();
 
@@ -142,6 +159,55 @@ test("room vote resumes through the pass gate and cannot submit as another user"
   assert.match(voteRepository, /\.update\(row\)/);
   assert.match(voteRepository, /\.insert\(row\)/);
   assert.match(schema, /voter_user_id = auth\.uid\(\)/);
+});
+
+test("gossip posts resume through the pass gate and server route owns authorship", () => {
+  assert.match(gossipPage, /useChoNeoGuestPass/);
+  assert.match(gossipPage, /ensureChoNeoPass\(async \(\) => \{/);
+  assert.match(gossipPage, /await persistFrontCounterDraft\(activeIdentity, text\)/);
+  assert.match(gossipPage, /await persistFrontCounterReport\(message\)/);
+  assert.match(gossipPage, /supabase\.auth\.getSession\(\)/);
+  assert.match(gossipPage, /token,\s*\n\s*\}\)/);
+  assert.match(gossipPage, /missing-cho-neo-pass/);
+  assert.match(gossipPage, /inactive-cho-neo-pass/);
+  assert.match(gossipClient, /Authorization: `Bearer \$\{input\.token\}`/);
+  assert.match(gossipClient, /reportSharedFrontCounterMessage\(input: \{/);
+  assert.match(gossipRoute, /auth\.getUser\(token\)/);
+  assert.match(gossipRoute, /createChoNeoSupabaseServiceClient\(\)/);
+  assert.match(gossipRoute, /getActiveChoNeoGuestProfile\(supabase, userId\)/);
+  assert.match(gossipRoute, /author_user_id: userId/);
+  assert.match(gossipRoute, /return reportMessage\(request, messageId\)/);
+  assert.match(gossipRoute, /CHO_NEO_GOSSIP_DUPLICATE_REPORT/);
+  assert.match(gossipRoute, /report_count: reportCount \+ 1/);
+  assert.match(gossipRoute, /reported_at: new Date\(\)\.toISOString\(\)/);
+  assert.match(gossipRoute, /const avatarId = profile\.avatarKey \?\? profile\.avatar\.id/);
+  assert.match(gossipRoute, /const nickname = profile\.displayName/);
+  assert.match(gossipMigration, /author_user_id uuid null references auth\.users\(id\)/);
+  assert.match(gossipMigration, /cho_neo_gossip_messages_author_user_idx/);
+  assert.match(
+    gossipMigration,
+    /drop policy if exists "Cho Neo gossip messages can be inserted"/,
+  );
+  assert.match(
+    gossipMigration,
+    /drop policy if exists "Cho Neo prototype can insert front counter messages"/,
+  );
+  assert.match(
+    gossipMigration,
+    /revoke insert on public\.cho_neo_gossip_messages from anon, authenticated/,
+  );
+  assert.match(
+    gossipMigration,
+    /revoke update on public\.cho_neo_gossip_messages from anon, authenticated/,
+  );
+  assert.match(
+    gossipMigration,
+    /revoke delete on public\.cho_neo_gossip_messages from anon, authenticated/,
+  );
+  assert.match(
+    gossipMigration,
+    /create policy "Cho Neo shared gossip visible messages are readable"/,
+  );
 });
 
 test("RLS policies fail closed for authenticated anonymous users", () => {

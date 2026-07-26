@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { ChoNeoBetaFeedback } from "@/components/cho-neo/ChoNeoBetaFeedback";
+import { useChoNeoGuestPass } from "@/components/cho-neo/ChoNeoGuestPassProvider";
 import {
   CHO_NEO_AVATARS,
   type ChoNeoIdentity,
@@ -39,6 +40,7 @@ import {
   unhideSharedFrontCounterMessage,
 } from "@/lib/cho-neo/gossip-front-counter";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
+import { createClient } from "@/lib/supabase-browser";
 
 type ConversationMessage = {
   author?: {
@@ -826,6 +828,8 @@ function useQuanTamArtworkSources() {
 }
 
 export default function ChoNeoGossipPage() {
+  const supabase = useMemo(() => createClient(), []);
+  const { ensureChoNeoPass } = useChoNeoGuestPass();
   const cafeControlPillClassName = "cafe-control-pill";
   const quanTamArtworkSources = useQuanTamArtworkSources();
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
@@ -1079,6 +1083,15 @@ export default function ChoNeoGossipPage() {
     }
 
     const activeIdentity = ensureFrontCounterComposerReady();
+    await ensureChoNeoPass(async () => {
+      await persistFrontCounterDraft(activeIdentity, text);
+    });
+  }
+
+  async function persistFrontCounterDraft(
+    activeIdentity: ChoNeoIdentity,
+    text: string,
+  ) {
     frontCounterPostingRef.current = true;
     setFrontCounterPosting(true);
     setFrontCounterPostNotice(null);
@@ -1087,10 +1100,17 @@ export default function ChoNeoGossipPage() {
       const authorSnapshot = getCurrentAuthorSnapshot();
 
       try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) {
+          throw new Error("Missing Cho Neo pass session");
+        }
+
         const savedMessage = await postSharedFrontCounterMessage({
           avatarId: activeIdentity.avatarId,
           nickname: activeIdentity.nickname,
           text,
+          token,
         });
 
         if (process.env.NODE_ENV === "development") {
@@ -1117,7 +1137,22 @@ export default function ChoNeoGossipPage() {
         releaseFrontCounterPostingGuard();
         setFrontCounterPosting(false);
         return;
-      } catch {
+      } catch (error) {
+        const sharedPostReason =
+          error instanceof Error ? error.message.toLowerCase() : "";
+
+        if (
+          sharedPostReason.includes("missing-cho-neo-pass") ||
+          sharedPostReason.includes("inactive-cho-neo-pass")
+        ) {
+          setFrontCounterPostNotice(
+            "Nhận Thẻ Chợ Neo đang hoạt động trước khi góp chuyện nha."
+          );
+          releaseFrontCounterPostingGuard();
+          setFrontCounterPosting(false);
+          return;
+        }
+
         setFrontCounterMemoryMode("local");
         setSharedFetchedMessageIds([]);
         setFrontCounterMemoryNotice(
@@ -1284,13 +1319,28 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
+    await ensureChoNeoPass(async () => {
+      await persistFrontCounterReport(message);
+    });
+  }
+
+  async function persistFrontCounterReport(message: FrontCounterMessage) {
     setModerationBusyMessageId(message.id);
     setModerationNotice(null);
 
     try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (frontCounterMemoryMode === "shared" && !token) {
+        throw new Error("Missing Cho Neo pass session");
+      }
+
       const updatedMessage =
         frontCounterMemoryMode === "shared"
-          ? await reportSharedFrontCounterMessage(message.id)
+          ? await reportSharedFrontCounterMessage({
+              messageId: message.id,
+              token: token ?? "",
+            })
           : {
               ...message,
               reportCount: (message.reportCount ?? 0) + 1,

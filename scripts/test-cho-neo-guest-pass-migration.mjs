@@ -5,11 +5,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
 const pollKey = "cho-neo-room-vote-v1";
+const gossipRoomId = "front-counter";
 const migrationPath =
-  "supabase/migrations/20260726185000_cho_neo_guest_pass_v1.sql";
+  "supabase/migrations/20260726185000_cho_neo_guest_pass_v1.sql and supabase/migrations/20260726193000_harden_cho_neo_gossip_writes.sql";
 
 const env = process.env;
 const lifecycle = {
@@ -47,7 +49,7 @@ function runSupabaseQuiet(args) {
 
 function runPsql(dbUrl, sql) {
   try {
-    execFileSync("psql", [dbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-c", sql], {
+    return execFileSync("psql", [dbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-c", sql], {
       cwd: process.cwd(),
       encoding: "utf8",
       env,
@@ -167,15 +169,49 @@ async function actorVote(actor, optionKey, voterUserId = actor.userId) {
   });
 }
 
+async function actorGossipInsert(actor, text = "Một câu thử direct insert") {
+  return actor.client.from("cho_neo_gossip_messages").insert({
+    author_user_id: actor.userId,
+    avatar_id: "front-counter-pro",
+    nickname: "Browser",
+    reactions: {},
+    room_id: gossipRoomId,
+    text,
+  });
+}
+
+async function actorGossipUpdate(actor, messageId) {
+  return actor.client
+    .from("cho_neo_gossip_messages")
+    .update({
+      report_count: 99,
+      reported_at: new Date().toISOString(),
+    })
+    .eq("id", messageId);
+}
+
+async function actorGossipDelete(actor, messageId) {
+  return actor.client
+    .from("cho_neo_gossip_messages")
+    .delete()
+    .eq("id", messageId);
+}
+
 function assertDumpContainsRequiredSchema(dump) {
   assert.match(dump, /CREATE TABLE (?:IF NOT EXISTS )?"public"\."cho_neo_guest_profiles"/);
   assert.match(dump, /CREATE TABLE (?:IF NOT EXISTS )?"public"\."cho_neo_room_votes"/);
+  assert.match(dump, /CREATE TABLE (?:IF NOT EXISTS )?"public"\."cho_neo_gossip_messages"/);
   assert.match(dump, /"voter_user_id" "uuid"/);
+  assert.match(dump, /"author_user_id" "uuid"/);
   assert.match(dump, /cho_neo_room_votes_one_vote_per_user_idx/);
+  assert.match(dump, /cho_neo_gossip_messages_author_user_idx/);
   assert.match(dump, /ENABLE ROW LEVEL SECURITY/);
   assert.match(dump, /Cho Neo users can create their own guest profile/);
   assert.match(dump, /Cho Neo visitors can insert room votes/);
   assert.match(dump, /Cho Neo visitors can update their room vote/);
+  assert.match(dump, /Cho Neo shared gossip visible messages are readable/);
+  assert.doesNotMatch(dump, /Cho Neo gossip messages can be inserted/);
+  assert.doesNotMatch(dump, /Cho Neo prototype can insert front counter messages/);
 }
 
 function auditDirectWritePolicies(dump) {
@@ -188,6 +224,7 @@ function auditDirectWritePolicies(dump) {
   assert.ok(policyNames.has("Cho Neo visitors can read their own room vote"));
   assert.ok(policyNames.has("Cho Neo visitors can insert room votes"));
   assert.ok(policyNames.has("Cho Neo visitors can update their room vote"));
+  assert.ok(policyNames.has("Cho Neo shared gossip visible messages are readable"));
 
   const allowedDirectWrites = new Set([
     "cho_neo_guest_profiles:INSERT:Cho Neo users can create their own guest profile",
@@ -224,6 +261,33 @@ function auditDirectWritePolicies(dump) {
   );
 }
 
+function assertGossipPrivilegesRevoked(dbUrl) {
+  const output = runPsql(
+    dbUrl,
+    [
+      "select grantee || ':' || privilege_type",
+      "from information_schema.role_table_grants",
+      "where table_schema = 'public'",
+      "and table_name = 'cho_neo_gossip_messages'",
+      "and grantee in ('anon', 'authenticated')",
+      "order by grantee, privilege_type",
+    ].join(" "),
+  );
+  const grants = output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) =>
+      /^(anon|authenticated):(SELECT|INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER)$/.test(
+        line,
+      ),
+    );
+
+  assert.deepEqual(grants, ["anon:SELECT", "authenticated:SELECT"]);
+  actorProof.push(
+    "anon/authenticated keep visible SELECT but lose INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES and TRIGGER on gossip",
+  );
+}
+
 function parsePolicies(dump) {
   const policies = [];
   const expression =
@@ -253,6 +317,7 @@ test("migration lifecycle applies, cleans to version zero, and reapplies", () =>
   const appliedDump = runSupabaseQuiet(["db", "dump", "--local", "--schema", "public"]);
   assertDumpContainsRequiredSchema(appliedDump);
   auditDirectWritePolicies(appliedDump);
+  assertGossipPrivilegesRevoked(local.DB_URL);
   lifecycle.inspect = "schema dump contains guest profile table, voter_user_id, indexes, RLS, policies";
 
   runPsql(
@@ -260,19 +325,22 @@ test("migration lifecycle applies, cleans to version zero, and reapplies", () =>
     [
       "drop table if exists public.cho_neo_room_votes cascade",
       "drop table if exists public.cho_neo_guest_profiles cascade",
+      "drop table if exists public.cho_neo_gossip_messages cascade",
       "drop function if exists public.set_cho_neo_room_votes_updated_at() cascade",
       "drop function if exists public.set_cho_neo_guest_profiles_updated_at() cascade",
     ].join("; "),
   );
-  lifecycle.cleanup = "dropped guest-pass tables and trigger functions";
+  lifecycle.cleanup = "dropped guest-pass, room-vote, gossip tables and trigger functions";
   const cleanDump = runSupabaseQuiet(["db", "dump", "--local", "--schema", "public"]);
   assert.doesNotMatch(cleanDump, /cho_neo_guest_profiles/);
   assert.doesNotMatch(cleanDump, /cho_neo_room_votes/);
+  assert.doesNotMatch(cleanDump, /cho_neo_gossip_messages/);
 
   lifecycle.reapply = runSupabaseQuiet(["db", "reset", "--local", "--no-seed"]);
   const reappliedDump = runSupabaseQuiet(["db", "dump", "--local", "--schema", "public"]);
   assertDumpContainsRequiredSchema(reappliedDump);
   auditDirectWritePolicies(reappliedDump);
+  assertGossipPrivilegesRevoked(local.DB_URL);
 });
 
 test("distinct actors obey guest profile and room vote RLS", async () => {
@@ -314,6 +382,13 @@ test("distinct actors obey guest profile and room vote RLS", async () => {
   );
   assert.notEqual(publicVote.error, null);
   actorProof.push("public visitor cannot create a vote");
+
+  const publicGossipInsert = await actorGossipInsert(
+    { client: publicClient, userId: userA.userId },
+    "Public browser direct insert",
+  );
+  assert.notEqual(publicGossipInsert.error, null);
+  actorProof.push("public visitor cannot insert gossip messages directly");
 
   await insertOwnProfile(userA, "User A");
   await insertOwnProfile(userB, "User B");
@@ -376,6 +451,49 @@ test("distinct actors obey guest profile and room vote RLS", async () => {
   const aOwnVote = await actorVote(userA, "show-off");
   assert.equal(aOwnVote.error, null);
   actorProof.push("anonymous user A can create one own vote with active profile");
+
+  const aDirectGossipInsert = await actorGossipInsert(
+    userA,
+    "Authenticated browser direct insert",
+  );
+  assert.notEqual(aDirectGossipInsert.error, null);
+  actorProof.push("anonymous authenticated user cannot insert gossip messages directly");
+
+  const serviceGossip = await serviceClient
+    .from("cho_neo_gossip_messages")
+    .insert({
+      author_user_id: userA.userId,
+      avatar_id: "front-counter-pro",
+      nickname: "Service Fixture",
+      reactions: {},
+      room_id: gossipRoomId,
+      text: "Visible service fixture for direct-write denial.",
+    })
+    .select("id")
+    .single();
+  assert.equal(serviceGossip.error, null);
+
+  const publicReadGossip = await publicClient
+    .from("cho_neo_gossip_messages")
+    .select("id, text")
+    .eq("id", serviceGossip.data.id);
+  assert.equal(publicReadGossip.error, null);
+  assert.equal(publicReadGossip.data.length, 1);
+  actorProof.push("public visitor can read visible legacy gossip messages");
+
+  const aDirectGossipUpdate = await actorGossipUpdate(
+    userA,
+    serviceGossip.data.id,
+  );
+  assert.notEqual(aDirectGossipUpdate.error, null);
+  actorProof.push("anonymous authenticated user cannot update gossip messages directly");
+
+  const aDirectGossipDelete = await actorGossipDelete(
+    userA,
+    serviceGossip.data.id,
+  );
+  assert.notEqual(aDirectGossipDelete.error, null);
+  actorProof.push("anonymous authenticated user cannot delete gossip messages directly");
 
   const aVotesAsB = await actorVote(userA, "owner-corner", userB.userId);
   assert.notEqual(aVotesAsB.error, null);
@@ -475,6 +593,220 @@ test("distinct actors obey guest profile and room vote RLS", async () => {
   assert.equal(bannedServicePost.body.reason, "inactive-cho-neo-pass");
   actorProof.push("service-role application path rejects inactive profiles");
 });
+
+test("controlled gossip server route owns writes and preserves public reads", async () => {
+  const local = getLocalEnv();
+  const apiUrl = local.API_URL;
+  const anonKey = local.ANON_KEY;
+  const serviceRoleKey = local.SERVICE_ROLE_KEY;
+  assert.ok(apiUrl);
+  assert.ok(anonKey);
+  assert.ok(serviceRoleKey);
+
+  process.env.NEXT_PUBLIC_SUPABASE_URL = apiUrl;
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = serviceRoleKey;
+  delete process.env.CHO_NEO_GOSSIP_POSTING_DISABLED;
+
+  const serviceClient = localClient(apiUrl, serviceRoleKey);
+  const userA = await createAnonymousActor(apiUrl, anonKey);
+  const userB = await createAnonymousActor(apiUrl, anonKey);
+  await insertOwnProfile(userA, "Gossip User A");
+  await insertOwnProfile(userB, "Gossip User B");
+
+  const { GET, PATCH, POST } = await importGossipRoute();
+
+  const noPassResponse = await POST(gossipRequest({
+    text: "Xin góp chuyện không có thẻ.",
+  }));
+  assert.equal(noPassResponse.status, 401);
+  const noPassBody = await noPassResponse.json();
+  assert.equal(noPassBody.reason, "missing-cho-neo-pass");
+  actorProof.push("gossip server route gates visitors without a Cho Neo pass");
+
+  const activeResponse = await POST(gossipRequest(
+    {
+      author_user_id: userB.userId,
+      avatarId: "gossip-auntie",
+      nickname: "Browser Supplied Name",
+      text: "Một câu góp chuyện qua server route.",
+      user_id: userB.userId,
+    },
+    { Authorization: `Bearer ${userA.token}`, "x-forwarded-for": "203.0.113.41" },
+  ));
+  assert.equal(activeResponse.status, 201);
+  const activeBody = await activeResponse.json();
+  assert.equal(activeBody.message.nickname, "Gossip User A");
+  assert.equal(activeBody.message.avatarId, "young-nail-tech");
+
+  const saved = await serviceClient
+    .from("cho_neo_gossip_messages")
+    .select("author_user_id, nickname, avatar_id, room_id, text")
+    .eq("id", activeBody.message.id)
+    .single();
+  assert.equal(saved.error, null);
+  assert.deepEqual(saved.data, {
+    author_user_id: userA.userId,
+    avatar_id: "young-nail-tech",
+    nickname: "Gossip User A",
+    room_id: gossipRoomId,
+    text: "Một câu góp chuyện qua server route.",
+  });
+  actorProof.push("active Guest Pass user can post gossip through the server route");
+  actorProof.push("gossip server route ignores browser-supplied author/user IDs");
+
+  const noPassReportResponse = await PATCH(gossipRequest({
+    action: "report",
+    messageId: activeBody.message.id,
+  }));
+  assert.equal(noPassReportResponse.status, 401);
+  const noPassReportBody = await noPassReportResponse.json();
+  assert.equal(noPassReportBody.reason, "missing-cho-neo-pass");
+  actorProof.push("gossip report route gates visitors without a Cho Neo pass");
+
+  const activeReportResponse = await PATCH(gossipRequest(
+    {
+      action: "report",
+      messageId: activeBody.message.id,
+      reporter_user_id: userB.userId,
+      user_id: userB.userId,
+    },
+    { Authorization: `Bearer ${userA.token}`, "x-forwarded-for": "203.0.113.43" },
+  ));
+  assert.equal(activeReportResponse.status, 200);
+  const activeReportBody = await activeReportResponse.json();
+  assert.equal(activeReportBody.message.reportCount, 1);
+  actorProof.push("active Guest Pass user can report gossip through the server route");
+  actorProof.push("gossip report route ignores browser-supplied reporter/user IDs");
+
+  const duplicateReportResponse = await PATCH(gossipRequest(
+    {
+      action: "report",
+      messageId: activeBody.message.id,
+    },
+    { Authorization: `Bearer ${userA.token}`, "x-forwarded-for": "203.0.113.44" },
+  ));
+  assert.equal(duplicateReportResponse.status, 409);
+  const duplicateReportBody = await duplicateReportResponse.json();
+  assert.equal(duplicateReportBody.reason, "duplicate-report");
+  actorProof.push("gossip report route blocks duplicate reports from the same pass");
+
+  const otherUserReportResponse = await PATCH(gossipRequest(
+    {
+      action: "report",
+      messageId: activeBody.message.id,
+    },
+    { Authorization: `Bearer ${userB.token}`, "x-forwarded-for": "203.0.113.45" },
+  ));
+  assert.equal(otherUserReportResponse.status, 200);
+  const otherUserReportBody = await otherUserReportResponse.json();
+  assert.equal(otherUserReportBody.message.reportCount, 2);
+  actorProof.push("a different active Guest Pass can report the same visible message");
+
+  await serviceClient
+    .from("cho_neo_guest_profiles")
+    .update({ status: "banned" })
+    .eq("user_id", userB.userId)
+    .throwOnError();
+
+  const bannedResponse = await POST(gossipRequest(
+    {
+      text: "Banned profile should not post.",
+    },
+    { Authorization: `Bearer ${userB.token}`, "x-forwarded-for": "203.0.113.42" },
+  ));
+  assert.equal(bannedResponse.status, 400);
+  const bannedBody = await bannedResponse.json();
+  assert.equal(bannedBody.reason, "inactive-cho-neo-pass");
+  actorProof.push("inactive/banned profile cannot post gossip through the server route");
+
+  const bannedReportResponse = await PATCH(gossipRequest(
+    {
+      action: "report",
+      messageId: activeBody.message.id,
+    },
+    { Authorization: `Bearer ${userB.token}`, "x-forwarded-for": "203.0.113.46" },
+  ));
+  assert.equal(bannedReportResponse.status, 400);
+  const bannedReportBody = await bannedReportResponse.json();
+  assert.equal(bannedReportBody.reason, "inactive-cho-neo-pass");
+  actorProof.push("inactive/banned profile cannot report gossip through the server route");
+
+  const legacyInsert = await serviceClient.from("cho_neo_gossip_messages").insert({
+    avatar_id: "front-counter-pro",
+    nickname: "Legacy Row",
+    reactions: {},
+    room_id: gossipRoomId,
+    text: "Visible legacy row remains readable.",
+  });
+  assert.equal(legacyInsert.error, null);
+
+  const publicReadResponse = await GET(
+    new Request("http://localhost/api/cho-neo/gossip/front-counter/messages"),
+  );
+  assert.equal(publicReadResponse.status, 200);
+  const publicReadBody = await publicReadResponse.json();
+  assert.ok(
+    publicReadBody.messages.some(
+      (message) => message.nickname === "Legacy Row",
+    ),
+  );
+  actorProof.push("legacy visible gossip messages remain publicly readable");
+});
+
+function gossipRequest(body, headers = {}) {
+  return new Request("http://localhost/api/cho-neo/gossip/front-counter/messages", {
+    body: JSON.stringify(body),
+    headers: {
+      "content-type": "application/json",
+      "user-agent": "cho-neo-gossip-hardening-test",
+      ...headers,
+    },
+    method: "POST",
+  });
+}
+
+async function importGossipRoute() {
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "cho-neo-gossip-route-tests-"),
+  );
+  const routePath = path.join(
+    process.cwd(),
+    "src/app/api/cho-neo/gossip/front-counter/messages/route.ts",
+  );
+  let source = fs.readFileSync(routePath, "utf8");
+  source = source
+    .replace(
+      'import { NextResponse } from "next/server";',
+      `const NextResponse = {
+  json(body, init) {
+    return new Response(JSON.stringify(body), {
+      status: init?.status ?? 200,
+      headers: init?.headers ?? { "content-type": "application/json" },
+    });
+  },
+};`,
+    )
+    .replace(
+      'from "@/lib/cho-neo/avatar-identity"',
+      `from ${JSON.stringify(pathToFileURL(path.join(process.cwd(), "src/lib/cho-neo/avatar-identity.ts")).href)}`,
+    )
+    .replace(
+      'from "@/lib/cho-neo/env-flags"',
+      `from ${JSON.stringify(pathToFileURL(path.join(process.cwd(), "src/lib/cho-neo/env-flags.ts")).href)}`,
+    )
+    .replace(
+      'from "@/lib/cho-neo/guest-pass"',
+      `from ${JSON.stringify(pathToFileURL(path.join(process.cwd(), "src/lib/cho-neo/guest-pass.ts")).href)}`,
+    )
+    .replace(
+      'from "@/lib/cho-neo/gossip-front-counter"',
+      `from ${JSON.stringify(pathToFileURL(path.join(process.cwd(), "src/lib/cho-neo/gossip-front-counter.ts")).href)}`,
+    );
+  const tempRoutePath = path.join(tempDir, "gossip-route.ts");
+  fs.writeFileSync(tempRoutePath, source);
+  return import(tempRoutePath);
+}
 
 async function importRoomVoteApplicationModules() {
   const tempDir = fs.mkdtempSync(

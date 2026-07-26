@@ -120,6 +120,29 @@ const routeSource = fs
   )
   .replace(
     `import {
+  CHO_NEO_GUEST_PROFILE_TABLE,
+  mapChoNeoGuestProfileRow,
+} from "@/lib/cho-neo/guest-pass";`,
+    `const CHO_NEO_GUEST_PROFILE_TABLE = "cho_neo_guest_profiles";
+function mapChoNeoGuestProfileRow(row: {
+  avatar_key: string | null;
+  display_name: string;
+  normalized_display_name: string;
+  status: "active" | "banned" | "suspended";
+  user_id: string;
+}) {
+  return {
+    avatar: { id: row.avatar_key ?? "young-nail-tech" },
+    avatarKey: row.avatar_key,
+    displayName: row.display_name,
+    normalizedDisplayName: row.normalized_display_name,
+    status: row.status,
+    userId: row.user_id,
+  };
+}`,
+  )
+  .replace(
+    `import {
   FRONT_COUNTER_MESSAGE_CAP,
   FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
   type FrontCounterMessage,

@@ -44,6 +44,11 @@ jobs:
           npm --version
           supabase --version
 
+      - name: Confirm Guest Pass and gossip hardening migrations are present
+        run: |
+          test -f supabase/migrations/20260726185000_cho_neo_guest_pass_v1.sql
+          test -f supabase/migrations/20260726193000_harden_cho_neo_gossip_writes.sql
+
       - name: Start disposable local Supabase stack
         run: >
           supabase start
