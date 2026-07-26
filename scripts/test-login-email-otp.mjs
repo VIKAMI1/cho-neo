@@ -6,10 +6,13 @@ import test from "node:test";
 
 const repoRoot = process.cwd();
 const loginPath = path.join(repoRoot, "src/app/login/LoginClient.tsx");
+const loginPagePath = path.join(repoRoot, "src/app/login/page.tsx");
 const callbackPath = path.join(repoRoot, "src/app/auth/callback/AuthCallbackClient.tsx");
 const authDocPath = path.join(repoRoot, "docs/cho-neo/email-otp-auth.md");
+const prerenderedLoginPath = path.join(repoRoot, ".next/server/app/login.html");
 
 const login = fs.readFileSync(loginPath, "utf8");
+const loginPage = fs.readFileSync(loginPagePath, "utf8");
 const callback = fs.readFileSync(callbackPath, "utf8");
 const authDoc = fs.readFileSync(authDocPath, "utf8");
 
@@ -25,6 +28,32 @@ test("login requests and verifies a six-digit email OTP code", () => {
   assert.match(login, /inputMode="numeric"/);
   assert.match(login, /autoComplete="one-time-code"/);
   assert.doesNotMatch(login, /phone|password|newsletter|marketing/i);
+  assert.match(login, /Ghé lại Chợ Neo/);
+  assert.match(login, /Gửi mã đăng nhập/);
+  assert.match(login, /Chỉ gửi mã đăng nhập\. Không gửi quảng cáo\./);
+  assert.match(login, /Trở lại Chợ Neo/);
+  assert.doesNotMatch(login, /Sign in|Send code|you@example\.com|email rate limit exceeded/);
+});
+
+test("route prerender fallback uses the branded Chợ Neo loading shell", () => {
+  assert.match(loginPage, /Ghé lại Chợ Neo/);
+  assert.match(loginPage, /Đang mở cổng Chợ Neo…/);
+  assert.match(loginPage, /bg-\[#241019\]/);
+  assert.match(loginPage, /bg-\[#321520\]\/92/);
+  assert.match(loginPage, /border-\[#c99a4a\]\/55/);
+  assert.doesNotMatch(loginPage, /Sign in|Loading sign in|Loading sign in…/);
+});
+
+test("built raw login HTML has no old English fallback when build output exists", (context) => {
+  if (!fs.existsSync(prerenderedLoginPath)) {
+    context.skip("Run npm run build first to produce .next/server/app/login.html.");
+    return;
+  }
+
+  const prerenderedLogin = fs.readFileSync(prerenderedLoginPath, "utf8");
+  assert.match(prerenderedLogin, /Ghé lại Chợ Neo/);
+  assert.match(prerenderedLogin, /Đang mở cổng Chợ Neo…/);
+  assert.doesNotMatch(prerenderedLogin, /Sign in|Loading sign in|Loading sign in…/);
 });
 
 test("login has resend cooldown, change-email control, and generic OTP errors", () => {
