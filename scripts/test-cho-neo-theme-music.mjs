@@ -91,6 +91,7 @@ test("Chợ Neo shared music control opens the canonical 17-song panel", () => {
   assert.match(player, /\{isPlaying \? 'Ⅱ' : '♪'\}/);
   assert.match(player, /Danh sách nhạc Chợ Neo/);
   assert.match(player, /theme-music-panel/);
+  assert.match(player, /theme-playback-row/);
   assert.match(player, /theme-song-list/);
   assert.match(player, /enabledChoNeoMusicTracks\.map/);
   assert.match(player, /aria-current=\{isSelected \? 'true' : undefined\}/);
@@ -98,8 +99,11 @@ test("Chợ Neo shared music control opens the canonical 17-song panel", () => {
   assert.match(player, /onEnded=\{handleAudioEnded\}/);
   assert.match(player, /advanceToNextTrack\(true\)/);
   assert.match(player, /className="theme-control-icon-button/);
+  assert.match(player, /className="theme-volume-toggle"/);
+  assert.match(player, /className="theme-song-duration"/);
   assert.match(player, /className=\{isTrackPlaying \? 'theme-song-action playing' : 'theme-song-action'\}/);
   assert.doesNotMatch(player, />Phát<\/button>/);
+  assert.doesNotMatch(player, /theme-current-status/);
   assert.doesNotMatch(player, /<select/);
   assert.match(player, /CHO_NEO_MUSIC_COMMAND_EVENT/);
   assert.match(player, /getAdjacentChoNeoMusicTrack/);

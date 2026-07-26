@@ -116,6 +116,7 @@ test("Danh sách nhạc Chợ Neo lives in the shared circular button panel", ()
   assert.match(player, /Danh sách nhạc Chợ Neo/);
   assert.match(player, /theme-music-panel/);
   assert.match(player, /theme-current-track/);
+  assert.match(player, /theme-playback-row/);
   assert.match(player, /theme-song-list/);
   assert.match(player, /enabledChoNeoMusicTracks\.map/);
   assert.match(player, /aria-expanded=\{isPanelOpen\}/);
@@ -124,12 +125,15 @@ test("Danh sách nhạc Chợ Neo lives in the shared circular button panel", ()
   assert.match(player, /selectAdjacentTrack\('previous'\)/);
   assert.match(player, /selectAdjacentTrack\('next'\)/);
   assert.match(player, /onClick=\{toggleMusic\}/);
-  assert.match(player, /Đang phát/);
   assert.match(player, /⏮/);
   assert.match(player, /▶/);
   assert.match(player, /Ⅱ/);
   assert.match(player, /⏭/);
+  assert.match(player, /className="theme-volume-toggle"/);
+  assert.match(player, /className="theme-song-duration"/);
   assert.match(player, /className=\{isTrackPlaying \? 'theme-song-action playing' : 'theme-song-action'\}/);
+  assert.doesNotMatch(player, /theme-current-label/);
+  assert.doesNotMatch(player, /theme-current-status/);
   assert.doesNotMatch(player, /<select/);
 });
 
@@ -185,12 +189,18 @@ test("Chợ Neo shared player advances naturally and guards automatic failure lo
 
 test("compact music list uses icon controls instead of repeated action text", () => {
   assert.match(player, /className="theme-control-icon-button/);
+  assert.match(player, /theme-panel-controls[\s\S]*grid-template-columns: repeat\(3/);
+  assert.match(player, /border-radius: 999px/);
   assert.match(player, /title="Bài trước"/);
   assert.match(player, /title="Bài kế tiếp"/);
+  assert.match(player, /role="group" aria-label="Âm lượng nhạc Chợ Neo"/);
+  assert.match(player, /aria-label=\{volume > 0 \? 'Tắt âm lượng nhạc Chợ Neo' : 'Bật âm lượng nhạc Chợ Neo'\}/);
   assert.match(player, /className=\{isTrackPlaying \? 'theme-song-action playing' : 'theme-song-action'\}/);
   assert.match(player, /<strong title=\{track\.title\}>\{track\.title\}<\/strong>/);
+  assert.match(player, /<span className="theme-song-duration">\{track\.duration\}<\/span>/);
   assert.match(player, /white-space: nowrap/);
   assert.match(player, /text-overflow: ellipsis/);
   assert.doesNotMatch(player, />Phát<\/button>/);
   assert.doesNotMatch(player, />Tạm dừng<\/button>/);
+  assert.doesNotMatch(player, />Âm lượng</);
 });

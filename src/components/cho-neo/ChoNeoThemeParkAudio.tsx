@@ -42,6 +42,7 @@ export default function ChoNeoThemeParkAudio({
   const panelRef = useRef<HTMLElement | null>(null);
   const latestTrackRef = useRef(enabledChoNeoMusicTracks[0]);
   const autoAdvanceRef = useRef({ active: false, skips: 0 });
+  const previousVolumeRef = useRef(0.34);
   const [portalTarget, setPortalTarget] = useState<Element | null>(null);
   const [trackId, setTrackId] = useState(getStoredTrackId);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -179,6 +180,16 @@ export default function ChoNeoThemeParkAudio({
     }
 
     playMusic();
+  }
+
+  function toggleMute() {
+    if (volume > 0) {
+      previousVolumeRef.current = volume;
+      setVolume(0);
+      return;
+    }
+
+    setVolume(previousVolumeRef.current > 0 ? previousVolumeRef.current : 0.34);
   }
 
   function selectTrack(nextTrackId: string, shouldPlay = true) {
@@ -337,52 +348,57 @@ export default function ChoNeoThemeParkAudio({
       </header>
 
       <div className="theme-current-track">
-        <span className="theme-current-label">Bài đang chọn</span>
-        <strong>{selectedTrack.title}</strong>
-        <span className={isPlaying ? 'theme-current-status playing' : 'theme-current-status'}>
-          {isPlaying ? 'Đang phát' : 'Tạm dừng'}
-        </span>
-        <div className="theme-panel-controls" aria-label="Điều khiển nhạc Chợ Neo">
-          <button
-            type="button"
-            className="theme-control-icon-button"
-            onClick={() => selectAdjacentTrack('previous')}
-            aria-label="Bài trước"
-            title="Bài trước"
-          >
-            <span aria-hidden="true">⏮</span>
-          </button>
-          <button
-            type="button"
-            className="theme-control-icon-button theme-control-icon-button-main"
-            onClick={toggleMusic}
-            aria-label={isPlaying ? 'Tạm dừng nhạc Chợ Neo' : 'Phát nhạc Chợ Neo'}
-            title={isPlaying ? 'Tạm dừng nhạc Chợ Neo' : 'Phát nhạc Chợ Neo'}
-          >
-            <span aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span>
-          </button>
-          <button
-            type="button"
-            className="theme-control-icon-button"
-            onClick={() => selectAdjacentTrack('next')}
-            aria-label="Bài kế tiếp"
-            title="Bài kế tiếp"
-          >
-            <span aria-hidden="true">⏭</span>
-          </button>
+        <div className="theme-playback-row">
+          <div className="theme-panel-controls" aria-label="Điều khiển nhạc Chợ Neo">
+            <button
+              type="button"
+              className="theme-control-icon-button"
+              onClick={() => selectAdjacentTrack('previous')}
+              aria-label="Bài trước"
+              title="Bài trước"
+            >
+              <span aria-hidden="true">⏮</span>
+            </button>
+            <button
+              type="button"
+              className="theme-control-icon-button theme-control-icon-button-main"
+              onClick={toggleMusic}
+              aria-label={isPlaying ? 'Tạm dừng nhạc Chợ Neo' : 'Phát nhạc Chợ Neo'}
+              title={isPlaying ? 'Tạm dừng nhạc Chợ Neo' : 'Phát nhạc Chợ Neo'}
+            >
+              <span aria-hidden="true">{isPlaying ? 'Ⅱ' : '▶'}</span>
+            </button>
+            <button
+              type="button"
+              className="theme-control-icon-button"
+              onClick={() => selectAdjacentTrack('next')}
+              aria-label="Bài kế tiếp"
+              title="Bài kế tiếp"
+            >
+              <span aria-hidden="true">⏭</span>
+            </button>
+          </div>
+          <div className="theme-volume-control" role="group" aria-label="Âm lượng nhạc Chợ Neo">
+            <button
+              type="button"
+              className="theme-volume-toggle"
+              onClick={toggleMute}
+              aria-label={volume > 0 ? 'Tắt âm lượng nhạc Chợ Neo' : 'Bật âm lượng nhạc Chợ Neo'}
+              title={volume > 0 ? 'Tắt âm lượng nhạc Chợ Neo' : 'Bật âm lượng nhạc Chợ Neo'}
+            >
+              <span aria-hidden="true">{volume > 0 ? '🔊' : '🔇'}</span>
+            </button>
+            <input
+              aria-label="Âm lượng nhạc Chợ Neo"
+              type="range"
+              min="0"
+              max="0.7"
+              step="0.01"
+              value={volume}
+              onChange={(event) => setVolume(Number(event.target.value))}
+            />
+          </div>
         </div>
-        <label className="theme-volume-control">
-          <span>Âm lượng</span>
-          <input
-            aria-label="Âm lượng nhạc Chợ Neo"
-            type="range"
-            min="0"
-            max="0.7"
-            step="0.01"
-            value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
-          />
-        </label>
       </div>
 
       {loadError ? (
@@ -407,16 +423,15 @@ export default function ChoNeoThemeParkAudio({
                 <strong title={track.title}>{track.title}</strong>
                 <small>
                   <span>{track.room}</span>
-                  <span aria-hidden="true">•</span>
-                  <span>{track.duration}</span>
                 </small>
               </span>
+              <span className="theme-song-duration">{track.duration}</span>
               <button
                 type="button"
                 className={isTrackPlaying ? 'theme-song-action playing' : 'theme-song-action'}
                 onClick={() => selectTrack(track.id, true)}
-                aria-label={`${isSelected ? 'Phát lại' : 'Phát'} ${track.title}`}
-                title={`${isSelected ? 'Phát lại' : 'Phát'} ${track.title}`}
+                aria-label={isTrackPlaying ? `Tạm dừng ${track.title}` : `${isSelected ? 'Phát lại' : 'Phát'} ${track.title}`}
+                title={isTrackPlaying ? `Tạm dừng ${track.title}` : `${isSelected ? 'Phát lại' : 'Phát'} ${track.title}`}
               >
                 <span aria-hidden="true">{isTrackPlaying ? 'Ⅱ' : '▶'}</span>
               </button>
@@ -617,14 +632,11 @@ export default function ChoNeoThemeParkAudio({
           align-items: flex-start;
           justify-content: space-between;
           gap: 10px;
-          padding: 12px;
-          border-bottom: 1px solid rgba(248, 211, 145, 0.14);
+          padding: 11px 12px 9px;
         }
 
         .theme-music-panel-header h2,
         .theme-music-panel-header p,
-        .theme-current-track strong,
-        .theme-current-track span,
         .theme-panel-error {
           margin: 0;
         }
@@ -641,6 +653,9 @@ export default function ChoNeoThemeParkAudio({
           font-size: 0.74rem;
           font-weight: 740;
           line-height: 1.25;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .theme-music-panel-close {
@@ -661,48 +676,24 @@ export default function ChoNeoThemeParkAudio({
         }
 
         .theme-current-track {
-          display: grid;
-          gap: 7px;
-          padding: 11px 12px 10px;
+          padding: 0 12px 10px;
           border-bottom: 1px solid rgba(248, 211, 145, 0.12);
-          background: rgba(248, 211, 145, 0.045);
         }
 
-        .theme-current-label {
-          color: rgba(248, 211, 145, 0.72);
-          font-size: 0.64rem;
-          font-weight: 900;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-        }
-
-        .theme-current-track strong {
-          color: #fff7ed;
-          font-size: 0.9rem;
-          line-height: 1.2;
-        }
-
-        .theme-current-status {
-          width: fit-content;
-          border: 1px solid rgba(248, 211, 145, 0.2);
-          border-radius: 999px;
-          padding: 4px 8px;
-          color: rgba(255, 247, 237, 0.72);
-          background: rgba(255, 247, 237, 0.055);
-          font-size: 0.68rem;
-          font-weight: 850;
-        }
-
-        .theme-current-status.playing {
-          color: #1d1307;
-          background: #f8d391;
+        .theme-playback-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
         }
 
         .theme-panel-controls {
-          display: grid;
-          grid-template-columns: repeat(3, 44px);
-          justify-content: start;
-          gap: 8px;
+          display: inline-grid;
+          grid-template-columns: repeat(3, 38px);
+          overflow: hidden;
+          border: 1px solid rgba(248, 211, 145, 0.24);
+          border-radius: 999px;
+          background: rgba(52, 22, 12, 0.54);
         }
 
         .theme-song-row {
@@ -712,20 +703,25 @@ export default function ChoNeoThemeParkAudio({
         }
 
         .theme-panel-controls button {
-          border: 1px solid rgba(248, 211, 145, 0.22);
+          border: 0;
+          border-right: 1px solid rgba(248, 211, 145, 0.18);
           color: #ffe7ae;
-          background: rgba(52, 22, 12, 0.58);
+          background: transparent;
           cursor: pointer;
           font: inherit;
+        }
+
+        .theme-panel-controls button:last-child {
+          border-right: 0;
         }
 
         .theme-control-icon-button {
           display: grid;
           place-items: center;
-          width: 44px;
-          height: 40px;
-          min-height: 40px;
-          border-radius: 999px;
+          width: 38px;
+          height: 38px;
+          min-height: 38px;
+          border-radius: 0;
           font-size: 1rem;
           font-weight: 850;
           line-height: 1;
@@ -739,16 +735,34 @@ export default function ChoNeoThemeParkAudio({
         .theme-volume-control {
           display: flex;
           align-items: center;
-          gap: 8px;
-          color: rgba(255, 247, 237, 0.74);
-          font-size: 0.69rem;
-          font-weight: 820;
+          flex: 1 1 auto;
+          justify-content: flex-end;
+          gap: 6px;
+          min-width: 96px;
+          max-width: 142px;
         }
 
         .theme-volume-control input {
           flex: 1 1 auto;
           min-width: 0;
+          max-width: 96px;
           accent-color: #f8d391;
+        }
+
+        .theme-volume-toggle {
+          display: grid;
+          flex: 0 0 34px;
+          place-items: center;
+          width: 34px;
+          height: 34px;
+          border: 1px solid rgba(248, 211, 145, 0.2);
+          border-radius: 999px;
+          color: #ffe7ae;
+          background: rgba(255, 247, 237, 0.06);
+          cursor: pointer;
+          font: inherit;
+          font-size: 0.92rem;
+          line-height: 1;
         }
 
         .theme-panel-error {
@@ -761,21 +775,21 @@ export default function ChoNeoThemeParkAudio({
 
         .theme-song-list {
           display: grid;
-          gap: 5px;
-          max-height: min(352px, 47vh);
-          padding: 8px;
+          gap: 4px;
+          max-height: min(374px, 52vh);
+          padding: 7px;
           overflow-y: auto;
         }
 
         .theme-song-row {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 34px;
+          grid-template-columns: minmax(0, 1fr) auto 34px;
           align-items: center;
-          gap: 8px;
+          gap: 7px;
           width: 100%;
           min-height: 38px;
           border-radius: 10px;
-          padding: 6px 7px 6px 9px;
+          padding: 5px 6px 5px 8px;
           text-align: left;
         }
 
@@ -807,9 +821,6 @@ export default function ChoNeoThemeParkAudio({
         }
 
         .theme-song-copy small {
-          display: flex;
-          align-items: center;
-          gap: 5px;
           min-width: 0;
           overflow: hidden;
           color: rgba(255, 247, 237, 0.62);
@@ -817,6 +828,13 @@ export default function ChoNeoThemeParkAudio({
           font-weight: 760;
           line-height: 1.15;
           text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .theme-song-duration {
+          color: rgba(255, 247, 237, 0.64);
+          font-size: 0.66rem;
+          font-weight: 820;
           white-space: nowrap;
         }
 
@@ -940,30 +958,81 @@ export default function ChoNeoThemeParkAudio({
           }
 
           .theme-music-panel-header {
-            padding: 11px 12px 9px;
+            padding: 10px 12px 8px;
+          }
+
+          .theme-current-track {
+            padding: 0 12px 9px;
+          }
+
+          .theme-playback-row {
+            gap: 8px;
           }
 
           .theme-panel-controls {
-            gap: 7px;
+            grid-template-columns: repeat(3, 42px);
           }
 
           .theme-panel-controls button {
             min-height: 44px;
           }
 
+          .theme-control-icon-button {
+            width: 42px;
+            height: 44px;
+          }
+
+          .theme-volume-control {
+            min-width: 86px;
+            max-width: 128px;
+          }
+
+          .theme-volume-control input {
+            max-width: 82px;
+          }
+
           .theme-song-list {
-            max-height: min(48vh, 420px);
-            padding: 8px;
+            max-height: min(51vh, 440px);
+            padding: 7px;
           }
 
           .theme-song-row {
-            min-height: 46px;
-            grid-template-columns: minmax(0, 1fr) 40px;
+            min-height: 44px;
+            grid-template-columns: minmax(0, 1fr) auto 40px;
           }
 
           .theme-song-action {
             width: 40px;
             height: 40px;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .theme-playback-row {
+            gap: 6px;
+          }
+
+          .theme-panel-controls {
+            grid-template-columns: repeat(3, 40px);
+          }
+
+          .theme-control-icon-button {
+            width: 40px;
+          }
+
+          .theme-volume-control {
+            min-width: 76px;
+            max-width: 112px;
+          }
+
+          .theme-volume-toggle {
+            flex-basis: 32px;
+            width: 32px;
+            height: 32px;
+          }
+
+          .theme-volume-control input {
+            max-width: 66px;
           }
         }
       `}</style>
