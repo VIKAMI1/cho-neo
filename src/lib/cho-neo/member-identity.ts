@@ -4,22 +4,45 @@ import {
   type ChoNeoAvatar,
 } from "./avatar-identity";
 
-export const CHO_NEO_GUEST_PROFILE_TABLE = "cho_neo_guest_profiles";
-export const CHO_NEO_GUEST_PASS_PROFILE_EVENT = "cho-neo:guest-pass-profile";
-export const CHO_NEO_GUEST_PASS_OPEN_EVENT = "cho-neo:guest-pass-open";
-export const CHO_NEO_GUEST_PASS_NICKNAME_MIN_LENGTH = 2;
-export const CHO_NEO_GUEST_PASS_NICKNAME_MAX_LENGTH = 24;
+export const CHO_NEO_MEMBER_PROFILE_TABLE = "cho_neo_member_profiles";
+export const CHO_NEO_MEMBER_INVITATION_TABLE = "cho_neo_member_invitations";
+export const CHO_NEO_MEMBER_PROFILE_EVENT = "cho-neo:member-identity-profile";
+export const CHO_NEO_MEMBER_OPEN_EVENT = "cho-neo:member-identity-open";
+export const CHO_NEO_MEMBER_NICKNAME_MIN_LENGTH = 2;
+export const CHO_NEO_MEMBER_NICKNAME_MAX_LENGTH = 24;
 
-export type ChoNeoGuestPassProfile = {
+export const CHO_NEO_NAIL_ROLES = [
+  "nail_technician",
+  "salon_owner",
+  "nail_student",
+  "supplier",
+  "educator",
+  "other_industry",
+] as const;
+
+export type ChoNeoNailRole = (typeof CHO_NEO_NAIL_ROLES)[number];
+
+export const CHO_NEO_MEMBERSHIP_STATUSES = [
+  "pending",
+  "verified_nail_member",
+  "suspended",
+  "rejected",
+] as const;
+
+export type ChoNeoMembershipStatus =
+  (typeof CHO_NEO_MEMBERSHIP_STATUSES)[number];
+
+export type ChoNeoMemberProfile = {
   avatarKey: string | null;
   avatar: ChoNeoAvatar;
   displayName: string;
+  nailRole: ChoNeoNailRole | null;
   normalizedDisplayName: string;
-  status: "active" | "banned" | "suspended";
+  status: ChoNeoMembershipStatus;
   userId: string;
 };
 
-export type ChoNeoGuestPassValidation =
+export type ChoNeoMemberValidation =
   | { ok: true; displayName: string; normalizedDisplayName: string }
   | { ok: false; message: string; reason: string };
 
@@ -29,27 +52,27 @@ const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/;
 const ABUSIVE_PATTERN =
   /\b(?:fuck|shit|bitch|cunt|dick|pussy|asshole|đụ|địt|lồn|cặc|buồi)\b/i;
 
-export function normalizeChoNeoGuestDisplayName(value: string) {
+export function normalizeChoNeoMemberDisplayName(value: string) {
   return value
     .normalize("NFC")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-export function validateChoNeoGuestDisplayName(
+export function validateChoNeoMemberDisplayName(
   value: unknown,
-): ChoNeoGuestPassValidation {
+): ChoNeoMemberValidation {
   if (typeof value !== "string") {
     return {
-      message: "Chọn một tên để nhận Thẻ Chợ Neo nha.",
+      message: "Chọn một nickname Chợ Neo nha.",
       ok: false,
       reason: "missing-display-name",
     };
   }
 
-  const displayName = normalizeChoNeoGuestDisplayName(value);
+  const displayName = normalizeChoNeoMemberDisplayName(value);
 
-  if (displayName.length < CHO_NEO_GUEST_PASS_NICKNAME_MIN_LENGTH) {
+  if (displayName.length < CHO_NEO_MEMBER_NICKNAME_MIN_LENGTH) {
     return {
       message: "Tên cần ít nhất 2 ký tự.",
       ok: false,
@@ -57,7 +80,7 @@ export function validateChoNeoGuestDisplayName(
     };
   }
 
-  if (displayName.length > CHO_NEO_GUEST_PASS_NICKNAME_MAX_LENGTH) {
+  if (displayName.length > CHO_NEO_MEMBER_NICKNAME_MAX_LENGTH) {
     return {
       message: "Tên tối đa 24 ký tự.",
       ok: false,
@@ -96,36 +119,52 @@ export function validateChoNeoGuestDisplayName(
   };
 }
 
-export function isApprovedChoNeoGuestAvatarKey(value: unknown): value is string {
+export function isApprovedChoNeoMemberAvatarKey(value: unknown): value is string {
   return (
     typeof value === "string" &&
     CHO_NEO_AVATARS.some((avatar) => avatar.id === value)
   );
 }
 
-export function resolveChoNeoGuestAvatarKey(value: unknown) {
-  return isApprovedChoNeoGuestAvatarKey(value)
+export function resolveChoNeoMemberAvatarKey(value: unknown) {
+  return isApprovedChoNeoMemberAvatarKey(value)
     ? value
     : CHO_NEO_AVATARS[0].id;
 }
 
-export function mapChoNeoGuestProfileRow(row: {
+export function isChoNeoNailRole(value: unknown): value is ChoNeoNailRole {
+  return (
+    typeof value === "string" &&
+    CHO_NEO_NAIL_ROLES.includes(value as ChoNeoNailRole)
+  );
+}
+
+export function isVerifiedChoNeoMemberProfile(
+  profile: ChoNeoMemberProfile | null | undefined,
+) {
+  return profile?.status === "verified_nail_member";
+}
+
+export function mapChoNeoMemberProfileRow(row: {
   avatar_key: string | null;
   display_name: string;
+  nail_role?: ChoNeoNailRole | null;
   normalized_display_name: string;
-  status: "active" | "banned" | "suspended";
+  membership_status?: ChoNeoMembershipStatus;
+  status?: ChoNeoMembershipStatus;
   user_id: string;
-}): ChoNeoGuestPassProfile {
+}): ChoNeoMemberProfile {
   const avatarKey = row.avatar_key
-    ? resolveChoNeoGuestAvatarKey(row.avatar_key)
+    ? resolveChoNeoMemberAvatarKey(row.avatar_key)
     : null;
 
   return {
     avatar: getAvatarById(avatarKey ?? CHO_NEO_AVATARS[0].id),
     avatarKey,
     displayName: row.display_name,
+    nailRole: row.nail_role ?? null,
     normalizedDisplayName: row.normalized_display_name,
-    status: row.status,
+    status: row.membership_status ?? row.status ?? "pending",
     userId: row.user_id,
   };
 }

@@ -70,7 +70,7 @@ test("Góp ý contains the full voting section with the shared pass gate", () =>
   assert.match(feedback, /Đổi lựa chọn/);
   assert.match(feedback, /Vì sao bạn muốn mở phòng này\?/);
   assert.match(feedback, /Bỏ qua/);
-  assert.match(feedback, /ensureChoNeoPass/);
+  assert.match(feedback, /ensureChoNeoMember/);
   assert.match(feedback, /Authorization: `Bearer \$\{token\}`/);
   assert.doesNotMatch(feedback, /newsletter|marketing|phone|password/i);
 });
@@ -82,7 +82,7 @@ test("Village Guide shortcut opens the existing Góp ý vote section", () => {
   assert.match(feedback, /getElementById\("cho-neo-room-vote"\)/);
 });
 
-test("room votes are owned by the Supabase user behind Thẻ Chợ Neo", () => {
+test("room votes are owned by the verified Supabase member", () => {
   assert.match(
     fs.readFileSync(path.join(repoRoot, "src/lib/cho-neo/room-vote-service.ts"), "utf8"),
     /createHmac\("sha256"/,
@@ -101,17 +101,17 @@ test("room votes are owned by the Supabase user behind Thẻ Chợ Neo", () => {
   assert.doesNotMatch(schema, /email|phone|ip_address|fingerprint|advertising/i);
 });
 
-test("server route updates one active vote and rejects invalid inputs", () => {
+test("server route updates one verified-member vote and rejects invalid inputs", () => {
   const serviceSource = fs.readFileSync(
     path.join(repoRoot, "src/lib/cho-neo/room-vote-service.ts"),
     "utf8",
   );
   assert.match(serviceSource, /body\.pollKey !== CHO_NEO_ROOM_VOTE_POLL_KEY/);
   assert.match(serviceSource, /!isChoNeoRoomVoteOptionKey\(body\.optionKey\)/);
-  assert.match(serviceSource, /missing-cho-neo-pass/);
-  assert.match(serviceSource, /findActiveGuestProfile\(voterUserId\)/);
-  assert.match(serviceSource, /inactive-cho-neo-pass/);
-  assert.match(repositorySource, /cho_neo_guest_profiles/);
+  assert.match(serviceSource, /missing-cho-neo-member/);
+  assert.match(serviceSource, /findActiveMemberProfile\(voterUserId\)/);
+  assert.match(serviceSource, /unverified-cho-neo-member/);
+  assert.match(repositorySource, /cho_neo_member_profiles/);
   assert.match(serviceSource, /CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH/);
   assert.match(serviceSource, /isChoNeoRoomVoteReasonUnsafe\(rawReason\)/);
   assert.match(repositorySource, /findSelection\(input\.pollKey, input\.voterUserId\)/);
@@ -260,7 +260,7 @@ test("in-memory adapter rejects invalid vote inputs before persistence", async (
   assert.equal(fake.recordCount, 0);
 });
 
-test("inactive or missing guest profiles cannot vote through the service-role API", async () => {
+test("unverified or missing member profiles cannot vote through the service-role API", async () => {
   const voterUserId = "00000000-0000-4000-8000-000000000020";
   const fake = new repository.InMemoryRoomVoteRepository([], {
     inactiveUserIds: [voterUserId],
@@ -280,7 +280,7 @@ test("inactive or missing guest profiles cannot vote through the service-role AP
   );
 
   assert.equal(response.status, 400);
-  assert.equal(response.body.reason, "inactive-cho-neo-pass");
+  assert.equal(response.body.reason, "unverified-cho-neo-member");
   assert.equal(fake.recordCount, 0);
 });
 
@@ -355,7 +355,7 @@ test("in-memory adapter result disclosure follows public thresholds", async () =
 
 test("persistence failure and missing server secret fail closed", async () => {
   const failingRepository = {
-    async findActiveGuestProfile() {
+    async findActiveMemberProfile() {
       return true;
     },
     async findSelection() {

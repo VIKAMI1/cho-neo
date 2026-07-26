@@ -120,23 +120,25 @@ const routeSource = fs
   )
   .replace(
     `import {
-  CHO_NEO_GUEST_PROFILE_TABLE,
-  mapChoNeoGuestProfileRow,
-} from "@/lib/cho-neo/guest-pass";`,
-    `const CHO_NEO_GUEST_PROFILE_TABLE = "cho_neo_guest_profiles";
-function mapChoNeoGuestProfileRow(row: {
+  CHO_NEO_MEMBER_PROFILE_TABLE,
+  mapChoNeoMemberProfileRow,
+} from "@/lib/cho-neo/member-identity";`,
+    `const CHO_NEO_MEMBER_PROFILE_TABLE = "cho_neo_member_profiles";
+function mapChoNeoMemberProfileRow(row: {
   avatar_key: string | null;
   display_name: string;
+  nail_role?: string | null;
   normalized_display_name: string;
-  status: "active" | "banned" | "suspended";
+  membership_status?: "pending" | "verified_nail_member" | "suspended" | "rejected";
   user_id: string;
 }) {
   return {
     avatar: { id: row.avatar_key ?? "young-nail-tech" },
     avatarKey: row.avatar_key,
     displayName: row.display_name,
+    nailRole: row.nail_role ?? null,
     normalizedDisplayName: row.normalized_display_name,
-    status: row.status,
+    status: row.membership_status ?? "pending",
     userId: row.user_id,
   };
 }`,

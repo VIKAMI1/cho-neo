@@ -15,7 +15,7 @@ export type ChoNeoRoomVoteUpsertInput = {
 };
 
 export type ChoNeoRoomVoteRepository = {
-  findActiveGuestProfile(userId: string): Promise<boolean>;
+  findActiveMemberProfile(userId: string): Promise<boolean>;
   findSelection(
     pollKey: typeof CHO_NEO_ROOM_VOTE_POLL_KEY,
     voterUserId: string,
@@ -41,12 +41,12 @@ export class SupabaseRoomVoteRepository implements ChoNeoRoomVoteRepository {
     this.supabase = supabase;
   }
 
-  async findActiveGuestProfile(userId: string) {
+  async findActiveMemberProfile(userId: string) {
     const { data, error } = await this.supabase
-      .from("cho_neo_guest_profiles")
+      .from("cho_neo_member_profiles")
       .select("user_id")
       .eq("user_id", userId)
-      .eq("status", "active")
+      .eq("membership_status", "verified_nail_member")
       .maybeSingle();
 
     if (error) {
@@ -143,7 +143,7 @@ export class InMemoryRoomVoteRepository implements ChoNeoRoomVoteRepository {
     return Array.from(this.votes.values());
   }
 
-  async findActiveGuestProfile(userId: string) {
+  async findActiveMemberProfile(userId: string) {
     return !this.inactiveUserIds.has(userId);
   }
 

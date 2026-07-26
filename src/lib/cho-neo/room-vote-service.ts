@@ -58,7 +58,7 @@ export function createRoomVoteApplication({
       }
 
       try {
-        const hasUser = isPlausibleChoNeoGuestUserId(voterUserId);
+        const hasUser = isPlausibleChoNeoMemberUserId(voterUserId);
 
         return {
           body: buildChoNeoRoomVotePresentation({
@@ -84,11 +84,11 @@ export function createRoomVoteApplication({
         return unavailable("missing-server-secret");
       }
 
-      if (!isPlausibleChoNeoGuestUserId(voterUserId)) {
+      if (!isPlausibleChoNeoMemberUserId(voterUserId)) {
         return {
           body: {
-            error: "Nhận Thẻ Chợ Neo trước khi bình chọn nha.",
-            reason: "missing-cho-neo-pass",
+            error: "Vào Chợ Neo và xác nhận thành viên trước khi bình chọn nha.",
+            reason: "missing-cho-neo-member",
           },
           status: 400,
         };
@@ -101,13 +101,13 @@ export function createRoomVoteApplication({
 
       try {
         const hasActiveProfile =
-          await repository.findActiveGuestProfile(voterUserId);
+          await repository.findActiveMemberProfile(voterUserId);
 
         if (!hasActiveProfile) {
           return {
             body: {
-              error: "Thẻ Chợ Neo chưa sẵn sàng để bình chọn.",
-              reason: "inactive-cho-neo-pass",
+          error: "Xác nhận thành viên ngành nail trước khi bình chọn nha.",
+          reason: "unverified-cho-neo-member",
             },
             status: 400,
           };
@@ -229,7 +229,7 @@ function validatePostBody(body: RoomVotePostBody):
   };
 }
 
-function isPlausibleChoNeoGuestUserId(value: unknown): value is string {
+function isPlausibleChoNeoMemberUserId(value: unknown): value is string {
   return (
     typeof value === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(

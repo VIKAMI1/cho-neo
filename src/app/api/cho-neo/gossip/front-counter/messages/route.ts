@@ -6,9 +6,9 @@ import {
 } from "@/lib/cho-neo/avatar-identity";
 import { isChoNeoGossipPostingDisabled } from "@/lib/cho-neo/env-flags";
 import {
-  CHO_NEO_GUEST_PROFILE_TABLE,
-  mapChoNeoGuestProfileRow,
-} from "@/lib/cho-neo/guest-pass";
+  CHO_NEO_MEMBER_PROFILE_TABLE,
+  mapChoNeoMemberProfileRow,
+} from "@/lib/cho-neo/member-identity";
 import {
   FRONT_COUNTER_MESSAGE_CAP,
   FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
@@ -193,8 +193,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         code: "CHO_NEO_GOSSIP_PASS_REQUIRED",
-        error: "Nhận Thẻ Chợ Neo trước khi góp chuyện nha.",
-        reason: "missing-cho-neo-pass",
+        error: "Vào Chợ Neo và xác nhận thành viên trước khi góp chuyện nha.",
+        reason: "missing-cho-neo-member",
       },
       { status: 401 }
     );
@@ -213,13 +213,13 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
 
-  const profile = await getActiveChoNeoGuestProfile(supabase, userId);
+  const profile = await getVerifiedChoNeoMemberProfile(supabase, userId);
   if (!profile) {
     return NextResponse.json(
       {
         code: "CHO_NEO_GOSSIP_ACTIVE_PASS_REQUIRED",
-        error: "Thẻ Chợ Neo chưa sẵn sàng để góp chuyện.",
-        reason: "inactive-cho-neo-pass",
+        error: "Xác nhận thành viên ngành nail trước khi góp chuyện nha.",
+        reason: "unverified-cho-neo-member",
       },
       { status: 400 }
     );
@@ -344,29 +344,29 @@ async function getAuthenticatedChoNeoUserId(request: Request) {
     },
   }).auth.getUser(token);
 
-  if (error || !data.user) {
+  if (error || !data.user || data.user.is_anonymous) {
     return null;
   }
 
   return data.user.id;
 }
 
-async function getActiveChoNeoGuestProfile(
+async function getVerifiedChoNeoMemberProfile(
   supabase: { from: (table: string) => any },
   userId: string,
 ) {
   const { data, error } = await supabase
-    .from(CHO_NEO_GUEST_PROFILE_TABLE)
-    .select("user_id, display_name, normalized_display_name, avatar_key, status")
+    .from(CHO_NEO_MEMBER_PROFILE_TABLE)
+    .select("user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status")
     .eq("user_id", userId)
-    .eq("status", "active")
+    .eq("membership_status", "verified_nail_member")
     .maybeSingle();
 
   if (error || !data) {
     return null;
   }
 
-  return mapChoNeoGuestProfileRow(data);
+  return mapChoNeoMemberProfileRow(data);
 }
 
 export async function PATCH(request: Request) {
@@ -539,8 +539,8 @@ async function reportMessage(request: Request, messageId: string) {
     return NextResponse.json(
       {
         code: "CHO_NEO_GOSSIP_PASS_REQUIRED",
-        error: "Nhận Thẻ Chợ Neo trước khi báo cáo nha.",
-        reason: "missing-cho-neo-pass",
+        error: "Vào Chợ Neo và xác nhận thành viên trước khi báo cáo nha.",
+        reason: "missing-cho-neo-member",
       },
       { status: 401 }
     );
@@ -556,13 +556,13 @@ async function reportMessage(request: Request, messageId: string) {
     });
   }
 
-  const profile = await getActiveChoNeoGuestProfile(supabase, reporterUserId);
+  const profile = await getVerifiedChoNeoMemberProfile(supabase, reporterUserId);
   if (!profile) {
     return NextResponse.json(
       {
         code: "CHO_NEO_GOSSIP_ACTIVE_PASS_REQUIRED",
-        error: "Thẻ Chợ Neo chưa sẵn sàng để báo cáo.",
-        reason: "inactive-cho-neo-pass",
+        error: "Xác nhận thành viên ngành nail trước khi báo cáo nha.",
+        reason: "unverified-cho-neo-member",
       },
       { status: 400 }
     );

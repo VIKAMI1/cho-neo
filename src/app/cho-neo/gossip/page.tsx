@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { ChoNeoBetaFeedback } from "@/components/cho-neo/ChoNeoBetaFeedback";
-import { useChoNeoGuestPass } from "@/components/cho-neo/ChoNeoGuestPassProvider";
+import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
 import {
   CHO_NEO_AVATARS,
   type ChoNeoIdentity,
@@ -829,7 +829,7 @@ function useQuanTamArtworkSources() {
 
 export default function ChoNeoGossipPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { ensureChoNeoPass } = useChoNeoGuestPass();
+  const { ensureChoNeoMember } = useChoNeoMember();
   const cafeControlPillClassName = "cafe-control-pill";
   const quanTamArtworkSources = useQuanTamArtworkSources();
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
@@ -1083,7 +1083,7 @@ export default function ChoNeoGossipPage() {
     }
 
     const activeIdentity = ensureFrontCounterComposerReady();
-    await ensureChoNeoPass(async () => {
+    await ensureChoNeoMember(async () => {
       await persistFrontCounterDraft(activeIdentity, text);
     });
   }
@@ -1142,11 +1142,11 @@ export default function ChoNeoGossipPage() {
           error instanceof Error ? error.message.toLowerCase() : "";
 
         if (
-          sharedPostReason.includes("missing-cho-neo-pass") ||
-          sharedPostReason.includes("inactive-cho-neo-pass")
+          sharedPostReason.includes("missing-cho-neo-member") ||
+          sharedPostReason.includes("unverified-cho-neo-member")
         ) {
           setFrontCounterPostNotice(
-            "Nhận Thẻ Chợ Neo đang hoạt động trước khi góp chuyện nha."
+            "Vào Chợ Neo và xác nhận thành viên ngành nail trước khi góp chuyện nha."
           );
           releaseFrontCounterPostingGuard();
           setFrontCounterPosting(false);
@@ -1319,7 +1319,7 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
-    await ensureChoNeoPass(async () => {
+    await ensureChoNeoMember(async () => {
       await persistFrontCounterReport(message);
     });
   }

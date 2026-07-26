@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChoNeoBetaFeedback } from "./ChoNeoBetaFeedback";
-import { ChoNeoGuestPassHeaderControl } from "./ChoNeoGuestPassHeaderControl";
+import { ChoNeoMemberHeaderControl } from "./ChoNeoMemberHeaderControl";
 import { ChoNeoTimeAmbience, ChoNeoTimeMoodLabel } from "./ChoNeoTimeAmbience";
 import { ChoNeoVillageMap } from "./ChoNeoVillageMap";
 import { choNeoRooms } from "@/lib/cho-neo/rooms";
@@ -55,7 +55,7 @@ export function ChoNeoVillageShell() {
             </span>
           </span>
 
-          <ChoNeoGuestPassHeaderControl />
+          <ChoNeoMemberHeaderControl />
 
           <span
             className="cho-neo-shared-music-slot village-theme-audio"

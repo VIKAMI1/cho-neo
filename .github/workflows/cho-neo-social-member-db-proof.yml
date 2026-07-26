@@ -1,10 +1,10 @@
-name: Chợ Neo Guest Pass DB Proof
+name: Chợ Neo Social Member DB Proof
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - feat/cho-neo-guest-pass-v1
+      - feat/cho-neo-social-member-login-v1
 
 permissions:
   contents: read
@@ -44,10 +44,11 @@ jobs:
           npm --version
           supabase --version
 
-      - name: Confirm Guest Pass and gossip hardening migrations are present
+      - name: Confirm member, vote and gossip migrations are present
         run: |
           test -f supabase/migrations/20260726185000_cho_neo_guest_pass_v1.sql
           test -f supabase/migrations/20260726193000_harden_cho_neo_gossip_writes.sql
+          test -f supabase/migrations/20260726204500_cho_neo_social_member_login_v1.sql
 
       - name: Start disposable local Supabase stack
         run: >
@@ -55,8 +56,8 @@ jobs:
           --exclude realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
           >/dev/null
 
-      - name: Run guest-pass migration and RLS proof
-        run: node scripts/test-cho-neo-guest-pass-migration.mjs
+      - name: Run social-member migration and RLS proof
+        run: node scripts/test-cho-neo-social-member-migration.mjs
 
       - name: Stop disposable local Supabase stack
         if: always()

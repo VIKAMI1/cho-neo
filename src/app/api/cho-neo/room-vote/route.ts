@@ -55,7 +55,7 @@ async function getAuthenticatedChoNeoUserId(request: Request) {
     },
   }).auth.getUser(token);
 
-  if (error || !data.user) {
+  if (error || !data.user || data.user.is_anonymous) {
     return null;
   }
 
@@ -84,8 +84,8 @@ function getRoomVoteHashSecret() {
 }
 
 class MissingRoomVoteRepository implements ChoNeoRoomVoteRepository {
-  async findActiveGuestProfile(): ReturnType<
-    ChoNeoRoomVoteRepository["findActiveGuestProfile"]
+  async findActiveMemberProfile(): ReturnType<
+    ChoNeoRoomVoteRepository["findActiveMemberProfile"]
   > {
     throw new Error("room-vote-missing-supabase-config");
   }

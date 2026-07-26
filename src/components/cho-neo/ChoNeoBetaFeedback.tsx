@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase-browser";
-import { useChoNeoGuestPass } from "./ChoNeoGuestPassProvider";
+import { useChoNeoMember } from "./ChoNeoMemberProvider";
 import {
   getChoNeoBetaSessionId,
   getChoNeoDeviceType,
@@ -13,6 +13,7 @@ import {
   trackChoNeoBetaEvent,
 } from "@/lib/cho-neo/beta-analytics";
 import {
+  buildChoNeoRoomVotePresentation,
   CHO_NEO_ROOM_VOTE_OPEN_EVENT,
   CHO_NEO_ROOM_VOTE_POLL_KEY,
   CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH,
@@ -146,6 +147,21 @@ export function ChoNeoBetaFeedback() {
       trackChoNeoBetaEvent("khoe_set_opened", { room });
     }
   }, [room]);
+
+  useEffect(() => {
+    if (getLocalFeedbackMock() === "resumed-vote") {
+      setIsOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || getLocalFeedbackMock() !== "resumed-vote") return;
+    window.setTimeout(() => {
+      document
+        .getElementById("cho-neo-room-vote")
+        ?.scrollIntoView({ block: "start" });
+    }, 150);
+  }, [isOpen]);
 
   useEffect(() => {
     setIncludeMusic(pathname === "/cho-neo" || hasChoNeoMusicActivity());
@@ -478,6 +494,7 @@ export function ChoNeoBetaFeedback() {
           position: fixed;
           inset: 0;
           z-index: 100;
+          box-sizing: border-box;
           display: grid;
           place-items: center;
           padding:
@@ -486,6 +503,10 @@ export function ChoNeoBetaFeedback() {
             max(24px, env(safe-area-inset-bottom))
             max(24px, env(safe-area-inset-left));
           overflow: hidden;
+        }
+
+        .cho-neo-feedback-modal * {
+          box-sizing: border-box;
         }
 
         .feedback-backdrop {
@@ -501,6 +522,7 @@ export function ChoNeoBetaFeedback() {
           display: grid;
           grid-template-rows: auto minmax(0, 1fr) auto;
           width: min(760px, calc(100vw - 48px));
+          min-width: 0;
           max-height: min(780px, 90svh, calc(100svh - 48px));
           min-height: 0;
           overflow: hidden;
@@ -538,7 +560,9 @@ export function ChoNeoBetaFeedback() {
 
         .feedback-header p,
         .feedback-footer p {
+          min-width: 0;
           margin: 0;
+          overflow-wrap: anywhere;
         }
 
         .feedback-header p {
@@ -549,10 +573,12 @@ export function ChoNeoBetaFeedback() {
 
         .feedback-header span,
         .feedback-footer p {
+          min-width: 0;
           color: rgba(58, 36, 24, 0.72);
           font-size: 13px;
           font-weight: 750;
           line-height: 1.35;
+          overflow-wrap: anywhere;
         }
 
         .feedback-header button,
@@ -593,15 +619,18 @@ export function ChoNeoBetaFeedback() {
           display: grid;
           gap: 14px;
           min-height: 0;
+          min-width: 0;
           padding: 14px 16px 88px;
           overscroll-behavior: contain;
           overflow-y: auto;
+          overflow-x: hidden;
           scrollbar-gutter: stable;
         }
 
         .feedback-section {
           display: grid;
           gap: 10px;
+          min-width: 0;
         }
 
         .feedback-section h3 {
@@ -611,6 +640,7 @@ export function ChoNeoBetaFeedback() {
           font-weight: 950;
           letter-spacing: 0.08em;
           text-transform: uppercase;
+          overflow-wrap: anywhere;
         }
 
         .feedback-question,
@@ -619,6 +649,7 @@ export function ChoNeoBetaFeedback() {
         .feedback-contact {
           display: grid;
           gap: 7px;
+          min-width: 0;
           padding: 10px;
           border: 1px solid rgba(120, 53, 15, 0.11);
           border-radius: 16px;
@@ -635,6 +666,7 @@ export function ChoNeoBetaFeedback() {
           font-size: 13px;
           font-weight: 750;
           line-height: 1.4;
+          overflow-wrap: anywhere;
         }
 
         .room-vote-grid {
@@ -667,12 +699,14 @@ export function ChoNeoBetaFeedback() {
           font-size: 15px;
           font-weight: 950;
           line-height: 1.18;
+          overflow-wrap: anywhere;
         }
 
         .room-vote-card small {
           color: rgba(67, 20, 7, 0.62);
           font-size: 11px;
           font-weight: 800;
+          overflow-wrap: anywhere;
         }
 
         .room-vote-card p {
@@ -681,6 +715,7 @@ export function ChoNeoBetaFeedback() {
           font-size: 12.5px;
           font-weight: 730;
           line-height: 1.35;
+          overflow-wrap: anywhere;
         }
 
         .room-vote-card footer {
@@ -688,6 +723,7 @@ export function ChoNeoBetaFeedback() {
           align-items: center;
           justify-content: space-between;
           gap: 8px;
+          min-width: 0;
         }
 
         .room-vote-card button,
@@ -703,6 +739,7 @@ export function ChoNeoBetaFeedback() {
           font: inherit;
           font-size: 12px;
           font-weight: 950;
+          white-space: normal;
         }
 
         .room-vote-card button {
@@ -928,13 +965,13 @@ export function ChoNeoBetaFeedback() {
             align-items: end;
             padding:
               max(12px, env(safe-area-inset-top))
-              max(10px, env(safe-area-inset-right))
+              max(12px, env(safe-area-inset-right))
               max(12px, env(safe-area-inset-bottom))
-              max(10px, env(safe-area-inset-left));
+              max(12px, env(safe-area-inset-left));
           }
 
           .feedback-card {
-            width: 100%;
+            width: min(100%, calc(100vw - 24px));
             max-height: min(760px, 92svh, calc(100svh - 24px));
             border-radius: 22px;
           }
@@ -969,6 +1006,16 @@ export function ChoNeoBetaFeedback() {
             grid-template-columns: 1fr;
           }
 
+          .room-vote-card footer {
+            align-items: stretch;
+            flex-direction: column;
+          }
+
+          .room-vote-card button {
+            width: 100%;
+            min-height: 40px;
+          }
+
           .room-vote-selection {
             align-items: flex-start;
             flex-direction: column;
@@ -991,7 +1038,7 @@ export function ChoNeoBetaFeedback() {
 
 function ChoNeoRoomVoteSection() {
   const supabase = useMemo(() => createClient(), []);
-  const { ensureChoNeoPass } = useChoNeoGuestPass();
+  const { ensureChoNeoMember } = useChoNeoMember();
   const [presentation, setPresentation] =
     useState<ChoNeoRoomVotePresentation | null>(null);
   const [loadStatus, setLoadStatus] = useState<
@@ -1004,6 +1051,22 @@ function ChoNeoRoomVoteSection() {
   const [reasonNotice, setReasonNotice] = useState("");
 
   useEffect(() => {
+    if (getLocalRoomVoteMock() === "resumed-vote") {
+      setPresentation(
+        buildChoNeoRoomVotePresentation({
+          rows: [{ option_key: "nail-tech-corner" }],
+          selection: {
+            option_key: "nail-tech-corner",
+            optional_reason: "Muốn học nghề cùng nhau.",
+          },
+        }),
+      );
+      setReason("Muốn học nghề cùng nhau.");
+      setLoadStatus("ready");
+      setSaveStatus("saved");
+      return;
+    }
+
     void loadVotePresentation();
   }, []);
 
@@ -1036,7 +1099,7 @@ function ChoNeoRoomVoteSection() {
     optionKey: ChoNeoRoomVoteOptionKey,
     nextReason = reason,
   ) {
-    await ensureChoNeoPass(async () => {
+    await ensureChoNeoMember(async () => {
       await persistVote(optionKey, nextReason);
     });
   }
@@ -1250,6 +1313,28 @@ function ChoNeoRoomVoteSection() {
       ) : null}
     </section>
   );
+}
+
+function getLocalRoomVoteMock() {
+  if (typeof window === "undefined") return "";
+  if (
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    return "";
+  }
+  return new URLSearchParams(window.location.search).get("choNeoMemberMock") ?? "";
+}
+
+function getLocalFeedbackMock() {
+  if (typeof window === "undefined") return "";
+  if (
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    return "";
+  }
+  return new URLSearchParams(window.location.search).get("choNeoFeedbackMock") ?? "";
 }
 
 function RoomVoteResult({

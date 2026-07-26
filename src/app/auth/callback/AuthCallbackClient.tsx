@@ -43,7 +43,7 @@ export default function AuthCallbackClient() {
           if (error) throw error;
         } else {
           setMsg("Không thấy token đăng nhập. Thử đăng nhập lại nha.");
-          setTimeout(() => router.replace("/account/login"), 900);
+          setTimeout(() => router.replace("/login"), 900);
           return;
         }
 
@@ -51,13 +51,13 @@ export default function AuthCallbackClient() {
         window.history.replaceState({}, "", `${url.origin}${url.pathname}`);
 
         // 3) Go to next page (relative only)
-        router.replace(next.startsWith("/") ? next : "/");
+        router.replace(getSafeReturnTo(next));
       } catch (e: any) {
         console.error("Auth callback failed:", e);
         setMsg(
           `Đăng nhập bị lỗi. Quay lại trang login thử lại nha. (${e?.message ?? "unknown"})`
         );
-        setTimeout(() => router.replace("/account/login"), 1200);
+        setTimeout(() => router.replace("/login"), 1200);
       }
     };
 
@@ -72,4 +72,10 @@ export default function AuthCallbackClient() {
       </div>
     </main>
   );
+}
+
+function getSafeReturnTo(value: string) {
+  if (!value.startsWith("/") || value.startsWith("//")) return "/cho-neo";
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return "/cho-neo";
+  return value;
 }

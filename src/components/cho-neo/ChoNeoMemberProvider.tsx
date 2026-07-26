@@ -2,14 +2,18 @@
 
 import { createClient } from "@/lib/supabase-browser";
 import {
-  CHO_NEO_GUEST_PASS_OPEN_EVENT,
-  CHO_NEO_GUEST_PASS_PROFILE_EVENT,
-  CHO_NEO_GUEST_PROFILE_TABLE,
-  mapChoNeoGuestProfileRow,
-  resolveChoNeoGuestAvatarKey,
-  validateChoNeoGuestDisplayName,
-  type ChoNeoGuestPassProfile,
-} from "@/lib/cho-neo/guest-pass";
+  CHO_NEO_MEMBER_PROFILE_TABLE,
+  CHO_NEO_MEMBER_OPEN_EVENT,
+  CHO_NEO_MEMBER_PROFILE_EVENT,
+  CHO_NEO_NAIL_ROLES,
+  isChoNeoNailRole,
+  isVerifiedChoNeoMemberProfile,
+  mapChoNeoMemberProfileRow,
+  resolveChoNeoMemberAvatarKey,
+  validateChoNeoMemberDisplayName,
+  type ChoNeoNailRole,
+  type ChoNeoMemberProfile,
+} from "@/lib/cho-neo/member-identity";
 import { CHO_NEO_AVATARS } from "@/lib/cho-neo/avatar-identity";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -25,56 +29,61 @@ import {
 
 type PendingAction = () => void | Promise<void>;
 
-type ChoNeoGuestPassContextValue = {
-  ensureChoNeoPass: (action: PendingAction) => Promise<void>;
+type ChoNeoMemberContextValue = {
+  ensureChoNeoMember: (action: PendingAction) => Promise<void>;
   openProfileSheet: () => void;
-  profile: ChoNeoGuestPassProfile | null;
+  profile: ChoNeoMemberProfile | null;
   refreshProfile: () => Promise<void>;
   session: Session | null;
   status: "checking" | "public" | "ready" | "error";
 };
 
-type TurnstileWindow = Window & {
-  turnstile?: {
-    render: (
-      container: HTMLElement,
-      options: {
-        callback: (token: string) => void;
-        "error-callback": () => void;
-        "expired-callback": () => void;
-        sitekey: string;
-        size?: "normal" | "compact" | "invisible";
-      },
-    ) => string;
-    reset: (widgetId?: string) => void;
-  };
-};
+const ChoNeoMemberContext =
+  createContext<ChoNeoMemberContextValue | null>(null);
 
-const ChoNeoGuestPassContext =
-  createContext<ChoNeoGuestPassContextValue | null>(null);
-
-const LOCAL_TEST_TURNSTILE_TOKEN = "cho-neo-local-turnstile-test-token";
-
-export function useChoNeoGuestPass() {
-  const value = useContext(ChoNeoGuestPassContext);
+export function useChoNeoMember() {
+  const value = useContext(ChoNeoMemberContext);
   if (!value) {
-    throw new Error("useChoNeoGuestPass must be used inside ChoNeoGuestPassProvider");
+    throw new Error("useChoNeoMember must be used inside ChoNeoMemberProvider");
   }
   return value;
 }
 
-export function ChoNeoGuestPassProvider({ children }: { children: ReactNode }) {
+export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createClient(), []);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<ChoNeoGuestPassProfile | null>(null);
+  const [profile, setProfile] = useState<ChoNeoMemberProfile | null>(null);
   const [status, setStatus] =
-    useState<ChoNeoGuestPassContextValue["status"]>("checking");
-  const [isPassOpen, setIsPassOpen] = useState(false);
+    useState<ChoNeoMemberContextValue["status"]>("checking");
+  const [isMemberVerificationOpen, setIsMemberVerificationOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const pendingActionRef = useRef<PendingAction | null>(null);
   const hasResumedRef = useRef(false);
 
   const refreshProfile = useCallback(async () => {
+    const localMock = getLocalMemberMock();
+    if (["verified", "profile", "resumed-vote"].includes(localMock)) {
+      const mockProfile = getMockVerifiedMemberProfile();
+      setSession(getMockMemberSession());
+      setProfile(mockProfile);
+      setStatus("ready");
+      setIsProfileOpen(localMock === "profile");
+      window.dispatchEvent(
+        new CustomEvent(CHO_NEO_MEMBER_PROFILE_EVENT, {
+          detail: mockProfile,
+        }),
+      );
+      return;
+    }
+
+    if (localMock === "pending" || localMock === "invalid-invitation") {
+      setSession(getMockMemberSession());
+      setProfile(null);
+      setStatus("public");
+      setIsMemberVerificationOpen(true);
+      return;
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const nextSession = sessionData.session ?? null;
     setSession(nextSession);
@@ -85,13 +94,13 @@ export function ChoNeoGuestPassProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const nextProfile = await loadChoNeoGuestProfile(supabase, nextSession.user.id);
+    const nextProfile = await loadChoNeoMemberProfile(supabase, nextSession.user.id);
     setProfile(nextProfile);
-    setStatus(nextProfile ? "ready" : "public");
+    setStatus(isVerifiedChoNeoMemberProfile(nextProfile) ? "ready" : "public");
 
     if (nextProfile) {
       window.dispatchEvent(
-        new CustomEvent(CHO_NEO_GUEST_PASS_PROFILE_EVENT, {
+        new CustomEvent(CHO_NEO_MEMBER_PROFILE_EVENT, {
           detail: nextProfile,
         }),
       );
@@ -108,36 +117,43 @@ export function ChoNeoGuestPassProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function handleOpen() {
-      setIsPassOpen(true);
+      setIsMemberVerificationOpen(true);
     }
 
-    window.addEventListener(CHO_NEO_GUEST_PASS_OPEN_EVENT, handleOpen);
+    window.addEventListener(CHO_NEO_MEMBER_OPEN_EVENT, handleOpen);
     return () =>
-      window.removeEventListener(CHO_NEO_GUEST_PASS_OPEN_EVENT, handleOpen);
+      window.removeEventListener(CHO_NEO_MEMBER_OPEN_EVENT, handleOpen);
   }, []);
 
-  const ensureChoNeoPass = useCallback(
+  const ensureChoNeoMember = useCallback(
     async (action: PendingAction) => {
-      if (profile?.status === "active") {
+      if (isVerifiedChoNeoMemberProfile(profile)) {
         await action();
         return;
       }
 
       pendingActionRef.current = action;
       hasResumedRef.current = false;
-      setIsPassOpen(true);
+      if (!session?.user) {
+        const returnTo = encodeURIComponent(
+          `${window.location.pathname}${window.location.search}`,
+        );
+        window.location.assign(`/login?next=${returnTo}`);
+        return;
+      }
+      setIsMemberVerificationOpen(true);
     },
-    [profile],
+    [profile, session],
   );
 
-  const completePass = useCallback(
-    async (nextProfile: ChoNeoGuestPassProfile, nextSession: Session) => {
+  const completeMembership = useCallback(
+    async (nextProfile: ChoNeoMemberProfile, nextSession: Session) => {
       setSession(nextSession);
       setProfile(nextProfile);
       setStatus("ready");
-      setIsPassOpen(false);
+      setIsMemberVerificationOpen(false);
       window.dispatchEvent(
-        new CustomEvent(CHO_NEO_GUEST_PASS_PROFILE_EVENT, {
+        new CustomEvent(CHO_NEO_MEMBER_PROFILE_EVENT, {
           detail: nextProfile,
         }),
       );
@@ -154,78 +170,86 @@ export function ChoNeoGuestPassProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      ensureChoNeoPass,
+      ensureChoNeoMember,
       openProfileSheet: () => setIsProfileOpen(true),
       profile,
       refreshProfile,
       session,
       status,
     }),
-    [ensureChoNeoPass, profile, refreshProfile, session, status],
+    [ensureChoNeoMember, profile, refreshProfile, session, status],
   );
 
   return (
-    <ChoNeoGuestPassContext.Provider value={value}>
+    <ChoNeoMemberContext.Provider value={value}>
       {children}
-      <ChoNeoGuestPassModal
-        onComplete={completePass}
-        onClose={() => setIsPassOpen(false)}
-        open={isPassOpen}
+      <ChoNeoMemberVerificationModal
+        onComplete={completeMembership}
+        onClose={() => setIsMemberVerificationOpen(false)}
+        open={isMemberVerificationOpen}
         supabase={supabase}
       />
-      <ChoNeoGuestProfileSheet
+      <ChoNeoMemberProfileSheet
         onClose={() => setIsProfileOpen(false)}
         onRefresh={refreshProfile}
         open={isProfileOpen}
         profile={profile}
         supabase={supabase}
       />
-    </ChoNeoGuestPassContext.Provider>
+    </ChoNeoMemberContext.Provider>
   );
 }
 
-async function loadChoNeoGuestProfile(
+async function loadChoNeoMemberProfile(
   supabase: SupabaseClient,
   userId: string,
 ) {
   const { data, error } = await supabase
-    .from(CHO_NEO_GUEST_PROFILE_TABLE)
+    .from(CHO_NEO_MEMBER_PROFILE_TABLE)
     .select(
-      "user_id, display_name, normalized_display_name, avatar_key, status",
+      "user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status",
     )
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error || !data) return null;
-  return mapChoNeoGuestProfileRow(data);
+  return mapChoNeoMemberProfileRow(data);
 }
 
-function ChoNeoGuestPassModal({
+function ChoNeoMemberVerificationModal({
   onClose,
   onComplete,
   open,
   supabase,
 }: {
   onClose: () => void;
-  onComplete: (profile: ChoNeoGuestPassProfile, session: Session) => Promise<void>;
+  onComplete: (profile: ChoNeoMemberProfile, session: Session) => Promise<void>;
   open: boolean;
   supabase: SupabaseClient;
 }) {
   const [nickname, setNickname] = useState("");
   const [avatarKey, setAvatarKey] = useState(CHO_NEO_AVATARS[0].id);
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [invitationCode, setInvitationCode] = useState("");
+  const [nailRole, setNailRole] =
+    useState<ChoNeoNailRole>("nail_technician");
   const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    if (getLocalMemberMock() === "invalid-invitation") {
+      setStatus("error");
+      setMessage("Lời mời chưa đúng. Kiểm tra lại giúp Chợ Neo nha.");
+      return;
+    }
+
     if (!open) return;
     setStatus("idle");
     setMessage("");
-    setTurnstileToken("");
+    setInvitationCode("");
   }, [open]);
 
   async function submit() {
-    const validation = validateChoNeoGuestDisplayName(nickname);
+    const validation = validateChoNeoMemberDisplayName(nickname);
     if (validation.ok === false) {
       setStatus("error");
       setMessage(validation.message);
@@ -237,85 +261,113 @@ function ChoNeoGuestPassModal({
 
     try {
       const existingSessionResult = await supabase.auth.getSession();
-      let activeSession = existingSessionResult.data.session ?? null;
+      const activeSession = existingSessionResult.data.session ?? null;
 
       if (!activeSession?.user) {
-        const captchaToken = turnstileToken || getLocalTurnstileTestToken();
-        if (!captchaToken) {
-          setStatus("error");
-          setMessage("Chưa xác nhận được thử thách bảo vệ. Thử lại giúp Chợ Neo nha.");
-          return;
-        }
-
-        const sessionResult = await supabase.auth.signInAnonymously({
-          options: { captchaToken },
-        });
-
-        if (sessionResult.error || !sessionResult.data.session?.user) {
-          throw new Error("anonymous-sign-in-failed");
-        }
-
-        activeSession = sessionResult.data.session;
+        window.location.assign("/login?next=/cho-neo");
+        return;
       }
 
-      const userId = activeSession.user.id;
-      const row = {
-        avatar_key: resolveChoNeoGuestAvatarKey(avatarKey),
-        display_name: validation.displayName,
-        last_seen_at: new Date().toISOString(),
-        normalized_display_name: validation.normalizedDisplayName,
-        status: "active",
-        updated_at: new Date().toISOString(),
-        user_id: userId,
-      };
+      if (!invitationCode.trim()) {
+        setStatus("error");
+        setMessage("Nhập lời mời Chợ Neo để hoàn tất thành viên.");
+        return;
+      }
 
-      const { data, error } = await supabase
-        .from(CHO_NEO_GUEST_PROFILE_TABLE)
-        .upsert(row, { onConflict: "user_id" })
-        .select(
-          "user_id, display_name, normalized_display_name, avatar_key, status",
-        )
-        .single();
+      if (!isChoNeoNailRole(nailRole)) {
+        setStatus("error");
+        setMessage("Chọn vai trò trong ngành nail.");
+        return;
+      }
 
-      if (error || !data) {
-        throw new Error("guest-profile-save-failed");
+      const response = await fetch("/api/cho-neo/member/verify", {
+        body: JSON.stringify({
+          avatarKey: resolveChoNeoMemberAvatarKey(avatarKey),
+          displayName: validation.displayName,
+          invitationCode,
+          nailRole,
+        }),
+        headers: {
+          Authorization: `Bearer ${activeSession.access_token}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.profile) {
+        setStatus("error");
+        setMessage(
+          payload?.error ??
+            "Lời mời chưa dùng được. Kiểm tra lại rồi thử một nhịp nha.",
+        );
+        return;
       }
 
       await onComplete(
-        mapChoNeoGuestProfileRow(data),
+        mapChoNeoMemberProfileRow(payload.profile),
         activeSession,
       );
     } catch {
       setStatus("error");
-      setMessage("Chưa nhận được thẻ. Thử lại một nhịp nha.");
+      setMessage("Chưa xác nhận được thành viên. Thử lại một nhịp nha.");
     }
   }
 
   if (!open) return null;
 
   return (
-    <div aria-modal="true" className="cho-neo-pass-overlay" role="dialog">
+    <div aria-modal="true" className="cho-neo-member-overlay" role="dialog">
       <button
-        aria-label="Đóng Thẻ Chợ Neo"
-        className="cho-neo-pass-backdrop"
+        aria-label="Đóng xác nhận thành viên"
+        className="cho-neo-member-backdrop"
         onClick={onClose}
         type="button"
       />
-      <section className="cho-neo-pass-card">
+      <section className="cho-neo-member-card">
         <header>
           <div>
-            <h2>Nhận Thẻ Chợ Neo</h2>
+            <h2>Xác nhận người trong nghề</h2>
             <p>
-              Không cần email hay mật khẩu. Chọn một tên để Chợ Neo nhớ bạn trên
-              thiết bị này.
+              Chợ Neo dành cho người làm trong ngành nail. Nhập lời mời để hoàn
+              tất thành viên.
             </p>
           </div>
           <button aria-label="Đóng" onClick={onClose} type="button">
             ×
           </button>
         </header>
-        <label className="cho-neo-pass-field">
-          <span>Tên Chợ Neo</span>
+        <label className="cho-neo-member-field">
+          <span>Lời mời Chợ Neo</span>
+          <input
+            autoComplete="one-time-code"
+            onChange={(event) => setInvitationCode(event.target.value)}
+            placeholder="Nhập mã lời mời"
+            value={invitationCode}
+          />
+        </label>
+        <label className="cho-neo-member-field">
+          <span>Vai trò trong ngành nail</span>
+          <select
+            onChange={(event) =>
+              setNailRole(
+                isChoNeoNailRole(event.target.value)
+                  ? event.target.value
+                  : "nail_technician",
+              )
+            }
+            value={nailRole}
+          >
+            {CHO_NEO_NAIL_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {getNailRoleLabel(role)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="cho-neo-member-field">
+          <span>Nickname Chợ Neo</span>
           <input
             maxLength={24}
             onChange={(event) => setNickname(event.target.value)}
@@ -323,7 +375,7 @@ function ChoNeoGuestPassModal({
             value={nickname}
           />
         </label>
-        <fieldset className="cho-neo-pass-avatars">
+        <fieldset className="cho-neo-member-avatars">
           <legend>Chọn avatar nếu muốn</legend>
           <div>
             {CHO_NEO_AVATARS.slice(0, 8).map((avatar) => (
@@ -340,37 +392,29 @@ function ChoNeoGuestPassModal({
             ))}
           </div>
         </fieldset>
-        <ChoNeoTurnstileSlot
-          onError={() => {
-            setTurnstileToken("");
-            setMessage("Thử thách bảo vệ chưa xong. Thử lại giúp Chợ Neo nha.");
-          }}
-          onToken={setTurnstileToken}
-        />
-        <p className="cho-neo-pass-note">
-          Thẻ được giữ trên trình duyệt này. Xóa dữ liệu trình duyệt hoặc đổi máy
-          có thể làm mất thẻ.
+        <p className="cho-neo-member-note">
+          Bạn chỉ cần làm bước này một lần.
         </p>
         {message ? (
-          <p className="cho-neo-pass-message" role={status === "error" ? "alert" : "status"}>
+          <p className="cho-neo-member-message" role={status === "error" ? "alert" : "status"}>
             {message}
           </p>
         ) : null}
         <button
-          className="cho-neo-pass-primary"
+          className="cho-neo-member-primary"
           disabled={status === "saving"}
           onClick={submit}
           type="button"
         >
-          {status === "saving" ? "Đang nhận thẻ..." : "Nhận thẻ và tiếp tục"}
+          {status === "saving" ? "Đang xác nhận..." : "Vào Chợ"}
         </button>
       </section>
-      <ChoNeoGuestPassStyles />
+      <ChoNeoMemberStyles />
     </div>
   );
 }
 
-function ChoNeoGuestProfileSheet({
+function ChoNeoMemberProfileSheet({
   onClose,
   onRefresh,
   open,
@@ -380,7 +424,7 @@ function ChoNeoGuestProfileSheet({
   onClose: () => void;
   onRefresh: () => Promise<void>;
   open: boolean;
-  profile: ChoNeoGuestPassProfile | null;
+  profile: ChoNeoMemberProfile | null;
   supabase: SupabaseClient;
 }) {
   const [nickname, setNickname] = useState("");
@@ -396,16 +440,16 @@ function ChoNeoGuestProfileSheet({
 
   async function saveProfile() {
     if (!profile) return;
-    const validation = validateChoNeoGuestDisplayName(nickname);
+    const validation = validateChoNeoMemberDisplayName(nickname);
     if (validation.ok === false) {
       setMessage(validation.message);
       return;
     }
 
     const { error } = await supabase
-      .from(CHO_NEO_GUEST_PROFILE_TABLE)
+      .from(CHO_NEO_MEMBER_PROFILE_TABLE)
       .update({
-        avatar_key: resolveChoNeoGuestAvatarKey(avatarKey),
+        avatar_key: resolveChoNeoMemberAvatarKey(avatarKey),
         display_name: validation.displayName,
         normalized_display_name: validation.normalizedDisplayName,
         updated_at: new Date().toISOString(),
@@ -413,17 +457,17 @@ function ChoNeoGuestProfileSheet({
       .eq("user_id", profile.userId);
 
     if (error) {
-      setMessage("Chưa lưu được thẻ. Thử lại giúp Chợ Neo nha.");
+      setMessage("Chưa lưu được hồ sơ. Thử lại giúp Chợ Neo nha.");
       return;
     }
 
     await onRefresh();
-    setMessage("Đã lưu Thẻ Chợ Neo.");
+    setMessage("Đã lưu hồ sơ Chợ Neo.");
   }
 
   async function removeFromDevice() {
     const confirmed = window.confirm(
-      "Bạn có thể mất tên, lịch sử và quyền quản lý nội dung gắn với thẻ này trên thiết bị này.",
+      "Đăng xuất khỏi Chợ Neo?",
     );
     if (!confirmed) return;
     await supabase.auth.signOut();
@@ -434,32 +478,32 @@ function ChoNeoGuestProfileSheet({
   if (!open || !profile) return null;
 
   return (
-    <div aria-modal="true" className="cho-neo-pass-overlay" role="dialog">
+    <div aria-modal="true" className="cho-neo-member-overlay" role="dialog">
       <button
-        aria-label="Đóng hồ sơ Thẻ Chợ Neo"
-        className="cho-neo-pass-backdrop"
+        aria-label="Đóng hồ sơ thành viên Chợ Neo"
+        className="cho-neo-member-backdrop"
         onClick={onClose}
         type="button"
       />
-      <section className="cho-neo-pass-card cho-neo-profile-card">
+      <section className="cho-neo-member-card cho-neo-profile-card">
         <header>
           <div>
-            <h2>Thẻ Chợ Neo</h2>
-            <p>Đổi tên hoặc avatar cho thiết bị này.</p>
+            <h2>Thành viên Chợ Neo</h2>
+            <p>Đổi tên hoặc avatar hiển thị trong Chợ Neo.</p>
           </div>
           <button aria-label="Đóng" onClick={onClose} type="button">
             ×
           </button>
         </header>
-        <label className="cho-neo-pass-field">
-          <span>Tên Chợ Neo</span>
+        <label className="cho-neo-member-field">
+          <span>Nickname Chợ Neo</span>
           <input
             maxLength={24}
             onChange={(event) => setNickname(event.target.value)}
             value={nickname}
           />
         </label>
-        <fieldset className="cho-neo-pass-avatars">
+        <fieldset className="cho-neo-member-avatars">
           <legend>Avatar</legend>
           <div>
             {CHO_NEO_AVATARS.slice(0, 8).map((avatar) => (
@@ -476,93 +520,87 @@ function ChoNeoGuestProfileSheet({
             ))}
           </div>
         </fieldset>
-        {message ? <p className="cho-neo-pass-message">{message}</p> : null}
-        <button className="cho-neo-pass-primary" onClick={saveProfile} type="button">
+        {message ? <p className="cho-neo-member-message">{message}</p> : null}
+        <button className="cho-neo-member-primary" onClick={saveProfile} type="button">
           Lưu thay đổi
         </button>
-        <button className="cho-neo-pass-danger" onClick={removeFromDevice} type="button">
-          Bỏ thẻ khỏi máy này
+        <button className="cho-neo-member-danger" onClick={removeFromDevice} type="button">
+          Đăng xuất
         </button>
-        <p className="cho-neo-pass-note">
-          Bạn có thể mất tên, lịch sử và quyền quản lý nội dung gắn với thẻ này
-          trên thiết bị này.
+        <p className="cho-neo-member-note">
+          Phiên Supabase của bạn được giữ để lần sau ghé Chợ Neo không cần xác
+          nhận lại.
         </p>
       </section>
-      <ChoNeoGuestPassStyles />
+      <ChoNeoMemberStyles />
     </div>
   );
 }
 
-function ChoNeoTurnstileSlot({
-  onError,
-  onToken,
-}: {
-  onError: () => void;
-  onToken: (token: string) => void;
-}) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const widgetRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-    if (!siteKey) {
-      onToken(getLocalTurnstileTestToken() ?? "");
-      return;
-    }
-
-    const win = window as TurnstileWindow;
-    const renderWidget = () => {
-      if (!containerRef.current || !win.turnstile || widgetRef.current) return;
-      widgetRef.current = win.turnstile.render(containerRef.current, {
-        "error-callback": onError,
-        "expired-callback": () => {
-          onToken("");
-          onError();
-        },
-        callback: onToken,
-        sitekey: siteKey,
-      });
-    };
-
-    if (win.turnstile) {
-      renderWidget();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    script.onload = renderWidget;
-    document.head.appendChild(script);
-  }, [onError, onToken]);
-
-  return (
-    <div className="cho-neo-turnstile">
-      <div ref={containerRef} />
-      {!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? (
-        <span>Turnstile test mode sẵn sàng.</span>
-      ) : null}
-    </div>
-  );
+function getNailRoleLabel(role: ChoNeoNailRole) {
+  switch (role) {
+    case "nail_technician":
+      return "Thợ nail";
+    case "salon_owner":
+      return "Chủ tiệm";
+    case "nail_student":
+      return "Người học nghề";
+    case "supplier":
+      return "Nhà cung cấp";
+    case "educator":
+      return "Người dạy nghề";
+    case "other_industry":
+      return "Vai trò khác trong ngành";
+  }
 }
 
-function getLocalTurnstileTestToken() {
+function getLocalMemberMock() {
   if (typeof window === "undefined") return "";
   if (
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1" ||
-    process.env.NODE_ENV === "test"
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
   ) {
-    return LOCAL_TEST_TURNSTILE_TOKEN;
+    return "";
   }
-  return "";
+  return new URLSearchParams(window.location.search).get("choNeoMemberMock") ?? "";
 }
 
-function ChoNeoGuestPassStyles() {
+function getMockMemberSession() {
+  return {
+    access_token: "local-mock-member-session",
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    expires_in: 3600,
+    refresh_token: "local-mock-refresh-token",
+    token_type: "bearer",
+    user: {
+      app_metadata: { provider: "google", providers: ["google"] },
+      aud: "authenticated",
+      created_at: new Date(0).toISOString(),
+      id: "00000000-0000-4000-8000-000000000099",
+      is_anonymous: false,
+      role: "authenticated",
+      updated_at: new Date(0).toISOString(),
+    },
+  } as Session;
+}
+
+function getMockVerifiedMemberProfile(): ChoNeoMemberProfile {
+  const avatarKey = CHO_NEO_AVATARS[0].id;
+  return {
+    avatar: CHO_NEO_AVATARS[0],
+    avatarKey,
+    displayName: "Mai Calgary",
+    nailRole: "nail_technician",
+    normalizedDisplayName: "mai calgary",
+    status: "verified_nail_member",
+    userId: "00000000-0000-4000-8000-000000000099",
+  };
+}
+
+function ChoNeoMemberStyles() {
   return (
     <style>{`
-      .cho-neo-pass-overlay {
+      .cho-neo-member-overlay {
         position: fixed;
         inset: 0;
         z-index: 1200;
@@ -571,7 +609,7 @@ function ChoNeoGuestPassStyles() {
         padding: max(18px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
       }
 
-      .cho-neo-pass-backdrop {
+      .cho-neo-member-backdrop {
         position: absolute;
         inset: 0;
         border: 0;
@@ -579,7 +617,7 @@ function ChoNeoGuestPassStyles() {
         backdrop-filter: blur(10px);
       }
 
-      .cho-neo-pass-card {
+      .cho-neo-member-card {
         position: relative;
         z-index: 1;
         display: grid;
@@ -597,32 +635,32 @@ function ChoNeoGuestPassStyles() {
         box-shadow: 0 28px 90px rgba(0, 0, 0, 0.46);
       }
 
-      .cho-neo-pass-card header {
+      .cho-neo-member-card header {
         display: flex;
         justify-content: space-between;
         gap: 14px;
       }
 
-      .cho-neo-pass-card h2,
-      .cho-neo-pass-card p {
+      .cho-neo-member-card h2,
+      .cho-neo-member-card p {
         margin: 0;
       }
 
-      .cho-neo-pass-card h2 {
+      .cho-neo-member-card h2 {
         color: #fff7df;
         font-size: 22px;
         font-weight: 950;
       }
 
-      .cho-neo-pass-card header p,
-      .cho-neo-pass-note {
+      .cho-neo-member-card header p,
+      .cho-neo-member-note {
         color: #e8cf9d;
         font-size: 13px;
         font-weight: 730;
         line-height: 1.45;
       }
 
-      .cho-neo-pass-card header > button {
+      .cho-neo-member-card header > button {
         width: 34px;
         height: 34px;
         border: 1px solid rgba(248, 211, 145, 0.2);
@@ -633,8 +671,8 @@ function ChoNeoGuestPassStyles() {
         font-size: 22px;
       }
 
-      .cho-neo-pass-field,
-      .cho-neo-pass-avatars {
+      .cho-neo-member-field,
+      .cho-neo-member-avatars {
         display: grid;
         gap: 8px;
         min-width: 0;
@@ -643,14 +681,15 @@ function ChoNeoGuestPassStyles() {
         border: 0;
       }
 
-      .cho-neo-pass-field span,
-      .cho-neo-pass-avatars legend {
+      .cho-neo-member-field span,
+      .cho-neo-member-avatars legend {
         color: #ffe7b7;
         font-size: 13px;
         font-weight: 900;
       }
 
-      .cho-neo-pass-field input {
+      .cho-neo-member-field input,
+      .cho-neo-member-field select {
         width: 100%;
         min-height: 44px;
         padding: 0 12px;
@@ -661,13 +700,13 @@ function ChoNeoGuestPassStyles() {
         font: inherit;
       }
 
-      .cho-neo-pass-avatars div {
+      .cho-neo-member-avatars div {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
       }
 
-      .cho-neo-pass-avatars button {
+      .cho-neo-member-avatars button {
         display: grid;
         gap: 4px;
         min-height: 58px;
@@ -680,12 +719,12 @@ function ChoNeoGuestPassStyles() {
         font: inherit;
       }
 
-      .cho-neo-pass-avatars button.selected {
+      .cho-neo-member-avatars button.selected {
         border-color: rgba(248, 211, 145, 0.72);
         background: rgba(248, 211, 145, 0.14);
       }
 
-      .cho-neo-pass-avatars small {
+      .cho-neo-member-avatars small {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -693,14 +732,7 @@ function ChoNeoGuestPassStyles() {
         font-weight: 850;
       }
 
-      .cho-neo-turnstile {
-        min-height: 38px;
-        color: #c9ac7a;
-        font-size: 12px;
-        font-weight: 800;
-      }
-
-      .cho-neo-pass-message {
+      .cho-neo-member-message {
         padding: 10px;
         border: 1px solid rgba(94, 234, 212, 0.4);
         border-radius: 13px;
@@ -710,8 +742,8 @@ function ChoNeoGuestPassStyles() {
         font-weight: 850;
       }
 
-      .cho-neo-pass-primary,
-      .cho-neo-pass-danger {
+      .cho-neo-member-primary,
+      .cho-neo-member-danger {
         min-height: 44px;
         border-radius: 999px;
         cursor: pointer;
@@ -720,36 +752,36 @@ function ChoNeoGuestPassStyles() {
         font-weight: 950;
       }
 
-      .cho-neo-pass-primary {
+      .cho-neo-member-primary {
         border: 1px solid rgba(248, 211, 145, 0.52);
         color: #241019;
         background: #f0c36d;
       }
 
-      .cho-neo-pass-primary:disabled {
+      .cho-neo-member-primary:disabled {
         cursor: default;
         opacity: 0.7;
       }
 
-      .cho-neo-pass-danger {
+      .cho-neo-member-danger {
         border: 1px solid rgba(248, 113, 113, 0.44);
         color: #fecaca;
         background: rgba(127, 29, 29, 0.2);
       }
 
       @media (max-width: 640px) {
-        .cho-neo-pass-overlay {
+        .cho-neo-member-overlay {
           align-items: end;
         }
 
-        .cho-neo-pass-card {
+        .cho-neo-member-card {
           width: 100%;
           max-height: min(92svh, 760px);
           padding-bottom: max(18px, env(safe-area-inset-bottom));
           border-radius: 21px;
         }
 
-        .cho-neo-pass-avatars div {
+        .cho-neo-member-avatars div {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }

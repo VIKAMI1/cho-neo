@@ -1,6 +1,6 @@
--- Harden Chợ Neo gossip writes before Guest Pass rollout.
+-- Harden Chợ Neo gossip writes before member-only community actions.
 -- Browser clients may read visible messages, but inserts must go through the
--- server route that verifies the Supabase user and active Thẻ Chợ Neo profile.
+-- server route that verifies the Supabase user and member profile.
 
 create extension if not exists pgcrypto;
 
