@@ -675,8 +675,7 @@ test("controlled gossip server route owns writes and preserves public reads", as
     { Authorization: `Bearer ${userA.token}`, "x-forwarded-for": "203.0.113.43" },
   ));
   assert.equal(activeReportResponse.status, 200);
-  const activeReportBody = await activeReportResponse.json();
-  assert.equal(activeReportBody.message.reportCount, 1);
+  await assertGossipReportCount(serviceClient, activeBody.message.id, 1);
   actorProof.push("active Guest Pass user can report gossip through the server route");
   actorProof.push("gossip report route ignores browser-supplied reporter/user IDs");
 
@@ -700,8 +699,7 @@ test("controlled gossip server route owns writes and preserves public reads", as
     { Authorization: `Bearer ${userB.token}`, "x-forwarded-for": "203.0.113.45" },
   ));
   assert.equal(otherUserReportResponse.status, 200);
-  const otherUserReportBody = await otherUserReportResponse.json();
-  assert.equal(otherUserReportBody.message.reportCount, 2);
+  await assertGossipReportCount(serviceClient, activeBody.message.id, 2);
   actorProof.push("a different active Guest Pass can report the same visible message");
 
   await serviceClient
@@ -765,6 +763,18 @@ function gossipRequest(body, headers = {}) {
     },
     method: "POST",
   });
+}
+
+async function assertGossipReportCount(serviceClient, messageId, expectedCount) {
+  const result = await serviceClient
+    .from("cho_neo_gossip_messages")
+    .select("report_count, reported_at")
+    .eq("id", messageId)
+    .single();
+
+  assert.equal(result.error, null);
+  assert.equal(result.data.report_count, expectedCount);
+  assert.equal(typeof result.data.reported_at, "string");
 }
 
 async function importGossipRoute() {
