@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
+import { createClient } from "@/lib/supabase-browser";
+import { useChoNeoGuestPass } from "./ChoNeoGuestPassProvider";
 import {
   getChoNeoBetaSessionId,
   getChoNeoDeviceType,
@@ -15,7 +17,6 @@ import {
   CHO_NEO_ROOM_VOTE_POLL_KEY,
   CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH,
   CHO_NEO_ROOM_VOTE_OPTIONS,
-  getOrCreateChoNeoRoomVoteToken,
   sanitizeChoNeoRoomVoteReason,
   type ChoNeoRoomVoteOptionKey,
   type ChoNeoRoomVotePresentation,
@@ -989,6 +990,8 @@ export function ChoNeoBetaFeedback() {
 }
 
 function ChoNeoRoomVoteSection() {
+  const supabase = useMemo(() => createClient(), []);
+  const { ensureChoNeoPass } = useChoNeoGuestPass();
   const [presentation, setPresentation] =
     useState<ChoNeoRoomVotePresentation | null>(null);
   const [loadStatus, setLoadStatus] = useState<
@@ -1010,11 +1013,10 @@ function ChoNeoRoomVoteSection() {
     setLoadStatus("loading");
 
     try {
-      const voterToken = getOrCreateChoNeoRoomVoteToken();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
       const response = await fetch("/api/cho-neo/room-vote", {
-        headers: {
-          "x-cho-neo-room-vote-token": voterToken,
-        },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
       if (!response.ok) {
@@ -1034,18 +1036,35 @@ function ChoNeoRoomVoteSection() {
     optionKey: ChoNeoRoomVoteOptionKey,
     nextReason = reason,
   ) {
+    await ensureChoNeoPass(async () => {
+      await persistVote(optionKey, nextReason);
+    });
+  }
+
+  async function persistVote(
+    optionKey: ChoNeoRoomVoteOptionKey,
+    nextReason = reason,
+  ) {
     const wasSelected = Boolean(selectedOptionKey);
     setSaveStatus("saving");
     setReasonNotice("");
 
     try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        throw new Error("Missing Cho Neo pass session");
+      }
+
       const response = await fetch("/api/cho-neo/room-vote", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           pollKey: CHO_NEO_ROOM_VOTE_POLL_KEY,
           optionKey,
-          voterToken: getOrCreateChoNeoRoomVoteToken(),
           optionalReason: sanitizeChoNeoRoomVoteReason(nextReason),
         }),
       });

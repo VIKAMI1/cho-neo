@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChoNeoBetaFeedback } from "./ChoNeoBetaFeedback";
+import { ChoNeoGuestPassHeaderControl } from "./ChoNeoGuestPassHeaderControl";
 import { ChoNeoTimeAmbience, ChoNeoTimeMoodLabel } from "./ChoNeoTimeAmbience";
 import { ChoNeoVillageMap } from "./ChoNeoVillageMap";
 import { choNeoRooms } from "@/lib/cho-neo/rooms";
@@ -54,18 +55,7 @@ export function ChoNeoVillageShell() {
             </span>
           </span>
 
-          <Link className="village-nav-card village-login-link" href="/login">
-            <span aria-hidden="true" className="village-nav-icon">
-              <svg viewBox="0 0 48 48" focusable="false">
-                <circle cx="24" cy="16" r="7" />
-                <path d="M12 40c2.4-9 7.2-13 12-13s9.6 4 12 13" />
-              </svg>
-            </span>
-            <span>
-              <strong>Đăng nhập</strong>
-              <small>Login</small>
-            </span>
-          </Link>
+          <ChoNeoGuestPassHeaderControl />
 
           <span
             className="cho-neo-shared-music-slot village-theme-audio"
@@ -390,6 +380,21 @@ export function ChoNeoVillageShell() {
             radial-gradient(circle at 20% 26%, rgba(248, 211, 145, 0.16), transparent 36%),
             linear-gradient(180deg, rgba(42, 20, 28, 0.9), rgba(7, 6, 12, 0.9));
           outline: none;
+        }
+
+        .village-pass-link {
+          cursor: pointer;
+          font: inherit;
+          justify-self: end;
+        }
+
+        .village-pass-avatar {
+          width: 31px;
+          height: 31px;
+          border: 1px solid rgba(248, 211, 145, 0.24);
+          border-radius: 999px;
+          background: rgba(248, 211, 145, 0.1);
+          font-size: 19px;
         }
 
         .village-nav-icon {

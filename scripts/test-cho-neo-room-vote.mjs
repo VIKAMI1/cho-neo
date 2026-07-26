@@ -62,7 +62,7 @@ test("room vote V1 has exactly the four approved options in canonical order", ()
   assert.match(data, /CHO_NEO_ROOM_VOTE_POLL_KEY = "cho-neo-room-vote-v1"/);
 });
 
-test("Góp ý contains the full voting section without a login or marketing wall", () => {
+test("Góp ý contains the full voting section with the shared pass gate", () => {
   assert.match(feedback, /Góc Bình Chọn — Mở gì trước\?/);
   assert.match(feedback, /Tôi muốn phòng này/);
   assert.match(feedback, /Đã chọn/);
@@ -70,8 +70,9 @@ test("Góp ý contains the full voting section without a login or marketing wall
   assert.match(feedback, /Đổi lựa chọn/);
   assert.match(feedback, /Vì sao bạn muốn mở phòng này\?/);
   assert.match(feedback, /Bỏ qua/);
-  assert.match(feedback, /Không cần đăng\s+nhập hay để lại liên hệ/);
-  assert.doesNotMatch(feedback, /newsletter|marketing|captcha|CAPTCHA/i);
+  assert.match(feedback, /ensureChoNeoPass/);
+  assert.match(feedback, /Authorization: `Bearer \$\{token\}`/);
+  assert.doesNotMatch(feedback, /newsletter|marketing|phone|password/i);
 });
 
 test("Village Guide shortcut opens the existing Góp ý vote section", () => {
@@ -81,9 +82,7 @@ test("Village Guide shortcut opens the existing Góp ý vote section", () => {
   assert.match(feedback, /getElementById\("cho-neo-room-vote"\)/);
 });
 
-test("anonymous token is generated locally and hashed server-side before storage", () => {
-  assert.match(data, /crypto\.randomUUID\(\)/);
-  assert.match(data, /window\.localStorage\.setItem\(CHO_NEO_ROOM_VOTE_TOKEN_KEY/);
+test("room votes are owned by the Supabase user behind Thẻ Chợ Neo", () => {
   assert.match(
     fs.readFileSync(path.join(repoRoot, "src/lib/cho-neo/room-vote-service.ts"), "utf8"),
     /createHmac\("sha256"/,
@@ -92,9 +91,13 @@ test("anonymous token is generated locally and hashed server-side before storage
     fs.readFileSync(path.join(repoRoot, "src/lib/cho-neo/room-vote-service.ts"), "utf8"),
     /\.update\(`\$\{CHO_NEO_ROOM_VOTE_POLL_KEY\}:\$\{token\}`\)/,
   );
-  assert.match(repositorySource, /voter_hash: input\.voterHash/);
+  assert.match(repositorySource, /voter_user_id: input\.voterUserId/);
+  assert.match(repositorySource, /findSelection\(input\.pollKey, input\.voterUserId\)/);
+  assert.match(repositorySource, /\.update\(row\)/);
+  assert.match(repositorySource, /\.insert\(row\)/);
   assert.match(api, /process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
-  assert.doesNotMatch(api, /NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_ANON_KEY|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY|local-development/);
+  assert.match(api, /auth\.getUser\(token\)/);
+  assert.match(api, /NEXT_PUBLIC_SUPABASE_ANON_KEY/);
   assert.doesNotMatch(schema, /email|phone|ip_address|fingerprint|advertising/i);
 });
 
@@ -105,11 +108,17 @@ test("server route updates one active vote and rejects invalid inputs", () => {
   );
   assert.match(serviceSource, /body\.pollKey !== CHO_NEO_ROOM_VOTE_POLL_KEY/);
   assert.match(serviceSource, /!isChoNeoRoomVoteOptionKey\(body\.optionKey\)/);
-  assert.match(serviceSource, /!isPlausibleChoNeoRoomVoteToken\(body\.voterToken\)/);
+  assert.match(serviceSource, /missing-cho-neo-pass/);
+  assert.match(serviceSource, /findActiveGuestProfile\(voterUserId\)/);
+  assert.match(serviceSource, /inactive-cho-neo-pass/);
+  assert.match(repositorySource, /cho_neo_guest_profiles/);
   assert.match(serviceSource, /CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH/);
   assert.match(serviceSource, /isChoNeoRoomVoteReasonUnsafe\(rawReason\)/);
-  assert.match(repositorySource, /onConflict: "poll_key,voter_hash"/);
-  assert.match(schema, /unique index[^;]+poll_key, voter_hash/s);
+  assert.match(repositorySource, /findSelection\(input\.pollKey, input\.voterUserId\)/);
+  assert.match(repositorySource, /\.update\(row\)/);
+  assert.match(repositorySource, /\.insert\(row\)/);
+  assert.match(schema, /unique index[^;]+poll_key, voter_user_id/s);
+  assert.match(schema, /voter_user_id = auth\.uid\(\)/);
   assert.match(serviceSource, /RATE_LIMIT_MAX = 8/);
   assert.match(serviceSource, /MIN_UPDATE_INTERVAL_MS = 1_500/);
 });
@@ -142,41 +151,47 @@ test("existing music player is not modified by the room vote feature", () => {
   assert.doesNotMatch(villageShell, /ChoNeoThemeParkAudio/);
 });
 
-test("in-memory adapter creates and updates one vote per hashed visitor", async () => {
+test("in-memory adapter creates and updates one vote per pass user", async () => {
   const fake = new repository.InMemoryRoomVoteRepository();
   const app = service.createRoomVoteApplication({
     hashSecret: "server-only-test-secret",
     rateLimit: false,
     repository: fake,
   });
-  const voterToken = "00000000-0000-4000-8000-000000000001";
+  const voterUserId = "00000000-0000-4000-8000-000000000001";
 
-  const first = await app.post({
-    optionKey: "show-off",
-    pollKey: "cho-neo-room-vote-v1",
-    voterToken,
-  });
+  const first = await app.post(
+    {
+      optionKey: "show-off",
+      pollKey: "cho-neo-room-vote-v1",
+    },
+    voterUserId,
+  );
   assert.equal(first.status, 200);
   assert.equal(fake.recordCount, 1);
   assert.equal(first.body.selection.optionKey, "show-off");
 
-  const changed = await app.post({
-    optionKey: "owner-corner",
-    optionalReason: "Muốn bàn chuyện vận hành.",
-    pollKey: "cho-neo-room-vote-v1",
-    voterToken,
-  });
+  const changed = await app.post(
+    {
+      optionKey: "owner-corner",
+      optionalReason: "Muốn bàn chuyện vận hành.",
+      pollKey: "cho-neo-room-vote-v1",
+    },
+    voterUserId,
+  );
   assert.equal(changed.status, 200);
   assert.equal(fake.recordCount, 1);
   assert.equal(changed.body.selection.optionKey, "owner-corner");
   assert.equal(changed.body.selection.optionalReason, "Muốn bàn chuyện vận hành.");
 
-  const cleared = await app.post({
-    optionKey: "owner-corner",
-    optionalReason: "",
-    pollKey: "cho-neo-room-vote-v1",
-    voterToken,
-  });
+  const cleared = await app.post(
+    {
+      optionKey: "owner-corner",
+      optionalReason: "",
+      pollKey: "cho-neo-room-vote-v1",
+    },
+    voterUserId,
+  );
   assert.equal(cleared.status, 200);
   assert.equal(fake.recordCount, 1);
   assert.equal(cleared.body.selection.optionalReason, "");
@@ -189,51 +204,83 @@ test("in-memory adapter rejects invalid vote inputs before persistence", async (
     rateLimit: false,
     repository: fake,
   });
-  const voterToken = "00000000-0000-4000-8000-000000000002";
+  const voterUserId = "00000000-0000-4000-8000-000000000002";
 
   assert.equal(
     (
-      await app.post({
-        optionKey: "market-street",
-        pollKey: "cho-neo-room-vote-v1",
-        voterToken,
-      })
+      await app.post(
+        {
+          optionKey: "market-street",
+          pollKey: "cho-neo-room-vote-v1",
+        },
+        voterUserId,
+      )
     ).status,
     400,
   );
   assert.equal(
     (
-      await app.post({
-        optionKey: "show-off",
-        optionalReason: "x".repeat(281),
-        pollKey: "cho-neo-room-vote-v1",
-        voterToken,
-      })
+      await app.post(
+        {
+          optionKey: "show-off",
+          optionalReason: "x".repeat(281),
+          pollKey: "cho-neo-room-vote-v1",
+        },
+        voterUserId,
+      )
     ).status,
     400,
   );
   assert.equal(
     (
-      await app.post({
-        optionKey: "show-off",
-        optionalReason: "<b>link</b>",
-        pollKey: "cho-neo-room-vote-v1",
-        voterToken,
-      })
+      await app.post(
+        {
+          optionKey: "show-off",
+          optionalReason: "<b>link</b>",
+          pollKey: "cho-neo-room-vote-v1",
+        },
+        voterUserId,
+      )
     ).status,
     400,
   );
   assert.equal(
     (
-      await app.post({
-        optionKey: "show-off",
-        optionalReason: "https://example.com",
-        pollKey: "cho-neo-room-vote-v1",
-        voterToken,
-      })
+      await app.post(
+        {
+          optionKey: "show-off",
+          optionalReason: "https://example.com",
+          pollKey: "cho-neo-room-vote-v1",
+        },
+        voterUserId,
+      )
     ).status,
     400,
   );
+  assert.equal(fake.recordCount, 0);
+});
+
+test("inactive or missing guest profiles cannot vote through the service-role API", async () => {
+  const voterUserId = "00000000-0000-4000-8000-000000000020";
+  const fake = new repository.InMemoryRoomVoteRepository([], {
+    inactiveUserIds: [voterUserId],
+  });
+  const app = service.createRoomVoteApplication({
+    hashSecret: "server-only-test-secret",
+    rateLimit: false,
+    repository: fake,
+  });
+
+  const response = await app.post(
+    {
+      optionKey: "show-off",
+      pollKey: "cho-neo-room-vote-v1",
+    },
+    voterUserId,
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.reason, "inactive-cho-neo-pass");
   assert.equal(fake.recordCount, 0);
 });
 
@@ -249,7 +296,7 @@ test("in-memory adapter result disclosure follows public thresholds", async () =
             : "waterfront",
     optionalReason: "",
     pollKey: "cho-neo-room-vote-v1",
-    voterHash: `seed-${index}`,
+    voterUserId: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
   }));
   const lowFake = new repository.InMemoryRoomVoteRepository(seed.slice(0, 9));
   const publicFake = new repository.InMemoryRoomVoteRepository(seed.slice(0, 10));
@@ -308,6 +355,9 @@ test("in-memory adapter result disclosure follows public thresholds", async () =
 
 test("persistence failure and missing server secret fail closed", async () => {
   const failingRepository = {
+    async findActiveGuestProfile() {
+      return true;
+    },
     async findSelection() {
       throw new Error("boom");
     },
@@ -323,11 +373,13 @@ test("persistence failure and missing server secret fail closed", async () => {
     rateLimit: false,
     repository: failingRepository,
   });
-  const failed = await app.post({
-    optionKey: "show-off",
-    pollKey: "cho-neo-room-vote-v1",
-    voterToken: "00000000-0000-4000-8000-000000000003",
-  });
+  const failed = await app.post(
+    {
+      optionKey: "show-off",
+      pollKey: "cho-neo-room-vote-v1",
+    },
+    "00000000-0000-4000-8000-000000000003",
+  );
   assert.equal(failed.status, 503);
   assert.equal(failed.body.reason, "save-failed");
 
@@ -337,33 +389,37 @@ test("persistence failure and missing server secret fail closed", async () => {
       rateLimit: false,
       repository: new repository.InMemoryRoomVoteRepository(),
     })
-    .post({
-      optionKey: "show-off",
-      pollKey: "cho-neo-room-vote-v1",
-      voterToken: "00000000-0000-4000-8000-000000000004",
-    });
+    .post(
+      {
+        optionKey: "show-off",
+        pollKey: "cho-neo-room-vote-v1",
+      },
+      "00000000-0000-4000-8000-000000000004",
+    );
   assert.equal(missingSecret.status, 503);
   assert.equal(missingSecret.body.reason, "missing-server-secret");
 });
 
-test("application responses never expose raw token or voter hash", async () => {
+test("application responses never expose raw user id or voter hash", async () => {
   const fake = new repository.InMemoryRoomVoteRepository();
   const app = service.createRoomVoteApplication({
     hashSecret: "server-only-test-secret",
     rateLimit: false,
     repository: fake,
   });
-  const voterToken = "00000000-0000-4000-8000-000000000005";
-  const response = await app.post({
-    optionKey: "waterfront",
-    pollKey: "cho-neo-room-vote-v1",
-    voterToken,
-  });
+  const voterUserId = "00000000-0000-4000-8000-000000000005";
+  const response = await app.post(
+    {
+      optionKey: "waterfront",
+      pollKey: "cho-neo-room-vote-v1",
+    },
+    voterUserId,
+  );
   const json = JSON.stringify(response.body);
-  const voterHash = service.hashRoomVoteToken(voterToken, "server-only-test-secret");
+  const voterHash = service.hashRoomVoteToken(voterUserId, "server-only-test-secret");
 
   assert.equal(response.status, 200);
-  assert.equal(json.includes(voterToken), false);
+  assert.equal(json.includes(voterUserId), false);
   assert.equal(json.includes(voterHash), false);
 });
 

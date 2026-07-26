@@ -97,7 +97,7 @@ export default function ProfilePage() {
     return (
       <main className="max-w-md mx-auto p-6 space-y-4">
         <p>You are not signed in.</p>
-        <Link className="underline text-sm" href="/login">
+        <Link className="underline text-sm" href="/account/login">
           Go to login
         </Link>
       </main>

@@ -43,7 +43,7 @@ export default function AuthCallbackClient() {
           if (error) throw error;
         } else {
           setMsg("Không thấy token đăng nhập. Thử đăng nhập lại nha.");
-          setTimeout(() => router.replace("/login"), 900);
+          setTimeout(() => router.replace("/account/login"), 900);
           return;
         }
 
@@ -57,7 +57,7 @@ export default function AuthCallbackClient() {
         setMsg(
           `Đăng nhập bị lỗi. Quay lại trang login thử lại nha. (${e?.message ?? "unknown"})`
         );
-        setTimeout(() => router.replace("/login"), 1200);
+        setTimeout(() => router.replace("/account/login"), 1200);
       }
     };
 

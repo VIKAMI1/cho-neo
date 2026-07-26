@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     hashSecret: getRoomVoteHashSecret(),
     repository: createRoomVoteRepository(),
   });
-  const result = await app.get(request.headers.get("x-cho-neo-room-vote-token"));
+  const result = await app.get(await getAuthenticatedChoNeoUserId(request));
 
   return NextResponse.json(result.body, {
     headers: { "Cache-Control": "no-store" },
@@ -31,12 +31,35 @@ export async function POST(request: Request) {
     hashSecret: getRoomVoteHashSecret(),
     repository: createRoomVoteRepository(),
   });
-  const result = await app.post(body ?? {});
+  const result = await app.post(body ?? {}, await getAuthenticatedChoNeoUserId(request));
 
   return NextResponse.json(result.body, {
     headers: { "Cache-Control": "no-store" },
     status: result.status,
   });
+}
+
+async function getAuthenticatedChoNeoUserId(request: Request) {
+  const authorization = request.headers.get("authorization") ?? "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!token || !supabaseUrl || !supabaseKey) {
+    return null;
+  }
+
+  const { data, error } = await createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+    },
+  }).auth.getUser(token);
+
+  if (error || !data.user) {
+    return null;
+  }
+
+  return data.user.id;
 }
 
 function createRoomVoteRepository(): ChoNeoRoomVoteRepository {
@@ -61,6 +84,12 @@ function getRoomVoteHashSecret() {
 }
 
 class MissingRoomVoteRepository implements ChoNeoRoomVoteRepository {
+  async findActiveGuestProfile(): ReturnType<
+    ChoNeoRoomVoteRepository["findActiveGuestProfile"]
+  > {
+    throw new Error("room-vote-missing-supabase-config");
+  }
+
   async listVotes(): ReturnType<ChoNeoRoomVoteRepository["listVotes"]> {
     throw new Error("room-vote-missing-supabase-config");
   }

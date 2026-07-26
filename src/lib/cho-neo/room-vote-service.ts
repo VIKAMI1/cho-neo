@@ -5,7 +5,6 @@ import {
   buildChoNeoRoomVotePresentation,
   isChoNeoRoomVoteOptionKey,
   isChoNeoRoomVoteReasonUnsafe,
-  isPlausibleChoNeoRoomVoteToken,
   sanitizeChoNeoRoomVoteReason,
 } from "./room-vote";
 import type {
@@ -32,7 +31,6 @@ export type RoomVotePostBody = {
   optionalReason?: unknown;
   optionKey?: unknown;
   pollKey?: unknown;
-  voterToken?: unknown;
 };
 
 type RoomVoteApplicationOptions = {
@@ -52,23 +50,23 @@ export function createRoomVoteApplication({
   const hasServerSecret = Boolean(hashSecret);
 
   return {
-    get: async (voterToken: unknown): Promise<RoomVoteApplicationResponse> => {
+    get: async (
+      voterUserId: string | null | undefined,
+    ): Promise<RoomVoteApplicationResponse> => {
       if (!hasServerSecret) {
         return unavailable("missing-server-secret");
       }
 
       try {
-        const voterHash = isPlausibleChoNeoRoomVoteToken(voterToken)
-          ? hashRoomVoteToken(voterToken, hashSecret)
-          : null;
+        const hasUser = isPlausibleChoNeoGuestUserId(voterUserId);
 
         return {
           body: buildChoNeoRoomVotePresentation({
             rows: await repository.listVotes(CHO_NEO_ROOM_VOTE_POLL_KEY),
-            selection: voterHash
+            selection: hasUser
               ? await repository.findSelection(
                   CHO_NEO_ROOM_VOTE_POLL_KEY,
-                  voterHash,
+                  voterUserId,
                 )
               : null,
           }),
@@ -78,9 +76,22 @@ export function createRoomVoteApplication({
         return unavailable("read-failed");
       }
     },
-    post: async (body: RoomVotePostBody): Promise<RoomVoteApplicationResponse> => {
+    post: async (
+      body: RoomVotePostBody,
+      voterUserId: string | null | undefined,
+    ): Promise<RoomVoteApplicationResponse> => {
       if (!hasServerSecret) {
         return unavailable("missing-server-secret");
+      }
+
+      if (!isPlausibleChoNeoGuestUserId(voterUserId)) {
+        return {
+          body: {
+            error: "Nhận Thẻ Chợ Neo trước khi bình chọn nha.",
+            reason: "missing-cho-neo-pass",
+          },
+          status: 400,
+        };
       }
 
       const validation = validatePostBody(body);
@@ -88,7 +99,24 @@ export function createRoomVoteApplication({
         return validation.response;
       }
 
-      const voterHash = hashRoomVoteToken(validation.voterToken, hashSecret);
+      try {
+        const hasActiveProfile =
+          await repository.findActiveGuestProfile(voterUserId);
+
+        if (!hasActiveProfile) {
+          return {
+            body: {
+              error: "Thẻ Chợ Neo chưa sẵn sàng để bình chọn.",
+              reason: "inactive-cho-neo-pass",
+            },
+            status: 400,
+          };
+        }
+      } catch {
+        return unavailable("profile-read-failed");
+      }
+
+      const voterHash = hashRoomVoteToken(voterUserId, hashSecret);
 
       if (rateLimit && isUpdateRateLimited(voterHash)) {
         return {
@@ -106,6 +134,7 @@ export function createRoomVoteApplication({
           optionalReason: sanitizeChoNeoRoomVoteReason(validation.rawReason),
           pollKey: CHO_NEO_ROOM_VOTE_POLL_KEY,
           voterHash,
+          voterUserId,
         });
 
         return {
@@ -113,7 +142,7 @@ export function createRoomVoteApplication({
             rows: await repository.listVotes(CHO_NEO_ROOM_VOTE_POLL_KEY),
             selection: await repository.findSelection(
               CHO_NEO_ROOM_VOTE_POLL_KEY,
-              voterHash,
+              voterUserId,
             ),
           }),
           status: 200,
@@ -136,7 +165,6 @@ function validatePostBody(body: RoomVotePostBody):
       ok: true;
       optionKey: ChoNeoRoomVoteOptionKey;
       rawReason: string;
-      voterToken: string;
     }
   | { ok: false; response: RoomVoteApplicationResponse } {
   if (!body || body.pollKey !== CHO_NEO_ROOM_VOTE_POLL_KEY) {
@@ -159,19 +187,6 @@ function validatePostBody(body: RoomVotePostBody):
         body: {
           error: "Chọn một phòng trong danh sách Chợ Neo nha.",
           reason: "invalid-option",
-        },
-        status: 400,
-      },
-    };
-  }
-
-  if (!isPlausibleChoNeoRoomVoteToken(body.voterToken)) {
-    return {
-      ok: false,
-      response: {
-        body: {
-          error: "Chưa nhận được mã bình chọn ẩn danh.",
-          reason: "invalid-token",
         },
         status: 400,
       },
@@ -211,8 +226,16 @@ function validatePostBody(body: RoomVotePostBody):
     ok: true,
     optionKey: body.optionKey,
     rawReason,
-    voterToken: body.voterToken,
   };
+}
+
+function isPlausibleChoNeoGuestUserId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  );
 }
 
 function isUpdateRateLimited(voterHash: string, now = Date.now()) {

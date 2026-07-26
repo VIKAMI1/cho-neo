@@ -1,5 +1,4 @@
 export const CHO_NEO_ROOM_VOTE_POLL_KEY = "cho-neo-room-vote-v1";
-export const CHO_NEO_ROOM_VOTE_TOKEN_KEY = "choNeoRoomVoteTokenV1";
 export const CHO_NEO_ROOM_VOTE_OPEN_EVENT = "cho-neo:open-room-vote";
 export const CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH = 280;
 export const CHO_NEO_ROOM_VOTE_PUBLIC_RESULTS_THRESHOLD = 10;
@@ -126,32 +125,6 @@ export function isChoNeoRoomVoteReasonUnsafe(value: string) {
     /\b(?:https?:\/\/|www\.)\S+/i.test(value) ||
     /\b(?:javascript:|data:text\/html|<script)\b/i.test(value)
   );
-}
-
-export function getOrCreateChoNeoRoomVoteToken() {
-  if (typeof window === "undefined") return "server";
-
-  try {
-    const existing = window.localStorage.getItem(CHO_NEO_ROOM_VOTE_TOKEN_KEY);
-    if (existing && isPlausibleChoNeoRoomVoteToken(existing)) return existing;
-
-    const next =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `cho-neo-room-vote-${Date.now()}-${Math.random()
-            .toString(36)
-            .slice(2)}`;
-    window.localStorage.setItem(CHO_NEO_ROOM_VOTE_TOKEN_KEY, next);
-    return next;
-  } catch {
-    return "storage-restricted";
-  }
-}
-
-export function isPlausibleChoNeoRoomVoteToken(
-  value: unknown,
-): value is string {
-  return typeof value === "string" && value.length >= 16 && value.length <= 160;
 }
 
 export function buildChoNeoRoomVotePresentation({

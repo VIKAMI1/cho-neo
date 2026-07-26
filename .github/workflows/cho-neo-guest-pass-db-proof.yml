@@ -1,0 +1,58 @@
+name: Chợ Neo Guest Pass DB Proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/cho-neo-guest-pass-v1
+
+permissions:
+  contents: read
+
+jobs:
+  local-supabase-rls-proof:
+    name: Local Supabase migration and RLS proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --package-lock=false --ignore-scripts --no-audit --no-fund
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.48.3
+
+      - name: Show local tool versions
+        run: |
+          node --version
+          npm --version
+          supabase --version
+
+      - name: Start disposable local Supabase stack
+        run: >
+          supabase start
+          --exclude realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+          >/dev/null
+
+      - name: Run guest-pass migration and RLS proof
+        run: node scripts/test-cho-neo-guest-pass-migration.mjs
+
+      - name: Stop disposable local Supabase stack
+        if: always()
+        run: supabase stop --no-backup >/dev/null || true
