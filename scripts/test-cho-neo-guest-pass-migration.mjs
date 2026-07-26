@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 
 const pollKey = "cho-neo-room-vote-v1";
@@ -22,6 +22,7 @@ const lifecycle = {
 };
 const policyAudit = [];
 const actorProof = [];
+const require = createRequire(import.meta.url);
 const { repository, service } = await importRoomVoteApplicationModules();
 
 function runSupabase(args) {
@@ -767,49 +768,18 @@ function gossipRequest(body, headers = {}) {
 }
 
 async function importGossipRoute() {
-  const tempDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), "cho-neo-gossip-route-tests-"),
+  const jiti = require("jiti")(path.join(process.cwd(), "scripts/test-cho-neo-guest-pass-migration.mjs"), {
+    alias: {
+      "@": path.join(process.cwd(), "src"),
+    },
+  });
+
+  return jiti(
+    path.join(
+      process.cwd(),
+      "src/app/api/cho-neo/gossip/front-counter/messages/route.ts",
+    ),
   );
-  const routePath = path.join(
-    process.cwd(),
-    "src/app/api/cho-neo/gossip/front-counter/messages/route.ts",
-  );
-  let source = fs.readFileSync(routePath, "utf8");
-  source = source
-    .replace(
-      'import { createClient } from "@supabase/supabase-js";',
-      `import { createClient } from ${JSON.stringify(import.meta.resolve("@supabase/supabase-js"))};`,
-    )
-    .replace(
-      'import { NextResponse } from "next/server";',
-      `const NextResponse = {
-  json(body, init) {
-    return new Response(JSON.stringify(body), {
-      status: init?.status ?? 200,
-      headers: init?.headers ?? { "content-type": "application/json" },
-    });
-  },
-};`,
-    )
-    .replace(
-      'from "@/lib/cho-neo/avatar-identity"',
-      `from ${JSON.stringify(pathToFileURL(path.join(process.cwd(), "src/lib/cho-neo/avatar-identity.ts")).href)}`,
-    )
-    .replace(
-      'from "@/lib/cho-neo/env-flags"',
-      `from ${JSON.stringify(pathToFileURL(path.join(process.cwd(), "src/lib/cho-neo/env-flags.ts")).href)}`,
-    )
-    .replace(
-      'from "@/lib/cho-neo/guest-pass"',
-      `from ${JSON.stringify(pathToFileURL(path.join(process.cwd(), "src/lib/cho-neo/guest-pass.ts")).href)}`,
-    )
-    .replace(
-      'from "@/lib/cho-neo/gossip-front-counter"',
-      `from ${JSON.stringify(pathToFileURL(path.join(process.cwd(), "src/lib/cho-neo/gossip-front-counter.ts")).href)}`,
-    );
-  const tempRoutePath = path.join(tempDir, "gossip-route.ts");
-  fs.writeFileSync(tempRoutePath, source);
-  return import(tempRoutePath);
 }
 
 async function importRoomVoteApplicationModules() {
