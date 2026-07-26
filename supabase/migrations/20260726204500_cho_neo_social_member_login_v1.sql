@@ -59,14 +59,26 @@ alter table public.cho_neo_member_profiles
   add column if not exists updated_at timestamptz not null default now(),
   add column if not exists last_seen_at timestamptz not null default now();
 
-update public.cho_neo_member_profiles
-set membership_status = case
-  when status = 'active' then 'pending'
-  when status = 'banned' then 'suspended'
-  when status = 'suspended' then 'suspended'
-  else membership_status
-end
-where to_jsonb(public.cho_neo_member_profiles) ? 'status';
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'cho_neo_member_profiles'
+      and column_name = 'status'
+  ) then
+    execute $sql$
+      update public.cho_neo_member_profiles as member
+      set membership_status = case
+        when member.status = 'active' then 'pending'
+        when member.status = 'banned' then 'suspended'
+        when member.status = 'suspended' then 'suspended'
+        else member.membership_status
+      end
+    $sql$;
+  end if;
+end $$;
 
 create table if not exists public.cho_neo_member_invitations (
   id uuid primary key default gen_random_uuid(),
