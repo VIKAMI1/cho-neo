@@ -125,8 +125,11 @@ test("Danh sách nhạc Chợ Neo lives in the shared circular button panel", ()
   assert.match(player, /selectAdjacentTrack\('next'\)/);
   assert.match(player, /onClick=\{toggleMusic\}/);
   assert.match(player, /Đang phát/);
-  assert.match(player, /Tạm dừng/);
-  assert.match(player, /Phát/);
+  assert.match(player, /⏮/);
+  assert.match(player, /▶/);
+  assert.match(player, /Ⅱ/);
+  assert.match(player, /⏭/);
+  assert.match(player, /className=\{isTrackPlaying \? 'theme-song-action playing' : 'theme-song-action'\}/);
   assert.doesNotMatch(player, /<select/);
 });
 
@@ -140,6 +143,7 @@ test("Chợ Neo keeps one shared layout-level player and no autoplay", () => {
   assert.match(player, /CHO_NEO_MUSIC_SELECTED_TRACK_KEY/);
   assert.match(player, /CHO_NEO_MUSIC_VOLUME_KEY/);
   assert.match(player, /preload="metadata"/);
+  assert.doesNotMatch(player, /<audio[^>]*loop/);
   assert.equal(player.includes("autoPlay"), false);
 });
 
@@ -161,9 +165,32 @@ test("production public music folder contains only the 17 referenced V1 tracks",
 });
 
 test("Chợ Neo playback behavior preserves position on pause and restarts on song change", () => {
-  assert.match(player, /function pauseMusic\(\) \{\n    audioRef\.current\?\.pause\(\);\n    setIsPlaying\(false\);/);
+  assert.match(player, /function pauseMusic\(\) \{\n    stopAutoAdvance\(\);\n    audioRef\.current\?\.pause\(\);\n    setIsPlaying\(false\);/);
   assert.match(player, /audio\.currentTime = 0/);
   assert.match(player, /\}, \[selectedTrack\.src\]\)/);
   assert.match(player, /\}, \[isPlaying, portalTarget\]\)/);
   assert.match(player, /Không mở được:/);
+});
+
+test("Chợ Neo shared player advances naturally and guards automatic failure loops", () => {
+  assert.match(player, /onEnded=\{handleAudioEnded\}/);
+  assert.match(player, /function handleAudioEnded\(\) \{\n    advanceToNextTrack\(true\);/);
+  assert.match(player, /onError=\{handleAudioError\}/);
+  assert.match(player, /getAdjacentChoNeoMusicTrack\(latestTrackRef\.current\.id, 'next'\)/);
+  assert.match(player, /autoAdvanceRef = useRef\(\{ active: false, skips: 0 \}\)/);
+  assert.match(player, /autoAdvanceRef\.current\.skips >= 1/);
+  assert.match(player, /Đang thử bài kế tiếp/);
+  assert.match(player, /stopAutoAdvance\(\);\n    audioRef\.current\?\.pause\(\);/);
+});
+
+test("compact music list uses icon controls instead of repeated action text", () => {
+  assert.match(player, /className="theme-control-icon-button/);
+  assert.match(player, /title="Bài trước"/);
+  assert.match(player, /title="Bài kế tiếp"/);
+  assert.match(player, /className=\{isTrackPlaying \? 'theme-song-action playing' : 'theme-song-action'\}/);
+  assert.match(player, /<strong title=\{track\.title\}>\{track\.title\}<\/strong>/);
+  assert.match(player, /white-space: nowrap/);
+  assert.match(player, /text-overflow: ellipsis/);
+  assert.doesNotMatch(player, />Phát<\/button>/);
+  assert.doesNotMatch(player, />Tạm dừng<\/button>/);
 });

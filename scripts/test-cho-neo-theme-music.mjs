@@ -56,6 +56,7 @@ test("Chợ Neo theme player preserves existing central playlist entries", () =>
 
 test("Chợ Neo theme player keeps user-initiated playback behavior", () => {
   assert.match(player, /preload="metadata"/);
+  assert.doesNotMatch(player, /<audio[^>]*loop/);
   assert.match(player, /aria-pressed=\{isPlaying\}/);
   assert.match(player, /audio\.volume = volume/);
   assert.match(player, /setIsPlaying\(false\)/);
@@ -94,6 +95,11 @@ test("Chợ Neo shared music control opens the canonical 17-song panel", () => {
   assert.match(player, /enabledChoNeoMusicTracks\.map/);
   assert.match(player, /aria-current=\{isSelected \? 'true' : undefined\}/);
   assert.match(player, /onClick=\{\(\) => selectTrack\(track\.id, true\)\}/);
+  assert.match(player, /onEnded=\{handleAudioEnded\}/);
+  assert.match(player, /advanceToNextTrack\(true\)/);
+  assert.match(player, /className="theme-control-icon-button/);
+  assert.match(player, /className=\{isTrackPlaying \? 'theme-song-action playing' : 'theme-song-action'\}/);
+  assert.doesNotMatch(player, />Phát<\/button>/);
   assert.doesNotMatch(player, /<select/);
   assert.match(player, /CHO_NEO_MUSIC_COMMAND_EVENT/);
   assert.match(player, /getAdjacentChoNeoMusicTrack/);
