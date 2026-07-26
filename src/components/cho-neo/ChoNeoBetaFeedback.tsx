@@ -10,6 +10,17 @@ import {
   inferChoNeoRoomFromPath,
   trackChoNeoBetaEvent,
 } from "@/lib/cho-neo/beta-analytics";
+import {
+  CHO_NEO_ROOM_VOTE_OPEN_EVENT,
+  CHO_NEO_ROOM_VOTE_POLL_KEY,
+  CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH,
+  CHO_NEO_ROOM_VOTE_OPTIONS,
+  getOrCreateChoNeoRoomVoteToken,
+  sanitizeChoNeoRoomVoteReason,
+  type ChoNeoRoomVoteOptionKey,
+  type ChoNeoRoomVotePresentation,
+  type ChoNeoRoomVotePublicResult,
+} from "@/lib/cho-neo/room-vote";
 
 type RatingQuestion = {
   id: string;
@@ -138,6 +149,31 @@ export function ChoNeoBetaFeedback() {
   useEffect(() => {
     setIncludeMusic(pathname === "/cho-neo" || hasChoNeoMusicActivity());
   }, [pathname, isOpen]);
+
+  useEffect(() => {
+    function handleOpenRoomVote() {
+      setIsOpen(true);
+      setStatus("idle");
+      trackChoNeoBetaEvent("feedback_opened", {
+        room,
+        details: { section: "room-vote" },
+      });
+      window.setTimeout(() => {
+        document
+          .getElementById("cho-neo-room-vote")
+          ?.scrollIntoView({ block: "start", behavior: "smooth" });
+      }, 120);
+    }
+
+    window.addEventListener(CHO_NEO_ROOM_VOTE_OPEN_EVENT, handleOpenRoomVote);
+
+    return () => {
+      window.removeEventListener(
+        CHO_NEO_ROOM_VOTE_OPEN_EVENT,
+        handleOpenRoomVote,
+      );
+    };
+  }, [room]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -273,6 +309,8 @@ export function ChoNeoBetaFeedback() {
                     onAnswer={setAnswers}
                     questions={CORE_QUESTIONS}
                   />
+
+                  <ChoNeoRoomVoteSection />
 
                   {roomQuestions.rating.length > 0 ||
                   roomQuestions.options.length > 0 ? (
@@ -575,6 +613,7 @@ export function ChoNeoBetaFeedback() {
         }
 
         .feedback-question,
+        .room-vote-card,
         .feedback-textarea,
         .feedback-contact {
           display: grid;
@@ -583,6 +622,209 @@ export function ChoNeoBetaFeedback() {
           border: 1px solid rgba(120, 53, 15, 0.11);
           border-radius: 16px;
           background: rgba(255, 255, 255, 0.52);
+        }
+
+        .room-vote-section {
+          scroll-margin-top: 16px;
+        }
+
+        .room-vote-intro {
+          margin: 0;
+          color: rgba(67, 20, 7, 0.72);
+          font-size: 13px;
+          font-weight: 750;
+          line-height: 1.4;
+        }
+
+        .room-vote-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .room-vote-card {
+          align-content: start;
+          gap: 9px;
+          min-height: 0;
+          border-radius: 14px;
+        }
+
+        .room-vote-card.selected {
+          border-color: rgba(154, 52, 18, 0.44);
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(255, 255, 255, 0.62));
+          box-shadow: inset 0 0 0 1px rgba(154, 52, 18, 0.16);
+        }
+
+        .room-vote-card header {
+          display: grid;
+          gap: 2px;
+        }
+
+        .room-vote-card strong {
+          color: #431407;
+          font-size: 15px;
+          font-weight: 950;
+          line-height: 1.18;
+        }
+
+        .room-vote-card small {
+          color: rgba(67, 20, 7, 0.62);
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .room-vote-card p {
+          margin: 0;
+          color: rgba(67, 20, 7, 0.76);
+          font-size: 12.5px;
+          font-weight: 730;
+          line-height: 1.35;
+        }
+
+        .room-vote-card footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .room-vote-card button,
+        .room-vote-change,
+        .room-vote-retry,
+        .room-vote-reason-actions button {
+          min-height: 36px;
+          border: 1px solid rgba(120, 53, 15, 0.16);
+          border-radius: 999px;
+          color: #7c2d12;
+          background: rgba(255, 247, 237, 0.86);
+          cursor: pointer;
+          font: inherit;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .room-vote-card button {
+          padding: 7px 10px;
+        }
+
+        .room-vote-card button.selected {
+          color: #fff7ed;
+          background: #9a3412;
+        }
+
+        .room-vote-card button:disabled,
+        .room-vote-reason-actions button:disabled {
+          cursor: default;
+          opacity: 0.68;
+        }
+
+        .room-vote-result {
+          color: rgba(67, 20, 7, 0.62);
+          font-size: 11px;
+          font-weight: 900;
+          white-space: nowrap;
+        }
+
+        .room-vote-attention {
+          display: inline-flex;
+          width: fit-content;
+          padding: 3px 7px;
+          border-radius: 999px;
+          color: #7c2d12;
+          background: rgba(251, 191, 36, 0.2);
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .room-vote-selection {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 10px;
+          border: 1px solid rgba(154, 52, 18, 0.16);
+          border-radius: 14px;
+          background: rgba(154, 52, 18, 0.07);
+        }
+
+        .room-vote-selection p,
+        .room-vote-disclosure p,
+        .room-vote-status {
+          margin: 0;
+          color: rgba(67, 20, 7, 0.76);
+          font-size: 12.5px;
+          font-weight: 800;
+          line-height: 1.35;
+        }
+
+        .room-vote-selection strong {
+          color: #7c2d12;
+        }
+
+        .room-vote-change,
+        .room-vote-retry {
+          flex: 0 0 auto;
+          padding: 7px 10px;
+        }
+
+        .room-vote-reason {
+          display: grid;
+          gap: 7px;
+          padding: 10px;
+          border: 1px solid rgba(120, 53, 15, 0.11);
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.48);
+        }
+
+        .room-vote-reason span {
+          color: #431407;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .room-vote-reason textarea {
+          width: 100%;
+          min-height: 64px;
+          padding: 9px;
+          border: 1px solid rgba(120, 53, 15, 0.16);
+          border-radius: 12px;
+          color: #431407;
+          background: rgba(255, 247, 237, 0.9);
+          font: inherit;
+          font-size: 13px;
+          resize: vertical;
+        }
+
+        .room-vote-reason-meta,
+        .room-vote-total {
+          color: rgba(67, 20, 7, 0.58);
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .room-vote-reason-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .room-vote-reason-actions button {
+          padding: 7px 11px;
+        }
+
+        .room-vote-disclosure {
+          display: grid;
+          gap: 4px;
+          padding: 10px;
+          border: 1px dashed rgba(120, 53, 15, 0.22);
+          border-radius: 14px;
+          background: rgba(255, 247, 237, 0.5);
+        }
+
+        .room-vote-status.error {
+          color: #991b1b;
         }
 
         .feedback-question p,
@@ -721,6 +963,15 @@ export function ChoNeoBetaFeedback() {
           .feedback-scroll {
             padding: 12px 13px 96px;
           }
+
+          .room-vote-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .room-vote-selection {
+            align-items: flex-start;
+            flex-direction: column;
+          }
         }
 
         @media (max-height: 700px) and (min-width: 641px) {
@@ -734,6 +985,267 @@ export function ChoNeoBetaFeedback() {
         }
       `}</style>
     </>
+  );
+}
+
+function ChoNeoRoomVoteSection() {
+  const [presentation, setPresentation] =
+    useState<ChoNeoRoomVotePresentation | null>(null);
+  const [loadStatus, setLoadStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "updated" | "error"
+  >("idle");
+  const [reason, setReason] = useState("");
+  const [reasonNotice, setReasonNotice] = useState("");
+
+  useEffect(() => {
+    void loadVotePresentation();
+  }, []);
+
+  const selectedOptionKey = presentation?.selection?.optionKey ?? null;
+
+  async function loadVotePresentation() {
+    setLoadStatus("loading");
+
+    try {
+      const voterToken = getOrCreateChoNeoRoomVoteToken();
+      const response = await fetch("/api/cho-neo/room-vote", {
+        headers: {
+          "x-cho-neo-room-vote-token": voterToken,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Room vote load failed");
+      }
+
+      const next = (await response.json()) as ChoNeoRoomVotePresentation;
+      setPresentation(next);
+      setReason(next.selection?.optionalReason ?? "");
+      setLoadStatus("ready");
+    } catch {
+      setLoadStatus("error");
+    }
+  }
+
+  async function submitVote(
+    optionKey: ChoNeoRoomVoteOptionKey,
+    nextReason = reason,
+  ) {
+    const wasSelected = Boolean(selectedOptionKey);
+    setSaveStatus("saving");
+    setReasonNotice("");
+
+    try {
+      const response = await fetch("/api/cho-neo/room-vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pollKey: CHO_NEO_ROOM_VOTE_POLL_KEY,
+          optionKey,
+          voterToken: getOrCreateChoNeoRoomVoteToken(),
+          optionalReason: sanitizeChoNeoRoomVoteReason(nextReason),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Room vote save failed");
+      }
+
+      const next = (await response.json()) as ChoNeoRoomVotePresentation;
+      setPresentation(next);
+      setReason(next.selection?.optionalReason ?? "");
+      setSaveStatus(wasSelected ? "updated" : "saved");
+    } catch {
+      setSaveStatus("error");
+    }
+  }
+
+  async function saveReason() {
+    if (!selectedOptionKey) return;
+    await submitVote(selectedOptionKey, reason);
+    setReasonNotice("Đã lưu lý do riêng tư.");
+  }
+
+  async function skipReason() {
+    if (!selectedOptionKey) return;
+    setReason("");
+    await submitVote(selectedOptionKey, "");
+    setReasonNotice("Đã bỏ qua lý do.");
+  }
+
+  function focusOtherChoices() {
+    document.querySelector<HTMLButtonElement>(".room-vote-card:not(.selected) button")?.focus();
+  }
+
+  return (
+    <section
+      className="feedback-section room-vote-section"
+      id="cho-neo-room-vote"
+    >
+      <h3>Góc Bình Chọn — Mở gì trước?</h3>
+      <p className="room-vote-intro">
+        Chọn một phòng bạn muốn Chợ Neo ưu tiên nghiên cứu tiếp. Không cần đăng
+        nhập hay để lại liên hệ.
+      </p>
+
+      {loadStatus === "error" ? (
+        <div className="room-vote-disclosure" role="status">
+          <p>Chưa lấy được bình chọn. Chợ Neo không tự bịa số.</p>
+          <button
+            className="room-vote-retry"
+            onClick={loadVotePresentation}
+            type="button"
+          >
+            Thử lại
+          </button>
+        </div>
+      ) : null}
+
+      <div className="room-vote-grid">
+        {CHO_NEO_ROOM_VOTE_OPTIONS.map((option) => {
+          const isSelected = option.key === selectedOptionKey;
+          const result = presentation?.results.find(
+            (item) => item.key === option.key,
+          );
+
+          return (
+            <article
+              aria-current={isSelected ? "true" : undefined}
+              className={isSelected ? "room-vote-card selected" : "room-vote-card"}
+              key={option.key}
+            >
+              <header>
+                <strong>{option.title}</strong>
+                <small>{option.englishTitle}</small>
+              </header>
+              <p>{option.description}</p>
+              {result?.attentionLabel ? (
+                <span className="room-vote-attention">{result.attentionLabel}</span>
+              ) : null}
+              <footer>
+                <RoomVoteResult result={result} />
+                <button
+                  aria-label={
+                    isSelected
+                      ? `Đã chọn ${option.title}`
+                      : `Tôi muốn phòng ${option.title}`
+                  }
+                  className={isSelected ? "selected" : ""}
+                  disabled={isSelected || saveStatus === "saving"}
+                  onClick={() => submitVote(option.key)}
+                  type="button"
+                >
+                  {isSelected ? "Đã chọn" : "Tôi muốn phòng này"}
+                </button>
+              </footer>
+            </article>
+          );
+        })}
+      </div>
+
+      {presentation?.selection ? (
+        <div className="room-vote-selection" role="status">
+          <p>
+            Bạn đã chọn: <strong>{presentation.selection.title}</strong>
+          </p>
+          <button
+            className="room-vote-change"
+            onClick={focusOtherChoices}
+            type="button"
+          >
+            Đổi lựa chọn
+          </button>
+        </div>
+      ) : null}
+
+      {presentation?.selection ? (
+        <label className="room-vote-reason">
+          <span>Vì sao bạn muốn mở phòng này?</span>
+          <textarea
+            aria-describedby="room-vote-reason-meta"
+            maxLength={CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH}
+            onChange={(event) => {
+              setReason(event.target.value);
+              setReasonNotice("");
+            }}
+            value={reason}
+          />
+          <span className="room-vote-reason-meta" id="room-vote-reason-meta">
+            Riêng tư, tối đa {CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH} ký tự, không
+            nhận link hay HTML. {reason.length}/{CHO_NEO_ROOM_VOTE_REASON_MAX_LENGTH}
+          </span>
+          <span className="room-vote-reason-actions">
+            <button
+              disabled={saveStatus === "saving"}
+              onClick={saveReason}
+              type="button"
+            >
+              Lưu lý do
+            </button>
+            <button
+              disabled={saveStatus === "saving"}
+              onClick={skipReason}
+              type="button"
+            >
+              Bỏ qua
+            </button>
+          </span>
+        </label>
+      ) : null}
+
+      <div className="room-vote-disclosure">
+        {presentation?.disclosure.state === "public" ? (
+          <span className="room-vote-total">
+            Tổng lượt tham gia: {presentation.disclosure.totalVotes}
+          </span>
+        ) : (
+          <span className="room-vote-total">Đang lấy ý kiến</span>
+        )}
+        <p>Phiếu bình chọn giúp Chợ Neo chọn hướng phát triển tiếp theo.</p>
+        <p>Kết quả không phải cam kết mở phòng ngay.</p>
+      </div>
+
+      {saveStatus === "saved" ? (
+        <p className="room-vote-status" role="status">
+          Đã ghi nhận lựa chọn của bạn.
+        </p>
+      ) : saveStatus === "updated" ? (
+        <p className="room-vote-status" role="status">
+          Đã cập nhật lựa chọn.
+        </p>
+      ) : saveStatus === "error" ? (
+        <p className="room-vote-status error" role="alert">
+          Chưa lưu được bình chọn. Thử lại giúp Chợ Neo một nhịp nha.
+        </p>
+      ) : loadStatus === "loading" ? (
+        <p className="room-vote-status" role="status">
+          Đang lấy ý kiến...
+        </p>
+      ) : reasonNotice ? (
+        <p className="room-vote-status" role="status">
+          {reasonNotice}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function RoomVoteResult({
+  result,
+}: {
+  result?: ChoNeoRoomVotePublicResult;
+}) {
+  if (!result || result.statusLabel) {
+    return <span className="room-vote-result">Đang lấy ý kiến</span>;
+  }
+
+  return (
+    <span className="room-vote-result">
+      Hạng {result.rank} · {result.percentage}%
+    </span>
   );
 }
 

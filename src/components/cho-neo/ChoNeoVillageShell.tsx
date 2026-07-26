@@ -6,8 +6,16 @@ import { ChoNeoTimeAmbience, ChoNeoTimeMoodLabel } from "./ChoNeoTimeAmbience";
 import { ChoNeoVillageMap } from "./ChoNeoVillageMap";
 import { choNeoRooms } from "@/lib/cho-neo/rooms";
 import { trackChoNeoBetaEvent } from "@/lib/cho-neo/beta-analytics";
+import { CHO_NEO_ROOM_VOTE_OPEN_EVENT } from "@/lib/cho-neo/room-vote";
 
 export function ChoNeoVillageShell() {
+  function openRoomVote() {
+    window.dispatchEvent(new CustomEvent(CHO_NEO_ROOM_VOTE_OPEN_EVENT));
+    trackChoNeoBetaEvent("feedback_opened", {
+      details: { source: "village-guide-room-vote-shortcut" },
+    });
+  }
+
   return (
     <main className="cho-neo-village-shell">
       <ChoNeoTimeAmbience />
@@ -76,6 +84,14 @@ export function ChoNeoVillageShell() {
               <span>Hướng Dẫn Làng</span>
               <strong>Village Guide</strong>
             </div>
+
+            <button
+              className="guide-vote-shortcut"
+              onClick={openRoomVote}
+              type="button"
+            >
+              Bình chọn mở phòng
+            </button>
 
             <div className="guide-list">
               {choNeoRooms.map((room, index) => (
@@ -474,6 +490,30 @@ export function ChoNeoVillageShell() {
           display: grid;
           gap: 5px;
           margin-top: 11px;
+        }
+
+        .guide-vote-shortcut {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          min-height: 34px;
+          margin-top: 10px;
+          border: 1px solid rgba(248, 211, 145, 0.22);
+          border-radius: 12px;
+          color: #ffe7b7;
+          background: rgba(248, 211, 145, 0.08);
+          cursor: pointer;
+          font: inherit;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .guide-vote-shortcut:hover,
+        .guide-vote-shortcut:focus-visible {
+          border-color: rgba(248, 211, 145, 0.46);
+          background: rgba(248, 211, 145, 0.14);
+          outline: none;
         }
 
         .guide-row {
