@@ -38,8 +38,12 @@ export default function AuthCallbackClient() {
           url.searchParams.has("refresh_token");
 
         if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(url.href);
+          const { data, error } =
+            await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
+          if (!data.session?.user) {
+            throw new Error("oauth-session-missing");
+          }
         } else if (hasVisibleToken) {
           cleanCallbackUrl(url);
           setMsg("Đường đăng nhập cũ không dùng được. Mở Google lại giúp Chợ Neo nha.");

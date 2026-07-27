@@ -108,10 +108,16 @@ test("provider buttons fail closed behind independent flags", () => {
 test("return destinations are local and callback exchanges the PKCE code", () => {
   assert.match(loginClient, /getSafeReturnTo/);
   assert.equal(memberModule.getSafeReturnTo?.("//evil.test") ?? "/cho-neo", "/cho-neo");
-  assert.match(authCallback, /exchangeCodeForSession\(url\.href\)/);
   assert.match(authCallback, /const code = url\.searchParams\.get\("code"\)/);
+  assert.match(authCallback, /exchangeCodeForSession\(code\)/);
+  assert.doesNotMatch(authCallback, /exchangeCodeForSession\(url\.href\)/);
+  assert.match(authCallback, /const \{ data, error \} =\s+await supabase\.auth\.exchangeCodeForSession\(code\)/);
+  assert.match(authCallback, /oauth-session-missing/);
+  assert.match(authCallback, /setTimeout\(\(\) => router\.replace\(`\/login\?next=\$\{encodeURIComponent\(next\)\}`\), 1200\)/);
   assert.match(authCallback, /cleanCallbackUrl\(url\)/);
   assert.match(authCallback, /window\.history\.replaceState\(\{\}, "", `\$\{url\.origin\}\$\{url\.pathname\}`\)/);
+  assert.match(authCallback, /url\.hash\.includes\("access_token"\)/);
+  assert.match(authCallback, /url\.hash\.includes\("refresh_token"\)/);
   assert.match(authCallback, /didRunRef/);
   assert.match(authCallback, /const next = getSafeReturnTo\(search\.get\("next"\)\)/);
   assert.match(authCallback, /router\.replace\(next\)/);
