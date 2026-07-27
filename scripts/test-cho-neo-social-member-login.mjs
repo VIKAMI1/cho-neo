@@ -8,6 +8,7 @@ import test from "node:test";
 const repoRoot = process.cwd();
 const loginPagePath = path.join(repoRoot, "src/app/login/page.tsx");
 const loginClientPath = path.join(repoRoot, "src/app/login/LoginClient.tsx");
+const supabaseBrowserPath = path.join(repoRoot, "src/lib/supabase-browser.ts");
 const authCallbackPath = path.join(
   repoRoot,
   "src/app/auth/callback/AuthCallbackClient.tsx",
@@ -49,6 +50,7 @@ const inviteScriptPath = path.join(
 
 const loginPage = fs.readFileSync(loginPagePath, "utf8");
 const loginClient = fs.readFileSync(loginClientPath, "utf8");
+const supabaseBrowser = fs.readFileSync(supabaseBrowserPath, "utf8");
 const authCallback = fs.readFileSync(authCallbackPath, "utf8");
 const member = fs.readFileSync(memberPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
@@ -77,6 +79,7 @@ test("OAuth providers use Supabase PKCE callback, basic scopes and feature flags
   assert.match(loginClient, /signInWithOAuth\(\{/);
   assert.match(loginClient, /provider,/);
   assert.match(loginClient, /redirectTo,/);
+  assert.match(loginClient, /window\.location\.origin\}\/auth\/callback\?next=/);
   assert.match(loginClient, /google: "openid email profile"/);
   assert.match(loginClient, /facebook: "public_profile email"/);
   assert.match(loginClient, /scopes: CHO_NEO_OAUTH_SCOPES\[provider\]/);
@@ -84,6 +87,13 @@ test("OAuth providers use Supabase PKCE callback, basic scopes and feature flags
   assert.match(loginClient, /NEXT_PUBLIC_CHO_NEO_FACEBOOK_LOGIN_ENABLED === "true"/);
   assert.doesNotMatch(loginClient, /friends|contacts|pages|business|publish|posts/i);
   assert.doesNotMatch(loginClient, /provider_token|provider_refresh_token|access_token/);
+});
+
+test("Supabase browser client uses one PKCE session-completion path", () => {
+  assert.match(supabaseBrowser, /flowType: "pkce"/);
+  assert.match(supabaseBrowser, /detectSessionInUrl: false/);
+  assert.match(supabaseBrowser, /persistSession: true/);
+  assert.match(supabaseBrowser, /autoRefreshToken: true/);
 });
 
 test("provider buttons fail closed behind independent flags", () => {
@@ -99,8 +109,14 @@ test("return destinations are local and callback exchanges the PKCE code", () =>
   assert.match(loginClient, /getSafeReturnTo/);
   assert.equal(memberModule.getSafeReturnTo?.("//evil.test") ?? "/cho-neo", "/cho-neo");
   assert.match(authCallback, /exchangeCodeForSession\(url\.href\)/);
-  assert.match(authCallback, /getSafeReturnTo\(next\)/);
+  assert.match(authCallback, /const code = url\.searchParams\.get\("code"\)/);
+  assert.match(authCallback, /cleanCallbackUrl\(url\)/);
+  assert.match(authCallback, /window\.history\.replaceState\(\{\}, "", `\$\{url\.origin\}\$\{url\.pathname\}`\)/);
+  assert.match(authCallback, /didRunRef/);
+  assert.match(authCallback, /const next = getSafeReturnTo\(search\.get\("next"\)\)/);
+  assert.match(authCallback, /router\.replace\(next\)/);
   assert.doesNotMatch(authCallback, /localhost:3000/);
+  assert.doesNotMatch(authCallback, /getSessionFromUrl/);
 });
 
 test("ordinary public header says Vào Chợ and removes Guest Pass language", () => {
@@ -125,6 +141,12 @@ test("first-time OAuth users complete invitation-based nail membership", () => {
   assert.match(provider, /hasResumedRef/);
   assert.match(provider, /pendingActionRef\.current = null/);
   assert.match(provider, /await action\(\)/);
+  assert.match(provider, /setIsMemberVerificationOpen\(!isVerifiedChoNeoMemberProfile\(nextProfile\)\)/);
+  assert.match(provider, /rememberPendingMemberAction\(\)/);
+  assert.match(provider, /forgetPendingMemberAction\(\)/);
+  assert.match(provider, /profile\?\.status === "suspended"/);
+  assert.match(provider, /profile\?\.status === "rejected"/);
+  assert.match(provider, /Chưa vào khu thành viên được/);
 });
 
 test("member model has approved roles, statuses and verified-member helper", () => {

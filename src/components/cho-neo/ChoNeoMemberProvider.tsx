@@ -28,6 +28,7 @@ import {
 } from "react";
 
 type PendingAction = () => void | Promise<void>;
+const CHO_NEO_MEMBER_PENDING_ACTION_KEY = "cho-neo:member-pending-action";
 
 type ChoNeoMemberContextValue = {
   ensureChoNeoMember: (action: PendingAction) => Promise<void>;
@@ -97,6 +98,7 @@ export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
     const nextProfile = await loadChoNeoMemberProfile(supabase, nextSession.user.id);
     setProfile(nextProfile);
     setStatus(isVerifiedChoNeoMemberProfile(nextProfile) ? "ready" : "public");
+    setIsMemberVerificationOpen(!isVerifiedChoNeoMemberProfile(nextProfile));
 
     if (nextProfile) {
       window.dispatchEvent(
@@ -135,6 +137,7 @@ export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
       pendingActionRef.current = action;
       hasResumedRef.current = false;
       if (!session?.user) {
+        rememberPendingMemberAction();
         const returnTo = encodeURIComponent(
           `${window.location.pathname}${window.location.search}`,
         );
@@ -152,6 +155,7 @@ export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
       setProfile(nextProfile);
       setStatus("ready");
       setIsMemberVerificationOpen(false);
+      forgetPendingMemberAction();
       window.dispatchEvent(
         new CustomEvent(CHO_NEO_MEMBER_PROFILE_EVENT, {
           detail: nextProfile,
@@ -187,6 +191,7 @@ export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
         onComplete={completeMembership}
         onClose={() => setIsMemberVerificationOpen(false)}
         open={isMemberVerificationOpen}
+        profile={profile}
         supabase={supabase}
       />
       <ChoNeoMemberProfileSheet
@@ -220,11 +225,13 @@ function ChoNeoMemberVerificationModal({
   onClose,
   onComplete,
   open,
+  profile,
   supabase,
 }: {
   onClose: () => void;
   onComplete: (profile: ChoNeoMemberProfile, session: Session) => Promise<void>;
   open: boolean;
+  profile: ChoNeoMemberProfile | null;
   supabase: SupabaseClient;
 }) {
   const [nickname, setNickname] = useState("");
@@ -316,6 +323,41 @@ function ChoNeoMemberVerificationModal({
   }
 
   if (!open) return null;
+
+  const isRestricted =
+    profile?.status === "suspended" || profile?.status === "rejected";
+
+  if (isRestricted) {
+    return (
+      <div aria-modal="true" className="cho-neo-member-overlay" role="dialog">
+        <button
+          aria-label="Đóng trạng thái thành viên"
+          className="cho-neo-member-backdrop"
+          onClick={onClose}
+          type="button"
+        />
+        <section className="cho-neo-member-card">
+          <header>
+            <div>
+              <h2>Chưa vào khu thành viên được</h2>
+              <p>
+                Trạng thái thành viên Chợ Neo hiện chưa cho phép bình chọn hoặc
+                đăng bài. Bạn vẫn có thể dạo các khu công khai.
+              </p>
+            </div>
+            <button aria-label="Đóng" onClick={onClose} type="button">
+              ×
+            </button>
+          </header>
+          <p className="cho-neo-member-message" role="status">
+            Hồ sơ này đang bị giới hạn. Liên hệ Chợ Neo nếu bạn nghĩ có nhầm
+            lẫn.
+          </p>
+        </section>
+        <ChoNeoMemberStyles />
+      </div>
+    );
+  }
 
   return (
     <div aria-modal="true" className="cho-neo-member-overlay" role="dialog">
@@ -412,6 +454,22 @@ function ChoNeoMemberVerificationModal({
       <ChoNeoMemberStyles />
     </div>
   );
+}
+
+function rememberPendingMemberAction() {
+  try {
+    window.sessionStorage.setItem(CHO_NEO_MEMBER_PENDING_ACTION_KEY, "1");
+  } catch {
+    // Storage can be unavailable in private modes; OAuth still proceeds.
+  }
+}
+
+function forgetPendingMemberAction() {
+  try {
+    window.sessionStorage.removeItem(CHO_NEO_MEMBER_PENDING_ACTION_KEY);
+  } catch {
+    // Nothing to clean up if storage is unavailable.
+  }
 }
 
 function ChoNeoMemberProfileSheet({
