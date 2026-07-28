@@ -13,6 +13,10 @@ const repairMigrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260727203000_repair_cho_neo_member_redemption.sql",
 );
+const upsertFixMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260727223000_fix_cho_neo_member_redemption_upsert.sql",
+);
 const workflowPath = path.join(
   repoRoot,
   ".github/workflows/cho-neo-social-member-db-proof.yml",
@@ -36,6 +40,7 @@ const inviteScriptPath = path.join(
 
 const migration = fs.readFileSync(migrationPath, "utf8");
 const repairMigration = fs.readFileSync(repairMigrationPath, "utf8");
+const upsertFixMigration = fs.readFileSync(upsertFixMigrationPath, "utf8");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
@@ -84,14 +89,19 @@ test("pending, suspended and rejected users cannot gain community write authorit
 test("invitation redemption is database-atomic and locks the invitation row", () => {
   assert.match(migration, /create or replace function public\.redeem_cho_neo_member_invitation/);
   assert.match(repairMigration, /create or replace function public\.redeem_cho_neo_member_invitation/);
+  assert.match(upsertFixMigration, /create or replace function public\.redeem_cho_neo_member_invitation/);
   assert.match(migration, /for update/);
   assert.match(repairMigration, /for update/);
+  assert.match(upsertFixMigration, /for update/);
   assert.match(migration, /update public\.cho_neo_member_invitations/);
   assert.match(repairMigration, /update public\.cho_neo_member_invitations/);
+  assert.match(upsertFixMigration, /update public\.cho_neo_member_invitations/);
   assert.match(migration, /insert into public\.cho_neo_member_profiles/);
   assert.match(repairMigration, /insert into public\.cho_neo_member_profiles/);
+  assert.match(upsertFixMigration, /insert into public\.cho_neo_member_profiles as member/);
   assert.match(migration, /on conflict \(user_id\) do update/);
   assert.match(repairMigration, /on conflict \(user_id\) do update/);
+  assert.match(upsertFixMigration, /on conflict \(user_id\) do update/);
   assert.match(migration, /raise exception 'invalid-invitation'/);
   assert.match(migration, /raise exception 'expired-invitation'/);
   assert.match(migration, /raise exception 'revoked-invitation'/);
@@ -101,8 +111,55 @@ test("invitation redemption is database-atomic and locks the invitation row", ()
   assert.match(repairMigration, /raise exception 'revoked-invitation'/);
   assert.match(repairMigration, /raise exception 'used-invitation'/);
   assert.match(repairMigration, /raise exception 'role-mismatch'/);
-  assert.match(repairMigration, /membership_status <> 'suspended'/);
-  assert.match(repairMigration, /membership_status <> 'rejected'/);
+  assert.match(upsertFixMigration, /raise exception 'invalid-invitation'/);
+  assert.match(upsertFixMigration, /raise exception 'expired-invitation'/);
+  assert.match(upsertFixMigration, /raise exception 'revoked-invitation'/);
+  assert.match(upsertFixMigration, /raise exception 'used-invitation'/);
+  assert.match(upsertFixMigration, /raise exception 'role-mismatch'/);
+  assert.match(upsertFixMigration, /membership_status not in \('suspended', 'rejected'\)/);
+  assert.match(upsertFixMigration, /security definer/);
+  assert.match(upsertFixMigration, /set search_path = public/);
+});
+
+test("redemption upsert repair uses a target alias inside ON CONFLICT", () => {
+  assert.match(
+    upsertFixMigration,
+    /insert into public\.cho_neo_member_profiles as member \(/,
+  );
+  assert.match(
+    upsertFixMigration,
+    /approved_at = coalesce\(member\.approved_at, excluded\.approved_at\)/,
+  );
+  assert.match(
+    upsertFixMigration,
+    /where member\.membership_status not in \('suspended', 'rejected'\)/,
+  );
+
+  const conflictBlock = upsertFixMigration.match(
+    /on conflict \(user_id\) do update([\s\S]*?)return query/,
+  )?.[1];
+  assert.ok(conflictBlock);
+  assert.doesNotMatch(conflictBlock, /public\.cho_neo_member_profiles\./);
+  assert.doesNotMatch(conflictBlock, /set\s+public\./i);
+});
+
+test("redemption upsert repair keeps successful and blocked redemption outcomes", () => {
+  assert.match(upsertFixMigration, /'verified_nail_member'/);
+  assert.match(upsertFixMigration, /status = case/);
+  assert.match(upsertFixMigration, /then 'redeemed'/);
+  assert.match(upsertFixMigration, /use_count = invitation_row\.use_count \+ 1/);
+  assert.match(upsertFixMigration, /redeemed_by_user_id = p_user_id/);
+  assert.match(upsertFixMigration, /where code_hash = p_code_hash/);
+  assert.match(upsertFixMigration, /invitation_row\.intended_role <> p_nail_role/);
+  assert.match(upsertFixMigration, /invitation_row\.expires_at <= now_value/);
+  assert.match(upsertFixMigration, /invitation_row\.status = 'revoked'/);
+  assert.match(upsertFixMigration, /invitation_row\.status <> 'issued'/);
+  assert.match(upsertFixMigration, /invitation_row\.use_count >= invitation_row\.max_uses/);
+  assert.match(upsertFixMigration, /return query/);
+  assert.match(upsertFixMigration, /profile\.membership_status = 'verified_nail_member'/);
+  assert.match(upsertFixMigration, /revoke all on function public\.redeem_cho_neo_member_invitation/);
+  assert.match(upsertFixMigration, /from anon, authenticated/);
+  assert.match(upsertFixMigration, /select pg_notify\('pgrst', 'reload schema'\)/);
 });
 
 test("repair migration removes legacy Guest Pass profile requirements", () => {
