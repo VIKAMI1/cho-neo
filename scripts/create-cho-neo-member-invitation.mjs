@@ -60,6 +60,18 @@ async function main() {
 
   if (error) {
     console.error("Could not create Chợ Neo invitation.");
+    console.error(
+      JSON.stringify(
+        {
+          code: error.code ?? null,
+          details: error.details ?? null,
+          hint: error.hint ?? null,
+          message: error.message ?? null,
+        },
+        null,
+        2,
+      ),
+    );
     process.exit(1);
   }
 

@@ -124,6 +124,12 @@ export async function POST(request: Request) {
   );
 
   if (profileError) {
+    console.error("[cho-neo:member-verify] invitation redemption failed", {
+      code: profileError.code ?? null,
+      details: profileError.details ?? null,
+      hint: profileError.hint ?? null,
+      message: profileError.message ?? null,
+    });
     return invitationFailure(profileError.message);
   }
 

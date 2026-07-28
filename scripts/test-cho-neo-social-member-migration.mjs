@@ -9,6 +9,10 @@ const migrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260726204500_cho_neo_social_member_login_v1.sql",
 );
+const repairMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260727203000_repair_cho_neo_member_redemption.sql",
+);
 const workflowPath = path.join(
   repoRoot,
   ".github/workflows/cho-neo-social-member-db-proof.yml",
@@ -31,6 +35,7 @@ const inviteScriptPath = path.join(
 );
 
 const migration = fs.readFileSync(migrationPath, "utf8");
+const repairMigration = fs.readFileSync(repairMigrationPath, "utf8");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
@@ -78,14 +83,43 @@ test("pending, suspended and rejected users cannot gain community write authorit
 
 test("invitation redemption is database-atomic and locks the invitation row", () => {
   assert.match(migration, /create or replace function public\.redeem_cho_neo_member_invitation/);
+  assert.match(repairMigration, /create or replace function public\.redeem_cho_neo_member_invitation/);
   assert.match(migration, /for update/);
+  assert.match(repairMigration, /for update/);
   assert.match(migration, /update public\.cho_neo_member_invitations/);
+  assert.match(repairMigration, /update public\.cho_neo_member_invitations/);
   assert.match(migration, /insert into public\.cho_neo_member_profiles/);
+  assert.match(repairMigration, /insert into public\.cho_neo_member_profiles/);
   assert.match(migration, /on conflict \(user_id\) do update/);
+  assert.match(repairMigration, /on conflict \(user_id\) do update/);
   assert.match(migration, /raise exception 'invalid-invitation'/);
   assert.match(migration, /raise exception 'expired-invitation'/);
   assert.match(migration, /raise exception 'revoked-invitation'/);
   assert.match(migration, /raise exception 'used-invitation'/);
+  assert.match(repairMigration, /raise exception 'invalid-invitation'/);
+  assert.match(repairMigration, /raise exception 'expired-invitation'/);
+  assert.match(repairMigration, /raise exception 'revoked-invitation'/);
+  assert.match(repairMigration, /raise exception 'used-invitation'/);
+  assert.match(repairMigration, /raise exception 'role-mismatch'/);
+  assert.match(repairMigration, /membership_status <> 'suspended'/);
+  assert.match(repairMigration, /membership_status <> 'rejected'/);
+});
+
+test("repair migration removes legacy Guest Pass profile requirements", () => {
+  assert.match(repairMigration, /column_name = 'status'/);
+  assert.match(repairMigration, /set membership_status = case/);
+  assert.match(repairMigration, /drop constraint if exists cho_neo_guest_profiles_status_check/);
+  assert.match(repairMigration, /drop constraint if exists cho_neo_guest_profiles_avatar_key_check/);
+  assert.match(repairMigration, /drop trigger if exists set_cho_neo_guest_profiles_updated_at/);
+  assert.match(repairMigration, /drop function if exists public\.set_cho_neo_guest_profiles_updated_at\(\)/);
+  assert.match(repairMigration, /drop index if exists public\.cho_neo_guest_profiles_status_idx/);
+  assert.match(repairMigration, /drop column if exists status/);
+  const insertColumns = repairMigration.match(
+    /insert into public\.cho_neo_member_profiles \(([\s\S]*?)\)\s+values/,
+  )?.[1];
+  assert.ok(insertColumns);
+  assert.doesNotMatch(insertColumns, /(^|,)\s*status\s*(,|$)/m);
+  assert.match(repairMigration, /select pg_notify\('pgrst', 'reload schema'\)/);
 });
 
 test("controlled routes derive identity from the verified Supabase session", () => {
@@ -100,6 +134,9 @@ test("direct browser writes remain denied for gossip", () => {
   assert.match(migration, /revoke insert on public\.cho_neo_gossip_messages from anon, authenticated/);
   assert.match(migration, /revoke update on public\.cho_neo_gossip_messages from anon, authenticated/);
   assert.match(migration, /revoke delete on public\.cho_neo_gossip_messages from anon, authenticated/);
+  assert.match(repairMigration, /revoke insert on public\.cho_neo_gossip_messages from anon, authenticated/);
+  assert.match(repairMigration, /revoke update on public\.cho_neo_gossip_messages from anon, authenticated/);
+  assert.match(repairMigration, /revoke delete on public\.cho_neo_gossip_messages from anon, authenticated/);
   assert.match(gossipRoute, /createChoNeoSupabaseServiceClient\(\)/);
   assert.match(gossipRoute, /author_user_id: userId/);
 });
