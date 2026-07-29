@@ -49,7 +49,7 @@ export default function LoginClient() {
   return (
     <main className="cho-neo-login-page">
       <section className="cho-neo-login-card" aria-labelledby="cho-neo-login-title">
-        <p className="cho-neo-login-kicker">CHỢ NEO</p>
+        <p className="cho-neo-login-kicker">Chợ Neo</p>
         <h1 id="cho-neo-login-title">Vào Chợ Neo</h1>
         <p className="cho-neo-login-copy">
           Chợ Neo dành cho thợ nail, chủ tiệm, người học nghề và nhà cung cấp.
@@ -108,7 +108,9 @@ export default function LoginClient() {
           display: grid;
           place-items: center;
           padding: 20px;
-          color: #fff1cf;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-ui);
+          font-weight: 400;
           background:
             radial-gradient(circle at 30% 12%, rgba(216, 169, 93, 0.16), transparent 30%),
             linear-gradient(180deg, #24101a, #12080f);
@@ -140,23 +142,26 @@ export default function LoginClient() {
         }
 
         .cho-neo-login-kicker {
-          color: #d8a95d;
+          color: var(--cho-neo-text-accent);
           font-size: 12px;
-          font-weight: 900;
+          font-weight: 500;
           letter-spacing: 0;
         }
 
         h1 {
           margin: 0;
-          color: #fff7df;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
           font-size: 30px;
+          font-weight: 500;
           line-height: 1;
         }
 
         .cho-neo-login-copy,
         .cho-neo-login-privacy {
-          color: #e8cf9d;
+          color: var(--cho-neo-text-secondary);
           font-size: 14px;
+          font-weight: 400;
           line-height: 1.5;
           overflow-wrap: anywhere;
         }
@@ -171,7 +176,7 @@ export default function LoginClient() {
           min-height: 46px;
           border-radius: 14px;
           font: inherit;
-          font-weight: 900;
+          font-weight: 600;
         }
 
         button {
@@ -182,7 +187,7 @@ export default function LoginClient() {
         }
 
         button.secondary {
-          color: #fff1cf;
+          color: var(--cho-neo-text-primary);
           background: rgba(255, 247, 237, 0.06);
         }
 
@@ -195,7 +200,7 @@ export default function LoginClient() {
           padding: 10px;
           border: 1px solid rgba(248, 211, 145, 0.32);
           border-radius: 12px;
-          color: #fff7df;
+          color: var(--cho-neo-text-primary);
           background: rgba(255, 247, 237, 0.06);
           font-size: 13px;
         }
@@ -203,7 +208,7 @@ export default function LoginClient() {
         .cho-neo-login-back {
           display: inline-grid;
           place-items: center;
-          color: #ffe7b7;
+          color: var(--cho-neo-text-secondary);
           text-decoration: none;
         }
       `}</style>

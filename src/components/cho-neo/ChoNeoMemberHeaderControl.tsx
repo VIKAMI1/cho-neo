@@ -5,6 +5,8 @@ import { isVerifiedChoNeoMemberProfile } from "@/lib/cho-neo/member-identity";
 
 export function ChoNeoMemberHeaderControl() {
   const { ensureChoNeoMember, openProfileSheet, profile } = useChoNeoMember();
+  const facebookEnabled =
+    process.env.NEXT_PUBLIC_CHO_NEO_FACEBOOK_LOGIN_ENABLED === "true";
 
   if (isVerifiedChoNeoMemberProfile(profile)) {
     return (
@@ -38,7 +40,7 @@ export function ChoNeoMemberHeaderControl() {
       </span>
       <span>
         <strong>Vào Chợ</strong>
-        <small>Google / Facebook</small>
+        <small>{facebookEnabled ? "Google / Facebook" : "Google"}</small>
       </span>
     </button>
   );

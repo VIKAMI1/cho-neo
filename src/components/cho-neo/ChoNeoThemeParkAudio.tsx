@@ -49,8 +49,10 @@ export default function ChoNeoThemeParkAudio({
   const [volume, setVolume] = useState(getStoredVolume);
   const [loadError, setLoadError] = useState('');
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState({ left: 12, top: 72 });
   const panelId = useId();
+  const playlistId = `${panelId}-playlist`;
 
   const selectedTrack = useMemo(
     () => getChoNeoMusicTrack(trackId),
@@ -407,38 +409,56 @@ export default function ChoNeoThemeParkAudio({
         </p>
       ) : null}
 
-      <div className="theme-song-list" role="list" aria-label="Danh sách bài nhạc Chợ Neo">
-        {enabledChoNeoMusicTracks.map((track) => {
-          const isSelected = track.id === selectedTrack.id;
-          const isTrackPlaying = isSelected && isPlaying;
-          return (
-            <div
-              className={isSelected ? 'theme-song-row selected' : 'theme-song-row'}
-              key={track.id}
-              role="listitem"
-              aria-current={isSelected ? 'true' : undefined}
-              data-track-id={track.id}
-            >
-              <span className="theme-song-copy">
-                <strong title={track.title}>{track.title}</strong>
-                <small>
-                  <span>{track.room}</span>
-                </small>
-              </span>
-              <span className="theme-song-duration">{track.duration}</span>
-              <button
-                type="button"
-                className={isTrackPlaying ? 'theme-song-action playing' : 'theme-song-action'}
-                onClick={() => selectTrack(track.id, true)}
-                aria-label={isTrackPlaying ? `Tạm dừng ${track.title}` : `${isSelected ? 'Phát lại' : 'Phát'} ${track.title}`}
-                title={isTrackPlaying ? `Tạm dừng ${track.title}` : `${isSelected ? 'Phát lại' : 'Phát'} ${track.title}`}
+      <button
+        type="button"
+        className="theme-playlist-toggle"
+        aria-expanded={isPlaylistOpen}
+        aria-controls={playlistId}
+        onClick={() => setIsPlaylistOpen((isOpen) => !isOpen)}
+      >
+        <span>Danh sách nhạc · {enabledChoNeoMusicTracks.length} bài</span>
+        <span aria-hidden="true">{isPlaylistOpen ? '⌃' : '⌄'}</span>
+      </button>
+
+      {isPlaylistOpen ? (
+        <div
+          className="theme-song-list"
+          id={playlistId}
+          role="list"
+          aria-label="Danh sách bài nhạc Chợ Neo"
+        >
+          {enabledChoNeoMusicTracks.map((track) => {
+            const isSelected = track.id === selectedTrack.id;
+            const isTrackPlaying = isSelected && isPlaying;
+            return (
+              <div
+                className={isSelected ? 'theme-song-row selected' : 'theme-song-row'}
+                key={track.id}
+                role="listitem"
+                aria-current={isSelected ? 'true' : undefined}
+                data-track-id={track.id}
               >
-                <span aria-hidden="true">{isTrackPlaying ? 'Ⅱ' : '▶'}</span>
-              </button>
-            </div>
-          );
-        })}
-      </div>
+                <span className="theme-song-copy">
+                  <strong title={track.title}>{track.title}</strong>
+                  <small>
+                    <span>{track.room}</span>
+                  </small>
+                </span>
+                <span className="theme-song-duration">{track.duration}</span>
+                <button
+                  type="button"
+                  className={isTrackPlaying ? 'theme-song-action playing' : 'theme-song-action'}
+                  onClick={() => selectTrack(track.id, true)}
+                  aria-label={isTrackPlaying ? `Tạm dừng ${track.title}` : `${isSelected ? 'Phát lại' : 'Phát'} ${track.title}`}
+                  title={isTrackPlaying ? `Tạm dừng ${track.title}` : `${isSelected ? 'Phát lại' : 'Phát'} ${track.title}`}
+                >
+                  <span aria-hidden="true">{isTrackPlaying ? 'Ⅱ' : '▶'}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </section>
   ) : null;
 
@@ -506,7 +526,9 @@ export default function ChoNeoThemeParkAudio({
           overflow: visible;
           border: 1px solid rgba(248, 211, 145, 0.24);
           border-radius: 15px;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-ui);
+          font-weight: 400;
           background:
             radial-gradient(circle at 18% 4%, rgba(244, 114, 182, 0.12), transparent 32%),
             linear-gradient(135deg, rgba(62, 27, 57, 0.84), rgba(12, 7, 20, 0.95) 62%, rgba(7, 6, 13, 0.96));
@@ -568,7 +590,7 @@ export default function ChoNeoThemeParkAudio({
         }
 
         .cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"] {
-          color: #f8d391;
+          color: var(--cho-neo-text-accent);
           text-shadow:
             0 0 12px rgba(248, 211, 145, 0.45),
             0 4px 12px rgba(255, 166, 180, 0.18);
@@ -583,7 +605,7 @@ export default function ChoNeoThemeParkAudio({
           border: 1px solid rgba(248, 211, 145, 0.2);
           border-radius: 999px;
           padding: 0;
-          color: #f8d391;
+          color: var(--cho-neo-text-accent);
           background: rgba(255, 247, 237, 0.055);
           box-shadow:
             0 5px 12px rgba(0, 0, 0, 0.16),
@@ -591,7 +613,7 @@ export default function ChoNeoThemeParkAudio({
           cursor: pointer;
           font: inherit;
           font-size: 22px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1;
         }
 
@@ -618,7 +640,7 @@ export default function ChoNeoThemeParkAudio({
           overflow: hidden;
           border: 1px solid rgba(248, 211, 145, 0.24);
           border-radius: 18px;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background:
             linear-gradient(180deg, rgba(35, 19, 38, 0.98), rgba(10, 10, 18, 0.98)),
             rgba(7, 8, 15, 0.96);
@@ -642,8 +664,10 @@ export default function ChoNeoThemeParkAudio({
         }
 
         .theme-music-panel-header h2 {
-          color: #ffe5ad;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
           font-size: 1rem;
+          font-weight: 500;
           line-height: 1.1;
         }
 
@@ -651,7 +675,7 @@ export default function ChoNeoThemeParkAudio({
           margin-top: 4px;
           color: rgba(255, 247, 237, 0.7);
           font-size: 0.74rem;
-          font-weight: 740;
+          font-weight: 400;
           line-height: 1.25;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -666,18 +690,17 @@ export default function ChoNeoThemeParkAudio({
           height: 36px;
           border: 1px solid rgba(248, 211, 145, 0.2);
           border-radius: 999px;
-          color: #ffe7ae;
+          color: var(--cho-neo-text-secondary);
           background: rgba(255, 247, 237, 0.06);
           cursor: pointer;
           font: inherit;
           font-size: 24px;
-          font-weight: 800;
+          font-weight: 500;
           line-height: 1;
         }
 
         .theme-current-track {
-          padding: 0 12px 10px;
-          border-bottom: 1px solid rgba(248, 211, 145, 0.12);
+          padding: 0 12px 9px;
         }
 
         .theme-playback-row {
@@ -698,14 +721,14 @@ export default function ChoNeoThemeParkAudio({
 
         .theme-song-row {
           border: 1px solid rgba(248, 211, 145, 0.22);
-          color: #ffe7ae;
+          color: var(--cho-neo-text-secondary);
           background: rgba(52, 22, 12, 0.58);
         }
 
         .theme-panel-controls button {
           border: 0;
           border-right: 1px solid rgba(248, 211, 145, 0.18);
-          color: #ffe7ae;
+          color: var(--cho-neo-text-secondary);
           background: transparent;
           cursor: pointer;
           font: inherit;
@@ -723,13 +746,13 @@ export default function ChoNeoThemeParkAudio({
           min-height: 38px;
           border-radius: 0;
           font-size: 1rem;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1;
         }
 
         .theme-control-icon-button-main {
-          color: #1d1307;
-          background: #f8d391;
+          color: var(--cho-neo-text-primary);
+          background: rgba(215, 155, 141, 0.26);
         }
 
         .theme-volume-control {
@@ -757,7 +780,7 @@ export default function ChoNeoThemeParkAudio({
           height: 34px;
           border: 1px solid rgba(248, 211, 145, 0.2);
           border-radius: 999px;
-          color: #ffe7ae;
+          color: var(--cho-neo-text-secondary);
           background: rgba(255, 247, 237, 0.06);
           cursor: pointer;
           font: inherit;
@@ -770,14 +793,47 @@ export default function ChoNeoThemeParkAudio({
           color: #ffd4dc;
           background: rgba(127, 29, 29, 0.24);
           font-size: 0.82rem;
-          font-weight: 820;
+          font-weight: 400;
+        }
+
+        .theme-playlist-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          width: calc(100% - 24px);
+          min-height: 38px;
+          margin: 0 12px 10px;
+          padding: 8px 10px;
+          border: 1px solid rgba(248, 211, 145, 0.18);
+          border-radius: 12px;
+          color: var(--cho-neo-text-secondary);
+          background: rgba(255, 247, 237, 0.055);
+          cursor: pointer;
+          font: inherit;
+          font-size: 0.76rem;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .theme-playlist-toggle:hover,
+        .theme-playlist-toggle:focus-visible {
+          border-color: rgba(248, 211, 145, 0.42);
+          color: var(--cho-neo-text-primary);
+          background: rgba(255, 247, 237, 0.085);
+          outline: none;
+        }
+
+        .theme-playlist-toggle:focus-visible {
+          box-shadow: 0 0 0 3px rgba(215, 155, 141, 0.22);
         }
 
         .theme-song-list {
           display: grid;
           gap: 4px;
-          max-height: min(374px, 52vh);
+          max-height: min(330px, 46vh);
           padding: 7px;
+          border-top: 1px solid rgba(248, 211, 145, 0.12);
           overflow-y: auto;
         }
 
@@ -812,9 +868,9 @@ export default function ChoNeoThemeParkAudio({
 
         .theme-song-copy strong {
           overflow: hidden;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: 0.77rem;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1.12;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -825,7 +881,7 @@ export default function ChoNeoThemeParkAudio({
           overflow: hidden;
           color: rgba(255, 247, 237, 0.62);
           font-size: 0.64rem;
-          font-weight: 760;
+          font-weight: 400;
           line-height: 1.15;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -834,7 +890,7 @@ export default function ChoNeoThemeParkAudio({
         .theme-song-duration {
           color: rgba(255, 247, 237, 0.64);
           font-size: 0.66rem;
-          font-weight: 820;
+          font-weight: 400;
           white-space: nowrap;
         }
 
@@ -845,18 +901,18 @@ export default function ChoNeoThemeParkAudio({
           height: 34px;
           border: 1px solid rgba(248, 211, 145, 0.22);
           border-radius: 999px;
-          color: #ffe7ae;
+          color: var(--cho-neo-text-secondary);
           background: rgba(255, 247, 237, 0.06);
           cursor: pointer;
           font: inherit;
           font-size: 0.78rem;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1;
         }
 
         .theme-song-action.playing {
-          color: #1d1307;
-          background: #f8d391;
+          color: var(--cho-neo-text-primary);
+          background: rgba(215, 155, 141, 0.26);
         }
 
         .cho-neo-theme-audio-compact {
@@ -878,13 +934,13 @@ export default function ChoNeoThemeParkAudio({
           padding: 0 0.8rem;
           border: 1px solid rgba(255, 212, 139, 0.3);
           border-radius: 12px;
-          color: #ffe7ae;
+          color: var(--cho-neo-text-secondary);
           background: rgba(52, 22, 12, 0.66);
           box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
           cursor: pointer;
           font: inherit;
           font-size: 0.88rem;
-          font-weight: 650;
+          font-weight: 500;
           line-height: 1;
           white-space: nowrap;
         }
@@ -904,7 +960,7 @@ export default function ChoNeoThemeParkAudio({
           min-width: 0;
           color: rgba(255, 247, 237, 0.76);
           font-size: 11px;
-          font-weight: 720;
+          font-weight: 400;
         }
 
         @media (max-width: 760px) {
@@ -962,7 +1018,7 @@ export default function ChoNeoThemeParkAudio({
           }
 
           .theme-current-track {
-            padding: 0 12px 9px;
+            padding: 0 12px 8px;
           }
 
           .theme-playback-row {
@@ -992,7 +1048,7 @@ export default function ChoNeoThemeParkAudio({
           }
 
           .theme-song-list {
-            max-height: min(51vh, 440px);
+            max-height: min(48vh, 430px);
             padding: 7px;
           }
 

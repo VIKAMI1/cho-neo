@@ -459,7 +459,7 @@ export function ChoNeoBetaFeedback() {
           padding: 6px 5px;
           border: 1px solid rgba(248, 211, 145, 0.3);
           border-radius: 999px;
-          color: #ffe7b7;
+          color: var(--cho-neo-text-primary);
           background:
             radial-gradient(circle at 50% 24%, rgba(255, 214, 222, 0.2), transparent 20%),
             linear-gradient(180deg, rgba(73, 35, 45, 0.9), rgba(16, 9, 18, 0.94));
@@ -468,7 +468,7 @@ export function ChoNeoBetaFeedback() {
             inset 0 1px 0 rgba(255, 247, 237, 0.1);
           cursor: pointer;
           font: inherit;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1;
         }
 
@@ -483,7 +483,7 @@ export function ChoNeoBetaFeedback() {
 
         .cho-neo-feedback-button span {
           font-size: 10.5px;
-          font-weight: 820;
+          font-weight: 500;
         }
 
         .cho-neo-feedback-button small {
@@ -529,6 +529,8 @@ export function ChoNeoBetaFeedback() {
           border: 1px solid rgba(248, 211, 145, 0.24);
           border-radius: 26px;
           color: #3a2418;
+          font-family: var(--cho-neo-font-ui);
+          font-weight: 400;
           background:
             radial-gradient(circle at 12% 0%, rgba(251, 191, 36, 0.18), transparent 30%),
             linear-gradient(180deg, #fff7ed, #fdeccf);
@@ -568,7 +570,8 @@ export function ChoNeoBetaFeedback() {
         .feedback-header p {
           color: #7c2d12;
           font-size: 20px;
-          font-weight: 950;
+          font-family: var(--cho-neo-font-display);
+          font-weight: 500;
         }
 
         .feedback-header span,
@@ -576,7 +579,7 @@ export function ChoNeoBetaFeedback() {
           min-width: 0;
           color: rgba(58, 36, 24, 0.72);
           font-size: 13px;
-          font-weight: 750;
+          font-weight: 400;
           line-height: 1.35;
           overflow-wrap: anywhere;
         }
@@ -586,7 +589,7 @@ export function ChoNeoBetaFeedback() {
           border: 0;
           cursor: pointer;
           font: inherit;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .feedback-header button {
@@ -606,7 +609,7 @@ export function ChoNeoBetaFeedback() {
           min-height: 42px;
           padding: 10px 14px;
           border-radius: 999px;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background: linear-gradient(180deg, #9a3412, #7c2d12);
         }
 
@@ -637,9 +640,9 @@ export function ChoNeoBetaFeedback() {
           margin: 0;
           color: #7c2d12;
           font-size: 13px;
-          font-weight: 950;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
           overflow-wrap: anywhere;
         }
 
@@ -664,7 +667,7 @@ export function ChoNeoBetaFeedback() {
           margin: 0;
           color: rgba(67, 20, 7, 0.72);
           font-size: 13px;
-          font-weight: 750;
+          font-weight: 400;
           line-height: 1.4;
           overflow-wrap: anywhere;
         }
@@ -697,7 +700,7 @@ export function ChoNeoBetaFeedback() {
         .room-vote-card strong {
           color: #431407;
           font-size: 15px;
-          font-weight: 950;
+          font-weight: 600;
           line-height: 1.18;
           overflow-wrap: anywhere;
         }
@@ -705,7 +708,7 @@ export function ChoNeoBetaFeedback() {
         .room-vote-card small {
           color: rgba(67, 20, 7, 0.62);
           font-size: 11px;
-          font-weight: 800;
+          font-weight: 400;
           overflow-wrap: anywhere;
         }
 
@@ -713,7 +716,7 @@ export function ChoNeoBetaFeedback() {
           margin: 0;
           color: rgba(67, 20, 7, 0.76);
           font-size: 12.5px;
-          font-weight: 730;
+          font-weight: 400;
           line-height: 1.35;
           overflow-wrap: anywhere;
         }
@@ -738,7 +741,7 @@ export function ChoNeoBetaFeedback() {
           cursor: pointer;
           font: inherit;
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
           white-space: normal;
         }
 
@@ -747,7 +750,7 @@ export function ChoNeoBetaFeedback() {
         }
 
         .room-vote-card button.selected {
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background: #9a3412;
         }
 
@@ -760,7 +763,7 @@ export function ChoNeoBetaFeedback() {
         .room-vote-result {
           color: rgba(67, 20, 7, 0.62);
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 600;
           white-space: nowrap;
         }
 
@@ -772,7 +775,7 @@ export function ChoNeoBetaFeedback() {
           color: #7c2d12;
           background: rgba(251, 191, 36, 0.2);
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .room-vote-selection {
@@ -792,7 +795,7 @@ export function ChoNeoBetaFeedback() {
           margin: 0;
           color: rgba(67, 20, 7, 0.76);
           font-size: 12.5px;
-          font-weight: 800;
+          font-weight: 500;
           line-height: 1.35;
         }
 
@@ -818,7 +821,7 @@ export function ChoNeoBetaFeedback() {
         .room-vote-reason span {
           color: #431407;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .room-vote-reason textarea {
@@ -838,7 +841,7 @@ export function ChoNeoBetaFeedback() {
         .room-vote-total {
           color: rgba(67, 20, 7, 0.58);
           font-size: 11px;
-          font-weight: 800;
+          font-weight: 500;
         }
 
         .room-vote-reason-actions {
@@ -871,14 +874,14 @@ export function ChoNeoBetaFeedback() {
           margin: 0;
           color: #431407;
           font-size: 14px;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1.25;
         }
 
         .feedback-question small {
           color: rgba(67, 20, 7, 0.62);
           font-size: 11px;
-          font-weight: 750;
+          font-weight: 400;
         }
 
         .feedback-scale,
@@ -898,7 +901,7 @@ export function ChoNeoBetaFeedback() {
           cursor: pointer;
           font: inherit;
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .feedback-scale button {
@@ -911,7 +914,7 @@ export function ChoNeoBetaFeedback() {
 
         .feedback-scale .selected,
         .feedback-options .selected {
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background: #9a3412;
         }
 

@@ -70,6 +70,7 @@ export function ChoNeoVillageRail({ currentId }: ChoNeoVillageRailProps) {
           box-shadow:
             0 22px 58px rgba(112, 43, 31, 0.1),
             inset 0 0 0 1px rgba(255, 255, 255, 0.52);
+          font-family: var(--cho-neo-font-ui);
         }
 
         .cho-neo-village-rail__brand {
@@ -80,18 +81,18 @@ export function ChoNeoVillageRail({ currentId }: ChoNeoVillageRailProps) {
         }
 
         .cho-neo-village-rail__brand span {
-          font-family: Georgia, "Times New Roman", serif;
+          font-family: var(--cho-neo-font-display);
           font-size: 1.28rem;
-          font-weight: 800;
+          font-weight: 600;
           line-height: 0.95;
         }
 
         .cho-neo-village-rail__brand strong {
           color: rgba(93, 33, 25, 0.62);
           font-size: 0.68rem;
-          font-weight: 740;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
+          font-weight: 400;
+          letter-spacing: 0;
+          text-transform: none;
         }
 
         .cho-neo-village-rail__nav {

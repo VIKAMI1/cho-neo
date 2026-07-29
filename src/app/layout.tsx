@@ -1,4 +1,20 @@
 import "./globals.css";
+import { Be_Vietnam_Pro, Newsreader } from "next/font/google";
+
+const choNeoDisplay = Newsreader({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-cho-neo-display",
+});
+
+const choNeoUi = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-cho-neo-ui",
+});
 
 export const metadata = {
   title: 'Next.js',
@@ -16,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="vi" className={`${choNeoDisplay.variable} ${choNeoUi.variable}`}>
       <body>{children}</body>
     </html>
   )

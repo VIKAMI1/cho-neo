@@ -686,11 +686,13 @@ function ChoNeoMemberStyles() {
         padding: 18px;
         border: 1px solid rgba(248, 211, 145, 0.34);
         border-radius: 22px;
-        color: #fff1cf;
+        color: var(--cho-neo-text-primary);
         background:
           radial-gradient(circle at 18% 0%, rgba(248, 211, 145, 0.13), transparent 28%),
           linear-gradient(180deg, #351724, #1a0d14);
         box-shadow: 0 28px 90px rgba(0, 0, 0, 0.46);
+        font-family: var(--cho-neo-font-ui);
+        font-weight: 400;
       }
 
       .cho-neo-member-card header {
@@ -705,16 +707,18 @@ function ChoNeoMemberStyles() {
       }
 
       .cho-neo-member-card h2 {
-        color: #fff7df;
+        color: var(--cho-neo-text-primary);
+        font-family: var(--cho-neo-font-display);
         font-size: 22px;
-        font-weight: 950;
+        font-weight: 500;
+        line-height: 1.12;
       }
 
       .cho-neo-member-card header p,
       .cho-neo-member-note {
-        color: #e8cf9d;
+        color: var(--cho-neo-text-secondary);
         font-size: 13px;
-        font-weight: 730;
+        font-weight: 400;
         line-height: 1.45;
       }
 
@@ -723,7 +727,7 @@ function ChoNeoMemberStyles() {
         height: 34px;
         border: 1px solid rgba(248, 211, 145, 0.2);
         border-radius: 999px;
-        color: #ffe7b7;
+        color: var(--cho-neo-text-accent);
         background: rgba(255, 247, 237, 0.06);
         cursor: pointer;
         font-size: 22px;
@@ -741,9 +745,9 @@ function ChoNeoMemberStyles() {
 
       .cho-neo-member-field span,
       .cho-neo-member-avatars legend {
-        color: #ffe7b7;
+        color: var(--cho-neo-text-secondary);
         font-size: 13px;
-        font-weight: 900;
+        font-weight: 500;
       }
 
       .cho-neo-member-field input,
@@ -753,7 +757,7 @@ function ChoNeoMemberStyles() {
         padding: 0 12px;
         border: 1px solid rgba(248, 211, 145, 0.26);
         border-radius: 13px;
-        color: #fff7df;
+        color: var(--cho-neo-text-primary);
         background: #1b0d14;
         font: inherit;
       }
@@ -771,7 +775,7 @@ function ChoNeoMemberStyles() {
         padding: 7px;
         border: 1px solid rgba(248, 211, 145, 0.18);
         border-radius: 13px;
-        color: #f7dfad;
+        color: var(--cho-neo-text-secondary);
         background: rgba(255, 247, 237, 0.05);
         cursor: pointer;
         font: inherit;
@@ -787,17 +791,17 @@ function ChoNeoMemberStyles() {
         text-overflow: ellipsis;
         white-space: nowrap;
         font-size: 10px;
-        font-weight: 850;
+        font-weight: 400;
       }
 
       .cho-neo-member-message {
         padding: 10px;
         border: 1px solid rgba(94, 234, 212, 0.4);
         border-radius: 13px;
-        color: #f7dfad;
+        color: var(--cho-neo-text-secondary);
         background: rgba(15, 23, 42, 0.45);
         font-size: 13px;
-        font-weight: 850;
+        font-weight: 400;
       }
 
       .cho-neo-member-primary,
@@ -807,7 +811,7 @@ function ChoNeoMemberStyles() {
         cursor: pointer;
         font: inherit;
         font-size: 13px;
-        font-weight: 950;
+        font-weight: 600;
       }
 
       .cho-neo-member-primary {

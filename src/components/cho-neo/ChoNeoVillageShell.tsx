@@ -26,15 +26,12 @@ export function ChoNeoVillageShell() {
         <header className="village-topbar">
           <div className="village-brand">
             <div className="village-brand-mark">
-              <p>CHỢ NEO</p>
+              <p>Chợ Neo</p>
               <span aria-hidden="true" className="village-brand-seal">
                 市
               </span>
             </div>
-            <small>
-              Nhà nhỏ cho người làm nail.
-              <span>A private village for nail people.</span>
-            </small>
+            <small>Chuyện nghề, chuyện đời, chuyện mình.</small>
             <a className="village-guide-link" href="#cho-neo-village-guide">
               Hướng dẫn làng
             </a>
@@ -71,7 +68,7 @@ export function ChoNeoVillageShell() {
             aria-label="Village guide"
           >
             <div className="panel-heading">
-              <span>Hướng Dẫn Làng</span>
+              <span>Hướng dẫn làng</span>
               <strong>Village Guide</strong>
             </div>
 
@@ -136,8 +133,11 @@ export function ChoNeoVillageShell() {
           min-height: 100vh;
           position: relative;
           overflow-x: hidden;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background: var(--cho-neo-shell-background);
+          font-family: var(--cho-neo-font-ui);
+          font-weight: 400;
+          letter-spacing: 0;
         }
 
         .village-night-air {
@@ -251,16 +251,13 @@ export function ChoNeoVillageShell() {
         .village-brand p {
           flex: 0 0 auto;
           width: fit-content;
-          color: #ffe5ad;
-          font-family: Georgia, "Times New Roman", serif;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(30px, 2.05vw, 34px);
-          font-weight: 880;
-          line-height: 0.88;
-          letter-spacing: 0;
+          font-weight: 600;
+          line-height: 0.96;
+          letter-spacing: -0.01em;
           white-space: nowrap;
-          text-shadow:
-            0 1px 0 rgba(120, 53, 15, 0.76),
-            0 5px 14px rgba(248, 211, 145, 0.12);
         }
 
         .village-brand-seal {
@@ -274,25 +271,19 @@ export function ChoNeoVillageShell() {
           color: #ff3b30;
           background: rgba(32, 0, 0, 0.38);
           font-size: 21px;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1;
           text-shadow: 0 0 14px rgba(255, 59, 48, 0.26);
         }
 
         .village-brand small {
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.66);
-          font-size: 9.5px;
-          font-weight: 700;
-          line-height: 1.08;
-        }
-
-        .village-brand small span {
-          display: block;
-          margin-top: 1px;
-          color: rgba(248, 211, 145, 0.62);
+          color: var(--cho-neo-text-secondary);
+          font-family: var(--cho-neo-font-display);
+          font-size: 13px;
           font-style: italic;
-          font-weight: 740;
+          font-weight: 400;
+          line-height: 1.16;
         }
 
         .cho-neo-shared-music-slot {
@@ -314,10 +305,10 @@ export function ChoNeoVillageShell() {
           padding: 7px 11px;
           border: 1px solid rgba(248, 211, 145, 0.2);
           border-radius: 999px;
-          color: rgba(255, 247, 237, 0.82);
+          color: var(--cho-neo-text-secondary);
           background: rgba(255, 247, 237, 0.055);
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 500;
           text-decoration: none;
           transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
         }
@@ -325,7 +316,7 @@ export function ChoNeoVillageShell() {
         .village-guide-link:hover,
         .village-guide-link:focus-visible {
           border-color: rgba(248, 211, 145, 0.42);
-          color: #ffe5ad;
+          color: var(--cho-neo-text-primary);
           background: rgba(248, 211, 145, 0.09);
           outline: none;
         }
@@ -352,11 +343,11 @@ export function ChoNeoVillageShell() {
           padding: 7px 8px;
           border: 1px solid rgba(248, 211, 145, 0.2);
           border-radius: 17px;
-          color: #ffe7b7;
+          color: var(--cho-neo-text-primary);
           background:
             radial-gradient(circle at 20% 26%, rgba(248, 211, 145, 0.12), transparent 36%),
             linear-gradient(180deg, rgba(34, 18, 24, 0.86), rgba(5, 5, 10, 0.88));
-          font-weight: 760;
+          font-weight: 500;
           text-decoration: none;
           box-shadow:
             0 5px 14px rgba(0, 0, 0, 0.14),
@@ -435,18 +426,18 @@ export function ChoNeoVillageShell() {
 
         .village-nav-card strong,
         .village-login-link strong {
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: 12px;
-          font-weight: 700;
+          font-weight: 600;
           white-space: nowrap;
         }
 
         .village-nav-card small,
         .village-login-link small {
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.54);
+          color: var(--cho-neo-text-muted);
           font-size: 9.5px;
-          font-weight: 850;
+          font-weight: 400;
           line-height: 1.5;
           white-space: nowrap;
         }
@@ -477,18 +468,18 @@ export function ChoNeoVillageShell() {
         }
 
         .panel-heading span {
-          color: #f8d391;
+          color: var(--cho-neo-text-accent);
           font-size: 12px;
-          font-weight: 950;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
+          font-weight: 500;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .panel-heading strong {
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.74);
+          color: var(--cho-neo-text-secondary);
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 400;
         }
 
         .guide-list {
@@ -506,12 +497,12 @@ export function ChoNeoVillageShell() {
           margin-top: 10px;
           border: 1px solid rgba(248, 211, 145, 0.22);
           border-radius: 12px;
-          color: #ffe7b7;
+          color: var(--cho-neo-text-primary);
           background: rgba(248, 211, 145, 0.08);
           cursor: pointer;
           font: inherit;
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .guide-vote-shortcut:hover,
@@ -554,7 +545,7 @@ export function ChoNeoVillageShell() {
           color: #111827;
           background: #f8d391;
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .guide-number {
@@ -576,7 +567,7 @@ export function ChoNeoVillageShell() {
           height: 16px;
           border: 1px solid rgba(255, 255, 255, 0.18);
           border-radius: 999px;
-          color: #f8d391;
+          color: var(--cho-neo-text-accent);
           background: #111827;
           font-size: 9px;
           font-style: normal;
@@ -590,37 +581,38 @@ export function ChoNeoVillageShell() {
         }
 
         .guide-copy strong {
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: 12px;
+          font-weight: 600;
           line-height: 1;
         }
 
         .guide-copy small {
           margin-top: 2px;
-          color: rgba(255, 247, 237, 0.54);
+          color: var(--cho-neo-text-muted);
           font-size: 9.5px;
-          font-weight: 850;
+          font-weight: 400;
         }
 
         .guide-copy em {
           margin-top: 2px;
-          color: rgba(248, 211, 145, 0.72);
+          color: var(--cho-neo-text-muted);
           font-size: 8.5px;
           font-style: normal;
-          font-weight: 750;
+          font-weight: 500;
           line-height: 1;
-          text-transform: uppercase;
+          text-transform: none;
         }
 
         .guide-state {
-          color: #f8d391;
+          color: var(--cho-neo-text-secondary);
           padding: 4px 6px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 999px;
           background: rgba(255, 255, 255, 0.075);
           font-size: 9px;
-          font-weight: 950;
-          text-transform: uppercase;
+          font-weight: 500;
+          text-transform: none;
         }
 
         .guide-row-soon {
@@ -655,26 +647,27 @@ export function ChoNeoVillageShell() {
 
         .guide-preview strong,
         .quiet-card strong {
-          color: #f8d391;
+          color: var(--cho-neo-text-accent);
           font-size: 12px;
+          font-weight: 600;
           line-height: 1.15;
         }
 
         .guide-preview span,
         .quiet-card small {
           margin-top: 6px;
-          color: rgba(255, 247, 237, 0.68);
+          color: var(--cho-neo-text-secondary);
           font-size: 10.5px;
-          font-weight: 750;
+          font-weight: 400;
           line-height: 1.32;
         }
 
         .guide-preview small,
         .quiet-card span {
           margin-top: 6px;
-          color: rgba(255, 247, 237, 0.48);
+          color: var(--cho-neo-text-muted);
           font-size: 9.5px;
-          font-weight: 850;
+          font-weight: 400;
         }
 
         .village-scene {
@@ -927,7 +920,7 @@ export function ChoNeoVillageShell() {
           height: 22px;
           border: 1px solid rgba(248, 211, 145, 0.34);
           border-radius: 10px;
-          color: #f8d391;
+          color: var(--cho-neo-text-accent);
           background:
             radial-gradient(circle at 50% 35%, rgba(248, 211, 145, 0.2), transparent 62%),
             rgba(9, 13, 24, 0.72);
@@ -1025,16 +1018,17 @@ export function ChoNeoVillageShell() {
         }
 
         .room-hotspot-title strong {
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: 14px;
+          font-weight: 600;
           line-height: 1;
         }
 
         .room-hotspot-title small {
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.62);
+          color: var(--cho-neo-text-secondary);
           font-size: 10px;
-          font-weight: 850;
+          font-weight: 400;
         }
 
         .room-hotspot-label em {
@@ -1042,12 +1036,12 @@ export function ChoNeoVillageShell() {
           width: fit-content;
           padding: 5px 8px;
           border-radius: 999px;
-          color: #111827;
-          background: #f8d391;
+          color: var(--cho-neo-text-primary);
+          background: rgba(215, 155, 141, 0.24);
           font-size: 9px;
           font-style: normal;
-          font-weight: 950;
-          text-transform: uppercase;
+          font-weight: 600;
+          text-transform: none;
         }
 
         .room-hotspot-label a {
@@ -1056,10 +1050,10 @@ export function ChoNeoVillageShell() {
           margin-top: 8px;
           padding: 6px 9px;
           border-radius: 999px;
-          color: #111827;
-          background: #f8d391;
+          color: var(--cho-neo-text-primary);
+          background: rgba(215, 155, 141, 0.24);
           font-size: 10px;
-          font-weight: 950;
+          font-weight: 600;
           text-decoration: none;
         }
 
@@ -1168,25 +1162,26 @@ export function ChoNeoVillageShell() {
         }
 
         .scene-pilot-ribbon strong {
-          color: #f8d391;
+          color: var(--cho-neo-text-accent);
           font-size: 13px;
+          font-weight: 600;
         }
 
         .scene-pilot-ribbon span {
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.62);
+          color: var(--cho-neo-text-secondary);
           font-size: 11px;
-          font-weight: 800;
+          font-weight: 400;
         }
 
         .scene-pilot-ribbon a {
           flex: 0 0 auto;
           padding: 9px 12px;
           border-radius: 999px;
-          color: #111827;
-          background: #f8d391;
+          color: var(--cho-neo-text-primary);
+          background: rgba(215, 155, 141, 0.24);
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
           text-decoration: none;
         }
 
@@ -1232,7 +1227,7 @@ export function ChoNeoVillageShell() {
           background: #f8d391;
           box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .mini-map-pin-cafe { left: 62%; top: 29%; }
@@ -1251,9 +1246,9 @@ export function ChoNeoVillageShell() {
 
         .room-status-list p {
           margin: 0 0 4px;
-          color: rgba(255, 247, 237, 0.54);
+          color: var(--cho-neo-text-muted);
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 500;
         }
 
         .room-status-row {
@@ -1274,17 +1269,18 @@ export function ChoNeoVillageShell() {
 
         .room-status-row strong {
           overflow: hidden;
-          color: rgba(255, 247, 237, 0.88);
+          color: var(--cho-neo-text-primary);
           font-size: 12px;
+          font-weight: 600;
           line-height: 1;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
 
         .room-status-row small {
-          color: rgba(255, 247, 237, 0.52);
+          color: var(--cho-neo-text-muted);
           font-size: 10px;
-          font-weight: 850;
+          font-weight: 400;
         }
 
         .village-bottom-nav {
@@ -1322,21 +1318,21 @@ export function ChoNeoVillageShell() {
 
         .bottom-nav-item span {
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
           line-height: 1;
         }
 
         .bottom-nav-item small {
           margin-top: 4px;
-          color: rgba(255, 247, 237, 0.44);
+          color: var(--cho-neo-text-muted);
           font-size: 8px;
-          font-weight: 850;
+          font-weight: 400;
           line-height: 1.1;
         }
 
         .bottom-nav-open {
-          color: #111827;
-          background: #f8d391;
+          color: var(--cho-neo-text-primary);
+          background: rgba(215, 155, 141, 0.24);
         }
 
         .bottom-nav-open small {
@@ -1437,11 +1433,11 @@ export function ChoNeoVillageShell() {
 
           .village-topbar {
             align-items: center;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-            gap: 10px;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) 56px 56px;
+            gap: 8px;
             height: auto;
             min-height: 0;
-            padding: 12px;
+            padding: 10px;
             border-radius: 24px;
             overflow: visible;
           }
@@ -1450,13 +1446,13 @@ export function ChoNeoVillageShell() {
             grid-column: 1 / -1;
             grid-row: 1;
             width: 100%;
-            padding: 0 92px 0 0;
+            padding: 0;
             z-index: 1;
           }
 
           .cho-neo-feedback-button {
             grid-column: 3;
-            grid-row: 3;
+            grid-row: 2;
             justify-self: end;
             align-self: center;
             position: relative;
@@ -1468,9 +1464,9 @@ export function ChoNeoVillageShell() {
           }
 
           .village-brand small {
-            margin-top: 8px;
-            font-size: 12px;
-            line-height: 1.25;
+            margin-top: 5px;
+            font-size: 13px;
+            line-height: 1.3;
           }
 
           .village-guide-link {
@@ -1483,10 +1479,10 @@ export function ChoNeoVillageShell() {
           .village-nav-card,
           .village-login-link {
             min-width: 0;
-            min-height: 52px;
-            padding: 9px 10px;
-            border-radius: 18px;
-            gap: 8px;
+            min-height: 48px;
+            padding: 7px 8px;
+            border-radius: 16px;
+            gap: 7px;
           }
 
           .village-mood-card {
@@ -1495,21 +1491,25 @@ export function ChoNeoVillageShell() {
           }
 
           .village-login-link {
-            grid-column: 2 / -1;
+            grid-column: 2;
             grid-row: 2;
           }
 
           .village-theme-audio {
-            grid-column: 2;
-            grid-row: 3;
+            grid-column: 3;
+            grid-row: 2;
             width: 56px;
             max-width: 56px;
             justify-self: end;
           }
 
+          .cho-neo-feedback-button {
+            grid-column: 4;
+          }
+
           .village-nav-icon {
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             border-radius: 10px;
             font-size: 16px;
           }
@@ -1622,11 +1622,11 @@ export function ChoNeoVillageShell() {
           }
 
           .mobile-room-group-soon summary span {
-            color: rgba(248, 211, 145, 0.9);
+            color: var(--cho-neo-text-secondary);
             font-size: 11px;
-            font-weight: 950;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            text-transform: none;
           }
 
           .mobile-room-group-soon summary em {
@@ -1636,7 +1636,7 @@ export function ChoNeoVillageShell() {
             background: rgba(255, 255, 255, 0.09);
             font-size: 9px;
             font-style: normal;
-            font-weight: 900;
+            font-weight: 500;
           }
 
           .mobile-room-group-soon > div {
@@ -1645,11 +1645,11 @@ export function ChoNeoVillageShell() {
 
           .mobile-room-drawer p {
             margin: 0;
-            color: rgba(248, 211, 145, 0.82);
+            color: var(--cho-neo-text-secondary);
             font-size: 10px;
-            font-weight: 950;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            text-transform: none;
           }
 
           .mobile-room-drawer a {
@@ -1662,10 +1662,10 @@ export function ChoNeoVillageShell() {
             padding: 7px 9px;
             border: 1px solid rgba(248, 211, 145, 0.18);
             border-radius: 14px;
-            color: #fff7ed;
+            color: var(--cho-neo-text-primary);
             background: rgba(255, 247, 237, 0.08);
             font-size: 12px;
-            font-weight: 950;
+            font-weight: 600;
             text-decoration: none;
           }
 
@@ -1695,9 +1695,9 @@ export function ChoNeoVillageShell() {
             display: flex;
             align-items: center;
             gap: 6px;
-            color: rgba(255, 247, 237, 0.58);
+            color: var(--cho-neo-text-muted);
             font-size: 9px;
-            font-weight: 850;
+            font-weight: 400;
             text-align: right;
           }
 
@@ -1708,7 +1708,7 @@ export function ChoNeoVillageShell() {
             background: rgba(255, 255, 255, 0.1);
             font-size: 8px;
             font-style: normal;
-            text-transform: uppercase;
+            text-transform: none;
           }
 
           .mobile-room-link-soon {

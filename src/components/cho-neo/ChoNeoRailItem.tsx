@@ -83,6 +83,7 @@ export function ChoNeoRailItem({
           border-radius: 16px;
           padding: 0.42rem 0.52rem;
           color: #713021;
+          font-family: var(--cho-neo-font-ui);
           text-decoration: none;
         }
 
@@ -146,7 +147,7 @@ export function ChoNeoRailItem({
         .cho-neo-rail-item__label {
           overflow: hidden;
           font-size: 0.84rem;
-          font-weight: 760;
+          font-weight: 500;
           line-height: 1.1;
           text-overflow: ellipsis;
           white-space: nowrap;
