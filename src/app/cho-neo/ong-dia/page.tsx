@@ -1123,12 +1123,24 @@ export default function OngDiaPage() {
 
       <style>{`
         .ong-dia-page {
+          --room-pass2-text-primary: #f7eee8;
+          --room-pass2-text-secondary: rgba(247, 238, 232, 0.78);
+          --room-pass2-text-muted: rgba(247, 238, 232, 0.6);
+          --room-pass2-border: rgba(217, 141, 126, 0.34);
+          --room-pass2-border-soft: rgba(217, 141, 126, 0.22);
+          --room-pass2-surface: rgba(75, 36, 24, 0.9);
+          --room-pass2-surface-soft: rgba(62, 30, 21, 0.84);
+          --room-pass2-control: rgba(96, 45, 31, 0.9);
+          --cho-neo-text-primary: var(--room-pass2-text-primary);
+          --cho-neo-text-accent: #efb8aa;
           min-height: 100vh;
           overflow-x: hidden;
           background:
-            radial-gradient(circle at 50% 10%, rgba(255, 177, 73, 0.24), transparent 36rem),
-            linear-gradient(180deg, #190d09 0%, #2a120b 44%, #130907 100%);
-          color: #fff4dd;
+            radial-gradient(circle at 50% 10%, rgba(213, 112, 75, 0.22), transparent 36rem),
+            linear-gradient(180deg, #140b08 0%, #28120c 44%, #100806 100%);
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-ui);
+          font-weight: 400;
           padding: clamp(1rem, 2.5vw, 2rem);
         }
 
@@ -1173,25 +1185,26 @@ export default function OngDiaPage() {
           flex-wrap: wrap;
           gap: 0.45rem;
           align-items: center;
-          color: #ffd48b;
+          color: var(--cho-neo-text-accent);
           font-size: 0.78rem;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .ong-dia-eyebrow span {
-          color: rgba(255, 244, 221, 0.7);
-          letter-spacing: 0.08em;
+          color: var(--room-pass2-text-secondary);
+          letter-spacing: 0.02em;
         }
 
         .ong-dia-copy h1 {
           margin-top: 0.35rem;
-          color: #fff0c2;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(2.25rem, 3vw, 2.375rem);
           font-weight: 600;
           line-height: 1.02;
-          text-shadow: 0 0 28px rgba(255, 159, 53, 0.42);
+          text-shadow: none;
         }
 
         .ong-dia-copy h1 span,
@@ -1201,21 +1214,22 @@ export default function OngDiaPage() {
 
         .ong-dia-copy h1 span {
           margin-top: 0.18rem;
-          color: rgba(255, 212, 139, 0.75);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.32em;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .ong-dia-copy p {
           margin-top: 0.7rem;
-          color: rgba(255, 244, 221, 0.82);
+          color: var(--room-pass2-text-secondary);
           font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+          font-weight: 400;
           line-height: 1.55;
         }
 
         .ong-dia-copy p span {
-          color: rgba(255, 244, 221, 0.62);
+          color: var(--room-pass2-text-muted);
         }
 
         .ong-dia-header-actions {
@@ -1238,15 +1252,15 @@ export default function OngDiaPage() {
           height: 44px;
           min-width: 82px;
           padding: 0 0.85rem;
-          border: 1px solid rgba(255, 212, 139, 0.3);
+          border: 1px solid var(--room-pass2-border);
           border-radius: 12px;
-          color: #ffe7ae;
-          background: rgba(52, 22, 12, 0.66);
+          color: var(--cho-neo-text-accent);
+          background: var(--room-pass2-control);
           box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
           cursor: pointer;
           font: inherit;
           font-size: 0.88rem;
-          font-weight: 650;
+          font-weight: 600;
           line-height: 1;
           white-space: nowrap;
         }
@@ -1265,10 +1279,10 @@ export default function OngDiaPage() {
           width: 44px;
           min-height: 44px;
           padding: 0;
-          border: 1px solid rgba(255, 212, 139, 0.32);
+          border: 1px solid var(--room-pass2-border);
           border-radius: 14px;
-          background: rgba(52, 22, 12, 0.72);
-          color: #ffe7ae;
+          background: var(--room-pass2-control);
+          color: var(--cho-neo-text-accent);
           text-decoration: none;
           box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
         }
@@ -1287,7 +1301,7 @@ export default function OngDiaPage() {
             linear-gradient(135deg, rgba(255, 214, 142, 0.12), transparent 38%),
             rgba(41, 18, 11, 0.94);
           box-shadow: 0 24px 58px rgba(0, 0, 0, 0.34);
-          color: #fff4dd;
+          color: var(--cho-neo-text-primary);
           overflow: hidden;
         }
 
@@ -1313,9 +1327,9 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-feedback-panel header p {
-          color: #fff0c2;
+          color: var(--cho-neo-text-primary);
           font-size: 1rem;
-          font-weight: 680;
+          font-weight: 600;
           line-height: 1.2;
         }
 
@@ -1337,12 +1351,12 @@ export default function OngDiaPage() {
           min-height: 40px;
           border: 1px solid rgba(255, 212, 139, 0.24);
           border-radius: 12px;
-          color: #ffe7ae;
+          color: var(--cho-neo-text-accent);
           background: rgba(255, 244, 221, 0.07);
           cursor: pointer;
           font: inherit;
           font-size: 0.86rem;
-          font-weight: 650;
+          font-weight: 600;
         }
 
         .ong-dia-feedback-panel header button {
@@ -1392,9 +1406,9 @@ export default function OngDiaPage() {
 
         .ong-dia-feedback-body legend,
         .ong-dia-feedback-body label span {
-          color: #fff0c2;
+          color: var(--cho-neo-text-primary);
           font-size: 0.92rem;
-          font-weight: 620;
+          font-weight: 600;
           line-height: 1.35;
         }
 
@@ -1420,7 +1434,7 @@ export default function OngDiaPage() {
           width: 100%;
           border: 1px solid rgba(255, 212, 139, 0.24);
           border-radius: 12px;
-          color: #fff4dd;
+          color: var(--cho-neo-text-primary);
           background: rgba(15, 8, 5, 0.28);
           font: inherit;
           font-size: 0.94rem;
@@ -1455,12 +1469,12 @@ export default function OngDiaPage() {
           margin: 0 auto;
           border-radius: clamp(18px, 3vw, 30px);
           background:
-            linear-gradient(135deg, rgba(255, 211, 138, 0.22), transparent 22%),
-            rgba(38, 16, 8, 0.86);
+            linear-gradient(135deg, rgba(217, 141, 126, 0.18), transparent 22%),
+            rgba(42, 18, 12, 0.88);
           padding: clamp(0.35rem, 1vw, 0.7rem);
           box-shadow:
             0 30px 80px rgba(0, 0, 0, 0.5),
-            inset 0 0 0 1px rgba(255, 218, 157, 0.22);
+            inset 0 0 0 1px var(--room-pass2-border-soft);
         }
 
         .ong-dia-stage {
@@ -2004,11 +2018,11 @@ export default function OngDiaPage() {
           gap: 1rem;
           align-items: start;
           padding: clamp(0.9rem, 2vw, 1.2rem);
-          border: 1px solid rgba(255, 212, 139, 0.2);
+          border: 1px solid var(--room-pass2-border);
           border-radius: 22px;
           background:
-            linear-gradient(135deg, rgba(255, 214, 142, 0.14), transparent 34%),
-            rgba(50, 22, 13, 0.76);
+            linear-gradient(135deg, rgba(247, 238, 232, 0.12), transparent 34%),
+            var(--room-pass2-surface-soft);
           box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
         }
 
@@ -2018,7 +2032,8 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-blessing-card h2 {
-          color: #fff0c2;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(1.6875rem, 2.1vw, 1.8125rem);
           font-weight: 600;
           line-height: 1.12;
@@ -2026,7 +2041,8 @@ export default function OngDiaPage() {
 
         .ong-dia-blessing-card p {
           margin-top: 0.55rem;
-          color: rgba(255, 244, 221, 0.72);
+          color: var(--room-pass2-text-secondary);
+          font-weight: 400;
           line-height: 1.5;
         }
 
@@ -2034,20 +2050,20 @@ export default function OngDiaPage() {
         .ong-dia-result-card p,
         .ong-dia-result-placeholder,
         .ong-dia-prayer-panel label {
-          color: #ffd48b !important;
-          font-weight: 900;
+          color: var(--cho-neo-text-accent) !important;
+          font-weight: 600;
         }
 
         .ong-dia-ritual-kicker {
           font-size: 0.78rem;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .ong-dia-ritual-kicker span {
           display: block;
           margin-top: 0.22rem;
-          color: rgba(255, 244, 221, 0.62);
+          color: var(--room-pass2-text-muted);
           font-size: 0.82em;
           letter-spacing: 0;
           text-transform: none;
@@ -2060,16 +2076,17 @@ export default function OngDiaPage() {
 
         .ong-dia-daily-message p {
           margin: 0;
-          color: #ffd48b !important;
+          color: var(--cho-neo-text-accent) !important;
           font-size: 0.72rem;
-          font-weight: 900;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .ong-dia-daily-message span {
-          color: rgba(255, 239, 203, 0.7);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.94rem;
+          font-weight: 400;
           line-height: 1.45;
         }
 
@@ -2078,15 +2095,15 @@ export default function OngDiaPage() {
         .ong-dia-clear-confirmation,
         .ong-dia-compact-fallback {
           margin: 0;
-          border: 1px solid rgba(255, 212, 139, 0.18);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 16px;
-          background: rgba(255, 244, 221, 0.07);
+          background: rgba(101, 49, 34, 0.5);
           padding: 0.75rem 0.85rem;
           line-height: 1.45;
         }
 
         .ong-dia-clear-confirmation {
-          color: #fff0c2 !important;
+          color: var(--cho-neo-text-primary) !important;
         }
 
         .ong-dia-soft-blessing,
@@ -2100,7 +2117,7 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-soft-blessing {
-          color: rgba(255, 235, 187, 0.78) !important;
+          color: var(--room-pass2-text-secondary) !important;
           font-size: 0.9rem;
         }
 
@@ -2112,7 +2129,7 @@ export default function OngDiaPage() {
           gap: 0.6rem;
           border-color: rgba(255, 186, 83, 0.2);
           background: rgba(255, 244, 221, 0.08);
-          color: #ffe7ae !important;
+          color: var(--cho-neo-text-accent) !important;
           font-size: 0.94rem;
         }
 
@@ -2121,11 +2138,11 @@ export default function OngDiaPage() {
           border: 1px solid rgba(255, 212, 139, 0.28);
           border-radius: 12px;
           padding: 0.48rem 0.72rem;
-          color: #fff4dd;
+          color: var(--cho-neo-text-primary);
           background: rgba(124, 45, 18, 0.54);
           font: inherit;
           font-size: 0.84rem;
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
         }
 
@@ -2139,7 +2156,7 @@ export default function OngDiaPage() {
           gap: 0.42rem;
           align-items: center;
           width: fit-content;
-          color: rgba(255, 239, 203, 0.68) !important;
+          color: var(--room-pass2-text-muted) !important;
           font-size: 0.82rem;
         }
 
@@ -2176,11 +2193,11 @@ export default function OngDiaPage() {
           display: grid;
           gap: 0.65rem;
           margin: 0;
-          border: 1px solid rgba(255, 212, 139, 0.2);
+          border: 1px solid var(--room-pass2-border);
           border-radius: 18px;
           background:
-            linear-gradient(135deg, rgba(255, 244, 221, 0.13), transparent 42%),
-            rgba(255, 244, 221, 0.08);
+            linear-gradient(135deg, rgba(247, 238, 232, 0.13), transparent 42%),
+            rgba(92, 43, 30, 0.58);
           padding: 0.85rem;
           transition:
             opacity 1.5s ease,
@@ -2194,12 +2211,12 @@ export default function OngDiaPage() {
           display: grid;
           gap: 0.78rem;
           overflow: hidden;
-          border: 1px solid rgba(255, 218, 157, 0.34);
+          border: 1px solid rgba(217, 141, 126, 0.42);
           border-radius: 18px;
           background:
-            linear-gradient(135deg, rgba(255, 244, 221, 0.18), transparent 42%),
-            radial-gradient(circle at 88% 10%, rgba(245, 158, 11, 0.2), transparent 30%),
-            rgba(255, 244, 221, 0.09);
+            linear-gradient(135deg, rgba(247, 238, 232, 0.18), transparent 42%),
+            radial-gradient(circle at 88% 10%, rgba(217, 141, 126, 0.18), transparent 30%),
+            rgba(101, 49, 34, 0.62);
           padding: clamp(0.95rem, 2vw, 1.25rem);
           box-shadow:
             0 18px 42px rgba(0, 0, 0, 0.24),
@@ -2237,10 +2254,10 @@ export default function OngDiaPage() {
 
         .ong-dia-keepsake-heading p {
           margin: 0;
-          color: #ffe7ae !important;
-          font-family: Georgia, "Times New Roman", serif;
+          color: var(--cho-neo-text-accent) !important;
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(1.2rem, 2.8vw, 1.75rem);
-          font-weight: 800;
+          font-weight: 600;
           line-height: 1.1;
         }
 
@@ -2265,21 +2282,21 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-keepsake-line small {
-          color: rgba(255, 236, 196, 0.78);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.72rem;
-          font-weight: 760;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .ong-dia-keepsake-line span {
-          color: rgba(255, 247, 232, 0.9);
+          color: var(--room-pass2-text-primary);
           font-size: clamp(0.98rem, 1.5vw, 1.05rem);
           line-height: 1.48;
         }
 
         .ong-dia-keepsake-main span {
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: clamp(1.08rem, 2vw, 1.22rem);
           line-height: 1.45;
         }
@@ -2293,20 +2310,20 @@ export default function OngDiaPage() {
 
         .ong-dia-keepsake-actions button {
           min-height: 40px;
-          border: 1px solid rgba(255, 212, 139, 0.24);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
-          background: rgba(26, 12, 7, 0.38);
-          color: #ffe7ae;
+          background: rgba(65, 29, 20, 0.74);
+          color: var(--cho-neo-text-accent);
           padding: 0.46rem 0.72rem;
           font: inherit;
           font-size: 0.82rem;
-          font-weight: 780;
+          font-weight: 600;
           cursor: pointer;
         }
 
         .ong-dia-keepsake-actions button:first-child {
           background: rgba(255, 212, 139, 0.16);
-          color: #ffe7ae;
+          color: var(--cho-neo-text-accent);
         }
 
         .ong-dia-keepsake-actions button:focus-visible,
@@ -2316,7 +2333,7 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-share-notice {
-          color: rgba(255, 239, 203, 0.78) !important;
+          color: var(--room-pass2-text-secondary) !important;
           font-size: 0.84rem;
         }
 
@@ -2356,11 +2373,11 @@ export default function OngDiaPage() {
         .ong-dia-prayer-response p,
         .ong-dia-response-loading {
           margin: 0;
-          color: #ffd48b !important;
+          color: var(--cho-neo-text-accent) !important;
           font-size: 0.78rem;
-          font-weight: 900;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .ong-dia-prayer-response span {
@@ -2379,18 +2396,18 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-loc-notice {
-          color: #ffd48b !important;
+          color: var(--cho-neo-text-accent) !important;
         }
 
         .ong-dia-provider-notice {
           margin: 0.15rem 0 0;
-          color: rgba(255, 239, 203, 0.78);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.83rem;
           line-height: 1.45;
         }
 
         .ong-dia-safety-copy {
-          color: rgba(255, 244, 221, 0.66) !important;
+          color: var(--room-pass2-text-muted) !important;
           font-size: 0.88rem;
         }
 
@@ -2406,14 +2423,14 @@ export default function OngDiaPage() {
         .ong-dia-prayer-panel label {
           display: block;
           font-size: 0.82rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .ong-dia-prayer-panel label span {
           display: block;
           margin-top: 0.16rem;
-          color: rgba(255, 244, 221, 0.58);
+          color: var(--room-pass2-text-muted);
           font-size: 0.82em;
           letter-spacing: 0;
           text-transform: none;
@@ -2423,10 +2440,10 @@ export default function OngDiaPage() {
           width: 100%;
           min-height: 104px;
           resize: vertical;
-          border: 1px solid rgba(255, 212, 139, 0.24);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
-          background: rgba(23, 9, 5, 0.5);
-          color: #fff4dd;
+          background: rgba(38, 18, 13, 0.78);
+          color: var(--cho-neo-text-primary);
           padding: 0.85rem 0.9rem;
           font: inherit;
           font-size: 0.98rem;
@@ -2437,7 +2454,7 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-prayer-panel textarea::placeholder {
-          color: rgba(255, 244, 221, 0.46);
+          color: var(--room-pass2-text-muted);
         }
 
         .ong-dia-prayer-panel textarea:focus {
@@ -2475,9 +2492,9 @@ export default function OngDiaPage() {
           color: rgba(255, 244, 221, 0.86) !important;
           padding: 0.5rem 0.7rem;
           font-size: 0.78rem;
-          font-weight: 760;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .ong-dia-prayer-actions button,
@@ -2492,7 +2509,7 @@ export default function OngDiaPage() {
           padding: 0.5rem 0.85rem;
           font: inherit;
           font-size: 0.86rem;
-          font-weight: 780;
+          font-weight: 600;
           line-height: 1;
           text-decoration: none;
           text-align: center;
@@ -2516,9 +2533,9 @@ export default function OngDiaPage() {
         .ong-dia-prayer-actions .ong-dia-clear-prayer-button {
           width: 44px;
           padding: 0;
-          color: #fff4dd;
-          background: rgba(43, 19, 11, 0.42);
-          border-color: rgba(255, 212, 139, 0.22);
+          color: var(--cho-neo-text-primary);
+          background: rgba(65, 29, 20, 0.74);
+          border-color: var(--room-pass2-border-soft);
           box-shadow: none;
         }
 
@@ -2549,7 +2566,7 @@ export default function OngDiaPage() {
 
         .ong-dia-result-card h3 {
           margin: 0.35rem 0 0;
-          color: #fff0c2;
+          color: var(--cho-neo-text-primary);
           font-size: clamp(1.1rem, 2vw, 1.35rem);
           line-height: 1.25;
         }
@@ -2574,7 +2591,7 @@ export default function OngDiaPage() {
           min-width: 46px;
           border-radius: 12px;
           padding: 0.48rem 0.72rem;
-          color: #ffe7ae;
+          color: var(--cho-neo-text-accent);
           background: rgba(255, 244, 221, 0.06);
           gap: 0.42rem;
           box-shadow: none;
@@ -2583,7 +2600,7 @@ export default function OngDiaPage() {
         .ong-dia-blessing-actions a span {
           color: inherit;
           font-size: 0.82rem;
-          font-weight: 760;
+          font-weight: 600;
         }
 
         .ong-dia-return-copy {
@@ -2619,7 +2636,7 @@ export default function OngDiaPage() {
 
           .ong-dia-eyebrow {
             font-size: 0.68rem;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.02em;
           }
 
           .ong-dia-copy h1 {

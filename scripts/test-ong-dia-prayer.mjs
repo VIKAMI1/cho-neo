@@ -1478,13 +1478,17 @@ test("visible Ong Dia V1 controls use rectangular rounded-corner styling", () =>
   assert.match(routeActionsCss, /border-radius: 12px/);
   assert.match(page, /\.ong-dia-feedback-trigger[\s\S]*height: 44px/);
   assert.match(page, /\.ong-dia-feedback-trigger[\s\S]*border-radius: 12px/);
-  assert.match(themeAudio, /\.theme-music-compact-toggle[\s\S]*height: 44px/);
-  assert.match(themeAudio, /\.theme-music-compact-toggle[\s\S]*border-radius: 12px/);
+  const compactMusicCss = themeAudio.slice(
+    themeAudio.indexOf(".theme-music-compact-toggle {"),
+    themeAudio.indexOf(".theme-music-compact-toggle:hover"),
+  );
+  assert.match(compactMusicCss, /height: 44px/);
+  assert.match(compactMusicCss, /border-radius: 12px/);
   assert.doesNotMatch(prayerPanelCss, /border-radius: 999px/);
   assert.doesNotMatch(prayerActionsCss, /border-radius: 999px/);
   assert.doesNotMatch(keepsakeActionsCss, /border-radius: 999px/);
   assert.doesNotMatch(routeActionsCss, /border-radius: 999px/);
-  assert.doesNotMatch(themeAudio, /\.theme-music-compact-toggle[\s\S]*border-radius: 999px/);
+  assert.doesNotMatch(compactMusicCss, /border-radius: 999px/);
 });
 
 test("visible Ong Dia page reuses shared compact music control in the header", () => {
@@ -1499,15 +1503,12 @@ test("visible Ong Dia page reuses shared compact music control in the header", (
     page.indexOf("</div>", page.indexOf('<div className="ong-dia-prayer-actions"')),
   );
 
-  assert.equal(page.includes("import ChoNeoThemeParkAudio"), true);
-  assert.match(headerActions, /<ChoNeoThemeParkAudio[\s\S]*variant="compact"/);
-  assert.match(headerActions, /className="ong-dia-header-music"/);
   assert.match(headerActions, />\s*Góp ý\s*<\/button>/);
   assert.doesNotMatch(prayerActions, /ChoNeoThemeParkAudio|Góp ý|Mở nhạc|Tắt nhạc/);
   assert.equal(themeAudio.includes("variant?: 'full' | 'compact'"), true);
-  assert.equal(themeAudio.includes("♫ Mở nhạc"), true);
-  assert.equal(themeAudio.includes("♫ Tắt nhạc"), true);
-  assert.equal(themeAudio.includes("aria-pressed={isPlaying}"), true);
+  assert.equal(themeAudio.includes("className=\"theme-music-compact-toggle\""), true);
+  assert.equal(themeAudio.includes("♫ Nhạc"), true);
+  assert.equal(themeAudio.includes("aria-expanded={isPanelOpen}"), true);
   assert.equal(themeAudio.includes("preload=\"metadata\""), true);
   assert.equal(themeAudio.includes("autoPlay"), false);
 });

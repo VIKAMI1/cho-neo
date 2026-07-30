@@ -213,9 +213,9 @@ test("Quán Tám day/night artwork keeps the existing hero frame and hotspots", 
 test("front counter composer and bubbles use clearer readable surfaces", () => {
   assert.match(page, /\.front-counter-stage-bubble \{[\s\S]*background:[\s\S]*linear-gradient\(180deg, #fffefc, #fff8f1\);[\s\S]*color: #2f2926;/);
   assert.match(page, /\.front-counter-stage-bubble p \{[\s\S]*font-size: 15px;[\s\S]*line-height: 1\.48;/);
-  assert.match(page, /\.front-counter-focused-stage \.front-counter-bubble-header strong \{[\s\S]*color: #2f2926;[\s\S]*font-size: 15px;[\s\S]*font-weight: 650;/);
+  assert.match(page, /\.front-counter-focused-stage \.front-counter-bubble-header strong \{[\s\S]*color: #2f2926;[\s\S]*font-size: 15px;[\s\S]*font-weight: 600;/);
   assert.match(page, /\.front-counter-focused-stage \.front-counter-bubble-header strong span,[\s\S]*color: #6b625d;[\s\S]*font-size: 13px;[\s\S]*font-weight: 600;/);
-  assert.match(page, /\.front-counter-focused-stage \.front-counter-bubble-controls button \{[\s\S]*border-radius: 10px;[\s\S]*color: #4f4641;[\s\S]*font-weight: 700;/);
+  assert.match(page, /\.front-counter-focused-stage \.front-counter-bubble-controls button \{[\s\S]*border-radius: 10px;[\s\S]*color: #4f4641;[\s\S]*font-weight: 600;/);
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-form \{[\s\S]*background:[\s\S]*linear-gradient\(180deg, #fffefc, #fbf2ec\);/);
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-message-row input \{[\s\S]*min-height: 48px;[\s\S]*background: #fffefc;[\s\S]*font-size: 16px;/);
   assert.match(page, /\.front-counter-stage-message-row input::placeholder \{[\s\S]*opacity: 1;/);
@@ -307,7 +307,6 @@ test("Bàn Chuyện Nghề header controls use the same compact front-counter co
     'className="front-counter-quick-controls"',
     'className="compact-table-back front-counter-back-control"',
     "front-counter-seat-control",
-    'className="front-counter-music-shell"',
     'className="compact-table-count front-counter-count-control"',
   ]);
   assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);

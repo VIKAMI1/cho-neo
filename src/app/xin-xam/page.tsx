@@ -564,13 +564,25 @@ export default function XinXamPage() {
 
       <style>{`
         .xin-xam-page {
+          --room-pass2-text-primary: #f7eee8;
+          --room-pass2-text-secondary: rgba(247, 238, 232, 0.78);
+          --room-pass2-text-muted: rgba(247, 238, 232, 0.6);
+          --room-pass2-border: rgba(217, 141, 126, 0.34);
+          --room-pass2-border-soft: rgba(217, 141, 126, 0.22);
+          --room-pass2-surface: rgba(79, 32, 22, 0.9);
+          --room-pass2-surface-soft: rgba(66, 27, 20, 0.84);
+          --room-pass2-control: rgba(114, 46, 31, 0.9);
+          --cho-neo-text-primary: var(--room-pass2-text-primary);
+          --cho-neo-text-accent: #efb8aa;
           min-height: 100vh;
           overflow-x: hidden;
           background:
-            radial-gradient(circle at 50% 8%, rgba(220, 76, 30, 0.24), transparent 32rem),
-            radial-gradient(circle at 50% 72%, rgba(255, 169, 70, 0.12), transparent 38rem),
-            linear-gradient(180deg, #170907 0%, #37160e 54%, #24100b 100%);
-          color: #fff1d0;
+            radial-gradient(circle at 50% 8%, rgba(220, 76, 30, 0.2), transparent 32rem),
+            radial-gradient(circle at 50% 72%, rgba(217, 141, 126, 0.12), transparent 38rem),
+            linear-gradient(180deg, #140706 0%, #2e130c 54%, #180b08 100%);
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-ui);
+          font-weight: 400;
           padding: clamp(0.75rem, 2vw, 1.2rem);
         }
 
@@ -600,17 +612,17 @@ export default function XinXamPage() {
           justify-content: center;
           height: 44px;
           min-width: 92px;
-          border: 1px solid rgba(255, 212, 139, 0.3);
+          border: 1px solid var(--room-pass2-border);
           border-radius: 12px;
           padding: 0 0.8rem;
-          color: #ffe4ab;
-          background: rgba(52, 22, 12, 0.66);
+          color: var(--cho-neo-text-accent);
+          background: var(--room-pass2-control);
           text-decoration: none;
           box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
           cursor: pointer;
           font: inherit;
           font-size: 0.88rem;
-          font-weight: 650;
+          font-weight: 600;
           line-height: 1;
           white-space: nowrap;
         }
@@ -633,12 +645,12 @@ export default function XinXamPage() {
           z-index: 6;
           width: min(620px, 100%);
           margin: 0 auto 0.85rem;
-          border: 1px solid rgba(255, 224, 161, 0.22);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 18px;
           padding: 0.82rem;
-          background: rgba(31, 12, 8, 0.9);
+          background: var(--room-pass2-surface-soft);
           box-shadow: 0 20px 48px rgba(0, 0, 0, 0.3);
-          color: #fff1d0;
+          color: var(--cho-neo-text-primary);
         }
 
         .xin-xam-feedback-panel form {
@@ -658,9 +670,9 @@ export default function XinXamPage() {
 
         .xin-xam-feedback-panel legend,
         .xin-xam-feedback-panel label span {
-          color: #ffe4ab;
+          color: var(--cho-neo-text-accent);
           font-size: 0.82rem;
-          font-weight: 650;
+          font-weight: 600;
           line-height: 1.35;
         }
 
@@ -690,10 +702,10 @@ export default function XinXamPage() {
           border-radius: 12px;
           padding: 0 0.7rem;
           background: rgba(255, 241, 208, 0.08);
-          color: #ffe4ab;
+          color: var(--cho-neo-text-accent);
           font: inherit;
           font-size: 0.78rem;
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
         }
 
@@ -715,7 +727,7 @@ export default function XinXamPage() {
           border-radius: 12px;
           padding: 0.55rem 0.62rem;
           background: rgba(11, 5, 4, 0.44);
-          color: #fff1d0;
+          color: var(--cho-neo-text-primary);
           font: inherit;
           font-size: 0.86rem;
         }
@@ -740,7 +752,7 @@ export default function XinXamPage() {
         .xin-xam-feedback-error,
         .xin-xam-feedback-confirmation {
           margin: 0;
-          color: rgba(255, 241, 208, 0.78);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.84rem;
           line-height: 1.4;
         }
@@ -765,7 +777,7 @@ export default function XinXamPage() {
           aspect-ratio: 1672 / 941;
           margin: 0;
           overflow: hidden;
-          border: 1px solid rgba(255, 210, 126, 0.22);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: clamp(18px, 2.4vw, 30px);
           background: #130806;
           box-shadow:
@@ -794,9 +806,9 @@ export default function XinXamPage() {
         .xam-card {
           position: relative;
           z-index: 3;
-          border: 1px solid rgba(255, 224, 161, 0.28);
-          background: rgba(29, 11, 8, 0.82);
-          color: #fff1d0;
+          border: 1px solid var(--room-pass2-border);
+          background: var(--room-pass2-surface);
+          color: var(--cho-neo-text-primary);
           box-shadow: 0 22px 56px rgba(0, 0, 0, 0.24);
           backdrop-filter: blur(12px);
         }
@@ -817,25 +829,28 @@ export default function XinXamPage() {
         }
 
         .xin-xam-title-card > p {
-          color: #ffd28a;
+          color: var(--cho-neo-text-accent);
           font-size: 0.72rem;
-          font-weight: 900;
-          letter-spacing: 0.11em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .xin-xam-title-card h1 {
           margin-top: 0.25rem;
-          color: #fff1d0;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(1.06rem, 2vw, 1.64rem);
+          font-weight: 600;
           line-height: 1.06;
         }
 
         .xin-xam-title-card span {
           display: block;
           margin-top: 0.42rem;
-          color: rgba(255, 241, 208, 0.72);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.9rem;
+          font-weight: 400;
           line-height: 1.35;
         }
 
@@ -852,14 +867,14 @@ export default function XinXamPage() {
           justify-content: center;
           gap: 0.22rem;
           min-height: 38px;
-          border: 1px solid rgba(255, 224, 161, 0.28);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
           padding: 0 0.3rem;
-          background: rgba(96, 34, 18, 0.82);
-          color: rgba(255, 241, 208, 0.88);
+          background: var(--room-pass2-control);
+          color: var(--room-pass2-text-primary);
           font: inherit;
           font-size: 0.74rem;
-          font-weight: 780;
+          font-weight: 600;
           line-height: 1;
           cursor: pointer;
           box-shadow:
@@ -874,8 +889,8 @@ export default function XinXamPage() {
 
         .xin-xam-topic-grid button:hover,
         .xin-xam-topic-grid button:focus-visible {
-          border-color: rgba(255, 224, 161, 0.44);
-          background: rgba(126, 48, 24, 0.9);
+          border-color: rgba(217, 141, 126, 0.5);
+          background: rgba(133, 55, 39, 0.94);
           outline: none;
         }
 
@@ -904,7 +919,7 @@ export default function XinXamPage() {
 
         .xin-xam-topic-grid button span {
           flex: 0 0 auto;
-          color: #ffcf7d;
+          color: var(--cho-neo-text-accent);
           font-size: 0.84rem;
           line-height: 1;
         }
@@ -929,7 +944,7 @@ export default function XinXamPage() {
           background:
             radial-gradient(circle at 38% 30%, rgba(255, 199, 120, 0.42), transparent 18%),
             radial-gradient(circle at 50% 58%, #f23824 0%, #c51513 54%, #740908 100%);
-          color: #ffe4ab;
+          color: var(--cho-neo-text-accent);
           cursor: pointer;
           touch-action: manipulation;
           transform: translate(-50%, -50%);
@@ -996,10 +1011,10 @@ export default function XinXamPage() {
           left: 50%;
           top: 50%;
           transform: translate(-50%, -50%);
-          color: #ffdf8d;
-          font-family: Georgia, "Times New Roman", serif;
+          color: var(--cho-neo-text-accent);
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(1.32rem, 2vw, 1.9rem);
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1;
           text-shadow:
             0 1px 0 rgba(89, 7, 4, 0.82),
@@ -1018,9 +1033,9 @@ export default function XinXamPage() {
           border-radius: 12px;
           padding: 0.36rem 0.56rem;
           background: rgba(48, 17, 10, 0.82);
-          color: #ffe4ab;
+          color: var(--cho-neo-text-accent);
           font-size: 0.72rem;
-          font-weight: 820;
+          font-weight: 600;
           line-height: 1;
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
           pointer-events: none;
@@ -1040,7 +1055,7 @@ export default function XinXamPage() {
           border: 1px solid rgba(255, 217, 139, 0.28);
           border-radius: 999px;
           background: linear-gradient(180deg, #a84b25, #552015);
-          color: #ffdf96;
+          color: var(--cho-neo-text-accent);
           cursor: pointer;
           box-shadow: 0 22px 46px rgba(0, 0, 0, 0.34);
           transform: rotate(-8deg) translateY(54px);
@@ -1054,8 +1069,8 @@ export default function XinXamPage() {
           align-items: center;
           gap: 0.18rem;
           font-size: 0.78rem;
-          font-weight: 900;
-          letter-spacing: 0.1em;
+          font-weight: 600;
+          letter-spacing: 0.02em;
         }
 
         .xam-rising-stick.is-ready {
@@ -1088,37 +1103,40 @@ export default function XinXamPage() {
           align-items: center;
           justify-content: space-between;
           gap: 0.5rem;
-          color: #ffd28a;
+          color: var(--cho-neo-text-accent);
           font-size: 0.78rem;
-          font-weight: 900;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .xam-card-meta strong {
           border-radius: 999px;
           padding: 0.28rem 0.5rem;
           background: rgba(255, 210, 126, 0.16);
-          color: #ffe4ab;
+          color: var(--cho-neo-text-accent);
         }
 
         .xam-card h2 {
           margin-top: 0.55rem;
-          color: #fff4dd;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(0.98rem, 1.75vw, 1.34rem);
+          font-weight: 600;
           line-height: 1.08;
         }
 
         .xam-card p {
           margin-top: 0.65rem;
-          color: rgba(255, 241, 208, 0.78);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.94rem;
+          font-weight: 400;
           line-height: 1.5;
         }
 
         .xam-poem {
           white-space: pre-line;
-          color: #ffe4ab !important;
+          color: var(--cho-neo-text-accent) !important;
           font-style: italic;
         }
 
@@ -1129,11 +1147,11 @@ export default function XinXamPage() {
         }
 
         .xam-action span {
-          color: #ffd28a;
+          color: var(--cho-neo-text-accent);
           font-size: 0.72rem;
-          font-weight: 900;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .xam-action p {
@@ -1146,15 +1164,15 @@ export default function XinXamPage() {
           justify-content: center;
           min-height: 36px;
           margin-top: 0.9rem;
-          border: 1px solid rgba(255, 224, 161, 0.2);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
           padding: 0 0.72rem;
-          background: rgba(255, 241, 208, 0.06);
-          color: rgba(255, 228, 171, 0.84);
+          background: rgba(114, 46, 31, 0.56);
+          color: var(--room-pass2-text-secondary);
           cursor: pointer;
           font: inherit;
           font-size: 0.78rem;
-          font-weight: 760;
+          font-weight: 600;
           line-height: 1;
         }
 
@@ -1162,7 +1180,7 @@ export default function XinXamPage() {
         .xam-change-topic:focus-visible {
           border-color: rgba(255, 224, 161, 0.34);
           background: rgba(255, 241, 208, 0.1);
-          color: #ffe4ab;
+          color: var(--cho-neo-text-accent);
           outline: none;
         }
 
@@ -1171,23 +1189,23 @@ export default function XinXamPage() {
         }
 
         .xam-draw-notice {
-          border: 1px solid rgba(255, 224, 161, 0.18);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
           padding: 0.58rem 0.68rem;
-          background: rgba(255, 210, 126, 0.08);
-          color: rgba(255, 228, 171, 0.88) !important;
+          background: rgba(114, 46, 31, 0.5);
+          color: var(--room-pass2-text-secondary) !important;
           font-size: 0.82rem !important;
           line-height: 1.36 !important;
         }
 
         .xam-loc-so-annex {
           grid-area: locso;
-          border: 1px solid rgba(255, 205, 115, 0.2);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 16px;
           padding: 0.72rem;
           background:
-            linear-gradient(135deg, rgba(58, 19, 13, 0.78), rgba(36, 12, 9, 0.72)),
-            radial-gradient(circle at 100% 0%, rgba(255, 212, 117, 0.11), transparent 8rem);
+            linear-gradient(135deg, rgba(75, 30, 22, 0.88), rgba(54, 22, 17, 0.82)),
+            radial-gradient(circle at 100% 0%, rgba(217, 141, 126, 0.13), transparent 8rem);
           box-shadow:
             inset 0 0 0 1px rgba(255, 234, 178, 0.05),
             0 12px 24px rgba(0, 0, 0, 0.14);
@@ -1195,9 +1213,9 @@ export default function XinXamPage() {
 
         .xam-loc-so-annex.is-open {
           background:
-            linear-gradient(135deg, rgba(113, 50, 24, 0.84), rgba(76, 25, 15, 0.78)),
-            radial-gradient(circle at 100% 0%, rgba(255, 212, 117, 0.15), transparent 8rem);
-          border-color: rgba(255, 205, 115, 0.3);
+            linear-gradient(135deg, rgba(118, 50, 34, 0.92), rgba(82, 32, 23, 0.86)),
+            radial-gradient(circle at 100% 0%, rgba(217, 141, 126, 0.17), transparent 8rem);
+          border-color: var(--room-pass2-border);
         }
 
         .xam-loc-so-annex.is-locked {
@@ -1235,10 +1253,10 @@ export default function XinXamPage() {
           flex: 0 0 auto;
           align-items: center;
           justify-content: center;
-          border: 1px solid rgba(255, 224, 161, 0.28);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 10px;
-          background: rgba(255, 210, 126, 0.12);
-          color: #ffcf7d;
+          background: rgba(114, 46, 31, 0.58);
+          color: var(--cho-neo-text-accent);
           line-height: 1;
         }
 
@@ -1249,13 +1267,13 @@ export default function XinXamPage() {
         }
 
         .xam-loc-so-annex strong {
-          color: #ffdf96;
+          color: var(--cho-neo-text-accent);
           font-size: 0.88rem;
           line-height: 1.05;
         }
 
         .xam-loc-so-annex small {
-          color: rgba(255, 241, 208, 0.68);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.78rem;
           line-height: 1.3;
         }
@@ -1274,27 +1292,27 @@ export default function XinXamPage() {
         }
 
         .xam-loc-so-nav h3 {
-          color: #ffdf96;
+          color: var(--cho-neo-text-accent);
           font-size: 0.88rem;
           line-height: 1;
         }
 
         .xam-loc-so-heading p {
-          color: rgba(255, 241, 208, 0.68);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.78rem;
           line-height: 1.3;
         }
 
         .xam-loc-so-result {
           margin-top: 0.65rem;
-          border-top: 1px solid rgba(255, 224, 161, 0.16);
+          border-top: 1px solid var(--room-pass2-border-soft);
           padding-top: 0.58rem;
         }
 
         .xam-loc-so-result p {
-          color: #fff1d0;
+          color: var(--cho-neo-text-primary);
           font-size: clamp(1rem, 1.7vw, 1.22rem);
-          font-weight: 760;
+          font-weight: 600;
           letter-spacing: 0.025em;
           line-height: 1.35;
         }
@@ -1306,9 +1324,9 @@ export default function XinXamPage() {
           border-radius: 12px;
           padding: 0.2rem 0.48rem;
           background: rgba(255, 241, 208, 0.08);
-          color: #ffdf96;
+          color: var(--cho-neo-text-accent);
           font-size: 0.76rem;
-          font-weight: 760;
+          font-weight: 600;
         }
 
         @keyframes xamPulse {
