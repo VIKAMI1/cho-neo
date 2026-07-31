@@ -17,6 +17,10 @@ const upsertFixMigrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260727223000_fix_cho_neo_member_redemption_upsert.sql",
 );
+const openAIUsageMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260730193000_cho_neo_openai_usage_circuit_breaker.sql",
+);
 const workflowPath = path.join(
   repoRoot,
   ".github/workflows/cho-neo-social-member-db-proof.yml",
@@ -41,6 +45,7 @@ const inviteScriptPath = path.join(
 const migration = fs.readFileSync(migrationPath, "utf8");
 const repairMigration = fs.readFileSync(repairMigrationPath, "utf8");
 const upsertFixMigration = fs.readFileSync(upsertFixMigrationPath, "utf8");
+const openAIUsageMigration = fs.readFileSync(openAIUsageMigrationPath, "utf8");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
@@ -204,4 +209,24 @@ test("invitation generator is server-only and does not reveal plain codes in dry
   assert.match(inviteScript, /const CODE_BYTES = 16/);
   assert.match(inviteScript, /createHash\("sha256"\)/);
   assert.match(inviteScript, /Plain invitation is intentionally hidden in dry-run mode/);
+});
+
+test("OpenAI usage circuit breaker migration uses shared locked accounting", () => {
+  assert.match(openAIUsageMigration, /create table if not exists public\.cho_neo_openai_usage_windows/);
+  assert.match(openAIUsageMigration, /scope_type in \('global_month', 'member_day'\)/);
+  assert.match(openAIUsageMigration, /primary key \(scope_type, scope_key, window_start\)/);
+  assert.match(openAIUsageMigration, /alter table public\.cho_neo_openai_usage_windows enable row level security/);
+  assert.match(openAIUsageMigration, /revoke all on public\.cho_neo_openai_usage_windows from anon, authenticated/);
+  assert.match(openAIUsageMigration, /create or replace function public\.reserve_cho_neo_openai_usage/);
+  assert.match(openAIUsageMigration, /security definer/);
+  assert.match(openAIUsageMigration, /set search_path = public/);
+  assert.match(openAIUsageMigration, /for update/g);
+  assert.match(openAIUsageMigration, /global_row\.request_count >= p_monthly_request_limit/);
+  assert.match(openAIUsageMigration, /member_row\.request_count >= p_daily_member_request_limit/);
+  assert.match(openAIUsageMigration, /request_count = request_count \+ 1/);
+  assert.match(openAIUsageMigration, /estimated_token_count = estimated_token_count \+ safe_estimated_tokens/);
+  assert.match(openAIUsageMigration, /'global-limit'/);
+  assert.match(openAIUsageMigration, /'member-limit'/);
+  assert.match(openAIUsageMigration, /revoke all on function public\.reserve_cho_neo_openai_usage/);
+  assert.match(openAIUsageMigration, /select pg_notify\('pgrst', 'reload schema'\)/);
 });

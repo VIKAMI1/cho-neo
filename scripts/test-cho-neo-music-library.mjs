@@ -154,12 +154,14 @@ test("Chợ Neo keeps one shared layout-level player and no autoplay", () => {
 test("production public music folder contains only the 17 referenced V1 tracks", () => {
   const musicDir = path.join(repoRoot, "public/Cho_Neo_music");
   const files = fs.readdirSync(musicDir).filter((file) => file.endsWith(".mp3")).sort();
+  const normalizedFiles = files.map((file) => file.normalize("NFC")).sort();
   const referencedFiles = enabledTracks
     .map((track) => decodeURI(track.src.replace(/^\/Cho_Neo_music\//, "")))
+    .map((file) => file.normalize("NFC"))
     .sort();
 
   assert.equal(files.length, 17);
-  assert.deepEqual(files, referencedFiles);
+  assert.deepEqual(normalizedFiles, referencedFiles);
 
   const hashes = files.map((file) => {
     const contents = fs.readFileSync(path.join(musicDir, file));

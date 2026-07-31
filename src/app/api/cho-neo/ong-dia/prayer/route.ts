@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
 import {
   applySafetyOverride,
   createFallbackOngDiaPrayerResponse,
@@ -21,6 +22,9 @@ const OPENAI_ONG_DIA_DEFAULT_MODEL = "gpt-4.1-mini";
 const GROQ_REASONING_EFFORT = "low";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 8;
+const DEFAULT_OPENAI_MONTHLY_REQUEST_LIMIT = 300;
+const DEFAULT_OPENAI_MEMBER_DAILY_REQUEST_LIMIT = 12;
+const DEFAULT_OPENAI_ESTIMATED_TOKENS_PER_REQUEST = 900;
 const CURRENT_MESSAGE_TOKEN_THRESHOLD = 1;
 const QUALITY_REPAIR_ATTEMPTS = 1;
 const MAX_NORMAL_RESPONSE_WORDS = 110;
@@ -92,6 +96,14 @@ type ProviderRequestResult = {
   telemetry?: ProviderCallTelemetry;
 };
 
+type VerifiedChoNeoMember = {
+  userId: string;
+};
+
+type ChoNeoOpenAIReservation =
+  | { ok: true }
+  | { ok: false; reason: "openai-disabled" | "usage-unavailable" | "global-limit" | "member-limit" };
+
 type LegacyProviderPrayerPayload = {
   category?: OngDiaWishCategory;
   severity?: OngDiaWishSeverity;
@@ -121,6 +133,11 @@ type OngDiaPrayerSource =
   | "openai_rate_limited"
   | "openai_unavailable"
   | "openai_invalid_output"
+  | "fallback_openai_disabled"
+  | "fallback_openai_usage_unavailable"
+  | "fallback_openai_global_limit"
+  | "fallback_openai_member_limit"
+  | "fallback_member_required"
   | "fallback_router_only"
   | "fallback_safety_guardrail"
   | "fallback_request_rate_limited"
@@ -135,6 +152,8 @@ const ONG_DIA_AI_PROVIDERS = new Set<OngDiaAiProvider>([
   "deepseek",
   "glm",
 ]);
+
+const CHO_NEO_MEMBER_PROFILE_TABLE = "cho_neo_member_profiles";
 
 const CHAT_PROVIDER_CONFIG: Record<
   Exclude<OngDiaAiProvider, "fallback" | "openai">,
@@ -945,6 +964,142 @@ function getOngDiaAiProvider(): OngDiaAiProvider {
   return "fallback";
 }
 
+function isChoNeoOpenAIEnabled() {
+  return process.env.CHO_NEO_OPENAI_ENABLED?.trim().toLowerCase() === "true";
+}
+
+function getPositiveIntegerEnv(name: string, fallback: number) {
+  const parsed = Number(process.env[name]);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function getBearerToken(request: Request) {
+  const authorization = request.headers.get("authorization") ?? "";
+  return authorization.match(/^Bearer\s+(.+)$/i)?.[1] ?? null;
+}
+
+function createSupabaseAuthClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+  });
+}
+
+function createSupabaseServiceClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+  });
+}
+
+async function resolveVerifiedChoNeoMember(
+  request: Request,
+): Promise<VerifiedChoNeoMember | null> {
+  const token = getBearerToken(request);
+  const authClient = createSupabaseAuthClient();
+  const serviceClient = createSupabaseServiceClient();
+
+  if (!token || !authClient || !serviceClient) return null;
+
+  const { data: authData, error: authError } = await authClient.auth.getUser(token);
+  const user = authData.user;
+  if (authError || !user || user.is_anonymous) return null;
+
+  const { data: profile, error: profileError } = await serviceClient
+    .from(CHO_NEO_MEMBER_PROFILE_TABLE)
+    .select("user_id, membership_status, suspended_at")
+    .eq("user_id", user.id)
+    .eq("membership_status", "verified_nail_member")
+    .is("suspended_at", null)
+    .maybeSingle();
+
+  if (profileError || !profile) return null;
+
+  return { userId: user.id };
+}
+
+async function reserveChoNeoOpenAIUsage(
+  member: VerifiedChoNeoMember,
+): Promise<ChoNeoOpenAIReservation> {
+  if (!isChoNeoOpenAIEnabled()) {
+    return { ok: false, reason: "openai-disabled" };
+  }
+
+  const serviceClient = createSupabaseServiceClient();
+  if (!serviceClient) {
+    return { ok: false, reason: "usage-unavailable" };
+  }
+
+  const monthlyLimit = getPositiveIntegerEnv(
+    "CHO_NEO_OPENAI_MONTHLY_REQUEST_LIMIT",
+    DEFAULT_OPENAI_MONTHLY_REQUEST_LIMIT,
+  );
+  const dailyLimit = getPositiveIntegerEnv(
+    "CHO_NEO_OPENAI_MEMBER_DAILY_REQUEST_LIMIT",
+    DEFAULT_OPENAI_MEMBER_DAILY_REQUEST_LIMIT,
+  );
+  const estimatedTokens = getPositiveIntegerEnv(
+    "CHO_NEO_OPENAI_ESTIMATED_TOKENS_PER_REQUEST",
+    DEFAULT_OPENAI_ESTIMATED_TOKENS_PER_REQUEST,
+  );
+
+  const { data, error } = await serviceClient.rpc("reserve_cho_neo_openai_usage", {
+    p_daily_member_request_limit: dailyLimit,
+    p_estimated_tokens: estimatedTokens,
+    p_member_user_id: member.userId,
+    p_monthly_request_limit: monthlyLimit,
+  });
+
+  if (error) {
+    console.error("[ong-dia-prayer] OpenAI usage reservation failed", {
+      code: error.code ?? null,
+      message: error.message ?? null,
+    });
+    return { ok: false, reason: "usage-unavailable" };
+  }
+
+  const reservation = Array.isArray(data) ? data[0] : data;
+  if (!reservation || reservation.allowed !== true) {
+    const reason = reservation?.reason;
+    const mappedReason =
+      reason === "global-limit"
+        ? "global-limit"
+        : reason === "member-limit"
+          ? "member-limit"
+          : "usage-unavailable";
+
+    console.warn("[ong-dia-prayer] OpenAI usage circuit breaker blocked request", {
+      memberUserId: member.userId,
+      reason: mappedReason,
+    });
+    return { ok: false, reason: mappedReason };
+  }
+
+  return { ok: true };
+}
+
+function getOpenAICircuitBreakerSource(
+  reason: Exclude<ChoNeoOpenAIReservation, { ok: true }>["reason"],
+): Extract<
+  OngDiaPrayerSource,
+  | "fallback_openai_disabled"
+  | "fallback_openai_usage_unavailable"
+  | "fallback_openai_global_limit"
+  | "fallback_openai_member_limit"
+> {
+  if (reason === "openai-disabled") return "fallback_openai_disabled";
+  if (reason === "global-limit") return "fallback_openai_global_limit";
+  if (reason === "member-limit") return "fallback_openai_member_limit";
+  return "fallback_openai_usage_unavailable";
+}
+
 function createPrayerJson(
   result: OngDiaPrayerResponse,
   source: OngDiaPrayerSource,
@@ -1240,6 +1395,25 @@ function createQualityGateFallback(prayer = ""): OngDiaPrayerResponse {
 }
 
 function getFallbackForSource(source: OngDiaPrayerSource, prayerFallback: OngDiaPrayerResponse, prayer = "") {
+  if (source === "fallback_member_required") {
+    return {
+      loiOngDia:
+        "Bàn Ông Địa đang giữ phần trò chuyện riêng cho thành viên đã xác nhận. Con vẫn có thể dạo Chợ Neo, nghe nhạc và xin xăm nhẹ trước nha.",
+    };
+  }
+
+  if (
+    source === "fallback_openai_disabled" ||
+    source === "fallback_openai_usage_unavailable" ||
+    source === "fallback_openai_global_limit" ||
+    source === "fallback_openai_member_limit"
+  ) {
+    return {
+      loiOngDia:
+        "Bàn Ông Địa đang tạm khép phần trò chuyện để giữ vía an toàn. Con ghé lại sau một nhịp; Chợ Neo vẫn còn nhạc, phòng đọc và Xin Xăm nhẹ cho con.",
+    };
+  }
+
   if (
     source === "fallback_provider_unavailable" ||
     source === "fallback_provider_timeout" ||
@@ -1833,6 +2007,19 @@ export async function POST(request: Request) {
     );
   }
 
+  const member = await resolveVerifiedChoNeoMember(request);
+  if (!member) {
+    return createPrayerJson(
+      getFallbackForSource(
+        "fallback_member_required",
+        createFallbackOngDiaPrayerResponse(""),
+      ),
+      "fallback_member_required",
+      "fallback",
+      { requestId, startedAt, status: 401 },
+    );
+  }
+
   const clientKey = getRequestClientKey(request);
   if (isRateLimited(clientKey)) {
     return createPrayerJson(
@@ -1853,8 +2040,6 @@ export async function POST(request: Request) {
   const wishRoute = routeOngDiaWish(prayer);
   const fallback = createFallbackOngDiaPrayerResponse(prayer);
   const provider = getOngDiaAiProvider();
-  const providerInput = createProviderInput(prayer, ritual, wishRoute, history);
-  const openAIProviderInput = createOpenAIProviderInput(prayer, ritual, history);
   const providerTelemetry: ProviderCallTelemetry[] = [];
 
   if (provider === "fallback") {
@@ -1875,6 +2060,26 @@ export async function POST(request: Request) {
     });
   }
 
+  if (provider === "openai") {
+    const reservation = await reserveChoNeoOpenAIUsage(member);
+    if (!reservation.ok) {
+      const denial = reservation as Exclude<ChoNeoOpenAIReservation, { ok: true }>;
+      const source = getOpenAICircuitBreakerSource(denial.reason);
+      return createPrayerJson(
+        getFallbackForSource(source, fallback, prayer),
+        source,
+        "openai",
+        { requestId, startedAt, status: source === "fallback_openai_member_limit" ? 429 : 503 },
+      );
+    }
+  }
+
+  const providerInput = createProviderInput(prayer, ritual, wishRoute, history);
+  const openAIProviderInput =
+    provider === "openai"
+      ? createOpenAIProviderInput(prayer, ritual, history)
+      : null;
+
   try {
     let providerResult: ProviderRequestResult;
     let source: Extract<
@@ -1894,7 +2099,7 @@ export async function POST(request: Request) {
           startedAt,
         });
       }
-      providerResult = await requestOpenAIResponse(apiKey, openAIProviderInput);
+      providerResult = await requestOpenAIResponse(apiKey, openAIProviderInput ?? {});
       source = "provider_openai";
     } else {
       const config = CHAT_PROVIDER_CONFIG[provider];

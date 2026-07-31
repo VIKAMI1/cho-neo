@@ -34,6 +34,48 @@ const routeSource = fs
     `import OpenAI from ${JSON.stringify(pathToFileURL(openAIPath).href)};`,
   )
   .replace(
+    'import { createClient } from "@supabase/supabase-js";',
+    `function createClient(supabaseUrl: string, supabaseKey: string) {
+  return {
+    auth: {
+      async getUser(token: string) {
+        const response = await fetch(\`\${supabaseUrl}/auth/v1/user\`, {
+          headers: { authorization: \`Bearer \${token}\`, apikey: supabaseKey },
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) return { data: { user: null }, error: payload };
+        return { data: payload, error: null };
+      },
+    },
+    from(table: string) {
+      const builder = {
+        select() { return builder; },
+        eq() { return builder; },
+        is() { return builder; },
+        async maybeSingle() {
+          const response = await fetch(\`\${supabaseUrl}/rest/v1/\${table}\`, {
+            headers: { apikey: supabaseKey },
+          });
+          if (!response.ok) return { data: null, error: null };
+          return { data: await response.json(), error: null };
+        },
+      };
+      return builder;
+    },
+    async rpc(name: string, args: Record<string, unknown>) {
+      const response = await fetch(\`\${supabaseUrl}/rest/v1/rpc/\${name}\`, {
+        method: "POST",
+        body: JSON.stringify(args),
+        headers: { apikey: supabaseKey, "content-type": "application/json" },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) return { data: null, error: payload };
+      return { data: payload, error: null };
+    },
+  };
+}`,
+  )
+  .replace(
     'from "@/lib/cho-neo/ong-dia-prayer";',
     `from ${JSON.stringify(pathToFileURL(prayerLibPath).href)};`,
   );
@@ -66,6 +108,10 @@ function extractNamedFunction(source, functionName) {
 }
 
 const ORIGINAL_ENV = {
+  CHO_NEO_OPENAI_ENABLED: process.env.CHO_NEO_OPENAI_ENABLED,
+  CHO_NEO_OPENAI_MONTHLY_REQUEST_LIMIT: process.env.CHO_NEO_OPENAI_MONTHLY_REQUEST_LIMIT,
+  CHO_NEO_OPENAI_MEMBER_DAILY_REQUEST_LIMIT: process.env.CHO_NEO_OPENAI_MEMBER_DAILY_REQUEST_LIMIT,
+  CHO_NEO_OPENAI_ESTIMATED_TOKENS_PER_REQUEST: process.env.CHO_NEO_OPENAI_ESTIMATED_TOKENS_PER_REQUEST,
   ONG_DIA_PROVIDER: process.env.ONG_DIA_PROVIDER,
   ONG_DIA_AI_PROVIDER: process.env.ONG_DIA_AI_PROVIDER,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -74,8 +120,108 @@ const ORIGINAL_ENV = {
   GROQ_API_KEY: process.env.GROQ_API_KEY,
   GROQ_MODEL: process.env.GROQ_MODEL,
   ONG_DIA_AI_TIMEOUT_MS: process.env.ONG_DIA_AI_TIMEOUT_MS,
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
 };
 const originalFetch = globalThis.fetch;
+let choNeoSecurityMock = null;
+
+function configureChoNeoSecurity({
+  auth = "verified",
+  profileStatus = "verified_nail_member",
+  suspended = false,
+  rpc = "allowed",
+  openAIEnabled = true,
+} = {}) {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://cho-neo-test.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+  if (openAIEnabled) {
+    process.env.CHO_NEO_OPENAI_ENABLED = "true";
+  }
+  choNeoSecurityMock = {
+    auth,
+    profileStatus,
+    rpc,
+    suspended,
+    userId: "11111111-1111-4111-8111-111111111111",
+  };
+}
+
+function ensureChoNeoSecurityDefaults() {
+  if (!choNeoSecurityMock) configureChoNeoSecurity();
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??= "https://cho-neo-test.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "test-anon-key";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
+}
+
+function supabaseJson(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function handleChoNeoSupabaseFetch(url, init = {}) {
+  const href = String(url);
+  if (!href.startsWith("https://cho-neo-test.supabase.co")) return null;
+  const mock = choNeoSecurityMock ?? {
+    auth: "verified",
+    profileStatus: "verified_nail_member",
+    rpc: "allowed",
+    suspended: false,
+    userId: "11111111-1111-4111-8111-111111111111",
+  };
+
+  if (href.includes("/auth/v1/user")) {
+    if (mock.auth === "anonymous") {
+      return supabaseJson({ user: { id: mock.userId, is_anonymous: true } });
+    }
+    if (mock.auth === "invalid") {
+      return supabaseJson({ message: "invalid jwt" }, 401);
+    }
+    return supabaseJson({ user: { id: mock.userId, is_anonymous: false } });
+  }
+
+  if (href.includes("/rest/v1/cho_neo_member_profiles")) {
+    if (
+      mock.auth === "missing-profile" ||
+      mock.profileStatus !== "verified_nail_member" ||
+      mock.suspended
+    ) {
+      return supabaseJson(null, 406);
+    }
+    return supabaseJson({
+      user_id: mock.userId,
+      membership_status: mock.profileStatus,
+      suspended_at: mock.suspended ? new Date().toISOString() : null,
+    });
+  }
+
+  if (href.includes("/rest/v1/rpc/reserve_cho_neo_openai_usage")) {
+    if (mock.rpc === "error") {
+      return supabaseJson({ message: "usage unavailable", code: "XX000" }, 500);
+    }
+    if (mock.rpc === "global-limit") {
+      return supabaseJson([{ allowed: false, reason: "global-limit", global_requests: 300, member_requests: 1 }]);
+    }
+    if (mock.rpc === "member-limit") {
+      return supabaseJson([{ allowed: false, reason: "member-limit", global_requests: 1, member_requests: 12 }]);
+    }
+    return supabaseJson([{ allowed: true, reason: "reserved", global_requests: 1, member_requests: 1 }]);
+  }
+
+  throw new Error(`Unhandled Supabase mock request: ${href} ${init.method ?? "GET"}`);
+}
+
+function installSupabaseOnlyFetch() {
+  globalThis.fetch = async (url, init) => {
+    const supabaseResponse = handleChoNeoSupabaseFetch(url, init);
+    if (supabaseResponse) return supabaseResponse;
+    throw new Error(`Unexpected fetch without provider mock: ${String(url)}`);
+  };
+}
 
 function restoreGlobals() {
   for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
@@ -86,6 +232,7 @@ function restoreGlobals() {
     }
   }
   globalThis.fetch = originalFetch;
+  choNeoSecurityMock = null;
 }
 
 let requestCounter = 0;
@@ -96,6 +243,7 @@ function makeRequest(body, headers = {}) {
     method: "POST",
     body: JSON.stringify(body),
     headers: {
+      authorization: "Bearer test-session-token",
       "content-type": "application/json",
       "x-ong-dia-session": `test-session-${requestCounter}`,
       ...headers,
@@ -104,6 +252,8 @@ function makeRequest(body, headers = {}) {
 }
 
 async function callPrayer(body, headers) {
+  ensureChoNeoSecurityDefaults();
+  if (globalThis.fetch === originalFetch) installSupabaseOnlyFetch();
   const originalInfo = console.info;
   const originalWarn = console.warn;
   let capturedDiagnostics = null;
@@ -142,6 +292,8 @@ async function callPrayer(body, headers) {
 }
 
 async function callPublicPrayer(body, headers) {
+  ensureChoNeoSecurityDefaults();
+  if (globalThis.fetch === originalFetch) installSupabaseOnlyFetch();
   const originalInfo = console.info;
   const originalWarn = console.warn;
   console.info = () => {};
@@ -195,6 +347,8 @@ function mockOpenAI({
 } = {}) {
   const calls = [];
   globalThis.fetch = async (url, init) => {
+    const supabaseResponse = handleChoNeoSupabaseFetch(url, init);
+    if (supabaseResponse) return supabaseResponse;
     calls.push({ url: String(url), init, body: JSON.parse(init.body) });
     if (delayMs > 0) {
       await new Promise((resolve, reject) => {
@@ -239,6 +393,8 @@ function mockGroq({
 } = {}) {
   const calls = [];
   globalThis.fetch = async (url, init) => {
+    const supabaseResponse = handleChoNeoSupabaseFetch(url, init);
+    if (supabaseResponse) return supabaseResponse;
     calls.push({ url, init, body: JSON.parse(init.body) });
     if (delayMs > 0) {
       await new Promise((resolve, reject) => {
@@ -258,6 +414,113 @@ function mockGroq({
 }
 
 test.afterEach(restoreGlobals);
+
+test("OpenAI is never invoked for anonymous invalid and non-verified member requests", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+
+  const deniedCases = [
+    { name: "missing-token", security: {}, headers: { authorization: "" } },
+    { name: "anonymous", security: { auth: "anonymous" } },
+    { name: "invalid-session", security: { auth: "invalid" } },
+    { name: "missing-profile", security: { auth: "missing-profile" } },
+    { name: "pending", security: { profileStatus: "pending" } },
+    { name: "rejected", security: { profileStatus: "rejected" } },
+    { name: "suspended", security: { profileStatus: "suspended", suspended: true } },
+  ];
+
+  for (const { name, security, headers } of deniedCases) {
+    configureChoNeoSecurity(security);
+    const calls = mockOpenAI();
+    const { status, body } = await callPrayer({
+      prayer: `Xin Ông nghe con một chút: ${name}`,
+    }, headers);
+
+    assert.equal(status, 401);
+    assert.equal(body.meta.source, "fallback_member_required");
+    assert.equal(body.meta.generatedByProvider, false);
+    assert.equal(calls.length, 0);
+    assert.doesNotMatch(JSON.stringify(body), /test-openai-key|verified_nail_member|membership_status|service-role/i);
+  }
+});
+
+test("OpenAI kill switch disables provider even when API key exists", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  const disabledValues = [undefined, "", "false", "0", "yes", "enabled"];
+
+  for (const value of disabledValues) {
+    configureChoNeoSecurity({ openAIEnabled: false });
+    if (value === undefined) {
+      delete process.env.CHO_NEO_OPENAI_ENABLED;
+    } else {
+      process.env.CHO_NEO_OPENAI_ENABLED = value;
+    }
+    const calls = mockOpenAI();
+    const { status, body } = await callPrayer({
+      prayer: "Làm sao cho tiệm đông khách, Ông Địa ơi?",
+    });
+
+    assert.equal(status, 503);
+    assert.equal(body.meta.source, "fallback_openai_disabled");
+    assert.equal(body.meta.generatedByProvider, false);
+    assert.equal(calls.length, 0);
+  }
+});
+
+test("enabled OpenAI flag still denies invalid auth before provider adapter", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  configureChoNeoSecurity({ auth: "invalid", openAIEnabled: true });
+  const calls = mockOpenAI();
+
+  const { status, body } = await callPrayer({
+    prayer: "Con cần nói chuyện với Ông.",
+  });
+
+  assert.equal(status, 401);
+  assert.equal(body.meta.source, "fallback_member_required");
+  assert.equal(calls.length, 0);
+});
+
+test("enabled OpenAI flag plus verified membership reaches provider adapter once", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  configureChoNeoSecurity({ openAIEnabled: true, rpc: "allowed" });
+  const calls = mockOpenAI();
+
+  const { status, body } = await callPrayer({
+    prayer: "Làm sao cho tiệm đông khách, Ông Địa ơi?",
+  });
+
+  assert.equal(status, 200);
+  assert.equal(body.meta.source, "openai_success");
+  assert.equal(calls.length, 1);
+});
+
+test("global OpenAI circuit breaker fails closed before provider calls", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+
+  const breakerCases = [
+    { rpc: "error", source: "fallback_openai_usage_unavailable", status: 503 },
+    { rpc: "global-limit", source: "fallback_openai_global_limit", status: 503 },
+    { rpc: "member-limit", source: "fallback_openai_member_limit", status: 429 },
+  ];
+
+  for (const breakerCase of breakerCases) {
+    configureChoNeoSecurity({ openAIEnabled: true, rpc: breakerCase.rpc });
+    const calls = mockOpenAI();
+    const { status, body } = await callPrayer({
+      prayer: "Con muốn hỏi chuyện tiệm hôm nay.",
+    });
+
+    assert.equal(status, breakerCase.status);
+    assert.equal(body.meta.source, breakerCase.source);
+    assert.equal(body.meta.generatedByProvider, false);
+    assert.equal(calls.length, 0);
+  }
+});
 
 test("default conversation uses OpenAI Responses structured output", async () => {
   delete process.env.ONG_DIA_PROVIDER;
@@ -687,7 +950,9 @@ test("missing Groq key returns explicit missing-configuration fallback", async (
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   delete process.env.GROQ_API_KEY;
   let called = false;
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (url, init) => {
+    const supabaseResponse = handleChoNeoSupabaseFetch(url, init);
+    if (supabaseResponse) return supabaseResponse;
     called = true;
     throw new Error("should not fetch");
   };
@@ -1278,7 +1543,9 @@ test("safety refusal bypasses Groq for high-risk gambling request", async () => 
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   process.env.GROQ_API_KEY = "test-key";
   let called = false;
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (url, init) => {
+    const supabaseResponse = handleChoNeoSupabaseFetch(url, init);
+    if (supabaseResponse) return supabaseResponse;
     called = true;
     throw new Error("should not fetch");
   };
@@ -1295,7 +1562,9 @@ test("lucky-number requests bypass Groq without requiring gambling wording", asy
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   process.env.GROQ_API_KEY = "test-key";
   let called = false;
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (url, init) => {
+    const supabaseResponse = handleChoNeoSupabaseFetch(url, init);
+    if (supabaseResponse) return supabaseResponse;
     called = true;
     throw new Error("should not fetch");
   };
@@ -1311,7 +1580,9 @@ test("deterministic Xin Xăm mode remains independent from Llama", async () => {
   process.env.ONG_DIA_AI_PROVIDER = "groq";
   process.env.GROQ_API_KEY = "test-key";
   let called = false;
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (url, init) => {
+    const supabaseResponse = handleChoNeoSupabaseFetch(url, init);
+    if (supabaseResponse) return supabaseResponse;
     called = true;
     throw new Error("should not fetch");
   };
