@@ -1,6 +1,11 @@
 import Link from "next/link";
 
-export type ChoNeoRailSymbol = "village" | "gossip" | "xin-xam" | "gallery";
+export type ChoNeoRailSymbol =
+  | "village"
+  | "gossip"
+  | "question"
+  | "xin-xam"
+  | "gallery";
 
 export type ChoNeoRailItemProps = {
   href: string;
@@ -10,6 +15,16 @@ export type ChoNeoRailItemProps = {
 };
 
 function ChoNeoRailIcon({ symbol }: { symbol: ChoNeoRailSymbol }) {
+  if (symbol === "question") {
+    return (
+      <svg viewBox="0 0 48 48" focusable="false">
+        <circle cx="24" cy="24" r="15" />
+        <path d="M19.5 19.5a4.8 4.8 0 1 1 7.6 3.9c-2.2 1.5-3.1 2.4-3.1 4.6" />
+        <path d="M24 33.5h.01" />
+      </svg>
+    );
+  }
+
   if (symbol === "gossip") {
     return (
       <svg viewBox="0 0 48 48" focusable="false">

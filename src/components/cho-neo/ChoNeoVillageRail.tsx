@@ -18,6 +18,12 @@ export const choNeoVillageNavItems: ChoNeoVillageNavItem[] = [
     symbol: "gossip",
   },
   {
+    href: "/cho-neo/hoi-cho-neo",
+    id: "hoi-cho-neo",
+    label: "Hỏi Chợ Neo",
+    symbol: "question",
+  },
+  {
     href: "/xin-xam",
     id: "xin-xam",
     label: "Xin Xăm",

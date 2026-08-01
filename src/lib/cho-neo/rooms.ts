@@ -11,7 +11,15 @@ export type ChoNeoRoom = {
   enStatus: string;
   viDescription: string;
   enDescription: string;
-  tone: "cafe" | "shrine" | "gallery" | "owner" | "technique" | "waterfront" | "market";
+  tone:
+    | "cafe"
+    | "shrine"
+    | "question"
+    | "gallery"
+    | "owner"
+    | "technique"
+    | "waterfront"
+    | "market";
   hotspot: {
     x: string;
     y: string;
@@ -34,6 +42,20 @@ export const choNeoRooms: ChoNeoRoom[] = [
     enDescription: "Shop talk, quick questions, useful village notes.",
     tone: "cafe",
     hotspot: { x: "60.6%", y: "22.8%", w: "8%", h: "8%" },
+  },
+  {
+    id: "hoi-cho-neo",
+    viName: "Hỏi Chợ Neo",
+    enName: "Ask Chợ Neo",
+    href: "/cho-neo/hoi-cho-neo",
+    icon: "?",
+    status: "open",
+    viStatus: "Đang mở",
+    enStatus: "Open",
+    viDescription: "NeoPao trả lời trước. Người trong nghề góp chuyện thật.",
+    enDescription: "NeoPao answers first. People in the trade add real experience.",
+    tone: "question",
+    hotspot: { x: "45.2%", y: "39.4%", w: "8%", h: "8%" },
   },
   {
     id: "ong-dia-shrine",
