@@ -112,6 +112,7 @@ const ORIGINAL_ENV = {
   CHO_NEO_OPENAI_MONTHLY_REQUEST_LIMIT: process.env.CHO_NEO_OPENAI_MONTHLY_REQUEST_LIMIT,
   CHO_NEO_OPENAI_MEMBER_DAILY_REQUEST_LIMIT: process.env.CHO_NEO_OPENAI_MEMBER_DAILY_REQUEST_LIMIT,
   CHO_NEO_OPENAI_ESTIMATED_TOKENS_PER_REQUEST: process.env.CHO_NEO_OPENAI_ESTIMATED_TOKENS_PER_REQUEST,
+  CHO_NEO_OPENAI_MODEL: process.env.CHO_NEO_OPENAI_MODEL,
   ONG_DIA_PROVIDER: process.env.ONG_DIA_PROVIDER,
   ONG_DIA_AI_PROVIDER: process.env.ONG_DIA_AI_PROVIDER,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -525,8 +526,10 @@ test("global OpenAI circuit breaker fails closed before provider calls", async (
 test("default conversation uses OpenAI Responses structured output", async () => {
   delete process.env.ONG_DIA_PROVIDER;
   delete process.env.ONG_DIA_AI_PROVIDER;
+  delete process.env.CHO_NEO_OPENAI_MODEL;
+  delete process.env.OPENAI_ONG_DIA_MODEL;
+  delete process.env.OPENAI_MODEL;
   process.env.OPENAI_API_KEY = "test-openai-key";
-  process.env.OPENAI_ONG_DIA_MODEL = "gpt-4.1-mini-test";
   const calls = mockOpenAI();
 
   const { body } = await callPrayer({
@@ -535,14 +538,14 @@ test("default conversation uses OpenAI Responses structured output", async () =>
 
   assert.equal(body.meta.provider, "openai");
   assert.equal(body.meta.source, "openai_success");
-  assert.equal(body.meta.model, "gpt-4.1-mini-test");
+  assert.equal(body.meta.model, "gpt-4.1-mini");
   assert.equal(body.meta.generatedByProvider, true);
   assert.equal(body.result.loiOngDia.includes("tiệm đông khách"), true);
   assert.equal("ongNhacNhe" in body.result, false);
   assert.equal("viecNhoHomNay" in body.result, false);
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/responses$/);
-  assert.equal(calls[0].body.model, "gpt-4.1-mini-test");
+  assert.equal(calls[0].body.model, "gpt-4.1-mini");
   assert.equal(calls[0].body.store, false);
   assert.equal(calls[0].body.text.format.type, "json_schema");
   assert.deepEqual(calls[0].body.text.format.schema.required, ["loiOngDia"]);
@@ -553,11 +556,97 @@ test("default conversation uses OpenAI Responses structured output", async () =>
   assert.doesNotMatch(JSON.stringify(body.meta), /tiệm đông khách|Làm sao/);
 });
 
+test("OpenAI model routing selects Luna from server-only CHO_NEO_OPENAI_MODEL", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  process.env.CHO_NEO_OPENAI_MODEL = "gpt-5.6-luna";
+  const calls = mockOpenAI();
+
+  const { body } = await callPrayer({
+    prayer: "Ông Địa nghe con lo chuyện khách hủy lịch hôm nay.",
+  });
+
+  assert.equal(body.meta.source, "openai_success");
+  assert.equal(body.meta.model, "gpt-5.6-luna");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.model, "gpt-5.6-luna");
+  assert.equal(calls[0].body.max_output_tokens, 420);
+  assert.equal(calls[0].body.reasoning, undefined);
+});
+
+test("OpenAI model routing keeps gpt-4.1-mini available as rollback", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  process.env.CHO_NEO_OPENAI_MODEL = "gpt-4.1-mini";
+  const calls = mockOpenAI();
+
+  const { body } = await callPrayer({
+    prayer: "Con muốn xin vía nhẹ cho ca sáng.",
+  });
+
+  assert.equal(body.meta.source, "openai_success");
+  assert.equal(body.meta.model, "gpt-4.1-mini");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.model, "gpt-4.1-mini");
+});
+
+test("empty OpenAI model configuration uses the safe default", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  process.env.CHO_NEO_OPENAI_MODEL = "";
+  const calls = mockOpenAI();
+
+  const { body } = await callPrayer({
+    prayer: "Con muốn xin Ông một lời nhẹ cho hôm nay.",
+  });
+
+  assert.equal(body.meta.model, "gpt-4.1-mini");
+  assert.equal(calls[0].body.model, "gpt-4.1-mini");
+});
+
+test("invalid OpenAI model configuration falls back safely before provider call", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  process.env.CHO_NEO_OPENAI_MODEL = "not-a-real-model";
+  const calls = mockOpenAI();
+
+  const { body } = await callPrayer({
+    prayer: "Con muốn hỏi chuyện tiệm vắng.",
+  });
+
+  assert.equal(body.meta.source, "openai_success");
+  assert.equal(body.meta.model, "gpt-4.1-mini");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.model, "gpt-4.1-mini");
+});
+
+test("legacy OpenAI model variables cannot bypass the new allowlist", async () => {
+  process.env.ONG_DIA_PROVIDER = "openai";
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  delete process.env.CHO_NEO_OPENAI_MODEL;
+  process.env.OPENAI_ONG_DIA_MODEL = "gpt-5.6-luna";
+  process.env.OPENAI_MODEL = "gpt-5.6-luna";
+  const calls = mockOpenAI();
+
+  const { body } = await callPrayer({
+    prayer: "Con muốn hỏi chuyện tiệm vắng.",
+  });
+
+  assert.equal(body.meta.model, "gpt-4.1-mini");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.model, "gpt-4.1-mini");
+});
+
+test("CHO_NEO_OPENAI_MODEL is server-only and not referenced by client page", () => {
+  const page = fs.readFileSync(pagePath, "utf8");
+  assert.doesNotMatch(page, /CHO_NEO_OPENAI_MODEL|gpt-5\.6-luna|gpt-4\.1-mini/);
+});
+
 test("public OpenAI success response omits provider diagnostics", async () => {
   delete process.env.ONG_DIA_PROVIDER;
   delete process.env.ONG_DIA_AI_PROVIDER;
   process.env.OPENAI_API_KEY = "test-openai-key";
-  process.env.OPENAI_ONG_DIA_MODEL = "gpt-4.1-mini-test";
+  process.env.CHO_NEO_OPENAI_MODEL = "gpt-5.6-luna";
   mockOpenAI();
 
   const { status, body, headers } = await callPublicPrayer({

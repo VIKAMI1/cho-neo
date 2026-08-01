@@ -18,7 +18,13 @@ const GROQ_DEFAULT_MODEL = "openai/gpt-oss-20b";
 const GROQ_ROLLBACK_MODEL = "llama-3.1-8b-instant";
 const CHAT_TEMPERATURE = 0.45;
 const CHAT_MAX_TOKENS = 420;
-const OPENAI_ONG_DIA_DEFAULT_MODEL = "gpt-4.1-mini";
+const OPENAI_ONG_DIA_LUNA_MODEL = "gpt-5.6-luna";
+const OPENAI_ONG_DIA_ROLLBACK_MODEL = "gpt-4.1-mini";
+const OPENAI_ONG_DIA_DEFAULT_MODEL = OPENAI_ONG_DIA_ROLLBACK_MODEL;
+const OPENAI_ONG_DIA_ALLOWED_MODELS = new Set([
+  OPENAI_ONG_DIA_LUNA_MODEL,
+  OPENAI_ONG_DIA_ROLLBACK_MODEL,
+]);
 const GROQ_REASONING_EFFORT = "low";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 8;
@@ -1512,11 +1518,15 @@ function getProviderModel(
   config?: { modelEnv: string; defaultModel: string },
 ) {
   if (provider === "openai") {
-    return (
-      process.env.OPENAI_ONG_DIA_MODEL?.trim() ||
-      process.env.OPENAI_MODEL?.trim() ||
-      OPENAI_ONG_DIA_DEFAULT_MODEL
-    );
+    const configuredModel = process.env.CHO_NEO_OPENAI_MODEL?.trim();
+    if (!configuredModel) return OPENAI_ONG_DIA_DEFAULT_MODEL;
+    if (OPENAI_ONG_DIA_ALLOWED_MODELS.has(configuredModel)) return configuredModel;
+
+    console.warn("[ong-dia-prayer] Unsupported OpenAI model override; using rollback", {
+      requestedModel: configuredModel,
+      rollbackModel: OPENAI_ONG_DIA_ROLLBACK_MODEL,
+    });
+    return OPENAI_ONG_DIA_ROLLBACK_MODEL;
   }
 
   if (!config) return null;
