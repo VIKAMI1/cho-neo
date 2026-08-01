@@ -37,12 +37,12 @@ export function ChoNeoRoomShell({
 
         .cho-neo-room-shell__layout {
           box-sizing: border-box;
-          width: min(1400px, 100%);
+          width: min(var(--cho-content-max), calc(100% - (2 * var(--cho-page-gutter))));
           display: grid;
           grid-template-columns: minmax(150px, 180px) minmax(0, 1fr);
           gap: clamp(0.72rem, 1.5vw, 1.1rem);
           margin: 0 auto;
-          padding: clamp(0.8rem, 2vw, 1.3rem);
+          padding: var(--cho-section-gap) 0 calc(88px + env(safe-area-inset-bottom, 0px));
         }
 
         .cho-neo-room-shell__content {
@@ -76,7 +76,7 @@ export function ChoNeoRoomShell({
           .cho-neo-room-shell__layout:has(.cho-neo-room-shell__right-panel) {
             display: block;
             width: 100%;
-            padding: 0;
+            padding: 0 0 calc(88px + env(safe-area-inset-bottom, 0px));
           }
 
           .cho-neo-room-shell__layout :global(.cho-neo-village-rail) {

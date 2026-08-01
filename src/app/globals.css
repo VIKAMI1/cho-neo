@@ -3,12 +3,31 @@
 @tailwind utilities;
 
 :root {
+  --cho-content-max: 1180px;
+  --cho-page-gutter: clamp(16px, 2.5vw, 32px);
+  --cho-section-gap: clamp(20px, 3vw, 32px);
   --cho-neo-font-display: var(--font-cho-neo-display), Georgia, "Times New Roman", serif;
   --cho-neo-font-ui: var(--font-cho-neo-ui), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --cho-neo-text-primary: #f7eee8;
   --cho-neo-text-secondary: rgba(247, 238, 232, 0.72);
   --cho-neo-text-muted: rgba(247, 238, 232, 0.52);
   --cho-neo-text-accent: #d79b8d;
+}
+
+.cho-neo-content-grid {
+  width: min(var(--cho-content-max), calc(100% - (2 * var(--cho-page-gutter))));
+  margin-inline: auto;
+}
+
+.cho-neo-safe-bottom {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+.cho-neo-room-artwork {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: 0;
 }
 
 .cho-neo-type-root {

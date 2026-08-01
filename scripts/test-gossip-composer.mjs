@@ -241,7 +241,7 @@ test("Bàn Chuyện Nghề uses the shared front-counter room structure", () => 
   includesAll(shopTalkBranch, [
     'className="front-counter-table-scene shop-talk-table-scene"',
     'className="front-counter-focused-stage shop-talk-focused-stage"',
-    'className="front-counter-artwork-frame"',
+    'className="cho-neo-room-artwork front-counter-artwork-frame"',
     'className="front-counter-artwork-surface"',
     'className="front-counter-focused-image"',
     "src={quanTamArtworkSources.shopTalk}",
@@ -297,18 +297,15 @@ test("Bàn Chuyện Nghề keeps shared two-column post grid and readable surfac
 });
 
 test("Bàn Chuyện Nghề header controls use the same compact front-counter controls", () => {
-  const controlsBranch = extractSnippetBetween(
-    page,
-    "{isFrontCounter || isShopTalkTable ? (",
-    "<TableHostNudge"
-  );
-
-  includesAll(controlsBranch, [
-    'className="front-counter-quick-controls"',
-    'className="compact-table-back front-counter-back-control"',
-    "front-counter-seat-control",
-    'className="compact-table-count front-counter-count-control"',
+  includesAll(page, [
+    'className="cafe-room-toolbar"',
+    'className="cafe-toolbar-leading"',
+    'className="compact-table-back"',
+    'className={`compact-table-enter ${',
+    'className="cafe-toolbar-status"',
+    'className="cafe-hero-actions"',
   ]);
-  assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);
-  assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 14px;/);
+  assert.match(page, /\.cafe-room-toolbar \{[\s\S]*grid-template-columns: auto minmax\(0, 1fr\) auto;[\s\S]*gap: 12px;/);
+  assert.match(page, /\.cafe-toolbar-status \{[\s\S]*overflow: hidden;[\s\S]*text-overflow: ellipsis;[\s\S]*white-space: nowrap;/);
+  assert.match(page, /\.cafe-hero-actions \{[\s\S]*position: static;/);
 });

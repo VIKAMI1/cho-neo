@@ -93,41 +93,13 @@ function TableHostNudge({
   );
 }
 
-function CompactTableHeader({
-  countLabel,
-  onBack,
-  onEnter,
-}: {
-  countLabel: string;
-  onBack: () => void;
-  onEnter?: () => void;
-}) {
-  return (
-    <div className="compact-table-header">
-      <button className="compact-table-back" onClick={onBack} type="button">
-        ← Quán Tám
-      </button>
-      {onEnter ? (
-        <button className="compact-table-enter" onClick={onEnter} type="button">
-          Vào bàn
-          <span>Take a seat</span>
-        </button>
-      ) : null}
-      <span className="compact-table-count">{countLabel}</span>
-    </div>
-  );
-}
-
 function QuanTamTableShell({
   ariaLabel,
   artwork,
   artworkAlt,
   children,
   className,
-  countLabel,
   note,
-  onBack,
-  onEnter,
   subtitle,
   titleEn,
   titleVi,
@@ -137,24 +109,16 @@ function QuanTamTableShell({
   artworkAlt: string;
   children: ReactNode;
   className?: string;
-  countLabel: string;
   note: string;
-  onBack: () => void;
-  onEnter?: () => void;
   subtitle: string;
   titleEn: string;
   titleVi: string;
 }) {
   return (
     <section
-      className={`local-table-stage ${className ?? ""}`}
-      aria-label={ariaLabel}
-    >
-      <CompactTableHeader
-        countLabel={countLabel}
-        onBack={onBack}
-        onEnter={onEnter}
-      />
+    className={`local-table-stage ${className ?? ""}`}
+    aria-label={ariaLabel}
+  >
       <header className="local-table-heading">
         <div>
           <h2>
@@ -170,7 +134,7 @@ function QuanTamTableShell({
       </p>
 
       {artwork ? (
-        <div className="local-table-artwork">
+        <div className="cho-neo-room-artwork local-table-artwork">
           <img alt={artworkAlt} src={artwork} />
         </div>
       ) : null}
@@ -830,7 +794,7 @@ function useQuanTamArtworkSources() {
 export default function ChoNeoGossipPage() {
   const supabase = useMemo(() => createClient(), []);
   const { ensureChoNeoMember } = useChoNeoMember();
-  const cafeControlPillClassName = "cafe-control-pill";
+  const cafeControlButtonClassName = "cafe-control-button";
   const quanTamArtworkSources = useQuanTamArtworkSources();
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
   const [frontCounterMessages, setFrontCounterMessages] = useState<
@@ -1760,7 +1724,52 @@ export default function ChoNeoGossipPage() {
               </span>
             </p>
           </div>
+        </header>
 
+        <div className="cafe-room-toolbar" aria-label="Quán Tám controls">
+          <div className="cafe-toolbar-leading">
+            {selectedTable ? (
+              <>
+                <button
+                  className="compact-table-back"
+                  onClick={() => setSelectedTableName(null)}
+                  type="button"
+                >
+                  ← Quán Tám
+                </button>
+                <button
+                  className={`compact-table-enter ${
+                    isFrontCounter && isCurrentIdentitySeated
+                      ? "compact-table-enter-seated"
+                      : ""
+                  }`}
+                  onClick={isFrontCounter ? enterFrontCounterTable : enterSelectedTable}
+                  type="button"
+                >
+                  {isFrontCounter && isCurrentIdentitySeated ? "Đang ngồi" : "Vào bàn"}
+                  <span>
+                    {isFrontCounter && isCurrentIdentitySeated ? "Seated" : "Take a seat"}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <nav className="cafe-control-row" aria-label="Quán Tám navigation">
+                <Link className={cafeControlButtonClassName} href="/cho-neo">
+                  <span>Về Sân Làng</span>
+                  <small>Village</small>
+                </Link>
+                <Link className={cafeControlButtonClassName} href="/cho-neo/avatar">
+                  <span>Chọn avatar</span>
+                  <small>Choose village face</small>
+                </Link>
+              </nav>
+            )}
+          </div>
+          <div className="cafe-toolbar-status" aria-live="polite">
+            {selectedTable
+              ? getCompactTableCountLabel(selectedTable)
+              : "Chọn một bàn để bắt chuyện"}
+          </div>
           <div className="cafe-hero-actions" aria-label="Quán Tám quick actions">
             <span
               className="cho-neo-shared-music-slot cafe-theme-audio"
@@ -1768,22 +1777,7 @@ export default function ChoNeoGossipPage() {
             />
             <ChoNeoBetaFeedback />
           </div>
-        </header>
-
-        {!selectedTable ? (
-          <div className="cafe-stage-controls">
-            <nav className="cafe-control-row" aria-label="Quán Tám controls">
-              <Link className={cafeControlPillClassName} href="/cho-neo">
-                <span>Về Sân Làng</span>
-                <small>Village</small>
-              </Link>
-              <Link className={cafeControlPillClassName} href="/cho-neo/avatar">
-                <span>Chọn avatar</span>
-                <small>Choose village face</small>
-              </Link>
-            </nav>
-          </div>
-        ) : null}
+        </div>
 
         <>
         <section
@@ -1824,48 +1818,6 @@ export default function ChoNeoGossipPage() {
                     : ""
                 }`}
               >
-                {isTrendTable ? (
-                  <CompactTableHeader
-                    countLabel={getCompactTableCountLabel(selectedTable)}
-                    onEnter={enterSelectedTable}
-                    onBack={() => setSelectedTableName(null)}
-                  />
-                ) : null}
-
-                {isFrontCounter || isShopTalkTable ? (
-                  <div className="front-counter-quick-controls">
-                    <button
-                      className="compact-table-back front-counter-back-control"
-                      onClick={() => setSelectedTableName(null)}
-                      type="button"
-                    >
-                      ← Quán Tám
-                    </button>
-                    <button
-                      className={`front-counter-seat-control ${
-                        isFrontCounter && isCurrentIdentitySeated
-                          ? "front-counter-seat-control-seated"
-                          : ""
-                      }`}
-                      type="button"
-                      onClick={isFrontCounter ? enterFrontCounterTable : enterSelectedTable}
-                      aria-label={
-                        isFrontCounter && isCurrentIdentitySeated
-                          ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
-                          : `Vào ${getTableNameCopy(selectedTable.name).vi} / Take a seat`
-                      }
-                    >
-                      {isFrontCounter && isCurrentIdentitySeated ? "Đang ngồi" : "Vào bàn"}
-                      <span>
-                        {isFrontCounter && isCurrentIdentitySeated ? "Seated" : "Take a seat"}
-                      </span>
-                    </button>
-                    <span className="compact-table-count front-counter-count-control">
-                      {getCompactTableCountLabel(selectedTable)}
-                    </span>
-                  </div>
-                ) : null}
-
                 <TableHostNudge
                   message={selectedTable.hostNudge}
                   onClose={() => setTableHostNudgeVisible(false)}
@@ -1925,7 +1877,7 @@ export default function ChoNeoGossipPage() {
 
                 {!isFrontCounter && !isTrendTable && !isLocalSessionTable && selectedTable.artwork ? (
                   <div
-                    className="generic-table-artwork"
+                    className="cho-neo-room-artwork generic-table-artwork"
                     aria-label={`${getTableNameCopy(selectedTable.name).vi} table artwork`}
                   >
                     <img
@@ -1941,10 +1893,7 @@ export default function ChoNeoGossipPage() {
                     artwork={selectedTable.artwork}
                     artworkAlt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
                     className={`local-table-stage-${selectedTable.id}`}
-                    countLabel={getCompactTableCountLabel(selectedTable)}
                     note={selectedTable.note}
-                    onBack={() => setSelectedTableName(null)}
-                    onEnter={enterSelectedTable}
                     subtitle={selectedTable.subtitle}
                     titleEn={getTableNameCopy(selectedTable.name).en}
                     titleVi={getTableNameCopy(selectedTable.name).vi}
@@ -2080,7 +2029,7 @@ export default function ChoNeoGossipPage() {
                     aria-label="Bàn Chuyện Nghề table scene"
                   >
                     <div className="front-counter-focused-stage shop-talk-focused-stage">
-                      <div className="front-counter-artwork-frame">
+                      <div className="cho-neo-room-artwork front-counter-artwork-frame">
                         <div className="front-counter-artwork-surface">
                           <img
                             alt="Bàn Chuyện Nghề nail salon room with warm tables, technician, client, NeoPao screen, appointment book, and conversation space"
@@ -2290,7 +2239,7 @@ export default function ChoNeoGossipPage() {
                           : ""
                       }`}
                     >
-                      <div className="front-counter-artwork-frame">
+                      <div className="cho-neo-room-artwork front-counter-artwork-frame">
                         <div className="front-counter-artwork-surface">
                           <img
                             alt="Warm Social Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
@@ -3226,7 +3175,7 @@ export default function ChoNeoGossipPage() {
           ) : (
             <>
               <div className="gossip-image-lobby">
-                <div className="gossip-room-stage">
+                <div className="cho-neo-room-artwork gossip-room-stage">
                   <img
                     alt="Quán Tám isometric café room with five empty table zones, warm lanterns, a small espresso bar, and nail café details"
                     className="gossip-room-image"
@@ -3392,26 +3341,59 @@ export default function ChoNeoGossipPage() {
         .cafe-shell {
           position: relative;
           z-index: 1;
-          width: min(1240px, 100%);
+          width: min(var(--cho-content-max), calc(100% - (2 * var(--cho-page-gutter))));
           margin: 0 auto;
-          padding: 16px 20px 22px;
+          padding: 32px 0 calc(88px + env(safe-area-inset-bottom, 0px));
         }
 
         .cafe-hero {
+          display: block;
+          height: auto;
+          min-height: 0;
+          justify-content: flex-start;
+          margin: 0;
+          padding: 0;
+        }
+
+        .cafe-room-toolbar {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 12px;
+          margin: 24px 0;
+        }
+
+        .cafe-toolbar-leading,
+        .cafe-toolbar-status,
+        .cafe-hero-actions {
+          min-width: 0;
+        }
+
+        .cafe-toolbar-leading {
           display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 18px;
-          padding: 0 2px;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .cafe-toolbar-status {
+          overflow: hidden;
+          color: var(--room-pass2-text-secondary);
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.2;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .cafe-hero-actions {
+          position: static;
           display: flex;
           flex: 0 0 auto;
           align-items: center;
           justify-content: flex-end;
           gap: 10px;
-          min-width: 0;
+          justify-self: end;
         }
 
         .cafe-theme-audio {
@@ -3475,15 +3457,6 @@ export default function ChoNeoGossipPage() {
           line-height: 1.25;
         }
 
-        .cafe-stage-controls {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          align-items: flex-end;
-          justify-content: space-between;
-          margin: 12px 2px 10px;
-        }
-
         .cafe-control-row {
           display: flex;
           flex: 1 1 420px;
@@ -3493,22 +3466,22 @@ export default function ChoNeoGossipPage() {
           margin: 0;
         }
 
-        .cafe-control-pill {
+        .cafe-control-button {
           display: inline-flex;
           flex: 0 1 auto;
           flex-direction: column;
           justify-content: center;
-          min-height: 36px;
+          min-height: 48px;
           min-width: 0;
-          padding: 6px 12px;
+          padding: 7px 16px;
           border: 1px solid var(--room-pass2-border-soft);
-          border-radius: 999px;
+          border-radius: 12px;
           background: var(--room-pass2-control);
           color: var(--cho-neo-text-accent);
           cursor: pointer;
           font: inherit;
           font-size: 11px;
-          font-weight: 600;
+          font-weight: 500;
           line-height: 1.05;
           text-align: left;
           text-decoration: none;
@@ -3517,14 +3490,14 @@ export default function ChoNeoGossipPage() {
           touch-action: manipulation;
         }
 
-        .cafe-control-pill:hover,
-        .cafe-control-pill:focus-visible {
+        .cafe-control-button:hover,
+        .cafe-control-button:focus-visible {
           border-color: rgba(253, 230, 138, 0.54);
           outline: none;
           background: rgba(253, 230, 138, 0.12);
         }
 
-        .cafe-control-pill-primary {
+        .cafe-control-button-primary {
           border-color: rgba(251, 191, 36, 0.62);
           background:
             radial-gradient(circle at 16% 0%, rgba(255, 247, 237, 0.28), transparent 34%),
@@ -3533,12 +3506,12 @@ export default function ChoNeoGossipPage() {
           color: var(--cho-neo-text-primary);
         }
 
-        .cafe-control-pill-secondary {
+        .cafe-control-button-secondary {
           border-color: var(--room-pass2-border-soft);
           color: var(--room-pass2-text-secondary);
         }
 
-        .cafe-control-pill-seated {
+        .cafe-control-button-seated {
           border-color: rgba(134, 239, 172, 0.28);
           color: rgba(255, 247, 237, 0.84);
           background: rgba(22, 101, 52, 0.2);
@@ -3548,12 +3521,12 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
-        .cafe-control-pill small {
+        .cafe-control-button small {
           display: block;
           margin-top: 2px;
           color: var(--room-pass2-text-muted);
           font-size: 0.78em;
-          font-weight: 600;
+          font-weight: 400;
         }
 
         .front-counter-topic-note {
@@ -3654,7 +3627,7 @@ export default function ChoNeoGossipPage() {
           min-height: 44px;
           margin-top: 16px;
           border: 0;
-          border-radius: 999px;
+          border-radius: 12px;
           color: #111827;
           background: linear-gradient(180deg, #fde68a, #fbbf24);
           cursor: pointer;
@@ -3674,7 +3647,7 @@ export default function ChoNeoGossipPage() {
             0 0 28px rgba(251, 191, 36, 0.26);
         }
 
-        .cafe-control-pill small,
+        .cafe-control-button small,
         button span,
         .identity-nudge span,
         .identity-picker h2 span,
@@ -4063,8 +4036,8 @@ export default function ChoNeoGossipPage() {
         .room-scene {
           position: relative;
           overflow: hidden;
-          min-height: 720px;
-          margin-top: 14px;
+          min-height: 0;
+          margin-top: 0;
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 34px;
           background:
@@ -4165,7 +4138,6 @@ export default function ChoNeoGossipPage() {
         .table-map {
           position: relative;
           z-index: 4;
-          min-height: 720px;
         }
 
         .table-cluster {
@@ -4280,9 +4252,10 @@ export default function ChoNeoGossipPage() {
 
         .gossip-room-stage {
           position: relative;
-          width: min(1120px, 100%);
+          width: 100%;
+          max-width: none;
           aspect-ratio: 16 / 9;
-          margin: 0 auto;
+          margin-inline: 0;
           overflow: hidden;
           border: 1px solid rgba(253, 230, 138, 0.24);
           border-radius: 36px;
@@ -4538,19 +4511,21 @@ export default function ChoNeoGossipPage() {
         }
 
         .hotspot-label button {
-          min-height: 32px;
+          min-height: 48px;
+          padding: 7px 16px;
           border: 0;
-          border-radius: 999px;
+          border-radius: 12px;
           background: linear-gradient(180deg, #fde68a, #fbbf24);
           color: #111827;
           cursor: pointer;
           font-size: 10px;
-          font-weight: 600;
+          font-weight: 500;
         }
 
         .hotspot-label button span {
+          color: rgba(17, 24, 39, 0.68);
           font-size: 0.82em;
-          opacity: 0.72;
+          font-weight: 400;
         }
 
         @keyframes quanTamRoomFadeIn {
@@ -4577,7 +4552,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .room-scene-focused {
-          min-height: 650px;
+          min-height: 0;
           display: grid;
           place-items: center;
           padding: 28px;
@@ -4594,8 +4569,6 @@ export default function ChoNeoGossipPage() {
         }
 
         .cafe-page:has(.table-detail) .floor-grid,
-        .cafe-page:has(.table-detail) .cafe-hero,
-        .cafe-page:has(.table-detail) .cafe-stage-controls,
         .room-scene-focused::before,
         .room-scene-focused::after,
         .room-scene-focused .counter {
@@ -4603,32 +4576,10 @@ export default function ChoNeoGossipPage() {
         }
 
         .cafe-page:has(.detail-panel-trend-table) .floor-grid,
-        .cafe-page:has(.detail-panel-trend-table) .cafe-hero,
         .room-scene-focused:has(.detail-panel-trend-table)::before,
         .room-scene-focused:has(.detail-panel-trend-table)::after,
         .room-scene-focused:has(.detail-panel-trend-table) .counter {
           display: none;
-        }
-
-        .cafe-page:has(.table-detail) .cafe-hero {
-          position: absolute;
-          top: 14px;
-          right: 16px;
-          z-index: 90;
-          display: flex;
-          padding: 0;
-        }
-
-        .cafe-page:has(.table-detail) .cafe-hero > div:first-child {
-          display: none;
-        }
-
-        .cafe-page:has(.table-detail) .cafe-hero-actions {
-          gap: 10px;
-        }
-
-        .cafe-page:has(.detail-panel-front-counter) .cafe-shell {
-          padding: clamp(10px, 2vw, 18px);
         }
 
         .room-scene-focused:has(.detail-panel-front-counter) {
@@ -4644,8 +4595,9 @@ export default function ChoNeoGossipPage() {
         .table-detail {
           position: relative;
           z-index: 5;
-          width: min(780px, 100%);
-          margin-top: 92px;
+          width: 100%;
+          max-width: none;
+          margin: 0;
         }
 
         .detail-table-plate {
@@ -4722,65 +4674,43 @@ export default function ChoNeoGossipPage() {
             var(--room-pass2-surface);
         }
 
-        .compact-table-header {
-          order: 0;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          width: 100%;
-          margin: 0 0 12px;
-        }
-
         .compact-table-back {
-          min-height: 32px;
-          padding: 5px 10px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 44px;
+          padding: 0 16px;
           border: 1px solid var(--room-pass2-border-soft);
-          border-radius: 999px;
+          border-radius: 12px;
           color: var(--room-pass2-text-primary);
           background: var(--room-pass2-control);
           font-size: 12px;
-          font-weight: 600;
+          font-weight: 500;
         }
 
         .compact-table-enter {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
           flex: 0 0 auto;
-          min-height: 32px;
-          padding: 5px 10px;
+          min-height: 48px;
+          padding: 7px 16px;
           border: 0;
-          border-radius: 999px;
+          border-radius: 12px;
           color: #111827;
           background: #fde68a;
           font-size: 12px;
-          font-weight: 600;
+          font-weight: 500;
           line-height: 1.05;
         }
 
         .compact-table-enter span {
           display: block;
           margin-top: 1px;
+          color: rgba(17, 24, 39, 0.68);
           font-size: 9px;
-          font-weight: 600;
-          opacity: 0.7;
-        }
-
-        .compact-table-count {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 30px;
-          max-width: 58%;
-          margin-left: auto;
-          padding: 5px 10px;
-          border: 1px solid var(--room-pass2-border-soft);
-          border-radius: 999px;
-          color: var(--cho-neo-text-accent);
-          background: rgba(107, 55, 47, 0.5);
-          font-size: 12px;
-          font-weight: 600;
-          line-height: 1.1;
-          text-align: right;
-          white-space: nowrap;
+          font-weight: 400;
         }
 
         .front-counter-quick-controls {
@@ -4805,7 +4735,7 @@ export default function ChoNeoGossipPage() {
           flex: 0 0 auto;
           min-height: 44px;
           border: 1px solid var(--room-pass2-border);
-          border-radius: 14px;
+          border-radius: 12px;
           color: var(--room-pass2-text-primary);
           background: var(--room-pass2-control);
           font: inherit;
@@ -4826,7 +4756,7 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-quick-controls .compact-table-back,
         .front-counter-seat-control {
-          padding: 8px 12px;
+          padding: 7px 16px;
         }
 
         .front-counter-seat-control {
@@ -4888,7 +4818,7 @@ export default function ChoNeoGossipPage() {
           min-height: 44px;
           padding: 7px 12px;
           border: 1px solid rgba(146, 64, 14, 0.14);
-          border-radius: 14px;
+          border-radius: 12px;
           font-size: 12px;
           font-weight: 600;
           line-height: 1.12;
@@ -4921,6 +4851,7 @@ export default function ChoNeoGossipPage() {
 
         .detail-panel-trend-table .compact-table-count {
           margin-left: auto;
+          border-radius: 14px;
           color: #7d4f40;
           background: rgba(255, 255, 255, 0.58);
           text-align: center;
@@ -4984,8 +4915,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .table-detail:has(.detail-panel-front-counter) {
-          width: min(1160px, 100%);
-          max-width: 100%;
+          width: 100%;
+          max-width: none;
+          margin-inline: 0;
           margin-top: 0;
         }
 
@@ -4999,8 +4931,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .table-detail:has(.detail-panel-trend-table) {
-          width: min(980px, 100%);
-          margin-top: 0;
+          width: 100%;
+          max-width: none;
+          margin-inline: 0;
           padding: clamp(18px, 3vw, 28px);
           border: 1px solid rgba(146, 64, 14, 0.1);
           border-radius: 30px;
@@ -5016,8 +4949,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .table-detail:has(.detail-panel-local-table) {
-          width: min(980px, 100%);
-          margin-top: 0;
+          width: 100%;
+          max-width: none;
+          margin-inline: 0;
         }
 
         .table-detail:has(.detail-panel-local-table) > .table-glow,
@@ -6132,7 +6066,7 @@ export default function ChoNeoGossipPage() {
           display: grid;
           place-items: center;
           width: 100%;
-          min-height: clamp(320px, 52vw, 560px);
+          min-height: 0;
           border: 1px solid var(--room-pass2-border-soft);
           border-radius: 26px;
           background: #2c1a17;
@@ -6142,7 +6076,7 @@ export default function ChoNeoGossipPage() {
         .front-counter-artwork-surface {
           position: relative;
           overflow: hidden;
-          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.499));
+          width: 100%;
           aspect-ratio: 1535 / 1024;
           border-radius: 25px;
           background: #2c1a17;
@@ -6162,7 +6096,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .shop-talk-focused-stage .front-counter-artwork-surface {
-          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.776));
+          width: 100%;
           aspect-ratio: 1671 / 941;
         }
 
@@ -6174,8 +6108,8 @@ export default function ChoNeoGossipPage() {
         .shop-talk-room-caption {
           display: grid;
           gap: 4px;
-          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.776));
-          margin: 9px auto 0;
+          width: 100%;
+          margin: 9px 0 0;
           color: var(--room-pass2-text-secondary);
         }
 
@@ -8556,11 +8490,6 @@ export default function ChoNeoGossipPage() {
         }
 
         @media (max-width: 1080px) {
-          .room-scene,
-          .table-map {
-            min-height: auto;
-          }
-
           .room-scene {
             padding: 18px;
             overflow: visible;
@@ -8589,7 +8518,6 @@ export default function ChoNeoGossipPage() {
           }
 
           .gossip-room-stage {
-            width: min(820px, 100%);
             border-radius: 30px;
           }
 
@@ -8620,35 +8548,16 @@ export default function ChoNeoGossipPage() {
 
           .room-scene-focused {
             display: block;
-            min-height: auto;
-          }
-
-          .table-detail {
-            margin: 118px auto 0;
           }
         }
 
         @media (max-width: 980px) {
           .cafe-shell {
-            padding: 14px 12px 18px;
+            padding: var(--cho-section-gap) 0 calc(88px + env(safe-area-inset-bottom, 0px));
           }
 
-          .cafe-hero,
           .house-rules {
             grid-template-columns: 1fr;
-          }
-
-          .cafe-hero {
-            flex-direction: column;
-            gap: 10px;
-          }
-
-          .cafe-hero-actions {
-            align-self: flex-end;
-          }
-
-          .cafe-stage-controls {
-            align-items: stretch;
           }
 
           .front-counter-topic-note {
@@ -8677,7 +8586,49 @@ export default function ChoNeoGossipPage() {
           .cafe-shell {
             max-width: 100vw;
             overflow-x: hidden;
-            padding: 10px 10px 18px;
+            padding: 20px 0 calc(88px + env(safe-area-inset-bottom, 0px));
+          }
+
+          .cafe-room-toolbar {
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            grid-template-areas:
+              "leading music feedback"
+              "enter status status";
+            align-items: center;
+            gap: 8px;
+            margin: 20px 0 24px;
+          }
+
+          .cafe-toolbar-leading,
+          .cafe-hero-actions {
+            display: contents;
+          }
+
+          .cafe-toolbar-leading > .compact-table-back,
+          .cafe-toolbar-leading > .cafe-control-row {
+            grid-area: leading;
+          }
+
+          .cafe-toolbar-leading > .compact-table-enter {
+            grid-area: enter;
+          }
+
+          .cafe-toolbar-leading > .cafe-control-row {
+            min-width: 0;
+          }
+
+          .cafe-hero-actions > .cho-neo-shared-music-slot {
+            grid-area: music;
+          }
+
+          .cafe-hero-actions > .cho-neo-feedback-button {
+            grid-area: feedback;
+          }
+
+          .cafe-toolbar-status {
+            grid-area: status;
+            min-width: 0;
+            max-width: none;
           }
 
           h1 {
@@ -8694,12 +8645,12 @@ export default function ChoNeoGossipPage() {
 
           .cafe-control-row {
             gap: 6px;
-            margin: 10px 0 8px;
+            margin: 0;
           }
 
-          .cafe-control-pill {
-            min-height: 34px;
-            padding: 5px 10px;
+          .cafe-control-button {
+            min-height: 44px;
+            padding: 7px 16px;
             font-size: 10px;
           }
 
@@ -8712,15 +8663,15 @@ export default function ChoNeoGossipPage() {
 
           .compact-table-back {
             flex: 0 0 auto;
-            min-height: 30px;
-            padding: 5px 9px;
+            min-height: 44px;
+            padding: 0 16px;
             font-size: 11px;
           }
 
           .compact-table-enter {
             flex: 0 0 auto;
-            min-height: 30px;
-            padding: 5px 9px;
+            min-height: 48px;
+            padding: 7px 16px;
             font-size: 11px;
           }
 
@@ -8974,7 +8925,6 @@ export default function ChoNeoGossipPage() {
           }
 
           .gossip-room-stage {
-            min-height: auto;
             border-radius: 24px;
           }
 
@@ -8984,7 +8934,6 @@ export default function ChoNeoGossipPage() {
 
           .table-detail:has(.detail-panel-trend-table) {
             width: 100%;
-            margin-top: 36px;
             padding: 14px;
             border-radius: 24px;
           }
@@ -9113,7 +9062,9 @@ export default function ChoNeoGossipPage() {
           }
 
           .local-table-artwork img {
-            aspect-ratio: 16 / 10;
+            height: auto;
+            aspect-ratio: auto;
+            object-fit: contain;
           }
 
           .local-table-prompts,
@@ -9277,12 +9228,12 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-artwork-frame {
-            min-height: clamp(210px, 36svh, 310px);
+            min-height: 0;
             border-radius: 24px;
           }
 
           .front-counter-artwork-surface {
-            width: min(100%, calc(clamp(210px, 36svh, 310px) * 1.499));
+            width: 100%;
             border-radius: 23px;
           }
 
@@ -9445,14 +9396,15 @@ export default function ChoNeoGossipPage() {
           }
 
           .hotspot-label button {
-            min-height: 24px;
+            min-height: 44px;
+            padding: 7px 12px;
             font-size: 8px;
           }
 
-          .cafe-control-pill {
+          .cafe-control-button {
             flex: 1 1 calc(33.333% - 6px);
             min-width: 96px;
-            min-height: 42px;
+            min-height: 44px;
           }
 
           .current-identity,
@@ -9533,7 +9485,7 @@ export default function ChoNeoGossipPage() {
           }
 
           .table-detail {
-            margin: 0 auto;
+            margin-inline: 0;
           }
 
           .detail-table-plate {
@@ -9675,6 +9627,92 @@ export default function ChoNeoGossipPage() {
 
           .host-note div {
             align-items: stretch;
+          }
+        }
+
+        @media (min-width: 640px) and (max-width: 720px) {
+          .cafe-room-toolbar {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            grid-template-areas: none;
+          }
+
+          .cafe-toolbar-leading,
+          .cafe-hero-actions {
+            display: flex;
+          }
+
+          .cafe-toolbar-leading > .compact-table-back,
+          .cafe-toolbar-leading > .compact-table-enter,
+          .cafe-toolbar-leading > .cafe-control-row,
+          .cafe-hero-actions > .cho-neo-shared-music-slot,
+          .cafe-hero-actions > .cho-neo-feedback-button {
+            grid-area: auto;
+          }
+
+          .cafe-toolbar-status {
+            display: block;
+          }
+        }
+
+        @media (max-width: 639px) {
+          .cafe-room-toolbar {
+            grid-template-columns: auto minmax(0, 1fr) auto auto;
+            grid-template-areas: "back enter music feedback";
+            gap: 6px;
+            margin: 16px 0 20px;
+          }
+
+          .cafe-toolbar-status {
+            display: none;
+          }
+
+          .cafe-toolbar-leading > .compact-table-back {
+            grid-area: back;
+            min-width: 0;
+          }
+
+          .cafe-toolbar-leading > .compact-table-enter {
+            grid-area: enter;
+            min-width: 0;
+          }
+
+          .cafe-toolbar-leading > .cafe-control-row {
+            grid-area: navigation;
+            min-width: 0;
+          }
+
+          .cafe-room-toolbar:not(:has(.compact-table-enter)) {
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            grid-template-areas: "navigation music feedback";
+          }
+
+          .cafe-control-row {
+            min-width: 0;
+          }
+
+          .cafe-control-button {
+            min-width: 0;
+            padding-inline: 12px;
+          }
+
+          .cafe-hero-actions > .cho-neo-shared-music-slot {
+            width: 46px;
+            min-width: 46px;
+            height: 46px;
+            min-height: 46px;
+          }
+
+          .cafe-hero-actions > .cho-neo-shared-music-slot .cho-neo-layout-theme-audio {
+            width: 46px;
+            min-width: 46px;
+            height: 46px;
+            min-height: 46px;
+          }
+
+          .cafe-hero-actions > .cho-neo-feedback-button {
+            min-width: 0;
+            min-height: 44px;
+            padding: 7px 10px;
           }
         }
 

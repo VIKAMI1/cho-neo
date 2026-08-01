@@ -1280,7 +1280,7 @@ export default function OngDiaPage() {
           min-height: 44px;
           padding: 0;
           border: 1px solid var(--room-pass2-border);
-          border-radius: 14px;
+          border-radius: 12px;
           background: var(--room-pass2-control);
           color: var(--cho-neo-text-accent);
           text-decoration: none;

@@ -354,13 +354,13 @@ export default function ChoNeoAvatarPage() {
         .action-row a,
         .action-row button {
           display: inline-flex;
-          min-height: 42px;
+          min-height: 44px;
           align-items: center;
           justify-content: center;
-          border-radius: 999px;
+          border-radius: 12px;
           padding: 0 16px;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 500;
           text-decoration: none;
         }
 
@@ -518,16 +518,16 @@ export default function ChoNeoAvatarPage() {
         }
 
         .mood-row button {
-          min-height: 36px;
+          min-height: 44px;
           border: 1px solid rgba(255, 247, 237, 0.14);
-          border-radius: 999px;
-          padding: 0 12px;
+          border-radius: 12px;
+          padding: 7px 16px;
           color: rgba(255, 247, 237, 0.76);
           background: rgba(255, 247, 237, 0.07);
           cursor: pointer;
           font: inherit;
           font-size: 12px;
-          font-weight: 900;
+          font-weight: 500;
         }
 
         .mood-row .mood-selected {

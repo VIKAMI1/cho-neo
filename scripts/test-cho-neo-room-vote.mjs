@@ -8,9 +8,9 @@ import test from "node:test";
 const repoRoot = process.cwd();
 const dataPath = path.join(repoRoot, "src/lib/cho-neo/room-vote.ts");
 const apiPath = path.join(repoRoot, "src/app/api/cho-neo/room-vote/route.ts");
-const feedbackPath = path.join(
+const roomVoteComponentPath = path.join(
   repoRoot,
-  "src/components/cho-neo/ChoNeoBetaFeedback.tsx",
+  "src/components/cho-neo/ChoNeoRoomVote.tsx",
 );
 const villageShellPath = path.join(
   repoRoot,
@@ -28,7 +28,7 @@ const repositorySource = fs.readFileSync(
   path.join(repoRoot, "src/lib/cho-neo/room-vote-repository.ts"),
   "utf8",
 );
-const feedback = fs.readFileSync(feedbackPath, "utf8");
+const roomVoteComponent = fs.readFileSync(roomVoteComponentPath, "utf8");
 const villageShell = fs.readFileSync(villageShellPath, "utf8");
 const schema = fs.readFileSync(schemaPath, "utf8");
 const musicPlayer = fs.readFileSync(musicPlayerPath, "utf8");
@@ -62,24 +62,25 @@ test("room vote V1 has exactly the four approved options in canonical order", ()
   assert.match(data, /CHO_NEO_ROOM_VOTE_POLL_KEY = "cho-neo-room-vote-v1"/);
 });
 
-test("Góp ý contains the full voting section with the shared pass gate", () => {
-  assert.match(feedback, /Góc Bình Chọn — Mở gì trước\?/);
-  assert.match(feedback, /Tôi muốn phòng này/);
-  assert.match(feedback, /Đã chọn/);
-  assert.match(feedback, /Bạn đã chọn:/);
-  assert.match(feedback, /Đổi lựa chọn/);
-  assert.match(feedback, /Vì sao bạn muốn mở phòng này\?/);
-  assert.match(feedback, /Bỏ qua/);
-  assert.match(feedback, /ensureChoNeoMember/);
-  assert.match(feedback, /Authorization: `Bearer \$\{token\}`/);
-  assert.doesNotMatch(feedback, /newsletter|marketing|phone|password/i);
+test("room voting owns the full voting section and the shared pass gate", () => {
+  assert.match(roomVoteComponent, /Góc Bình Chọn — Mở gì trước\?/);
+  assert.match(roomVoteComponent, /Tôi muốn phòng này/);
+  assert.match(roomVoteComponent, /Đã chọn/);
+  assert.match(roomVoteComponent, /Bạn đã chọn:/);
+  assert.match(roomVoteComponent, /Đổi lựa chọn/);
+  assert.match(roomVoteComponent, /Vì sao bạn muốn mở phòng này\?/);
+  assert.match(roomVoteComponent, /Bỏ qua/);
+  assert.match(roomVoteComponent, /ensureChoNeoMember/);
+  assert.match(roomVoteComponent, /Authorization: `Bearer \$\{token\}`/);
+  assert.doesNotMatch(roomVoteComponent, /newsletter|marketing|phone|password/i);
 });
 
-test("Village Guide shortcut opens the existing Góp ý vote section", () => {
+test("Village Guide shortcut opens the standalone room vote component", () => {
   assert.match(villageShell, /Bình chọn mở phòng/);
   assert.match(villageShell, /CHO_NEO_ROOM_VOTE_OPEN_EVENT/);
-  assert.match(feedback, /window\.addEventListener\(CHO_NEO_ROOM_VOTE_OPEN_EVENT/);
-  assert.match(feedback, /getElementById\("cho-neo-room-vote"\)/);
+  assert.match(villageShell, /<ChoNeoRoomVote \/>/);
+  assert.match(roomVoteComponent, /window\.addEventListener\(CHO_NEO_ROOM_VOTE_OPEN_EVENT/);
+  assert.match(roomVoteComponent, /id="cho-neo-room-vote"/);
 });
 
 test("room votes are owned by the verified Supabase member", () => {
@@ -131,23 +132,23 @@ test("results hide low participation and reveal server percentages only at thres
   assert.match(data, /Math\.round\(\(count \/ totalVotes\) \* 100\)/);
   assert.match(data, /rank === 1/);
   assert.match(data, /Được quan tâm/);
-  assert.match(feedback, /Tổng lượt tham gia:/);
-  assert.match(feedback, /Đang lấy ý kiến/);
-  assert.doesNotMatch(feedback, /Winner|Guaranteed|Opening next|Approved/);
+  assert.match(roomVoteComponent, /Tổng lượt tham gia:/);
+  assert.match(roomVoteComponent, /Đang lấy ý kiến/);
+  assert.doesNotMatch(roomVoteComponent, /Winner|Guaranteed|Opening next|Approved/);
 });
 
 test("voting failure stays truthful and does not show success", () => {
-  assert.match(feedback, /Chưa lấy được bình chọn\. Chợ Neo không tự bịa số\./);
-  assert.match(feedback, /setSaveStatus\("error"\)/);
-  assert.match(feedback, /saveStatus === "saved"/);
-  assert.match(feedback, /Đã ghi nhận lựa chọn của bạn\./);
-  assert.match(feedback, /Đã cập nhật lựa chọn\./);
+  assert.match(roomVoteComponent, /Chưa lấy được bình chọn\. Chợ Neo không tự bịa số\./);
+  assert.match(roomVoteComponent, /setSaveStatus\("error"\)/);
+  assert.match(roomVoteComponent, /saveStatus === "saved"/);
+  assert.match(roomVoteComponent, /Đã ghi nhận lựa chọn của bạn\./);
+  assert.match(roomVoteComponent, /Đã cập nhật lựa chọn\./);
 });
 
 test("existing music player is not modified by the room vote feature", () => {
   assert.match(musicPlayer, /Danh sách nhạc Chợ Neo/);
   assert.match(musicPlayer, /onEnded=\{handleAudioEnded\}/);
-  assert.doesNotMatch(feedback, /ChoNeoThemeParkAudio/);
+  assert.doesNotMatch(roomVoteComponent, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(villageShell, /ChoNeoThemeParkAudio/);
 });
 

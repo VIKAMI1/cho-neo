@@ -756,7 +756,7 @@ function ChoNeoMemberStyles() {
         min-height: 44px;
         padding: 0 12px;
         border: 1px solid rgba(248, 211, 145, 0.26);
-        border-radius: 13px;
+        border-radius: 12px;
         color: var(--cho-neo-text-primary);
         background: #1b0d14;
         font: inherit;
@@ -774,7 +774,7 @@ function ChoNeoMemberStyles() {
         min-height: 58px;
         padding: 7px;
         border: 1px solid rgba(248, 211, 145, 0.18);
-        border-radius: 13px;
+        border-radius: 12px;
         color: var(--cho-neo-text-secondary);
         background: rgba(255, 247, 237, 0.05);
         cursor: pointer;
@@ -807,11 +807,12 @@ function ChoNeoMemberStyles() {
       .cho-neo-member-primary,
       .cho-neo-member-danger {
         min-height: 44px;
-        border-radius: 999px;
+        padding-inline: 16px;
+        border-radius: 12px;
         cursor: pointer;
         font: inherit;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 500;
       }
 
       .cho-neo-member-primary {

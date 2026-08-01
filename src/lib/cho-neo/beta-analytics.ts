@@ -8,6 +8,8 @@ export type ChoNeoBetaEventName =
   | "feedback_opened"
   | "feedback_submitted"
   | "feedback_closed"
+  | "room_vote_opened"
+  | "room_vote_closed"
   | "post_started"
   | "post_submitted"
   | "ong_dia_opened"

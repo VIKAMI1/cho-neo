@@ -312,7 +312,7 @@ export function ChoNeoCommunityNoteRoom({
             <strong>{purpose}</strong>
           </div>
 
-          <div className="room-stage" aria-hidden="true">
+          <div className="cho-neo-room-artwork room-stage" aria-hidden="true">
             {showPreviewImage ? (
               <Image
                 src={previewImage}
@@ -530,14 +530,14 @@ export function ChoNeoCommunityNoteRoom({
         .community-shell {
           position: relative;
           z-index: 1;
-          width: min(1120px, 100%);
+          width: min(var(--cho-content-max), calc(100% - (2 * var(--cho-page-gutter))));
           margin: 0 auto;
-          padding: 20px;
+          padding: var(--cho-section-gap) 0 calc(88px + env(safe-area-inset-bottom, 0px));
         }
 
         .room-topbar {
-          display: flex;
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 10px;
           margin-bottom: 16px;
         }
@@ -546,10 +546,10 @@ export function ChoNeoCommunityNoteRoom({
           display: inline-flex;
           flex-direction: column;
           justify-content: center;
-          min-height: 42px;
-          padding: 7px 13px;
+          min-height: 48px;
+          padding: 7px 16px;
           border: 1px solid rgba(253, 230, 138, 0.3);
-          border-radius: 999px;
+          border-radius: 12px;
           color: #fff7ed;
           background: rgba(17, 24, 39, 0.55);
           text-decoration: none;
@@ -559,13 +559,13 @@ export function ChoNeoCommunityNoteRoom({
 
         .soft-link span {
           font-size: 13px;
-          font-weight: 900;
+          font-weight: 500;
         }
 
         .soft-link small {
           color: rgba(255, 247, 237, 0.68);
           font-size: 10px;
-          font-weight: 800;
+          font-weight: 400;
         }
 
         .room-hero {
@@ -1126,7 +1126,7 @@ export function ChoNeoCommunityNoteRoom({
 
         @media (max-width: 820px) {
           .community-shell {
-            padding: 14px 14px calc(26px + env(safe-area-inset-bottom));
+            padding: var(--cho-section-gap) 0 calc(88px + env(safe-area-inset-bottom, 0px));
           }
 
           .room-hero,
