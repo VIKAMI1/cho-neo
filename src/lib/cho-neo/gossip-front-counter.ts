@@ -166,10 +166,16 @@ export async function postSharedFrontCounterMessage(input: {
   avatarId: string;
   nickname: string;
   text: string;
+  token: string;
 }) {
   const response = await fetch(FRONT_COUNTER_MESSAGES_API, {
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      avatarId: input.avatarId,
+      nickname: input.nickname,
+      text: input.text,
+    }),
     headers: {
+      Authorization: `Bearer ${input.token}`,
       "Content-Type": "application/json",
     },
     method: "POST",
@@ -188,14 +194,18 @@ export async function postSharedFrontCounterMessage(input: {
   return payload.message;
 }
 
-export async function reportSharedFrontCounterMessage(messageId: string) {
-  if (!isSharedFrontCounterMessageId(messageId)) {
+export async function reportSharedFrontCounterMessage(input: {
+  messageId: string;
+  token: string;
+}) {
+  if (!isSharedFrontCounterMessageId(input.messageId)) {
     throw new Error("Shared Front Counter report requires a database message id.");
   }
 
   return updateSharedFrontCounterMessage({
     action: "report",
-    messageId,
+    messageId: input.messageId,
+    token: input.token,
   });
 }
 
@@ -263,6 +273,7 @@ async function updateSharedFrontCounterMessage(input: {
   action: "hide" | "markReviewed" | "remove" | "report" | "unhide";
   hostKey?: string;
   messageId: string;
+  token?: string;
 }) {
   const response = await fetch(FRONT_COUNTER_MESSAGES_API, {
     body: JSON.stringify({
@@ -271,6 +282,7 @@ async function updateSharedFrontCounterMessage(input: {
     }),
     headers: {
       "Content-Type": "application/json",
+      ...(input.token ? { Authorization: `Bearer ${input.token}` } : {}),
       ...(input.hostKey ? { "X-Cho-Neo-Host-Key": input.hostKey } : {}),
     },
     method: "PATCH",

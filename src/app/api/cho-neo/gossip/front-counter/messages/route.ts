@@ -4,6 +4,11 @@ import {
   CHO_NEO_AVATARS,
   isValidVillageNickname,
 } from "@/lib/cho-neo/avatar-identity";
+import { isChoNeoGossipPostingDisabled } from "@/lib/cho-neo/env-flags";
+import {
+  CHO_NEO_MEMBER_PROFILE_TABLE,
+  mapChoNeoMemberProfileRow,
+} from "@/lib/cho-neo/member-identity";
 import {
   FRONT_COUNTER_MESSAGE_CAP,
   FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
@@ -16,12 +21,24 @@ const MESSAGE_SELECT =
   "id, room_id, avatar_id, nickname, text, reactions, report_count, reported_at, hidden_at, removed_at, created_at";
 const LEGACY_MESSAGE_SELECT =
   "id, room_id, avatar_id, nickname, text, reactions, hidden_at, created_at";
+const OWNED_MESSAGE_SELECT =
+  "id, room_id, author_user_id, avatar_id, nickname, text, reactions, hidden_at, created_at";
 const SUPABASE_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const POST_RATE_LIMIT_WINDOW_MS = 60_000;
+const POST_RATE_LIMIT_MAX = 5;
+const REPORT_RATE_LIMIT_WINDOW_MS = 60_000;
+const REPORT_RATE_LIMIT_MAX = 10;
+const DUPLICATE_WINDOW_MS = 10 * 60_000;
+const postRateBuckets = new Map<string, number[]>();
+const reportRateBuckets = new Map<string, number[]>();
+const recentPostFingerprints = new Map<string, number>();
+const recentReportFingerprints = new Map<string, number>();
 
 export const dynamic = "force-dynamic";
 
 type GossipMessageRow = {
+  author_user_id?: string | null;
   avatar_id: string;
   created_at: string;
   hidden_at?: string | null;
@@ -92,7 +109,7 @@ export async function GET(request: Request) {
 
   const messages = ((data ?? []) as GossipMessageRow[])
     .reverse()
-    .map(rowToMessage);
+    .map(rowToPublicMessage);
 
   return NextResponse.json(
     { messages, mode: "shared" },
@@ -148,20 +165,68 @@ async function getHostReviewMessages(hostKey: string) {
 }
 
 export async function POST(request: Request) {
-  const supabase = createChoNeoSupabaseClient();
+  if (isPostingDisabled()) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_POSTING_DISABLED",
+        error: "Quán đang tạm ngưng nhận câu mới, nhưng vẫn đọc được như thường.",
+        reason: "posting-disabled",
+      },
+      { status: 503 }
+    );
+  }
+
+  const clientKey = getClientKey(request);
+  if (isPostRateLimited(clientKey)) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_POST_RATE_LIMITED",
+        error: "Con gửi hơi nhanh. Nghỉ một nhịp rồi góp tiếp nha.",
+        reason: "post-rate-limited",
+      },
+      { status: 429 }
+    );
+  }
+
+  const userId = await getAuthenticatedChoNeoUserId(request);
+  if (!userId) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_PASS_REQUIRED",
+        error: "Vào Chợ Neo và xác nhận thành viên trước khi góp chuyện nha.",
+        reason: "missing-cho-neo-member",
+      },
+      { status: 401 }
+    );
+  }
+
+  const supabase = createChoNeoSupabaseServiceClient();
 
   if (!supabase) {
     return sharedMemoryUnavailable({
-      detail: "Missing Supabase URL or key for Cho Neo shared memory.",
+      detail: "Missing Supabase service role key for Cho Neo shared memory.",
       operation: "POST",
-      reason: "missing-env",
+      reason: "missing-service-role",
     });
   }
 
   const body = await request.json().catch(() => null);
-  const avatarId = typeof body?.avatarId === "string" ? body.avatarId.trim() : "";
-  const nickname = typeof body?.nickname === "string" ? body.nickname.trim() : "";
   const text = typeof body?.text === "string" ? body.text.trim() : "";
+
+  const profile = await getVerifiedChoNeoMemberProfile(supabase, userId);
+  if (!profile) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_ACTIVE_PASS_REQUIRED",
+        error: "Xác nhận thành viên ngành nail trước khi góp chuyện nha.",
+        reason: "unverified-cho-neo-member",
+      },
+      { status: 400 }
+    );
+  }
+
+  const avatarId = profile.avatarKey ?? profile.avatar.id;
+  const nickname = profile.displayName;
 
   if (!CHO_NEO_AVATARS.some((avatar) => avatar.id === avatarId)) {
     return NextResponse.json({ error: "Choose a valid Cho Neo avatar." }, { status: 400 });
@@ -184,16 +249,40 @@ export async function POST(request: Request) {
     );
   }
 
+  const unsafeTextReason = getUnsafeTextReason(text);
+  if (unsafeTextReason) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_UNSAFE_TEXT",
+        error: "Giữ câu này chung chung hơn một chút: không link, không HTML, không thông tin riêng tư.",
+        reason: unsafeTextReason,
+      },
+      { status: 400 }
+    );
+  }
+
+  if (isDuplicatePost(clientKey, text)) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_DUPLICATE_POST",
+        error: "Câu này vừa được đặt lên bàn rồi.",
+        reason: "duplicate-post",
+      },
+      { status: 409 }
+    );
+  }
+
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .insert({
+      author_user_id: userId,
       avatar_id: avatarId,
       nickname,
       reactions: {},
       room_id: FRONT_COUNTER_ROOM_ID,
       text,
     })
-    .select(LEGACY_MESSAGE_SELECT)
+    .select(OWNED_MESSAGE_SELECT)
     .single();
 
   if (error) {
@@ -231,10 +320,53 @@ export async function POST(request: Request) {
     });
   }
 
+  rememberPostFingerprint(clientKey, text);
+
   return NextResponse.json(
-    { message: rowToMessage(savedRow), mode: "shared" },
+    { message: rowToPublicMessage(savedRow), mode: "shared" },
     { headers: { "Cache-Control": "no-store" }, status: 201 }
   );
+}
+
+async function getAuthenticatedChoNeoUserId(request: Request) {
+  const authorization = request.headers.get("authorization") ?? "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!token || !supabaseUrl || !supabaseKey) {
+    return null;
+  }
+
+  const { data, error } = await createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+    },
+  }).auth.getUser(token);
+
+  if (error || !data.user || data.user.is_anonymous) {
+    return null;
+  }
+
+  return data.user.id;
+}
+
+async function getVerifiedChoNeoMemberProfile(
+  supabase: { from: (table: string) => any },
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from(CHO_NEO_MEMBER_PROFILE_TABLE)
+    .select("user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status")
+    .eq("user_id", userId)
+    .eq("membership_status", "verified_nail_member")
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return mapChoNeoMemberProfileRow(data);
 }
 
 export async function PATCH(request: Request) {
@@ -265,7 +397,7 @@ export async function PATCH(request: Request) {
   }
 
   if (action === "report") {
-    return reportMessage(messageId);
+    return reportMessage(request, messageId);
   }
 
   if (
@@ -329,7 +461,91 @@ function isMissingModerationColumns(error: { code?: string; message?: string }) 
   );
 }
 
-async function reportMessage(messageId: string) {
+function isPostingDisabled() {
+  return isChoNeoGossipPostingDisabled();
+}
+
+function getClientKey(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  const userAgent = request.headers.get("user-agent")?.slice(0, 80) ?? "unknown";
+  return `${(forwarded || realIp || "local").slice(0, 80)}:${userAgent}`;
+}
+
+function isPostRateLimited(clientKey: string, now = Date.now()) {
+  const recent = (postRateBuckets.get(clientKey) ?? []).filter(
+    (timestamp) => now - timestamp < POST_RATE_LIMIT_WINDOW_MS,
+  );
+  if (recent.length >= POST_RATE_LIMIT_MAX) {
+    postRateBuckets.set(clientKey, recent);
+    return true;
+  }
+
+  recent.push(now);
+  postRateBuckets.set(clientKey, recent);
+  return false;
+}
+
+function normalizePostFingerprint(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getPostFingerprint(clientKey: string, text: string) {
+  return `${clientKey}:${normalizePostFingerprint(text)}`;
+}
+
+function isDuplicatePost(clientKey: string, text: string, now = Date.now()) {
+  const fingerprint = getPostFingerprint(clientKey, text);
+  const lastSeenAt = recentPostFingerprints.get(fingerprint);
+  prunePostFingerprints(now);
+  return Boolean(lastSeenAt && now - lastSeenAt < DUPLICATE_WINDOW_MS);
+}
+
+function rememberPostFingerprint(clientKey: string, text: string, now = Date.now()) {
+  prunePostFingerprints(now);
+  recentPostFingerprints.set(getPostFingerprint(clientKey, text), now);
+}
+
+function prunePostFingerprints(now = Date.now()) {
+  for (const [fingerprint, timestamp] of recentPostFingerprints) {
+    if (now - timestamp >= DUPLICATE_WINDOW_MS) {
+      recentPostFingerprints.delete(fingerprint);
+    }
+  }
+}
+
+function getUnsafeTextReason(text: string) {
+  if (/<\/?[a-z][\s\S]*>/i.test(text)) return "html";
+  if (/\b(?:https?:\/\/|www\.)\S+/i.test(text)) return "url";
+  if (/\b(?:javascript:|data:text\/html|<script)\b/i.test(text)) return "script";
+  if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)) return "email";
+  if (/(?:\+?\d[\d\s().-]{7,}\d)/.test(text)) return "phone";
+  if (/\b(?:zalo|facebook|instagram|tiktok)\s*[:@]/i.test(text)) {
+    return "social-contact";
+  }
+  return null;
+}
+
+async function reportMessage(request: Request, messageId: string) {
+  const reporterUserId = await getAuthenticatedChoNeoUserId(request);
+  if (!reporterUserId) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_PASS_REQUIRED",
+        error: "Vào Chợ Neo và xác nhận thành viên trước khi báo cáo nha.",
+        reason: "missing-cho-neo-member",
+      },
+      { status: 401 }
+    );
+  }
+
   const supabase = createChoNeoSupabaseServiceClient();
 
   if (!supabase) {
@@ -338,6 +554,41 @@ async function reportMessage(messageId: string) {
       operation: "PATCH",
       reason: "missing-service-role",
     });
+  }
+
+  const profile = await getVerifiedChoNeoMemberProfile(supabase, reporterUserId);
+  if (!profile) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_ACTIVE_PASS_REQUIRED",
+        error: "Xác nhận thành viên ngành nail trước khi báo cáo nha.",
+        reason: "unverified-cho-neo-member",
+      },
+      { status: 400 }
+    );
+  }
+
+  const clientKey = getClientKey(request);
+  if (isReportRateLimited(clientKey)) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_REPORT_RATE_LIMITED",
+        error: "Con báo cáo hơi nhanh. Nghỉ một nhịp rồi thử lại nha.",
+        reason: "report-rate-limited",
+      },
+      { status: 429 }
+    );
+  }
+
+  if (isDuplicateReport(reporterUserId, messageId)) {
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_DUPLICATE_REPORT",
+        error: "Câu này đã được báo cáo rồi.",
+        reason: "duplicate-report",
+      },
+      { status: 409 }
+    );
   }
 
   const lookupResult = await lookupMessageForPatch(supabase, messageId, {
@@ -373,7 +624,55 @@ async function reportMessage(messageId: string) {
     });
   }
 
-  return updatedMessageResponse(data as GossipMessageRow[] | null);
+  rememberReportFingerprint(reporterUserId, messageId);
+
+  return publicUpdatedMessageResponse(data as GossipMessageRow[] | null);
+}
+
+function isReportRateLimited(clientKey: string, now = Date.now()) {
+  const recent = (reportRateBuckets.get(clientKey) ?? []).filter(
+    (timestamp) => now - timestamp < REPORT_RATE_LIMIT_WINDOW_MS,
+  );
+  if (recent.length >= REPORT_RATE_LIMIT_MAX) {
+    reportRateBuckets.set(clientKey, recent);
+    return true;
+  }
+
+  recent.push(now);
+  reportRateBuckets.set(clientKey, recent);
+  return false;
+}
+
+function getReportFingerprint(reporterUserId: string, messageId: string) {
+  return `${reporterUserId}:${messageId}`;
+}
+
+function isDuplicateReport(
+  reporterUserId: string,
+  messageId: string,
+  now = Date.now(),
+) {
+  const fingerprint = getReportFingerprint(reporterUserId, messageId);
+  const lastSeenAt = recentReportFingerprints.get(fingerprint);
+  pruneReportFingerprints(now);
+  return Boolean(lastSeenAt && now - lastSeenAt < DUPLICATE_WINDOW_MS);
+}
+
+function rememberReportFingerprint(
+  reporterUserId: string,
+  messageId: string,
+  now = Date.now(),
+) {
+  pruneReportFingerprints(now);
+  recentReportFingerprints.set(getReportFingerprint(reporterUserId, messageId), now);
+}
+
+function pruneReportFingerprints(now = Date.now()) {
+  for (const [fingerprint, timestamp] of recentReportFingerprints) {
+    if (now - timestamp >= DUPLICATE_WINDOW_MS) {
+      recentReportFingerprints.delete(fingerprint);
+    }
+  }
 }
 
 async function lookupMessageForPatch(
@@ -560,6 +859,34 @@ function updatedMessageResponse(rows: GossipMessageRow[] | null) {
   );
 }
 
+function publicUpdatedMessageResponse(rows: GossipMessageRow[] | null) {
+  if (!rows || rows.length === 0) {
+    return messageNotFoundResponse();
+  }
+
+  if (rows.length > 1) {
+    console.error("[cho-neo:gossip-front-counter]", {
+      operation: "PATCH",
+      reason: "multiple-messages-updated",
+      updatedRows: rows.length,
+    });
+
+    return NextResponse.json(
+      {
+        code: "CHO_NEO_GOSSIP_MULTIPLE_MESSAGES_UPDATED",
+        error: "Host tools touched more than one message.",
+        reason: "multiple-messages-updated",
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(
+    { message: rowToPublicMessage(rows[0]), mode: "shared" },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
 function messageNotFoundResponse() {
   return NextResponse.json(
     {
@@ -590,6 +917,17 @@ function rowToMessage(row: GossipMessageRow): FrontCounterMessage {
   };
 }
 
+function rowToPublicMessage(row: GossipMessageRow): FrontCounterMessage {
+  return {
+    avatarId: row.avatar_id,
+    createdAt: row.created_at,
+    id: row.id,
+    nickname: row.nickname,
+    reactions: row.reactions ?? {},
+    text: row.text,
+  };
+}
+
 function sharedMemoryUnavailable(input: {
   detail: string;
   operation: "GET" | "PATCH" | "POST";
@@ -604,7 +942,6 @@ function sharedMemoryUnavailable(input: {
   return NextResponse.json(
     {
       code: "SHARED_GOSSIP_MEMORY_UNAVAILABLE",
-      detail: input.detail,
       error: "Shared Gossip Café memory is unavailable.",
       reason: input.reason,
     },

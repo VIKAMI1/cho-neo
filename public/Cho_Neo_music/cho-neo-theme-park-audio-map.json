@@ -1,0 +1,20 @@
+{
+  "target_local_folder": "/Users/baonguyen/dev/cho-neo/public/Cho_Neo_music",
+  "selection": {
+    "top1": {
+      "file": "cho-neo-theme-park-top-1-main-theme-3.mp3",
+      "public_url": "/Cho_Neo_music/cho-neo-theme-park-top-1-main-theme-3.mp3",
+      "role": "Default Theme Park / Chợ Neo main atmosphere loop",
+      "reason": "Best balance: warm low-brightness profile, strong wave movement, and very stable ending level for repeat use.",
+      "original_uploaded_file": "Chợ Neo Main Theme (3).mp3"
+    },
+    "runner_up": {
+      "file": "cho-neo-theme-park-runner-up-sky-lift.mp3",
+      "public_url": "/Cho_Neo_music/cho-neo-theme-park-runner-up-sky-lift.mp3",
+      "role": "Runner-up / entrance, transition, or alternate park loop",
+      "reason": "More airy and lifted; less aggressive onset profile, shorter than the long Sky Lift variant, better as a usable alternate.",
+      "original_uploaded_file": "Chợ Neo Main Theme - Sky Lift.mp3"
+    }
+  },
+  "implementation_note": "Copy these two MP3s into public/Cho_Neo_music. Use top1 as the default Theme Park music; keep runner_up available as an alternate or entrance/transitional track."
+}

@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import ShowOffFeed from "./ShowOffFeed";
-
-export default function Page() {
-  return <ShowOffFeed />;
+export default function ShowOffCompatibilityPage() {
+  redirect("/cho-neo/show-off");
 }

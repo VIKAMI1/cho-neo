@@ -10,6 +10,19 @@ Build Cho Neo Sticky V1 frontend-local first.
 
 Use the 96 existing sticks as the known seed corpus. V1 should focus on ritual UX, route clarity, localStorage comeback memory, and Vietnamese-first copy. Future expansion can grow from 96 to 120, 240, or 600 sticks only after the ritual spine works.
 
+
+## AI Provider And Safety Architecture Decision
+
+Keep Groq-hosted Llama as the current AI conversation provider for Ong Dia prayer responses. Keep deterministic local fallback as the reliability and safety backstop when no provider is selected, no API key is available, a provider returns a non-OK response, JSON parsing fails, validation fails, or the provider request throws.
+
+Do not reduce normal Ong Dia conversation to rigid canned replies. For ordinary low-risk wishes, preserve broad conversational freedom for empathy, interpretation, warmth, cultural voice, and natural Vietnamese language. The AI layer may shape the visible shrine response, but it must respect the local wish router and the response schema.
+
+Apply deterministic hard guardrails only to high-risk categories, including gambling addiction, self-harm, substance abuse, domestic abuse, financial desperation, medical crisis, exploitation, and delusion reinforcement. High-risk responses should remain warm, but must redirect toward safety, practical protection, and human support instead of spiritual certainty or prediction.
+
+The gambling guardrail must never provide lucky numbers, betting encouragement, rituals for winning, borrowing advice, or claims that a win is coming. Gambling-related responses should protect rent, food, documents, relationships, and the user's next safe step.
+
+This is an architecture decision only. Provider routing, prompts, APIs, environment variables, UI, and existing safety behavior remain unchanged unless a future reviewed implementation task explicitly changes them.
+
 ## Product Purpose
 
 Ong Dia is the shrine.

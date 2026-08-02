@@ -1,63 +1,71 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
 /**
- * Auth callback for Supabase magic-link / OTP flows.
+ * Auth callback for Supabase OAuth PKCE flows.
  *
  * Key rules (to avoid the localhost trap):
  * - NEVER build absolute URLs from env here.
  * - Always redirect with relative paths (router.replace("/...")).
  * - Clean the URL without forcing "/" (preserve origin + path).
+ * - Do not accept implicit access tokens in the visible URL.
  */
 export default function AuthCallbackClient() {
   const router = useRouter();
   const search = useSearchParams();
   const [msg, setMsg] = useState("Đang đăng nhập…");
+  const didRunRef = useRef(false);
 
   useEffect(() => {
+    if (didRunRef.current) return;
+    didRunRef.current = true;
+
     const supabase = createClient();
 
-    const next = search.get("next") || "/";
+    const next = getSafeReturnTo(search.get("next"));
 
     const run = async () => {
       try {
-        // Supabase can return either:
-        //  - magic link implicit tokens in hash (#access_token=...)
-        //  - PKCE code in query (?code=...)
         const url = new URL(window.location.href);
-        const hasHashToken = url.hash.includes("access_token");
-        const hasCode = url.searchParams.has("code");
+        const code = url.searchParams.get("code");
+        const hasVisibleToken =
+          url.hash.includes("access_token") ||
+          url.hash.includes("refresh_token") ||
+          url.searchParams.has("access_token") ||
+          url.searchParams.has("refresh_token");
 
-        // 1) Consume auth response
-        if (hasCode) {
-          // Newer PKCE-style flows
-          const { error } = await supabase.auth.exchangeCodeForSession(url.href);
+        if (code) {
+          const { data, error } =
+            await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
-        } else if (hasHashToken) {
-          // Older implicit-style flows (supabase-js supports this, but typing varies)
-          const authAny = supabase.auth as any;
-          const { error } = await authAny.getSessionFromUrl?.({ storeSession: true });
-          if (error) throw error;
-        } else {
-          setMsg("Không thấy token đăng nhập. Thử đăng nhập lại nha.");
-          setTimeout(() => router.replace("/login"), 900);
+          if (!data.session?.user) {
+            throw new Error("oauth-session-missing");
+          }
+        } else if (hasVisibleToken) {
+          cleanCallbackUrl(url);
+          setMsg("Đường đăng nhập cũ không dùng được. Mở Google lại giúp Chợ Neo nha.");
+          setTimeout(() => router.replace(`/login?next=${encodeURIComponent(next)}`), 900);
           return;
+        } else {
+          const { data } = await supabase.auth.getSession();
+          if (!data.session?.user) {
+            setMsg("Không thấy mã đăng nhập. Thử đăng nhập lại nha.");
+            setTimeout(() => router.replace(`/login?next=${encodeURIComponent(next)}`), 900);
+            return;
+          }
         }
 
-        // 2) Clean URL (remove code/hash) WITHOUT changing origin (no localhost)
-        window.history.replaceState({}, "", `${url.origin}${url.pathname}`);
-
-        // 3) Go to next page (relative only)
-        router.replace(next.startsWith("/") ? next : "/");
+        cleanCallbackUrl(url);
+        router.replace(next);
       } catch (e: any) {
-        console.error("Auth callback failed:", e);
+        console.error("Auth callback failed:", e?.message ?? "unknown");
         setMsg(
           `Đăng nhập bị lỗi. Quay lại trang login thử lại nha. (${e?.message ?? "unknown"})`
         );
-        setTimeout(() => router.replace("/login"), 1200);
+        setTimeout(() => router.replace(`/login?next=${encodeURIComponent(next)}`), 1200);
       }
     };
 
@@ -72,4 +80,15 @@ export default function AuthCallbackClient() {
       </div>
     </main>
   );
+}
+
+function cleanCallbackUrl(url: URL) {
+  window.history.replaceState({}, "", `${url.origin}${url.pathname}`);
+}
+
+export function getSafeReturnTo(value: string | null) {
+  if (!value) return "/cho-neo";
+  if (!value.startsWith("/") || value.startsWith("//")) return "/cho-neo";
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return "/cho-neo";
+  return value;
 }

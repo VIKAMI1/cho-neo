@@ -11,7 +11,15 @@ export type ChoNeoRoom = {
   enStatus: string;
   viDescription: string;
   enDescription: string;
-  tone: "cafe" | "shrine" | "gallery" | "owner" | "technique" | "waterfront" | "market";
+  tone:
+    | "cafe"
+    | "shrine"
+    | "question"
+    | "gallery"
+    | "owner"
+    | "technique"
+    | "waterfront"
+    | "market";
   hotspot: {
     x: string;
     y: string;
@@ -36,10 +44,24 @@ export const choNeoRooms: ChoNeoRoom[] = [
     hotspot: { x: "60.6%", y: "22.8%", w: "8%", h: "8%" },
   },
   {
+    id: "hoi-cho-neo",
+    viName: "Hỏi Chợ Neo",
+    enName: "Ask Chợ Neo",
+    href: "/cho-neo/hoi-cho-neo",
+    icon: "?",
+    status: "open",
+    viStatus: "Đang mở",
+    enStatus: "Open",
+    viDescription: "NeoPao trả lời trước. Người trong nghề góp chuyện thật.",
+    enDescription: "NeoPao answers first. People in the trade add real experience.",
+    tone: "question",
+    hotspot: { x: "45.2%", y: "39.4%", w: "8%", h: "8%" },
+  },
+  {
     id: "ong-dia-shrine",
     viName: "Bàn Ông Địa",
     enName: "Ong Dia Shrine",
-    href: "/cho-neo/shrine",
+    href: "/cho-neo/ong-dia",
     icon: "⛩",
     status: "open",
     viStatus: "Đang mở",
@@ -55,9 +77,9 @@ export const choNeoRooms: ChoNeoRoom[] = [
     enName: "Show-Off Gallery",
     href: "/cho-neo/show-off",
     icon: "✦",
-    status: "open",
-    viStatus: "Đang mở",
-    enStatus: "Open",
+    status: "soon",
+    viStatus: "Sắp mở",
+    enStatus: "Coming soon",
     viDescription: "Khoe bộ móng, góc tiệm, thành quả nhỏ trong ngày.",
     enDescription: "Fresh sets, shop corners, and small wins.",
     tone: "gallery",
@@ -95,7 +117,7 @@ export const choNeoRooms: ChoNeoRoom[] = [
     id: "market-street",
     viName: "Phố Chợ",
     enName: "Market Street",
-    href: "/cho-neo/market",
+    href: "/cho-neo/pho-cho",
     icon: "▣",
     status: "soon",
     viStatus: "Sắp mở",
@@ -103,7 +125,7 @@ export const choNeoRooms: ChoNeoRoom[] = [
     viDescription: "Supplier và mua bán để sau khi làng đủ tin nhau.",
     enDescription: "Commerce waits until trust feels real.",
     tone: "market",
-    hotspot: { x: "45.6%", y: "70.8%", w: "8%", h: "8%" },
+    hotspot: { x: "88.4%", y: "36.6%", w: "8%", h: "8%" },
   },
   {
     id: "waterfront",
