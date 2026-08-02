@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 
 type ChoNeoTimeMood = "morning" | "day" | "golden-dusk" | "night-market";
 
-const MOOD_LABELS: Record<ChoNeoTimeMood, { vi: string; en: string }> = {
-  morning: { vi: "Buổi sáng", en: "Morning" },
-  day: { vi: "Ban ngày", en: "Day" },
-  "golden-dusk": { vi: "Chiều lên đèn", en: "Golden dusk" },
-  "night-market": { vi: "Chợ đêm", en: "Night market" },
+const MOOD_LABELS: Record<ChoNeoTimeMood, { vi: string }> = {
+  morning: { vi: "Buổi sáng" },
+  day: { vi: "Ban ngày" },
+  "golden-dusk": { vi: "Chiều lên đèn" },
+  "night-market": { vi: "Chợ đêm" },
 };
 
 function getLocalTimeMood(date: Date): ChoNeoTimeMood {
@@ -22,7 +22,14 @@ function getLocalTimeMood(date: Date): ChoNeoTimeMood {
 
 export function ChoNeoTimeAmbience() {
   useEffect(() => {
-    document.documentElement.dataset.choNeoTime = getLocalTimeMood(new Date());
+    const syncLocalMood = () => {
+      document.documentElement.dataset.choNeoTime = getLocalTimeMood(new Date());
+    };
+
+    syncLocalMood();
+    const intervalId = window.setInterval(syncLocalMood, 60_000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   return (
@@ -161,17 +168,19 @@ export function ChoNeoTimeMoodLabel() {
   const [mood, setMood] = useState<ChoNeoTimeMood>("golden-dusk");
 
   useEffect(() => {
-    const localMood = getLocalTimeMood(new Date());
-    document.documentElement.dataset.choNeoTime = localMood;
-    setMood(localMood);
+    const syncLocalMood = () => {
+      const localMood = getLocalTimeMood(new Date());
+      document.documentElement.dataset.choNeoTime = localMood;
+      setMood(localMood);
+    };
+
+    syncLocalMood();
+    const intervalId = window.setInterval(syncLocalMood, 60_000);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const label = MOOD_LABELS[mood];
 
-  return (
-    <>
-      <strong>{label.vi}</strong>
-      <small>{label.en}</small>
-    </>
-  );
+  return <strong>{label.vi}</strong>;
 }

@@ -8,15 +8,15 @@ import {
   useState,
   type FormEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
+import { ChoNeoBetaFeedback } from "@/components/cho-neo/ChoNeoBetaFeedback";
+import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
 import {
   CHO_NEO_AVATARS,
   type ChoNeoIdentity,
   getAvatarById,
   getChoNeoIdentity,
-  getRandomAvatar,
-  getRandomNicknameSuggestion,
-  isValidVillageNickname,
   saveChoNeoIdentity,
 } from "@/lib/cho-neo/avatar-identity";
 import {
@@ -40,6 +40,7 @@ import {
   unhideSharedFrontCounterMessage,
 } from "@/lib/cho-neo/gossip-front-counter";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
+import { createClient } from "@/lib/supabase-browser";
 
 type ConversationMessage = {
   author?: {
@@ -66,11 +67,135 @@ type ChoNeoAvatarProfile = {
   updatedAt: string;
 };
 
+function TableHostNudge({
+  message,
+  onClose,
+  visible,
+}: {
+  message: string;
+  onClose: () => void;
+  visible: boolean;
+}) {
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <aside className="table-host-nudge" aria-live="polite">
+      <div>
+        <strong>Chủ Bàn nhắc nhẹ</strong>
+        <p>{message}</p>
+      </div>
+      <button aria-label="Đóng lời nhắc Chủ Bàn" onClick={onClose} type="button">
+        ×
+      </button>
+    </aside>
+  );
+}
+
+function CompactTableHeader({
+  countLabel,
+  onBack,
+  onEnter,
+}: {
+  countLabel: string;
+  onBack: () => void;
+  onEnter?: () => void;
+}) {
+  return (
+    <div className="compact-table-header">
+      <button className="compact-table-back" onClick={onBack} type="button">
+        ← Quán Tám
+      </button>
+      {onEnter ? (
+        <button className="compact-table-enter" onClick={onEnter} type="button">
+          Vào bàn
+          <span>Take a seat</span>
+        </button>
+      ) : null}
+      <span className="compact-table-count">{countLabel}</span>
+    </div>
+  );
+}
+
+function QuanTamTableShell({
+  ariaLabel,
+  artwork,
+  artworkAlt,
+  children,
+  className,
+  countLabel,
+  note,
+  onBack,
+  onEnter,
+  subtitle,
+  titleEn,
+  titleVi,
+}: {
+  ariaLabel: string;
+  artwork?: string | null;
+  artworkAlt: string;
+  children: ReactNode;
+  className?: string;
+  countLabel: string;
+  note: string;
+  onBack: () => void;
+  onEnter?: () => void;
+  subtitle: string;
+  titleEn: string;
+  titleVi: string;
+}) {
+  return (
+    <section
+      className={`local-table-stage ${className ?? ""}`}
+      aria-label={ariaLabel}
+    >
+      <CompactTableHeader
+        countLabel={countLabel}
+        onBack={onBack}
+        onEnter={onEnter}
+      />
+      <header className="local-table-heading">
+        <div>
+          <h2>
+            {titleVi}
+            <span>{titleEn}</span>
+          </h2>
+        </div>
+      </header>
+
+      <p className="local-table-subtitle">
+        {subtitle}
+        <span>{note}</span>
+      </p>
+
+      {artwork ? (
+        <div className="local-table-artwork">
+          <img alt={artworkAlt} src={artwork} />
+        </div>
+      ) : null}
+
+      {children}
+    </section>
+  );
+}
+
 const FRONT_COUNTER_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS = 3;
 const TABLE_NOTE_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS =
   FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS;
+const QUIET_GOSSIP_AVATAR_SRC = "/images/cho-neo/avatars/nail-tech-girl.png";
+const QUIET_GOSSIP_MOOD = "Muốn tám chút";
+const QUIET_GOSSIP_NICKNAME = "Bạn làng";
+const QUAN_TAM_DAY_ARTWORK_SRC = "/images/cho-neo/Quan-Tam-Daytime.png";
+const QUAN_TAM_NIGHT_ARTWORK_SRC = "/images/cho-neo/quan-tam-gossip.png";
+const QUAY_XA_GIAO_DAY_ARTWORK_SRC =
+  "/images/cho-neo/Quay-Xa-Giao-Daytime.png";
+const QUAY_XA_GIAO_NIGHT_ARTWORK_SRC = "/images/cho-neo/Quay-Xa-Giao.png";
+const BAN_CHUYEN_NGHE_DAY_ARTWORK_SRC = "/images/cho-neo/Ban-Chuyen-Nghe-New.png";
+const BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC =
+  "/images/cho-neo/Ban-Chuyen-Nghe-Nighttime.png";
 const FRONT_COUNTER_REPORTED_MESSAGES_KEY =
   "choNeoGossipFrontCounterReportedMessagesV1";
 const GOSSIP_RULES_ACCEPTED_KEY = "choNeoGossipRulesAcceptedV1";
@@ -82,7 +207,7 @@ const FRONT_COUNTER_TALK_EXAMPLES = [
   "Weather before booking the afternoon",
 ];
 const COLOR_TREND_STAGE_IMAGE_SRC =
-  "/images/cho-neo/Ban-Mau-Trend.png";
+  "/images/cho-neo/Ban-Mau-New.png";
 const COLOR_TREND_TOPIC_CHIPS = [
   {
     vi: "Khách hỏi hoài",
@@ -224,7 +349,7 @@ const LOCAL_TABLE_CONFIG = {
       { vi: "Không spam supplier.", en: "No supplier spam." },
       { vi: "Giữ tên khách và thợ riêng tư.", en: "Keep clients and techs private." },
     ],
-    composerPlaceholder: "Hỏi hoặc chia sẻ một chuyện nghề...",
+    composerPlaceholder: "Góp chuyện nghề...",
     helper: {
       vi: "Nói rõ bối cảnh: khách, giá, lịch, dịch vụ, hay cách tiệm chạy.",
       en: "Share context: clients, pricing, schedule, services, or shop flow.",
@@ -388,6 +513,9 @@ const tables = [
     action: "people talking",
     topic: "Một câu nhanh hôm nay trong tiệm.",
     subtitle: "Một câu nhanh hôm nay trong tiệm.",
+    hostNudge:
+      "Cứ chào hỏi nhẹ nhàng. Giữ tên khách, tiệm, và thợ riêng tư nha.",
+    maxPostChars: FRONT_COUNTER_MESSAGE_LIMIT,
     status: "active",
     tableStatus: "Lively",
     initials: ["Mai", "TN", "Vy", "KP", "An"],
@@ -420,12 +548,15 @@ const tables = [
     action: "people talking",
     topic: "Khách, giá, ngày bận, mẹo giữ tiệm chạy êm.",
     subtitle: "Khách, giá, ngày bận, mẹo giữ tiệm chạy êm.",
+    hostNudge:
+      "Nói chuyện nghề thoải mái. Góp ý có tình, đừng bêu tên ai nha.",
+    maxPostChars: 500,
     status: "active",
     tableStatus: "Open",
     initials: ["MT", "Kim", "LD"],
     tone: "violet",
     note: "Salon life, clients, pricing, busy days, and work tips from people who get it.",
-    artwork: "/images/cho-neo/Ban-Chuyen-Nghe.png",
+    artwork: "/images/cho-neo/Ban-Chuyen-Nghe-New.png",
     topicChips: LOCAL_TABLE_CONFIG["shop-talk"].topicChips,
     emptyState: LOCAL_TABLE_CONFIG["shop-talk"].emptyState,
     rules: LOCAL_TABLE_CONFIG["shop-talk"].rules,
@@ -449,7 +580,11 @@ const tables = [
     topic:
       "Màu, trend, design, bling nào khách đang hỏi nhiều?",
     subtitle: "Màu, trend, design, bling nào khách đang hỏi nhiều?",
-    status: "active",
+    hostNudge:
+      "Chia sẻ màu/set thoải mái. Đừng đăng mặt khách hoặc thông tin riêng nha.",
+    imageCaptionMaxChars: 180,
+    maxPostChars: 220,
+    status: "inactive",
     tableStatus: "Quiet",
     initials: [],
     tone: "cyan",
@@ -477,12 +612,15 @@ const tables = [
     action: "people talking",
     topic: "Xả nhẹ một câu, đừng làm độc cả bàn.",
     subtitle: "Xả nhẹ một câu, đừng làm độc cả bàn.",
-    status: "active",
+    hostNudge:
+      "Xả nhẹ cho đỡ mệt. Đừng gọi tên khách, tiệm, hay thợ trực tiếp nha.",
+    maxPostChars: 350,
+    status: "inactive",
     tableStatus: "Lively",
     initials: ["Anh", "Bao", "Nhi", "SL", "PQ", "TV"],
     tone: "gold",
     note: "Tired days, funny clients, after-work talk, and a little tea with boundaries.",
-    artwork: "/images/cho-neo/Ban-Xa-Hoi.png",
+    artwork: "/images/cho-neo/Ban-Xa-Hoi-New.png",
     topicChips: LOCAL_TABLE_CONFIG["vent-table"].topicChips,
     emptyState: LOCAL_TABLE_CONFIG["vent-table"].emptyState,
     rules: LOCAL_TABLE_CONFIG["vent-table"].rules,
@@ -506,12 +644,15 @@ const tables = [
     action: "people listening",
     topic: "Nói nhỏ, nghĩ chậm, uống miếng trà.",
     subtitle: "Nói nhỏ, nghĩ chậm, uống miếng trà.",
-    status: "active",
+    hostNudge:
+      "Ngồi nhẹ thôi. Viết điều cần nói, không cần dài, không cần hoàn hảo.",
+    maxPostChars: 350,
+    status: "inactive",
     tableStatus: "Listening",
     initials: ["Linh", "Duc"],
     tone: "green",
     note: "Softer talk, reflection, tea-table mood, and kindness after a long shift.",
-    artwork: "/images/cho-neo/Ban-Yen.png",
+    artwork: "/images/cho-neo/Ban-Yen-New.png",
     topicChips: LOCAL_TABLE_CONFIG["quiet-table"].topicChips,
     emptyState: LOCAL_TABLE_CONFIG["quiet-table"].emptyState,
     rules: LOCAL_TABLE_CONFIG["quiet-table"].rules,
@@ -534,6 +675,8 @@ const tables = [
     action: "people listening",
     topic: "Nói nhỏ hơn, giữ chuyện gọn hơn.",
     subtitle: "Nói nhỏ hơn, giữ chuyện gọn hơn.",
+    hostNudge: "Bàn Riêng chưa mở cho tới khi có riêng tư thật.",
+    maxPostChars: 0,
     status: "inactive",
     tableStatus: "Quiet",
     initials: [],
@@ -618,7 +761,77 @@ const GOSSIP_AVATAR_COPY: Record<
   },
 };
 
+function isChoNeoDaytime(date = new Date()) {
+  const hour = date.getHours();
+
+  return hour >= 6 && hour < 18;
+}
+
+function getQuanTamArtworkSources(date = new Date()) {
+  const isDaytime = isChoNeoDaytime(date);
+
+  return {
+    shopTalk: isDaytime
+      ? BAN_CHUYEN_NGHE_DAY_ARTWORK_SRC
+      : BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC,
+    frontCounter: isDaytime
+      ? QUAY_XA_GIAO_DAY_ARTWORK_SRC
+      : QUAY_XA_GIAO_NIGHT_ARTWORK_SRC,
+    lobby: isDaytime ? QUAN_TAM_DAY_ARTWORK_SRC : QUAN_TAM_NIGHT_ARTWORK_SRC,
+  };
+}
+
+function getNextQuanTamArtworkBoundaryMs(date = new Date()) {
+  const nextBoundary = new Date(date);
+  const hour = date.getHours();
+
+  nextBoundary.setMinutes(0, 0, 0);
+
+  if (hour < 6) {
+    nextBoundary.setHours(6);
+  } else if (hour < 18) {
+    nextBoundary.setHours(18);
+  } else {
+    nextBoundary.setDate(nextBoundary.getDate() + 1);
+    nextBoundary.setHours(6);
+  }
+
+  return Math.max(1000, nextBoundary.getTime() - date.getTime());
+}
+
+function useQuanTamArtworkSources() {
+  const [artworkSources, setArtworkSources] = useState({
+    shopTalk: BAN_CHUYEN_NGHE_NIGHT_ARTWORK_SRC,
+    frontCounter: QUAY_XA_GIAO_NIGHT_ARTWORK_SRC,
+    lobby: QUAN_TAM_NIGHT_ARTWORK_SRC,
+  });
+
+  useEffect(() => {
+    let timeoutId: number | null = null;
+
+    const syncArtwork = () => {
+      const now = new Date();
+      setArtworkSources(getQuanTamArtworkSources(now));
+      timeoutId = window.setTimeout(syncArtwork, getNextQuanTamArtworkBoundaryMs(now));
+    };
+
+    syncArtwork();
+
+    return () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, []);
+
+  return artworkSources;
+}
+
 export default function ChoNeoGossipPage() {
+  const supabase = useMemo(() => createClient(), []);
+  const { ensureChoNeoMember } = useChoNeoMember();
+  const cafeControlPillClassName = "cafe-control-pill";
+  const quanTamArtworkSources = useQuanTamArtworkSources();
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
   const [frontCounterMessages, setFrontCounterMessages] = useState<
     FrontCounterMessage[]
@@ -636,14 +849,9 @@ export default function ChoNeoGossipPage() {
   const [frontCounterPostNotice, setFrontCounterPostNotice] = useState<
     string | null
   >(null);
-  const [frontCounterMusicOn, setFrontCounterMusicOn] = useState(false);
   const [identity, setIdentity] = useState<ChoNeoIdentity | null>(null);
   const [avatarProfile, setAvatarProfile] =
     useState<ChoNeoAvatarProfile | null>(null);
-  const [identityPickerOpen, setIdentityPickerOpen] = useState(false);
-  const [identityAvatarId, setIdentityAvatarId] = useState(CHO_NEO_AVATARS[0].id);
-  const [identityNicknameDraft, setIdentityNicknameDraft] = useState("");
-  const [identityError, setIdentityError] = useState<string | null>(null);
   const [reportedMessageIds, setReportedMessageIds] = useState<string[]>([]);
   const [moderationNotice, setModerationNotice] = useState<string | null>(null);
   const [moderationBusyMessageId, setModerationBusyMessageId] = useState<
@@ -665,7 +873,10 @@ export default function ChoNeoGossipPage() {
   const [tableNotesByName, setTableNotesByName] = useState<TableNotesByName>({});
   const [tableNoteDraft, setTableNoteDraft] = useState("");
   const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
+  const [tableHostNudgeVisible, setTableHostNudgeVisible] = useState(false);
+  const frontCounterDraftRef = useRef("");
   const frontCounterInputRef = useRef<HTMLInputElement | null>(null);
+  const frontCounterPostingRef = useRef(false);
   const tableNoteInputRef = useRef<HTMLInputElement | null>(null);
   const selectedTable = useMemo(
     () => activeTables.find((table) => table.legacyName === selectedTableName) ?? null,
@@ -674,6 +885,7 @@ export default function ChoNeoGossipPage() {
   const isFrontCounter = selectedTable?.id === "front-counter";
   const isTrendTable = selectedTable?.id === "color-trend";
   const isLocalSessionTable = selectedTable?.mode === "local-session";
+  const isShopTalkTable = selectedTable?.id === "shop-talk";
   const localTableConfig = isLocalSessionTable
     ? LOCAL_TABLE_CONFIG[selectedTable.id as keyof typeof LOCAL_TABLE_CONFIG]
     : null;
@@ -693,11 +905,18 @@ export default function ChoNeoGossipPage() {
   const frontCounterMeaningfulCharacters =
     getMeaningfulCharacterCount(frontCounterDraft);
   const canSubmitFrontCounterMessage =
-    frontCounterDraft.trim().length > 0 &&
-    frontCounterMeaningfulCharacters >= FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS &&
-    !frontCounterPosting;
+    frontCounterDraft.trim().length > 0 && !frontCounterPosting;
+  const selectedTablePostLimit =
+    selectedTable?.maxPostChars ?? TABLE_NOTE_MESSAGE_LIMIT;
   const remainingTableNoteCharacters =
-    TABLE_NOTE_MESSAGE_LIMIT - tableNoteDraft.length;
+    selectedTablePostLimit - tableNoteDraft.length;
+  const tableNoteCharacterCountWarningThreshold = Math.min(
+    40,
+    Math.ceil(selectedTablePostLimit * 0.15)
+  );
+  const shouldShowTableNoteCharacterCount =
+    tableNoteDraft.length > 0 &&
+    remainingTableNoteCharacters <= tableNoteCharacterCountWarningThreshold;
   const tableNoteMeaningfulCharacters = getMeaningfulCharacterCount(tableNoteDraft);
   const canSubmitTableNote =
     !!selectedTable &&
@@ -759,8 +978,8 @@ export default function ChoNeoGossipPage() {
 
     if (savedIdentity) {
       setIdentity(savedIdentity);
-      setIdentityAvatarId(savedIdentity.avatarId);
-      setIdentityNicknameDraft(savedIdentity.nickname);
+    } else {
+      createQuietGossipIdentity();
     }
 
     const searchParams = new URLSearchParams(window.location.search);
@@ -824,12 +1043,30 @@ export default function ChoNeoGossipPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!selectedTable?.hostNudge) {
+      setTableHostNudgeVisible(false);
+      return;
+    }
+
+    setTableHostNudgeVisible(true);
+    const nudgeTimer = window.setTimeout(() => {
+      setTableHostNudgeVisible(false);
+    }, 4000);
+
+    return () => window.clearTimeout(nudgeTimer);
+  }, [selectedTable?.hostNudge, selectedTable?.id]);
+
   async function handleFrontCounterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const text = frontCounterDraft.trim();
+    await submitFrontCounterDraft();
+  }
 
-    if (!identity || !isCurrentIdentitySeated || frontCounterPosting) {
+  async function submitFrontCounterDraft() {
+    const text = frontCounterDraftRef.current.trim();
+
+    if (frontCounterPosting || frontCounterPostingRef.current) {
       return;
     }
 
@@ -845,6 +1082,17 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
+    const activeIdentity = ensureFrontCounterComposerReady();
+    await ensureChoNeoMember(async () => {
+      await persistFrontCounterDraft(activeIdentity, text);
+    });
+  }
+
+  async function persistFrontCounterDraft(
+    activeIdentity: ChoNeoIdentity,
+    text: string,
+  ) {
+    frontCounterPostingRef.current = true;
     setFrontCounterPosting(true);
     setFrontCounterPostNotice(null);
 
@@ -852,10 +1100,17 @@ export default function ChoNeoGossipPage() {
       const authorSnapshot = getCurrentAuthorSnapshot();
 
       try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) {
+          throw new Error("Missing Cho Neo pass session");
+        }
+
         const savedMessage = await postSharedFrontCounterMessage({
-          avatarId: identity.avatarId,
-          nickname: identity.nickname,
+          avatarId: activeIdentity.avatarId,
+          nickname: activeIdentity.nickname,
           text,
+          token,
         });
 
         if (process.env.NODE_ENV === "development") {
@@ -873,29 +1128,59 @@ export default function ChoNeoGossipPage() {
 
         setFrontCounterMessages(decoratedSharedMessages);
         setSharedFetchedMessageIds(getSharedFrontCounterMessageIds(decoratedSharedMessages));
+        frontCounterDraftRef.current = "";
         setFrontCounterDraft("");
         setFrontCounterMemoryNotice(null);
         setFrontCounterPostNotice(
           "Đã đăng ở Quầy Xã Giao. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Social Counter. Thanks for keeping it useful."
         );
+        releaseFrontCounterPostingGuard();
+        setFrontCounterPosting(false);
         return;
-      } catch {
+      } catch (error) {
+        const sharedPostReason =
+          error instanceof Error ? error.message.toLowerCase() : "";
+
+        if (
+          sharedPostReason.includes("missing-cho-neo-member") ||
+          sharedPostReason.includes("unverified-cho-neo-member")
+        ) {
+          setFrontCounterPostNotice(
+            "Vào Chợ Neo và xác nhận thành viên ngành nail trước khi góp chuyện nha."
+          );
+          releaseFrontCounterPostingGuard();
+          setFrontCounterPosting(false);
+          return;
+        }
+
         setFrontCounterMemoryMode("local");
         setSharedFetchedMessageIds([]);
         setFrontCounterMemoryNotice(
           "Shared village memory is unavailable right now, so this post is saved on this device."
         );
-      } finally {
-        setFrontCounterPosting(false);
       }
     }
 
-    saveFrontCounterMessageLocally({
-      author: getCurrentAuthorSnapshot(),
-      identity,
-      text,
-    });
-    setFrontCounterPosting(false);
+    try {
+      saveFrontCounterMessageLocally({
+        author: getCurrentAuthorSnapshot(),
+        identity: activeIdentity,
+        text,
+      });
+    } catch {
+      setFrontCounterPostNotice(
+        "Chưa đăng được câu này. Bạn thử lại sau nha. / This post could not be saved. Please try again."
+      );
+    } finally {
+      releaseFrontCounterPostingGuard();
+      setFrontCounterPosting(false);
+    }
+  }
+
+  function releaseFrontCounterPostingGuard() {
+    window.setTimeout(() => {
+      frontCounterPostingRef.current = false;
+    }, 0);
   }
 
   function saveFrontCounterMessageLocally(input: {
@@ -916,6 +1201,7 @@ export default function ChoNeoGossipPage() {
       messages: nextMessages,
       seatedIdentity: nextSeat,
     });
+    frontCounterDraftRef.current = "";
     setFrontCounterDraft("");
     setFrontCounterPostNotice(
       "Đã đăng ở Quầy Xã Giao. Cảm ơn bạn giữ câu chuyện có ích. / Posted at the Social Counter. Thanks for keeping it useful."
@@ -981,10 +1267,10 @@ export default function ChoNeoGossipPage() {
       const nextPrompt = `${starterText} `;
 
       if (!currentDraft.trim()) {
-        return nextPrompt;
+        return nextPrompt.slice(0, selectedTablePostLimit);
       }
 
-      return `${currentDraft.trim()} ${nextPrompt}`.slice(0, TABLE_NOTE_MESSAGE_LIMIT);
+      return `${currentDraft.trim()} ${nextPrompt}`.slice(0, selectedTablePostLimit);
     });
     setTableNoteNotice(null);
     window.requestAnimationFrame(() => {
@@ -997,10 +1283,10 @@ export default function ChoNeoGossipPage() {
       const nextPrompt = `${prompt.insert} `;
 
       if (!currentDraft.trim()) {
-        return nextPrompt;
+        return nextPrompt.slice(0, selectedTablePostLimit);
       }
 
-      return `${currentDraft.trim()} ${nextPrompt}`.slice(0, TABLE_NOTE_MESSAGE_LIMIT);
+      return `${currentDraft.trim()} ${nextPrompt}`.slice(0, selectedTablePostLimit);
     });
     setTableNoteNotice(null);
     window.requestAnimationFrame(() => {
@@ -1010,9 +1296,7 @@ export default function ChoNeoGossipPage() {
 
   async function reportFrontCounterMessage(message: FrontCounterMessage) {
     if (!identity) {
-      setIdentityPickerOpen(true);
-      setModerationNotice("Tạo danh tính làng trước khi báo cáo tin nhắn. / Create a village identity before reporting a message.");
-      return;
+      createQuietGossipIdentity();
     }
 
     if (reportedMessageIds.includes(message.id) || moderationBusyMessageId) {
@@ -1035,13 +1319,28 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
+    await ensureChoNeoMember(async () => {
+      await persistFrontCounterReport(message);
+    });
+  }
+
+  async function persistFrontCounterReport(message: FrontCounterMessage) {
     setModerationBusyMessageId(message.id);
     setModerationNotice(null);
 
     try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (frontCounterMemoryMode === "shared" && !token) {
+        throw new Error("Missing Cho Neo pass session");
+      }
+
       const updatedMessage =
         frontCounterMemoryMode === "shared"
-          ? await reportSharedFrontCounterMessage(message.id)
+          ? await reportSharedFrontCounterMessage({
+              messageId: message.id,
+              token: token ?? "",
+            })
           : {
               ...message,
               reportCount: (message.reportCount ?? 0) + 1,
@@ -1237,59 +1536,70 @@ export default function ChoNeoGossipPage() {
     setHostReviewUnlocked(false);
   }
 
-  function saveIdentity() {
-    const validation = isValidVillageNickname(identityNicknameDraft);
+  function createQuietGossipIdentity() {
+    const now = new Date().toISOString();
+    let nextIdentity: ChoNeoIdentity = {
+      avatarId: CHO_NEO_AVATARS[0].id,
+      createdAt: now,
+      nickname: QUIET_GOSSIP_NICKNAME,
+      updatedAt: now,
+    };
 
-    if (!validation.valid) {
-      setIdentityError(validation.message);
-      return;
+    try {
+      const savedIdentity = saveChoNeoIdentity({
+        avatarId: CHO_NEO_AVATARS[0].id,
+        existingIdentity: null,
+        nickname: QUIET_GOSSIP_NICKNAME,
+      });
+
+      if (savedIdentity) {
+        nextIdentity = savedIdentity;
+      }
+    } catch {
+      // Storage-restricted sessions can still use the quiet in-memory identity.
     }
 
-    const savedIdentity = saveChoNeoIdentity({
-      avatarId: identityAvatarId,
-      existingIdentity: identity,
-      nickname: identityNicknameDraft,
+    setIdentity(nextIdentity);
+    setAvatarProfile({
+      avatarId: nextIdentity.avatarId,
+      avatarSrc: QUIET_GOSSIP_AVATAR_SRC,
+      mood: QUIET_GOSSIP_MOOD,
+      nickname: nextIdentity.nickname,
+      updatedAt: nextIdentity.updatedAt,
     });
 
-    if (!savedIdentity) {
-      setIdentityError("Choose a village nickname first.");
-      return;
-    }
-
-    setIdentity(savedIdentity);
-    setIdentityAvatarId(savedIdentity.avatarId);
-    setIdentityNicknameDraft(savedIdentity.nickname);
-    setIdentityPickerOpen(false);
-    setIdentityError(null);
-  }
-
-  function surpriseIdentity() {
-    const avatar = getRandomAvatar();
-    setIdentityAvatarId(avatar.id);
-
-    if (!identityNicknameDraft.trim()) {
-      setIdentityNicknameDraft(getRandomNicknameSuggestion());
-    }
-
-    setIdentityError(null);
+    return nextIdentity;
   }
 
   function takeFrontCounterSeat() {
-    if (!identity) {
-      setIdentityPickerOpen(true);
-      return;
+    ensureFrontCounterComposerReady();
+  }
+
+  function ensureFrontCounterComposerReady() {
+    const activeIdentity = identity ?? createQuietGossipIdentity();
+
+    if (
+      !seatedIdentity ||
+      seatedIdentity.avatarId !== activeIdentity.avatarId ||
+      seatedIdentity.nickname !== activeIdentity.nickname
+    ) {
+      const nextSeat = createFrontCounterSeat(activeIdentity);
+      setSeatedIdentity(nextSeat);
+      saveFrontCounterSeat(nextSeat);
     }
 
-    const nextSeat = createFrontCounterSeat(identity);
-    setSeatedIdentity(nextSeat);
-    saveFrontCounterSeat(nextSeat);
+    return activeIdentity;
   }
 
   function enterFrontCounterTable() {
-    if (!identity) {
-      setIdentityPickerOpen(true);
-    } else if (!isCurrentIdentitySeated) {
-      const nextSeat = createFrontCounterSeat(identity);
+    const activeIdentity = identity ?? createQuietGossipIdentity();
+
+    if (
+      !seatedIdentity ||
+      seatedIdentity.avatarId !== activeIdentity.avatarId ||
+      seatedIdentity.nickname !== activeIdentity.nickname
+    ) {
+      const nextSeat = createFrontCounterSeat(activeIdentity);
       setSeatedIdentity(nextSeat);
       saveFrontCounterSeat(nextSeat);
     }
@@ -1300,6 +1610,16 @@ export default function ChoNeoGossipPage() {
         behavior: "smooth",
       });
       frontCounterInputRef.current?.focus();
+    }, 80);
+  }
+
+  function enterSelectedTable() {
+    window.setTimeout(() => {
+      tableNoteInputRef.current?.scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
+      tableNoteInputRef.current?.focus();
     }, 80);
   }
 
@@ -1321,6 +1641,14 @@ export default function ChoNeoGossipPage() {
     if (tables.find((table) => table.legacyName === tableName)?.id === "color-trend") {
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
     }
+  }
+
+  function getCompactTableCountLabel(table: (typeof tables)[number]) {
+    if (table.action === "people listening") {
+      return `${table.count} đang lắng nghe`;
+    }
+
+    return `${table.count} đang bàn chuyện`;
   }
 
   function handleTableKeyDown(
@@ -1381,13 +1709,15 @@ export default function ChoNeoGossipPage() {
   function renderAvatarPassportChip() {
     if (!avatarProfile) {
       return (
-        <Link className="composer-avatar-passport composer-avatar-passport-empty" href="/cho-neo/avatar">
+        <Link
+          className="composer-avatar-passport composer-avatar-passport-empty"
+          href="/cho-neo/avatar"
+        >
           <span className="composer-avatar-placeholder" aria-hidden="true">
             +
           </span>
           <strong>
             Chọn dáng vào chợ
-            <small>Choose your village face</small>
           </strong>
         </Link>
       );
@@ -1404,6 +1734,7 @@ export default function ChoNeoGossipPage() {
           {avatarProfile.nickname || "Người Ghé Chợ"}
           <small>{avatarProfile.mood || "Nhẹ nhàng"}</small>
         </strong>
+        <span className="composer-avatar-action">Đổi dáng</span>
       </Link>
     );
   }
@@ -1430,201 +1761,31 @@ export default function ChoNeoGossipPage() {
             </p>
           </div>
 
+          <div className="cafe-hero-actions" aria-label="Quán Tám quick actions">
+            <span
+              className="cho-neo-shared-music-slot cafe-theme-audio"
+              data-cho-neo-shared-music-slot
+            />
+            <ChoNeoBetaFeedback />
+          </div>
         </header>
 
-        <div className="cafe-stage-controls">
-          <nav className="cafe-control-row" aria-label="Quán Tám controls">
-            <Link className="cafe-control-pill" href="/cho-neo">
-              <span>Về Sân Làng</span>
-              <small>Village</small>
-            </Link>
-            <Link className="cafe-control-pill" href="/cho-neo/avatar">
-              <span>Chọn avatar</span>
-              <small>Choose village face</small>
-            </Link>
-            {isFrontCounter ? (
-              <>
-                <button
-                  className="cafe-control-pill"
-                  type="button"
-                  onClick={() => setSelectedTableName(null)}
-                >
-                  <span>Về Quán Tám</span>
-                  <small>Café</small>
-                </button>
-                <button
-                  className="cafe-control-pill"
-                  type="button"
-                  onClick={() => setFrontCounterDrawerOpen((isOpen) => !isOpen)}
-                >
-                  <span>{frontCounterDrawerOpen ? "Đóng" : "Chuyện cũ"}</span>
-                  <small>{frontCounterDrawerOpen ? "Close" : "More"}</small>
-                </button>
-              </>
-            ) : null}
-            <button
-              className={`cafe-control-pill ${
-                isFrontCounter && !isCurrentIdentitySeated
-                  ? "cafe-control-pill-primary"
-                  : ""
-              } ${
-                isFrontCounter && isCurrentIdentitySeated
-                  ? "cafe-control-pill-seated"
-                  : ""
-              }`}
-              type="button"
-              onClick={
-                isFrontCounter
-                  ? enterFrontCounterTable
-                  : () => setIdentityPickerOpen(true)
-              }
-              aria-label={
-                isFrontCounter
-                  ? isCurrentIdentitySeated
-                    ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
-                    : "Vào bàn / Take a seat"
-                  : undefined
-              }
-            >
-              <span>
-                {isFrontCounter
-                  ? isCurrentIdentitySeated
-                    ? "Đang ngồi"
-                    : "Vào bàn"
-                  : "Đổi Avatar"}
-              </span>
-              <small>
-                {isFrontCounter
-                  ? isCurrentIdentitySeated
-                    ? "Seated"
-                    : "Take a seat"
-                  : "Change"}
-              </small>
-            </button>
-            {isFrontCounter ? (
-              <>
-                <span className="front-counter-count-pill">
-                  👥 {selectedTable.count} người đang ngồi đây
-                  <small>{selectedTable.count} seated here</small>
-                </span>
-                <button
-                  className="cafe-control-pill cafe-control-pill-secondary"
-                  type="button"
-                  onClick={() => setFrontCounterMusicOn((isOn) => !isOn)}
-                  aria-pressed={frontCounterMusicOn}
-                >
-                  <span>{frontCounterMusicOn ? "🎵 Tắt nhạc" : "🎵 Mở nhạc"}</span>
-                  <small>{frontCounterMusicOn ? "Music Off" : "Music On"}</small>
-                </button>
-              </>
-            ) : null}
-          </nav>
-          {isFrontCounter ? (
-            <aside className="front-counter-topic-note" aria-label="Social Counter topic">
-              <span>☕ Chào hỏi • Xã giao</span>
-            </aside>
-          ) : null}
-        </div>
+        {!selectedTable ? (
+          <div className="cafe-stage-controls">
+            <nav className="cafe-control-row" aria-label="Quán Tám controls">
+              <Link className={cafeControlPillClassName} href="/cho-neo">
+                <span>Về Sân Làng</span>
+                <small>Village</small>
+              </Link>
+              <Link className={cafeControlPillClassName} href="/cho-neo/avatar">
+                <span>Chọn avatar</span>
+                <small>Choose village face</small>
+              </Link>
+            </nav>
+          </div>
+        ) : null}
 
         <>
-        <section className="identity-strip" aria-label="Cho Neo identity">
-          {identityPickerOpen ? (
-            <div className="identity-picker">
-              <div className="identity-picker-heading">
-                <div>
-                  <p className="eyebrow">
-                    Danh tính avatar V1
-                    <span>Avatar Identity V1</span>
-                  </p>
-                  <h2>
-                    Chọn gương mặt cà phê của bạn.
-                    <span>Choose your café face.</span>
-                  </h2>
-                  <p>
-                    Chỉ dùng avatar có sẵn. Không upload, không tự build, không mua sắm.
-                    <span>Preset avatars only. No uploads, no custom builder, no shopping.</span>
-                  </p>
-                </div>
-                {identity ? (
-                  <button type="button" onClick={() => setIdentityPickerOpen(false)}>
-                    Đổi sau
-                    <span>Change later</span>
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="avatar-grid">
-                {CHO_NEO_AVATARS.map((avatar) => {
-                  const avatarCopy = getGossipAvatarCopy(avatar.id);
-
-                  return (
-                    <button
-                      className={`avatar-choice avatar-${avatar.tone} ${
-                        identityAvatarId === avatar.id ? "avatar-choice-active" : ""
-                      }`}
-                      key={avatar.id}
-                      onClick={() => {
-                        setIdentityAvatarId(avatar.id);
-                        setIdentityError(null);
-                      }}
-                      type="button"
-                    >
-                      <span
-                        className="avatar-choice-portrait avatar-choice-portrait-placeholder"
-                        data-avatar-id={avatar.id}
-                        aria-hidden="true"
-                      >
-                        <span className="avatar-choice-face">
-                          <span className="avatar-choice-eyes" />
-                          <span className="avatar-choice-smile" />
-                        </span>
-                        <span className="avatar-choice-charm">{avatar.emoji}</span>
-                      </span>
-                      <strong>
-                        {avatarCopy.name}
-                        <span>{avatar.name}</span>
-                      </strong>
-                      <small>
-                        {avatarCopy.description}
-                        <span>{avatar.description}</span>
-                      </small>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="identity-form">
-                <label htmlFor="gossip-village-nickname">
-                  Tên trong làng
-                  <span>Village nickname</span>
-                </label>
-                <input
-                  id="gossip-village-nickname"
-                  maxLength={24}
-                  onChange={(event) => {
-                    setIdentityNicknameDraft(event.target.value);
-                    setIdentityError(null);
-                  }}
-                  placeholder="Mai Calgary"
-                  type="text"
-                  value={identityNicknameDraft}
-                />
-                {identityError ? <p>{identityError}</p> : null}
-                <div>
-                  <button type="button" onClick={surpriseIdentity}>
-                    Chọn thử cho tôi
-                    <span>Surprise me</span>
-                  </button>
-                  <button type="button" onClick={saveIdentity}>
-                    Lưu danh tính
-                    <span>Save identity</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
         <section
           className={`room-scene room-scene-entered room-scene-settled ${
             selectedTable ? "room-scene-focused" : ""
@@ -1650,27 +1811,66 @@ export default function ChoNeoGossipPage() {
 
               <div
                 className={`detail-panel ${
-                  isFrontCounter ? "detail-panel-front-counter" : ""
+                  isFrontCounter || isShopTalkTable ? "detail-panel-front-counter" : ""
+                } ${
+                  isShopTalkTable ? "detail-panel-shop-talk" : ""
                 } ${
                   isTrendTable ? "detail-panel-trend-table" : ""
                 } ${
-                  isLocalSessionTable ? "detail-panel-local-table" : ""
+                  isLocalSessionTable && !isShopTalkTable ? "detail-panel-local-table" : ""
                 } ${
                   isFrontCounter && frontCounterDrawerOpen
                     ? "front-counter-drawer-open"
                     : ""
                 }`}
               >
-                {isTrendTable || isLocalSessionTable ? (
-                  <button
-                    className={isLocalSessionTable ? "local-table-back" : "trend-table-back"}
-                    onClick={() => setSelectedTableName(null)}
-                    type="button"
-                  >
-                    ← Về Quán Tám
-                    <span>Back to Gossip Café</span>
-                  </button>
+                {isTrendTable ? (
+                  <CompactTableHeader
+                    countLabel={getCompactTableCountLabel(selectedTable)}
+                    onEnter={enterSelectedTable}
+                    onBack={() => setSelectedTableName(null)}
+                  />
                 ) : null}
+
+                {isFrontCounter || isShopTalkTable ? (
+                  <div className="front-counter-quick-controls">
+                    <button
+                      className="compact-table-back front-counter-back-control"
+                      onClick={() => setSelectedTableName(null)}
+                      type="button"
+                    >
+                      ← Quán Tám
+                    </button>
+                    <button
+                      className={`front-counter-seat-control ${
+                        isFrontCounter && isCurrentIdentitySeated
+                          ? "front-counter-seat-control-seated"
+                          : ""
+                      }`}
+                      type="button"
+                      onClick={isFrontCounter ? enterFrontCounterTable : enterSelectedTable}
+                      aria-label={
+                        isFrontCounter && isCurrentIdentitySeated
+                          ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
+                          : `Vào ${getTableNameCopy(selectedTable.name).vi} / Take a seat`
+                      }
+                    >
+                      {isFrontCounter && isCurrentIdentitySeated ? "Đang ngồi" : "Vào bàn"}
+                      <span>
+                        {isFrontCounter && isCurrentIdentitySeated ? "Seated" : "Take a seat"}
+                      </span>
+                    </button>
+                    <span className="compact-table-count front-counter-count-control">
+                      {getCompactTableCountLabel(selectedTable)}
+                    </span>
+                  </div>
+                ) : null}
+
+                <TableHostNudge
+                  message={selectedTable.hostNudge}
+                  onClose={() => setTableHostNudgeVisible(false)}
+                  visible={tableHostNudgeVisible}
+                />
 
                 {!isLocalSessionTable ? (
                 <div className="detail-heading">
@@ -1706,10 +1906,7 @@ export default function ChoNeoGossipPage() {
 
                 {isTrendTable ? (
                   <p className="trend-table-subtitle">
-                    Màu, trend, design, bling nào khách đang hỏi nhiều?
-                    <span>
-                      Colors, trends, designs, and bling clients are asking for.
-                    </span>
+                    Colors, trends, designs, and bling clients are asking for.
                   </p>
                 ) : !isLocalSessionTable ? (
                   <p className="topic">
@@ -1738,51 +1935,29 @@ export default function ChoNeoGossipPage() {
                   </div>
                 ) : null}
 
-                {isLocalSessionTable && localTableConfig ? (
-                  <section
-                    className={`local-table-stage local-table-stage-${selectedTable.id}`}
-                    aria-label={`${getTableNameCopy(selectedTable.name).vi} selected table`}
+                {isLocalSessionTable && localTableConfig && !isShopTalkTable ? (
+                  <QuanTamTableShell
+                    ariaLabel={`${getTableNameCopy(selectedTable.name).vi} selected table`}
+                    artwork={selectedTable.artwork}
+                    artworkAlt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
+                    className={`local-table-stage-${selectedTable.id}`}
+                    countLabel={getCompactTableCountLabel(selectedTable)}
+                    note={selectedTable.note}
+                    onBack={() => setSelectedTableName(null)}
+                    onEnter={enterSelectedTable}
+                    subtitle={selectedTable.subtitle}
+                    titleEn={getTableNameCopy(selectedTable.name).en}
+                    titleVi={getTableNameCopy(selectedTable.name).vi}
                   >
-                    <header className="local-table-heading">
-                      <div>
-                        <p>
-                          {getTableStatusHeading(selectedTable.tableStatus)}
-                          <span>{getTableStatusCopy(selectedTable.tableStatus).en} Table</span>
-                        </p>
-                        <h2>
-                          {getTableNameCopy(selectedTable.name).vi}
-                          <span>{getTableNameCopy(selectedTable.name).en}</span>
-                        </h2>
-                      </div>
-                      <strong>
-                        {selectedTable.count} {getTableActionCopy(selectedTable.action).vi}
-                        <span>
-                          {selectedTable.count} {getTableActionCopy(selectedTable.action).en}
-                        </span>
-                      </strong>
-                    </header>
-
-                    <p className="local-table-subtitle">
-                      {selectedTable.subtitle}
-                      <span>{selectedTable.note}</span>
-                    </p>
-
-                    {selectedTable.artwork ? (
-                      <div className="local-table-artwork">
-                        <img
-                          alt={`${getTableNameCopy(selectedTable.name).vi} / ${getTableNameCopy(selectedTable.name).en}`}
-                          src={selectedTable.artwork}
-                        />
-                      </div>
-                    ) : null}
-
                     <section className="local-table-prompts" aria-label={`${getTableNameCopy(selectedTable.name).vi} starter prompts`}>
                       <div>
                         <strong>
                           Gợi ý mở chuyện
                           <span>Starter prompts</span>
                         </strong>
-                        <small>Nhấn một câu để viết tiếp. Không tự đăng.</small>
+                        <small>
+                          Có câu mở đầu, bạn thêm giọng của mình.
+                        </small>
                       </div>
                       <div className="local-table-chip-row">
                         {selectedTable.topicChips.map((chip) => (
@@ -1794,7 +1969,6 @@ export default function ChoNeoGossipPage() {
                           >
                             <span aria-hidden="true" />
                             {chip.vi}
-                            <small>{chip.en}</small>
                           </button>
                         ))}
                       </div>
@@ -1848,15 +2022,15 @@ export default function ChoNeoGossipPage() {
                         Góp một câu vào bàn
                         <span>Add one note to the table</span>
                       </label>
-                      <p className="posting-helper">
-                        {localTableConfig.helper.vi}
-                        <span>{localTableConfig.helper.en}</span>
+                      <p className="posting-helper table-safety-line">
+                        Nói nhẹ. Giữ tên riêng tư.
+                        <span>Keep it gentle. Keep names private.</span>
                       </p>
                       {renderAvatarPassportChip()}
                       <div className="message-row">
                         <input
                           id="table-note-message"
-                          maxLength={TABLE_NOTE_MESSAGE_LIMIT}
+                          maxLength={selectedTablePostLimit}
                           onChange={(event) => {
                             setTableNoteDraft(event.target.value);
                             setTableNoteNotice(null);
@@ -1874,28 +2048,234 @@ export default function ChoNeoGossipPage() {
                       {tableNoteNotice ? (
                         <p className="post-feedback">{tableNoteNotice}</p>
                       ) : null}
-                      <p className="character-count">
-                        Còn {remainingTableNoteCharacters} /{" "}
-                        {TABLE_NOTE_MESSAGE_LIMIT} ký tự. Tối thiểu{" "}
-                        {TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS} ký tự có nghĩa.
-                        <span>
-                          {remainingTableNoteCharacters} of{" "}
-                          {TABLE_NOTE_MESSAGE_LIMIT} characters left. Minimum{" "}
-                          {TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS} meaningful
-                          characters.
-                        </span>
-                      </p>
+                      {shouldShowTableNoteCharacterCount ? (
+                        <p className="character-count">
+                          Còn {remainingTableNoteCharacters} /{" "}
+                          {selectedTablePostLimit} ký tự.
+                          <span>
+                            {remainingTableNoteCharacters} of{" "}
+                            {selectedTablePostLimit} characters left.
+                          </span>
+                        </p>
+                      ) : null}
                     </form>
 
-                    <section className="local-table-rules" aria-label={`${getTableNameCopy(selectedTable.name).vi} table reminders`}>
-                      {selectedTable.rules.map((rule) => (
-                        <p key={rule.vi}>
-                          {rule.vi}
-                          <span>{rule.en}</span>
+                    <details className="table-light-rules">
+                      <summary>Nội quy nhẹ</summary>
+                      <div>
+                        {selectedTable.rules.map((rule) => (
+                          <p key={rule.vi}>
+                            {rule.vi}
+                            <span>{rule.en}</span>
+                          </p>
+                        ))}
+                      </div>
+                    </details>
+                  </QuanTamTableShell>
+                ) : null}
+
+                {isShopTalkTable && localTableConfig ? (
+                  <div
+                    className="front-counter-table-scene shop-talk-table-scene"
+                    aria-label="Bàn Chuyện Nghề table scene"
+                  >
+                    <div className="front-counter-focused-stage shop-talk-focused-stage">
+                      <div className="front-counter-artwork-frame">
+                        <div className="front-counter-artwork-surface">
+                          <img
+                            alt="Bàn Chuyện Nghề nail salon room with warm tables, technician, client, NeoPao screen, appointment book, and conversation space"
+                            className="front-counter-focused-image"
+                            src={quanTamArtworkSources.shopTalk}
+                          />
+                          <div className="front-counter-scene-ambience" aria-hidden="true">
+                            <span className="front-counter-ambient-glow front-counter-ambient-lantern" />
+                            <span className="front-counter-ambient-glow front-counter-ambient-counter" />
+                            <span className="front-counter-ambient-steam" />
+                            <span className="front-counter-ambient-reflection" />
+                          </div>
+                          <div className="front-counter-focused-scrim" aria-hidden="true" />
+                        </div>
+                        <div className="shop-talk-room-caption">
+                          <strong>
+                            {getTableNameCopy(selectedTable.name).vi}
+                            <span>{getTableNameCopy(selectedTable.name).en}</span>
+                          </strong>
+                          <p>{selectedTable.subtitle}</p>
+                        </div>
+                      </div>
+                      <div
+                        className="front-counter-stage-bubbles shop-talk-stage-feed"
+                        aria-label="Bàn Chuyện Nghề visible notes"
+                      >
+                        {selectedMessages.length ? (
+                          selectedMessages.map((message, index) => {
+                            const conversationMessage =
+                              "name" in message ? message : null;
+
+                            if (!conversationMessage) {
+                              return null;
+                            }
+
+                            const messageAuthor = conversationMessage.author;
+                            const displayName =
+                              messageAuthor?.nickname ?? conversationMessage.name;
+                            const displayInitials = getNicknameInitials(displayName);
+
+                            return (
+                              <article
+                                className={`front-counter-stage-bubble ${
+                                  index % 2
+                                    ? "front-counter-stage-bubble-right"
+                                    : "front-counter-stage-bubble-left"
+                                }`}
+                                key={`${conversationMessage.name}-${conversationMessage.text}-${index}`}
+                              >
+                                <div className="front-counter-bubble-header">
+                                  {messageAuthor?.avatarSrc ? (
+                                    <img
+                                      alt=""
+                                      className="front-counter-bubble-avatar-image"
+                                      src={messageAuthor.avatarSrc}
+                                    />
+                                  ) : (
+                                    <span
+                                      className="front-counter-bubble-avatar avatar-ember"
+                                      aria-hidden="true"
+                                    >
+                                      {displayInitials.slice(0, 1)}
+                                    </span>
+                                  )}
+                                  <div>
+                                    <strong>
+                                      {displayInitials}
+                                      <span>{displayName}</span>
+                                    </strong>
+                                    {messageAuthor?.mood ? (
+                                      <small>{messageAuthor.mood}</small>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <p>{conversationMessage.text}</p>
+                              </article>
+                            );
+                          })
+                        ) : (
+                          <div className="front-counter-stage-bubble front-counter-stage-bubble-left">
+                            <div className="front-counter-bubble-header">
+                              <span
+                                className="front-counter-bubble-avatar avatar-ember"
+                                aria-hidden="true"
+                              >
+                                BN
+                              </span>
+                              <div>
+                                <strong>
+                                  Bàn nghề
+                                  <span>Shop Talk</span>
+                                </strong>
+                              </div>
+                            </div>
+                            <p>{selectedTable.emptyState?.viTitle ?? selectedTable.topic}</p>
+                          </div>
+                        )}
+                      </div>
+                      <form
+                        className="front-counter-stage-form shop-talk-stage-form"
+                        onClick={(event) => {
+                          if (
+                            event.target instanceof HTMLElement &&
+                            !event.target.closest("button, a")
+                          ) {
+                            tableNoteInputRef.current?.focus();
+                          }
+                        }}
+                        onSubmit={handleTableNoteSubmit}
+                      >
+                        {renderAvatarPassportChip()}
+                        <div className="front-counter-stage-message-row">
+                          <button
+                            aria-label="Use your Chợ Neo avatar"
+                            className="front-counter-input-avatar"
+                            onClick={enterSelectedTable}
+                            type="button"
+                          >
+                            {avatarProfile ? (
+                              <>
+                                <img alt="" src={avatarProfile.avatarSrc} />
+                                <strong>
+                                  {getNicknameInitials(
+                                    avatarProfile.nickname || "Bạn làng"
+                                  )}
+                                </strong>
+                              </>
+                            ) : (
+                              <>
+                                <span aria-hidden="true">☕</span>
+                                <strong>?</strong>
+                              </>
+                            )}
+                          </button>
+                          <input
+                            id="table-note-message"
+                            maxLength={selectedTablePostLimit}
+                            onChange={(event) => {
+                              setTableNoteDraft(event.target.value);
+                              setTableNoteNotice(null);
+                            }}
+                            placeholder={selectedTable.composerPlaceholder}
+                            ref={tableNoteInputRef}
+                            type="text"
+                            value={tableNoteDraft}
+                          />
+                          <button disabled={!canSubmitTableNote} type="submit">
+                            <span className="front-counter-send-icon" aria-hidden="true">
+                              ↗
+                            </span>
+                            <span className="front-counter-send-copy">Góp chuyện</span>
+                          </button>
+                        </div>
+                        <p className="front-counter-stage-safety">
+                          <span className="front-counter-safety-leaf" aria-hidden="true">
+                            ❧
+                          </span>
+                          <span>
+                            Nói nhẹ. Giữ tên riêng tư.
+                            <small>Keep it gentle. Keep names private.</small>
+                          </span>
                         </p>
-                      ))}
-                    </section>
-                  </section>
+                        {tableNoteNotice ? (
+                          <p className="front-counter-stage-feedback">
+                            {tableNoteNotice}
+                          </p>
+                        ) : shouldShowTableNoteCharacterCount ? (
+                          <p className="front-counter-stage-count">
+                            Còn {remainingTableNoteCharacters} ký tự
+                            <span>{remainingTableNoteCharacters} left</span>
+                          </p>
+                        ) : null}
+                      </form>
+                      <section
+                        className="front-counter-stage-form shop-talk-prompt-strip"
+                        aria-label="Bàn Chuyện Nghề starter prompts"
+                      >
+                        <div>
+                          <strong>Gợi mở chuyện</strong>
+                        </div>
+                        <div className="shop-talk-prompt-row">
+                          {selectedTable.topicChips.map((chip) => (
+                            <button
+                              className={`shop-talk-prompt-chip trend-chip-${chip.tone}`}
+                              key={chip.vi}
+                              onClick={() => useLocalTablePrompt(chip)}
+                              type="button"
+                            >
+                              {chip.vi}
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                    </div>
+                  </div>
                 ) : null}
 
                 {isFrontCounter ? (
@@ -1910,12 +2290,22 @@ export default function ChoNeoGossipPage() {
                           : ""
                       }`}
                     >
-                      <img
-                        alt="Warm Social Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
-                        className="front-counter-focused-image"
-                        src={selectedTable.artwork ?? "/images/cho-neo/Quay-Xa-Giao.png"}
-                      />
-                      <div className="front-counter-focused-scrim" aria-hidden="true" />
+                      <div className="front-counter-artwork-frame">
+                        <div className="front-counter-artwork-surface">
+                          <img
+                            alt="Warm Social Counter table inside Quán Tám with café counter, stools, wood floor, cups, receipts, and nail community details"
+                            className="front-counter-focused-image"
+                            src={quanTamArtworkSources.frontCounter}
+                          />
+                          <div className="front-counter-scene-ambience" aria-hidden="true">
+                            <span className="front-counter-ambient-glow front-counter-ambient-lantern" />
+                            <span className="front-counter-ambient-glow front-counter-ambient-counter" />
+                            <span className="front-counter-ambient-steam" />
+                            <span className="front-counter-ambient-reflection" />
+                          </div>
+                          <div className="front-counter-focused-scrim" aria-hidden="true" />
+                        </div>
+                      </div>
                       <div
                         className="front-counter-stage-bubbles"
                         aria-label="Social Counter visible notes"
@@ -2026,6 +2416,15 @@ export default function ChoNeoGossipPage() {
                       </div>
                       <form
                         className="front-counter-stage-form"
+                        onClick={(event) => {
+                          if (
+                            event.target instanceof HTMLElement &&
+                            !event.target.closest("button")
+                          ) {
+                            ensureFrontCounterComposerReady();
+                            frontCounterInputRef.current?.focus();
+                          }
+                        }}
                         onSubmit={handleFrontCounterSubmit}
                       >
                         {renderAvatarPassportChip()}
@@ -2051,9 +2450,9 @@ export default function ChoNeoGossipPage() {
                             </button>
                           ) : (
                             <button
-                              aria-label="Choose your village face"
+                              aria-label="Use default village face"
                               className="front-counter-input-avatar"
-                              onClick={() => setIdentityPickerOpen(true)}
+                              onClick={takeFrontCounterSeat}
                               type="button"
                             >
                               <span aria-hidden="true">☕</span>
@@ -2061,17 +2460,16 @@ export default function ChoNeoGossipPage() {
                             </button>
                           )}
                           <input
-                            disabled={
-                              !identity ||
-                              !isCurrentIdentitySeated ||
-                              frontCounterPosting
-                            }
+                            disabled={frontCounterPosting}
                             id="front-counter-stage-message"
                             maxLength={FRONT_COUNTER_MESSAGE_LIMIT}
                             onChange={(event) => {
+                              ensureFrontCounterComposerReady();
+                              frontCounterDraftRef.current = event.target.value;
                               setFrontCounterDraft(event.target.value);
                               setFrontCounterPostNotice(null);
                             }}
+                            onFocus={ensureFrontCounterComposerReady}
                             placeholder={
                               "Góp một câu..."
                             }
@@ -2081,17 +2479,31 @@ export default function ChoNeoGossipPage() {
                           />
                           <button
                             disabled={
-                              !identity ||
-                              !isCurrentIdentitySeated ||
                               !canSubmitFrontCounterMessage ||
                               frontCounterPosting
                             }
-                            type="submit"
+                            onClick={() => {
+                              void submitFrontCounterDraft();
+                            }}
+                            type="button"
                           >
-                            {frontCounterPosting ? "Đang đăng..." : "Đăng"}
-                            <span>{frontCounterPosting ? "Posting..." : "Post"}</span>
+                            <span className="front-counter-send-icon" aria-hidden="true">
+                              ↗
+                            </span>
+                            <span className="front-counter-send-copy">
+                              {frontCounterPosting ? "Đang đăng..." : "Đăng Post"}
+                            </span>
                           </button>
                         </div>
+                        <p className="front-counter-stage-safety">
+                          <span className="front-counter-safety-leaf" aria-hidden="true">
+                            ❧
+                          </span>
+                          <span>
+                            Nói nhẹ. Giữ tên riêng tư.
+                            <small>Keep it gentle. Keep names private.</small>
+                          </span>
+                        </p>
                         {frontCounterPostNotice ? (
                           <p className="front-counter-stage-feedback">
                             {frontCounterPostNotice}
@@ -2138,18 +2550,15 @@ export default function ChoNeoGossipPage() {
                               </button>
                             </div>
                           </div>
-                          <div className="front-counter-stage-etiquette">
-                            <strong>
-                              Nội quy nhỏ
-                              <span>Small etiquette</span>
-                            </strong>
-                            <ul>
-                              <li>Nói nhỏ. Nói thật. Giữ riêng tư.</li>
-                            </ul>
-                            <p>
-                              Talk softly. Be real. Keep privacy.
-                            </p>
-                          </div>
+                          <details className="front-counter-stage-etiquette table-light-rules">
+                            <summary>Nội quy nhẹ</summary>
+                            <div>
+                              <p>
+                                Nói nhỏ. Nói thật. Giữ riêng tư.
+                                <span>Talk softly. Be real. Keep privacy.</span>
+                              </p>
+                            </div>
+                          </details>
                           {moderationNotice ? (
                             <p className="front-counter-stage-drawer-notice">
                               {moderationNotice}
@@ -2435,14 +2844,7 @@ export default function ChoNeoGossipPage() {
                       aria-label="Bàn Màu topic ideas"
                     >
                       <div>
-                        <strong>
-                          Gợi ý chủ đề
-                          <small>Nhấn màu để chọn chuyện</small>
-                        </strong>
-                        <span>
-                          Color & Trend Ideas
-                          <small>Tap a color to pick a topic</small>
-                        </span>
+                        <strong>Mở chuyện bằng màu</strong>
                       </div>
                       <div className="trend-table-chip-row">
                         {selectedTable.topicChips.map((chip) => (
@@ -2454,19 +2856,10 @@ export default function ChoNeoGossipPage() {
                           >
                             <span aria-hidden="true" />
                             {chip.vi}
-                            <small>{chip.en}</small>
                           </button>
                         ))}
                       </div>
                     </section>
-                    <p className="trend-table-value-note">
-                      Mỗi chia sẻ của bạn đều giúp cả bàn nhìn rõ hơn: màu nào
-                      đang lên, style nào dễ chọn, và món nào đáng chuẩn bị.
-                      <span>
-                        Your note helps the whole table see what is rising,
-                        what clients love, and what may be worth preparing.
-                      </span>
-                    </p>
                   </div>
                 ) : null}
 
@@ -2534,10 +2927,7 @@ export default function ChoNeoGossipPage() {
                 >
                   {isTrendTable ? (
                     <div className="trend-table-thread-heading">
-                      <strong>
-                        Chuyện màu & trend mới nhất
-                        <span>Latest Color & Trend Talk</span>
-                      </strong>
+                      <strong>Chuyện màu mới</strong>
                     </div>
                   ) : null}
                   {selectedMessages.length ? (
@@ -2590,6 +2980,7 @@ export default function ChoNeoGossipPage() {
                           {frontCounterMessage && !isRemoved ? (
                             <div className="moderation-row">
                               <button
+                                className={isTrendTable ? "trend-table-report-action" : undefined}
                                 disabled={
                                   isBusy ||
                                   reportedByThisBrowser ||
@@ -2601,7 +2992,25 @@ export default function ChoNeoGossipPage() {
                               }
                               type="button"
                             >
-                                {reportedByThisBrowser ? (
+                                {isTrendTable ? (
+                                  <>
+                                    <svg
+                                      aria-hidden="true"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path
+                                        d="M6.5 20V5.8m0 0c2.3-1.1 4.2.7 6.4-.2 1.5-.6 2.4-1.2 4.6-.3v8.1c-2.1-.9-3.1-.3-4.6.3-2.2.9-4.1-.9-6.4.2V5.8Z"
+                                        stroke="currentColor"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="1.8"
+                                      />
+                                    </svg>
+                                    {reportedByThisBrowser ? "Đã báo cáo" : "Báo cáo"}
+                                  </>
+                                ) : reportedByThisBrowser ? (
                                   <>
                                     Đã báo cáo
                                     <span>Reported</span>
@@ -2677,19 +3086,9 @@ export default function ChoNeoGossipPage() {
                   ) : isTrendTable ? (
                     <div className="trend-table-starter-list">
                       <div className="trend-table-empty-copy">
-                        <strong>
-                          {selectedTable.emptyState?.viTitle}
-                          <span>{selectedTable.emptyState?.enTitle}</span>
-                        </strong>
-                        <p>
-                          Bắt đầu bằng một câu hỏi nhẹ.
-                          <span>Start with one quick note.</span>
-                        </p>
+                        <strong>Chưa có chuyện mới.</strong>
+                        <p>Bắt đầu bằng một câu hỏi nhé.</p>
                       </div>
-                      <strong>
-                        Gợi ý mở chuyện
-                        <span>Conversation starters</span>
-                      </strong>
                       <div>
                         {COLOR_TREND_CONVERSATION_STARTERS.map((starter) => (
                           <button
@@ -2698,7 +3097,6 @@ export default function ChoNeoGossipPage() {
                             type="button"
                           >
                             {starter.vi}
-                            {starter.en ? <span>{starter.en}</span> : null}
                           </button>
                         ))}
                       </div>
@@ -2718,35 +3116,28 @@ export default function ChoNeoGossipPage() {
                         table note stays in the current café session.
                       </p>
                     ) : null}
-                    <label htmlFor="table-note-message">
-                      {isTrendTable ? "Thêm tiếng nói của bạn" : "Ngồi xuống góp chuyện"}
-                      <span>
-                        {isTrendTable ? "Add your voice to the table" : "Take a seat and add a note"}
-                      </span>
-                    </label>
-                    <p className="posting-helper">
-                      {isTrendTable ? (
-                        <>
-                          Mỗi chia sẻ của bạn đều giúp cả bàn nhìn rõ hơn.
-                          <span>Your note helps the whole table see more clearly.</span>
-                        </>
-                      ) : (
-                        <>
-                          Viết một câu có ích cho thợ, chủ tiệm, hoặc người đang
-                          học nghề. Không spam supplier, không “hi” trống, không
-                          công kích cá nhân.
-                          <span>
-                            Share one useful note for techs, owners, or learners.
-                            No supplier spam, empty hi posts, or personal attacks.
-                          </span>
-                        </>
-                      )}
+                    {!isTrendTable ? (
+                      <label htmlFor="table-note-message">
+                        Ngồi xuống góp chuyện
+                        <span>Take a seat and add a note</span>
+                      </label>
+                    ) : null}
+                    <p
+                      aria-label={
+                        isTrendTable
+                          ? "Nói nhẹ. Giữ tên riêng tư. Keep it gentle. Keep names private."
+                          : undefined
+                      }
+                      className="posting-helper table-safety-line"
+                    >
+                      Nói nhẹ. Giữ tên riêng tư.
+                      {!isTrendTable ? <span>Keep it gentle. Keep names private.</span> : null}
                     </p>
                     {renderAvatarPassportChip()}
                     <div className="message-row">
                       <input
                         id="table-note-message"
-                        maxLength={TABLE_NOTE_MESSAGE_LIMIT}
+                        maxLength={selectedTablePostLimit}
                         onChange={(event) => {
                           setTableNoteDraft(event.target.value);
                           setTableNoteNotice(null);
@@ -2766,11 +3157,36 @@ export default function ChoNeoGossipPage() {
                             ? "Đặt lên bàn / Put it on the table"
                             : undefined
                         }
+                        title={
+                          isTrendTable
+                            ? "Đặt lên bàn / Put it on the table"
+                            : undefined
+                        }
                         disabled={!canSubmitTableNote}
                         type="submit"
                       >
                         {isTrendTable ? (
-                          <span aria-hidden="true">→</span>
+                          <svg
+                            aria-hidden="true"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="m4.8 12 13.7-6.4-3.7 12.8-3.1-5.1-6.9-1.3Z"
+                              stroke="currentColor"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="1.8"
+                            />
+                            <path
+                              d="m11.7 13.3 3.4-3.7"
+                              stroke="currentColor"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="1.8"
+                            />
+                          </svg>
                         ) : (
                           <>
                             Góp chuyện
@@ -2782,32 +3198,20 @@ export default function ChoNeoGossipPage() {
                     {tableNoteNotice ? (
                       <p className="post-feedback">{tableNoteNotice}</p>
                     ) : null}
-                    <p className="character-count">
-                      Còn {remainingTableNoteCharacters} /{" "}
-                      {TABLE_NOTE_MESSAGE_LIMIT} ký tự. Tối thiểu{" "}
-                      {TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS} ký tự có nghĩa.
-                      <span>
-                        {remainingTableNoteCharacters} of{" "}
-                        {TABLE_NOTE_MESSAGE_LIMIT} characters left. Minimum{" "}
-                        {TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS} meaningful
-                        characters.
-                      </span>
-                    </p>
+                    {shouldShowTableNoteCharacterCount ? (
+                      <p className="character-count">
+                        Còn {remainingTableNoteCharacters} /{" "}
+                        {selectedTablePostLimit} ký tự.
+                        <span>
+                          {remainingTableNoteCharacters} of{" "}
+                          {selectedTablePostLimit} characters left.
+                        </span>
+                      </p>
+                    ) : null}
                   </form>
                 ) : null}
 
-                {isTrendTable ? (
-                  <section className="trend-table-rules" aria-label="Bàn Màu table reminders">
-                    {selectedTable.rules.map((rule) => (
-                      <p key={rule.vi}>
-                        {rule.vi}
-                        <span>{rule.en}</span>
-                      </p>
-                    ))}
-                  </section>
-                ) : null}
-
-                {!isFrontCounter && !isLocalSessionTable ? (
+                {!isTrendTable && !isFrontCounter && !isLocalSessionTable ? (
                   <button
                     className="leave-button"
                     type="button"
@@ -2826,7 +3230,7 @@ export default function ChoNeoGossipPage() {
                   <img
                     alt="Quán Tám isometric café room with five empty table zones, warm lanterns, a small espresso bar, and nail café details"
                     className="gossip-room-image"
-                    src="/images/cho-neo/quan-tam-gossip-cafe-room-modern-warm-final.png"
+                    src={quanTamArtworkSources.lobby}
                   />
                   <div className="gossip-room-scrim" aria-hidden="true" />
                   {/* Future approved café audio can hook in here; no audio element is rendered, so there is no autoplay. */}
@@ -2861,8 +3265,8 @@ export default function ChoNeoGossipPage() {
                                 openTable(table.name);
                               }}
                             >
-                              Góp một câu
-                              <span>Add one line</span>
+                              Vào bàn
+                              <span>Take a seat</span>
                             </button>
                           </div>
                         </article>
@@ -2894,9 +3298,7 @@ export default function ChoNeoGossipPage() {
                           </strong>
                           <small>{table.topic}</small>
                         <em>
-                          {table.id === "color-trend"
-                            ? "Vào Bàn Màu / Enter Trend Table"
-                            : "Vào bàn / Enter"}
+                          Vào bàn / Take a seat
                         </em>
                       </button>
                     );
@@ -2941,12 +3343,35 @@ export default function ChoNeoGossipPage() {
       ) : null}
 
       <style>{`
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+        }
+
         .cafe-page {
+          --room-pass2-text-primary: #f7eee8;
+          --room-pass2-text-secondary: rgba(247, 238, 232, 0.78);
+          --room-pass2-text-muted: rgba(247, 238, 232, 0.6);
+          --room-pass2-border: rgba(217, 141, 126, 0.34);
+          --room-pass2-border-soft: rgba(217, 141, 126, 0.22);
+          --room-pass2-surface: rgba(72, 40, 34, 0.9);
+          --room-pass2-surface-soft: rgba(60, 34, 30, 0.82);
+          --room-pass2-control: rgba(91, 49, 42, 0.86);
+          --cho-neo-text-primary: var(--room-pass2-text-primary);
+          --cho-neo-text-accent: #efb8aa;
           min-height: 100vh;
           position: relative;
           overflow-x: hidden;
-          color: #fff7ed;
-          background: var(--cho-neo-room-page-background);
+          color: var(--cho-neo-text-primary);
+          background:
+            radial-gradient(circle at 50% 18%, rgba(189, 91, 65, 0.2), transparent 34rem),
+            linear-gradient(180deg, #130909 0%, #24110f 48%, #100808 100%);
+          font-family: var(--cho-neo-font-ui);
+          font-weight: 400;
         }
 
         .room-glow,
@@ -2980,13 +3405,29 @@ export default function ChoNeoGossipPage() {
           padding: 0 2px;
         }
 
+        .cafe-hero-actions {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .cafe-theme-audio {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: center;
+        }
+
         .eyebrow {
           margin: 0 0 8px;
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 12px;
-          font-weight: 900;
-          letter-spacing: 0.24em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .eyebrow span {
@@ -2994,22 +3435,24 @@ export default function ChoNeoGossipPage() {
           margin-top: 3px;
           color: rgba(255, 247, 237, 0.62);
           font-size: 10px;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.02em;
           text-transform: none;
         }
 
         h1 {
           margin: 0;
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(34px, 5.6vw, 62px);
+          font-weight: 600;
           line-height: 0.9;
-          letter-spacing: -0.045em;
+          letter-spacing: 0;
           text-wrap: balance;
         }
 
         h1 span {
           display: block;
           margin-top: 8px;
-          color: rgba(255, 247, 237, 0.68);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.34em;
           line-height: 1.08;
           letter-spacing: 0;
@@ -3018,16 +3461,16 @@ export default function ChoNeoGossipPage() {
         .subtitle {
           max-width: 520px;
           margin: 8px 0 0;
-          color: rgba(255, 247, 237, 0.82);
+          color: var(--room-pass2-text-secondary);
           font-size: clamp(13px, 1.35vw, 16px);
-          font-weight: 850;
+          font-weight: 400;
           line-height: 1.35;
         }
 
         .subtitle span {
           display: block;
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.62);
+          color: var(--room-pass2-text-muted);
           font-size: 0.82em;
           line-height: 1.25;
         }
@@ -3058,14 +3501,14 @@ export default function ChoNeoGossipPage() {
           min-height: 36px;
           min-width: 0;
           padding: 6px 12px;
-          border: 1px solid rgba(253, 230, 138, 0.24);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 999px;
-          background: rgba(18, 18, 24, 0.58);
-          color: #fde68a;
+          background: var(--room-pass2-control);
+          color: var(--cho-neo-text-accent);
           cursor: pointer;
           font: inherit;
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
           line-height: 1.05;
           text-align: left;
           text-decoration: none;
@@ -3087,12 +3530,12 @@ export default function ChoNeoGossipPage() {
             radial-gradient(circle at 16% 0%, rgba(255, 247, 237, 0.28), transparent 34%),
             linear-gradient(135deg, rgba(251, 191, 36, 0.24), rgba(180, 83, 9, 0.22)),
             rgba(18, 18, 24, 0.72);
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
         }
 
         .cafe-control-pill-secondary {
-          border-color: rgba(255, 247, 237, 0.18);
-          color: rgba(255, 247, 237, 0.78);
+          border-color: var(--room-pass2-border-soft);
+          color: var(--room-pass2-text-secondary);
         }
 
         .cafe-control-pill-seated {
@@ -3108,9 +3551,9 @@ export default function ChoNeoGossipPage() {
         .cafe-control-pill small {
           display: block;
           margin-top: 2px;
-          color: rgba(255, 247, 237, 0.62);
+          color: var(--room-pass2-text-muted);
           font-size: 0.78em;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .front-counter-topic-note {
@@ -3135,7 +3578,7 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-topic-note span {
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.18;
         }
 
@@ -3171,8 +3614,8 @@ export default function ChoNeoGossipPage() {
 
         .gossip-rules-card h2 {
           margin: 0;
-          color: #fff7ed;
-          font-family: ui-serif, Georgia, "Times New Roman", serif;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(28px, 6vw, 42px);
           font-style: italic;
           line-height: 1;
@@ -3189,12 +3632,12 @@ export default function ChoNeoGossipPage() {
 
         .gossip-rules-card li {
           padding: 9px 11px;
-          border: 1px solid rgba(253, 230, 138, 0.12);
+          border: 1px solid rgba(146, 64, 14, 0.14);
           border-radius: 14px;
           color: rgba(255, 247, 237, 0.84);
           background: rgba(255, 247, 237, 0.055);
           font-size: 13px;
-          font-weight: 800;
+          font-weight: 400;
           line-height: 1.32;
         }
 
@@ -3202,7 +3645,7 @@ export default function ChoNeoGossipPage() {
           margin: 14px 0 0;
           color: rgba(255, 247, 237, 0.76);
           font-size: 13px;
-          font-weight: 800;
+          font-weight: 400;
           line-height: 1.4;
         }
 
@@ -3216,7 +3659,7 @@ export default function ChoNeoGossipPage() {
           background: linear-gradient(180deg, #fde68a, #fbbf24);
           cursor: pointer;
           font-size: 14px;
-          font-weight: 950;
+          font-weight: 600;
           box-shadow:
             0 12px 24px rgba(0, 0, 0, 0.22),
             0 0 20px rgba(251, 191, 36, 0.14);
@@ -3248,7 +3691,7 @@ export default function ChoNeoGossipPage() {
           display: block;
           margin-top: 3px;
           font-size: 0.82em;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.25;
           letter-spacing: 0;
           opacity: 0.68;
@@ -3306,7 +3749,7 @@ export default function ChoNeoGossipPage() {
 
         .current-identity strong {
           display: block;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: 24px;
           line-height: 1;
           letter-spacing: -0.02em;
@@ -3323,7 +3766,7 @@ export default function ChoNeoGossipPage() {
           display: block;
           margin-top: 2px;
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
           opacity: 0.68;
         }
 
@@ -3335,7 +3778,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: #fde68a;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .current-identity button,
@@ -3374,9 +3817,11 @@ export default function ChoNeoGossipPage() {
 
         .identity-picker h2 {
           margin: 0;
+          font-family: var(--cho-neo-font-display);
           font-size: clamp(24px, 3.2vw, 36px);
+          font-weight: 600;
           line-height: 1;
-          letter-spacing: -0.025em;
+          letter-spacing: 0;
         }
 
         .identity-picker p:not(.eyebrow) {
@@ -3408,7 +3853,7 @@ export default function ChoNeoGossipPage() {
           min-height: 146px;
           overflow: hidden;
           padding: 10px 9px 11px;
-          color: #fff7ed !important;
+          color: var(--cho-neo-text-primary) !important;
           background:
             radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.15), transparent 34%),
             linear-gradient(180deg, rgba(255, 247, 237, 0.09), rgba(255, 247, 237, 0.035)),
@@ -3544,7 +3989,7 @@ export default function ChoNeoGossipPage() {
         .avatar-choice small {
           color: rgba(255, 247, 237, 0.62);
           font-size: 10px;
-          font-weight: 750;
+          font-weight: 600;
           line-height: 1.28;
           text-align: center;
         }
@@ -3574,10 +4019,10 @@ export default function ChoNeoGossipPage() {
         }
 
         .identity-form label {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.14em;
+          font-weight: 600;
+          letter-spacing: 0.02em;
           line-height: 1.35;
           text-transform: none;
         }
@@ -3587,7 +4032,7 @@ export default function ChoNeoGossipPage() {
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 999px;
           padding: 0 14px;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background: rgba(8, 13, 28, 0.62);
           font: inherit;
           outline: none;
@@ -3602,7 +4047,7 @@ export default function ChoNeoGossipPage() {
           margin: 0;
           color: #fecdd3;
           font-size: 13px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .identity-form div {
@@ -3705,9 +4150,9 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: rgba(255, 247, 237, 0.88);
           font-size: 13px;
-          font-weight: 950;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .counter strong span {
@@ -3818,9 +4263,9 @@ export default function ChoNeoGossipPage() {
           margin-top: 12px;
           color: rgba(253, 230, 138, 0.76);
           font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
           white-space: pre-line;
         }
 
@@ -3836,7 +4281,7 @@ export default function ChoNeoGossipPage() {
         .gossip-room-stage {
           position: relative;
           width: min(1120px, 100%);
-          aspect-ratio: 2048 / 1365;
+          aspect-ratio: 16 / 9;
           margin: 0 auto;
           overflow: hidden;
           border: 1px solid rgba(253, 230, 138, 0.24);
@@ -4008,7 +4453,7 @@ export default function ChoNeoGossipPage() {
             radial-gradient(circle at 35% 28%, rgba(255, 247, 237, 0.35), transparent 22%),
             linear-gradient(180deg, rgba(253, 230, 138, 0.34), rgba(146, 64, 14, 0.34)),
             rgba(37, 22, 24, 0.78);
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           box-shadow:
             0 0 0 8px rgba(253, 230, 138, 0.1),
             0 0 28px rgba(251, 191, 36, 0.38),
@@ -4047,7 +4492,7 @@ export default function ChoNeoGossipPage() {
             radial-gradient(circle at 18% 0%, rgba(253, 230, 138, 0.16), transparent 30%),
             linear-gradient(180deg, rgba(255, 247, 237, 0.16), rgba(255, 247, 237, 0.065)),
             rgba(37, 22, 24, 0.7);
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           box-shadow:
             0 14px 30px rgba(0, 0, 0, 0.3),
             0 0 22px rgba(251, 191, 36, 0.08),
@@ -4068,9 +4513,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .hotspot-label p {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 14px;
-          font-weight: 950;
+          font-weight: 600;
           line-height: 1.05;
         }
 
@@ -4081,14 +4526,14 @@ export default function ChoNeoGossipPage() {
 
         .hotspot-label p span {
           margin-top: 2px;
-          color: rgba(255, 247, 237, 0.64);
+          color: rgba(92, 45, 24, 0.68);
           font-size: 10px;
         }
 
         .hotspot-label strong {
           color: rgba(255, 247, 237, 0.74);
           font-size: 10px;
-          font-weight: 800;
+          font-weight: 600;
           line-height: 1.25;
         }
 
@@ -4100,7 +4545,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           cursor: pointer;
           font-size: 10px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .hotspot-label button span {
@@ -4144,25 +4589,42 @@ export default function ChoNeoGossipPage() {
 
         .cafe-page:has(.detail-panel-front-counter) {
           background:
-            radial-gradient(circle at 50% 38%, rgba(253, 230, 138, 0.12), transparent 34%),
-            linear-gradient(180deg, #1c1211, #0d0b10 72%);
+            radial-gradient(circle at 50% 38%, rgba(214, 116, 86, 0.18), transparent 34%),
+            linear-gradient(180deg, #140a0a, #0e090b 72%);
         }
 
-        .cafe-page:has(.detail-panel-front-counter) .floor-grid,
-        .cafe-page:has(.detail-panel-front-counter) .cafe-hero,
-        .room-scene-focused:has(.detail-panel-front-counter)::before,
-        .room-scene-focused:has(.detail-panel-front-counter)::after,
-        .room-scene-focused:has(.detail-panel-front-counter) .counter {
+        .cafe-page:has(.table-detail) .floor-grid,
+        .cafe-page:has(.table-detail) .cafe-hero,
+        .cafe-page:has(.table-detail) .cafe-stage-controls,
+        .room-scene-focused::before,
+        .room-scene-focused::after,
+        .room-scene-focused .counter {
           display: none;
         }
 
         .cafe-page:has(.detail-panel-trend-table) .floor-grid,
         .cafe-page:has(.detail-panel-trend-table) .cafe-hero,
-        .cafe-page:has(.detail-panel-trend-table) .cafe-stage-controls,
         .room-scene-focused:has(.detail-panel-trend-table)::before,
         .room-scene-focused:has(.detail-panel-trend-table)::after,
         .room-scene-focused:has(.detail-panel-trend-table) .counter {
           display: none;
+        }
+
+        .cafe-page:has(.table-detail) .cafe-hero {
+          position: absolute;
+          top: 14px;
+          right: 16px;
+          z-index: 90;
+          display: flex;
+          padding: 0;
+        }
+
+        .cafe-page:has(.table-detail) .cafe-hero > div:first-child {
+          display: none;
+        }
+
+        .cafe-page:has(.table-detail) .cafe-hero-actions {
+          gap: 10px;
         }
 
         .cafe-page:has(.detail-panel-front-counter) .cafe-shell {
@@ -4174,8 +4636,8 @@ export default function ChoNeoGossipPage() {
           padding: 0;
           border: 0;
           background:
-            radial-gradient(circle at 50% 48%, rgba(253, 230, 138, 0.11), transparent 34%),
-            rgba(20, 12, 12, 0.46);
+            radial-gradient(circle at 50% 48%, rgba(213, 126, 98, 0.15), transparent 34%),
+            rgba(18, 10, 10, 0.56);
           box-shadow: none;
         }
 
@@ -4222,11 +4684,11 @@ export default function ChoNeoGossipPage() {
           position: relative;
           z-index: 1;
           padding: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.16);
+          border: 1px solid var(--room-pass2-border);
           border-radius: 30px;
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05)),
-            rgba(8, 13, 28, 0.78);
+            linear-gradient(180deg, rgba(247, 238, 232, 0.13), rgba(247, 238, 232, 0.055)),
+            var(--room-pass2-surface-soft);
           box-shadow:
             0 22px 70px rgba(0, 0, 0, 0.42),
             inset 0 1px 0 rgba(255, 255, 255, 0.14);
@@ -4244,58 +4706,256 @@ export default function ChoNeoGossipPage() {
         .detail-panel-trend-table {
           display: flex;
           flex-direction: column;
-          padding: clamp(18px, 3vw, 28px);
-          border-color: rgba(253, 230, 138, 0.22);
-          background:
-            radial-gradient(circle at 82% 8%, rgba(253, 230, 138, 0.16), transparent 28%),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.12), rgba(255, 247, 237, 0.045)),
-            rgba(24, 16, 16, 0.84);
+          padding: 0;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+          backdrop-filter: none;
         }
 
         .detail-panel-local-table {
           padding: clamp(18px, 3vw, 28px);
-          border-color: rgba(253, 230, 138, 0.2);
+          border-color: var(--room-pass2-border-soft);
           background:
-            radial-gradient(circle at 16% 0%, rgba(253, 230, 138, 0.12), transparent 30%),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.1), rgba(255, 247, 237, 0.04)),
-            rgba(20, 15, 14, 0.86);
+            radial-gradient(circle at 16% 0%, rgba(217, 141, 126, 0.14), transparent 30%),
+            linear-gradient(180deg, rgba(247, 238, 232, 0.12), rgba(247, 238, 232, 0.055)),
+            var(--room-pass2-surface);
         }
 
-        .trend-table-back,
-        .local-table-back {
+        .compact-table-header {
           order: 0;
-          justify-self: start;
-          width: fit-content;
-          min-height: 38px;
-          margin: 0 0 14px;
-          padding: 7px 12px;
-          border: 1px solid rgba(253, 230, 138, 0.22);
-          border-radius: 999px;
-          color: #fff7ed;
-          background: rgba(255, 247, 237, 0.08);
-          font-size: 12px;
-          font-weight: 950;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          width: 100%;
+          margin: 0 0 12px;
         }
 
-        .trend-table-back span,
-        .local-table-back span {
+        .compact-table-back {
+          min-height: 32px;
+          padding: 5px 10px;
+          border: 1px solid var(--room-pass2-border-soft);
+          border-radius: 999px;
+          color: var(--room-pass2-text-primary);
+          background: var(--room-pass2-control);
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .compact-table-enter {
+          flex: 0 0 auto;
+          min-height: 32px;
+          padding: 5px 10px;
+          border: 0;
+          border-radius: 999px;
+          color: #111827;
+          background: #fde68a;
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1.05;
+        }
+
+        .compact-table-enter span {
           display: block;
-          margin-top: 2px;
-          color: rgba(255, 247, 237, 0.58);
+          margin-top: 1px;
+          font-size: 9px;
+          font-weight: 600;
+          opacity: 0.7;
+        }
+
+        .compact-table-count {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 30px;
+          max-width: 58%;
+          margin-left: auto;
+          padding: 5px 10px;
+          border: 1px solid var(--room-pass2-border-soft);
+          border-radius: 999px;
+          color: var(--cho-neo-text-accent);
+          background: rgba(107, 55, 47, 0.5);
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1.1;
+          text-align: right;
+          white-space: nowrap;
+        }
+
+        .front-counter-quick-controls {
+          order: 1;
+          display: flex;
+          flex-wrap: nowrap;
+          align-items: center;
+          gap: 8px;
+          margin: 0 0 8px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+          scrollbar-width: none;
+        }
+
+        .front-counter-quick-controls::-webkit-scrollbar {
+          display: none;
+        }
+
+        .front-counter-quick-controls .compact-table-back,
+        .front-counter-seat-control,
+        .front-counter-count-control {
+          flex: 0 0 auto;
+          min-height: 44px;
+          border: 1px solid var(--room-pass2-border);
+          border-radius: 14px;
+          color: var(--room-pass2-text-primary);
+          background: var(--room-pass2-control);
+          font: inherit;
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 1.1;
+          letter-spacing: 0;
+          box-shadow:
+            0 8px 20px rgba(18, 10, 8, 0.18),
+            inset 0 1px 0 rgba(255, 247, 237, 0.08);
+          transition:
+            border-color 160ms ease,
+            background 160ms ease,
+            box-shadow 160ms ease,
+            color 160ms ease,
+            transform 160ms ease;
+        }
+
+        .front-counter-quick-controls .compact-table-back,
+        .front-counter-seat-control {
+          padding: 8px 12px;
+        }
+
+        .front-counter-seat-control {
+          color: var(--cho-neo-text-primary);
+          background: rgba(111, 56, 47, 0.9);
+        }
+
+        .front-counter-seat-control-seated {
+          color: #f7d594;
+          border-color: rgba(247, 213, 148, 0.38);
+          background: rgba(94, 40, 46, 0.42);
+        }
+
+        .front-counter-back-control,
+        .front-counter-count-control,
+        .front-counter-topic-note {
+          flex: 0 0 auto;
+          white-space: nowrap;
+        }
+
+        .front-counter-count-control {
+          padding: 8px 11px;
+          color: var(--room-pass2-text-secondary);
+          font-size: 11px;
+          font-weight: 500;
+        }
+
+        .front-counter-seat-control span {
+          display: none;
+        }
+
+        .front-counter-quick-controls .compact-table-back:hover,
+        .front-counter-seat-control:hover {
+          border-color: rgba(246, 207, 131, 0.42);
+          background: rgba(92, 45, 24, 0.62);
+          color: var(--cho-neo-text-primary);
+        }
+
+        .front-counter-quick-controls .compact-table-back:focus-visible,
+        .front-counter-seat-control:focus-visible,
+        .front-counter-count-control:focus-visible {
+          outline: 2px solid rgba(246, 207, 131, 0.82);
+          outline-offset: 2px;
+        }
+
+        .detail-panel-trend-table .compact-table-header {
+          align-items: center;
+          justify-content: flex-start;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+
+        .detail-panel-trend-table .compact-table-back,
+        .detail-panel-trend-table .compact-table-enter,
+        .detail-panel-trend-table .compact-table-count {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 44px;
+          padding: 7px 12px;
+          border: 1px solid rgba(146, 64, 14, 0.14);
+          border-radius: 14px;
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1.12;
+          letter-spacing: 0;
+          box-shadow:
+            0 8px 20px rgba(69, 26, 3, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.54);
+        }
+
+        .detail-panel-trend-table .compact-table-back {
+          color: #6f4b3b;
+          background: rgba(255, 255, 255, 0.68);
+        }
+
+        .detail-panel-trend-table .compact-table-enter {
+          flex-direction: column;
+          color: var(--cho-neo-text-primary);
+          border-color: rgba(190, 24, 93, 0.22);
+          background: #f87171;
+          box-shadow: 0 8px 18px rgba(190, 24, 93, 0.16);
+        }
+
+        .detail-panel-trend-table .compact-table-enter span {
+          display: block;
+          margin-top: 1px;
           font-size: 10px;
-          font-weight: 850;
+          font-weight: 500;
+          opacity: 0.86;
+        }
+
+        .detail-panel-trend-table .compact-table-count {
+          margin-left: auto;
+          color: #7d4f40;
+          background: rgba(255, 255, 255, 0.58);
+          text-align: center;
         }
 
         .detail-panel-trend-table .detail-heading {
-          order: 1;
+          order: 2;
         }
 
         .detail-panel-trend-table .detail-heading p {
           display: none;
         }
 
+        .detail-panel-trend-table .detail-heading h2 {
+          color: #8f153f;
+          font-size: clamp(28px, 3.7vw, 44px);
+          font-weight: 500;
+          line-height: 0.98;
+          letter-spacing: -0.015em;
+        }
+
+        .detail-panel-trend-table .detail-heading h2 span {
+          margin-top: 4px;
+          color: #7d4f40;
+          font-size: 0.36em;
+          font-weight: 400;
+        }
+
         .detail-panel-trend-table .trend-table-subtitle {
-          order: 2;
+          order: 3;
+          color: #6f4b3b;
+        }
+
+        .detail-panel-trend-table .trend-table-subtitle span {
+          color: #8a6858;
         }
 
         .detail-panel-trend-table .detail-members {
@@ -4303,23 +4963,15 @@ export default function ChoNeoGossipPage() {
         }
 
         .detail-panel-trend-table .trend-table-scene {
-          order: 3;
-        }
-
-        .detail-panel-trend-table .mock-thread {
           order: 4;
         }
 
-        .detail-panel-trend-table .table-note-form {
+        .detail-panel-trend-table .mock-thread {
           order: 5;
         }
 
-        .detail-panel-trend-table .trend-table-rules {
+        .detail-panel-trend-table .table-note-form {
           order: 6;
-        }
-
-        .detail-panel-trend-table .leave-button {
-          order: 7;
         }
 
         .detail-panel-front-counter .detail-heading {
@@ -4342,11 +4994,23 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
+        .detail-panel-shop-talk .front-counter-quick-controls {
+          margin-bottom: 8px;
+        }
+
         .table-detail:has(.detail-panel-trend-table) {
           width: min(980px, 100%);
           margin-top: 0;
+          padding: clamp(18px, 3vw, 28px);
+          border: 1px solid rgba(146, 64, 14, 0.1);
+          border-radius: 30px;
+          background: linear-gradient(180deg, #f1e6dc 0%, #f8efe8 46%, #efe3d9 100%);
+          box-shadow:
+            0 18px 48px rgba(69, 26, 3, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.7);
         }
 
+        .table-detail:has(.detail-panel-trend-table) > .table-glow,
         .table-detail:has(.detail-panel-trend-table) > .detail-table-plate {
           display: none;
         }
@@ -4356,6 +5020,7 @@ export default function ChoNeoGossipPage() {
           margin-top: 0;
         }
 
+        .table-detail:has(.detail-panel-local-table) > .table-glow,
         .table-detail:has(.detail-panel-local-table) > .detail-table-plate {
           display: none;
         }
@@ -4369,11 +5034,11 @@ export default function ChoNeoGossipPage() {
 
         .detail-heading p {
           margin: 0 0 8px;
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 12px;
-          font-weight: 900;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .detail-heading p span,
@@ -4382,7 +5047,7 @@ export default function ChoNeoGossipPage() {
           margin-top: 3px;
           color: rgba(255, 247, 237, 0.62);
           font-size: 10px;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.02em;
           text-transform: none;
         }
 
@@ -4410,7 +5075,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: rgba(253, 230, 138, 0.92);
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .detail-heading strong span,
@@ -4418,25 +5083,25 @@ export default function ChoNeoGossipPage() {
           display: block;
           margin-top: 2px;
           font-size: 10px;
-          font-weight: 900;
+          font-weight: 600;
           opacity: 0.68;
         }
 
         .trend-table-subtitle {
-          max-width: 760px;
-          margin: 12px 0 0;
-          color: rgba(255, 247, 237, 0.84);
-          font-size: clamp(14px, 1.8vw, 17px);
-          font-weight: 850;
-          line-height: 1.4;
+          max-width: 620px;
+          margin: 8px 0 0;
+          color: rgba(255, 247, 237, 0.64);
+          font-size: clamp(12px, 1.35vw, 14px);
+          font-weight: 400;
+          line-height: 1.45;
         }
 
         .trend-table-subtitle span {
           display: block;
-          margin-top: 5px;
-          color: rgba(255, 247, 237, 0.54);
-          font-size: 12px;
-          font-weight: 800;
+          margin-top: 4px;
+          color: rgba(255, 247, 237, 0.5);
+          font-size: 11px;
+          font-weight: 400;
         }
 
         .detail-members {
@@ -4467,33 +5132,30 @@ export default function ChoNeoGossipPage() {
         }
 
         .local-table-heading {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 16px;
+          display: block;
         }
 
         .local-table-heading p {
           margin: 0 0 8px;
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .local-table-heading p span {
           display: block;
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.56);
+          color: var(--room-pass2-text-muted);
           font-size: 9px;
-          letter-spacing: 0.1em;
+          letter-spacing: 0.02em;
           text-transform: none;
         }
 
         .local-table-heading h2 {
           margin: 0;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: clamp(34px, 5vw, 58px);
           line-height: 0.94;
         }
@@ -4501,44 +5163,26 @@ export default function ChoNeoGossipPage() {
         .local-table-heading h2 span {
           display: block;
           margin-top: 5px;
-          color: rgba(255, 247, 237, 0.62);
+          color: var(--room-pass2-text-secondary);
           font-size: 0.34em;
           line-height: 1.1;
-        }
-
-        .local-table-heading strong {
-          flex: 0 0 auto;
-          padding: 8px 11px;
-          border-radius: 999px;
-          color: #111827;
-          background: rgba(253, 230, 138, 0.92);
-          font-size: 12px;
-          font-weight: 950;
-        }
-
-        .local-table-heading strong span {
-          display: block;
-          margin-top: 2px;
-          font-size: 10px;
-          font-weight: 850;
-          opacity: 0.68;
         }
 
         .local-table-subtitle {
           max-width: 760px;
           margin: -4px 0 0;
-          color: rgba(255, 247, 237, 0.84);
+          color: var(--room-pass2-text-secondary);
           font-size: clamp(14px, 1.8vw, 17px);
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.42;
         }
 
         .local-table-subtitle span {
           display: block;
           margin-top: 5px;
-          color: rgba(255, 247, 237, 0.54);
+          color: var(--room-pass2-text-muted);
           font-size: 12px;
-          font-weight: 750;
+          font-weight: 600;
         }
 
         .local-table-artwork {
@@ -4564,9 +5208,11 @@ export default function ChoNeoGossipPage() {
         .local-table-prompts,
         .local-table-thread,
         .local-table-rules {
-          border: 1px solid rgba(253, 230, 138, 0.16);
+          border: 1px solid rgba(146, 64, 14, 0.14);
           border-radius: 22px;
-          background: rgba(255, 247, 237, 0.055);
+          background:
+            linear-gradient(180deg, rgba(255, 247, 237, 0.94), rgba(254, 243, 199, 0.84));
+          box-shadow: 0 14px 32px rgba(69, 26, 3, 0.12);
         }
 
         .local-table-prompts {
@@ -4585,9 +5231,9 @@ export default function ChoNeoGossipPage() {
         .local-table-prompts strong,
         .local-table-thread-heading strong,
         .local-table-empty-state strong {
-          color: #fde68a;
+          color: #7c2d12;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
           line-height: 1.15;
         }
 
@@ -4596,15 +5242,15 @@ export default function ChoNeoGossipPage() {
         .local-table-empty-state strong span {
           display: block;
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.56);
+          color: rgba(92, 45, 24, 0.58);
           font-size: 10px;
-          font-weight: 800;
+          font-weight: 600;
         }
 
         .local-table-prompts small {
-          color: rgba(255, 247, 237, 0.54);
+          color: rgba(92, 45, 24, 0.58);
           font-size: 10px;
-          font-weight: 850;
+          font-weight: 600;
           text-align: right;
         }
 
@@ -4627,14 +5273,14 @@ export default function ChoNeoGossipPage() {
           align-items: center;
           flex: 0 0 auto;
           min-height: 36px;
-          border: 1px solid rgba(253, 230, 138, 0.16);
+          border: 1px solid rgba(146, 64, 14, 0.14);
           border-radius: 999px;
           padding: 7px 11px;
-          color: #fff7ed;
-          background: rgba(255, 247, 237, 0.075);
+          color: #5c2d18;
+          background: rgba(255, 255, 255, 0.62);
           font: inherit;
           font-size: 12px;
-          font-weight: 900;
+          font-weight: 600;
           cursor: pointer;
         }
 
@@ -4642,7 +5288,7 @@ export default function ChoNeoGossipPage() {
           width: 14px;
           height: 14px;
           border-radius: 999px;
-          box-shadow: 0 0 0 2px rgba(255, 247, 237, 0.1);
+          box-shadow: 0 0 0 2px rgba(146, 64, 14, 0.1);
         }
 
         .local-table-chip small {
@@ -4653,7 +5299,7 @@ export default function ChoNeoGossipPage() {
         .local-table-chip:focus-visible {
           outline: none;
           border-color: rgba(253, 230, 138, 0.42);
-          background: rgba(253, 230, 138, 0.13);
+          background: rgba(253, 230, 138, 0.38);
         }
 
         .local-table-thread {
@@ -4671,19 +5317,19 @@ export default function ChoNeoGossipPage() {
 
         .local-table-note {
           padding: 11px 12px;
-          border: 1px solid rgba(253, 230, 138, 0.14);
+          border: 1px solid rgba(146, 64, 14, 0.12);
           border-radius: 18px;
           background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.09), rgba(255, 247, 237, 0.045)),
-            rgba(15, 23, 42, 0.28);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 247, 237, 0.56)),
+            rgba(254, 243, 199, 0.52);
         }
 
         .local-table-note small {
           display: block;
-          color: rgba(253, 230, 138, 0.76);
+          color: rgba(124, 45, 18, 0.68);
           font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 0.08em;
+          font-weight: 600;
+          letter-spacing: 0.02em;
         }
 
         .post-author-chip {
@@ -4709,19 +5355,19 @@ export default function ChoNeoGossipPage() {
         .post-author-chip > span {
           display: grid;
           place-items: center;
-          border: 1px solid rgba(253, 230, 138, 0.18);
-          color: #fde68a;
-          background: rgba(255, 247, 237, 0.1);
+          border: 1px solid rgba(146, 64, 14, 0.14);
+          color: #7c2d12;
+          background: rgba(253, 230, 138, 0.32);
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .post-author-chip strong {
           display: block;
           overflow: hidden;
-          color: rgba(255, 247, 237, 0.9);
+          color: #4a2416;
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
           line-height: 1.1;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -4730,41 +5376,41 @@ export default function ChoNeoGossipPage() {
         .post-author-chip small {
           display: block;
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.56);
+          color: rgba(92, 45, 24, 0.56);
           font-size: 10px;
-          font-weight: 850;
+          font-weight: 600;
           letter-spacing: 0;
           line-height: 1.1;
         }
 
         .local-table-note p {
           margin: 5px 0 0;
-          color: rgba(255, 247, 237, 0.88);
+          color: #3f2418;
           font-size: 14px;
           line-height: 1.42;
         }
 
         .local-table-empty-state {
           padding: 12px;
-          border: 1px dashed rgba(253, 230, 138, 0.2);
+          border: 1px dashed rgba(146, 64, 14, 0.18);
           border-radius: 18px;
-          background: rgba(255, 247, 237, 0.045);
+          background: rgba(255, 255, 255, 0.46);
         }
 
         .local-table-empty-state p {
           margin: 7px 0 0;
-          color: rgba(255, 247, 237, 0.66);
+          color: rgba(92, 45, 24, 0.68);
           font-size: 12px;
-          font-weight: 800;
+          font-weight: 600;
           line-height: 1.36;
         }
 
         .local-table-form {
           margin-top: 0;
-          border-color: rgba(253, 230, 138, 0.2);
+          border-color: rgba(146, 64, 14, 0.16);
           background:
-            radial-gradient(circle at 10% 0%, rgba(253, 230, 138, 0.13), transparent 30%),
-            rgba(255, 247, 237, 0.07);
+            radial-gradient(circle at 10% 0%, rgba(253, 230, 138, 0.24), transparent 30%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(254, 243, 199, 0.88));
         }
 
         .local-table-rules {
@@ -4776,22 +5422,18 @@ export default function ChoNeoGossipPage() {
 
         .local-table-rules p {
           margin: 0;
-          color: rgba(255, 247, 237, 0.8);
+          color: rgba(63, 36, 24, 0.82);
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1.28;
         }
 
         .local-table-rules p span {
           display: block;
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.52);
+          color: rgba(92, 45, 24, 0.52);
           font-size: 9px;
-          font-weight: 750;
-        }
-
-        .local-table-stage-shop-talk {
-          --local-table-accent: #f59e0b;
+          font-weight: 600;
         }
 
         .local-table-stage-vent-table {
@@ -4811,14 +5453,14 @@ export default function ChoNeoGossipPage() {
         .trend-table-stage {
           position: relative;
           overflow: hidden;
-          aspect-ratio: 1536 / 1024;
-          border: 1px solid rgba(253, 230, 138, 0.2);
-          border-radius: 26px;
+          aspect-ratio: 1672 / 941;
+          border: 1px solid rgba(253, 230, 138, 0.18);
+          border-radius: 24px;
           background:
-            radial-gradient(circle at 50% 68%, rgba(253, 230, 138, 0.16), transparent 38%),
-            linear-gradient(135deg, #1c1110, #4b2b1c 52%, #120c0d);
+            radial-gradient(circle at 50% 72%, rgba(244, 114, 182, 0.1), transparent 42%),
+            linear-gradient(135deg, #1b1111, #2b1815 58%, #120c0d);
           box-shadow:
-            0 22px 54px rgba(0, 0, 0, 0.28),
+            0 18px 42px rgba(0, 0, 0, 0.24),
             inset 0 1px 0 rgba(255, 247, 237, 0.08);
         }
 
@@ -4826,9 +5468,33 @@ export default function ChoNeoGossipPage() {
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
           object-position: center;
-          filter: saturate(1.03) brightness(1.02);
+          filter: saturate(1.02) brightness(1.01);
+        }
+
+        .trend-table-stage::after {
+          content: "";
+          position: absolute;
+          inset: -24% -58%;
+          z-index: 1;
+          pointer-events: none;
+          opacity: 0;
+          background: linear-gradient(
+            112deg,
+            transparent 0%,
+            transparent 28%,
+            rgba(255, 235, 190, 0.05) 35%,
+            rgba(255, 228, 170, 0.56) 45%,
+            rgba(255, 248, 220, 0.72) 50%,
+            rgba(255, 208, 138, 0.34) 58%,
+            transparent 70%,
+            transparent 100%
+          );
+          filter: blur(12px);
+          transform: translate3d(-42%, 0, 0);
+          animation: trendTableSunrayDrift 18s ease-in-out infinite;
+          will-change: opacity, transform;
         }
 
         .trend-table-hero-dots {
@@ -4852,88 +5518,65 @@ export default function ChoNeoGossipPage() {
         .trend-table-topic-chips {
           display: grid;
           gap: 9px;
-          padding: 12px;
-          border: 1px solid rgba(244, 114, 182, 0.2);
-          border-radius: 22px;
-          background:
-            radial-gradient(circle at 10% 0%, rgba(244, 114, 182, 0.14), transparent 34%),
-            rgba(8, 13, 28, 0.3);
+          margin-top: 8px;
+          padding: 14px;
+          border: 1px solid rgba(146, 64, 14, 0.08);
+          border-radius: 16px 16px 8px 8px;
+          background: #f6efe7;
+          box-shadow: none;
         }
 
         .trend-table-topic-chips > div:first-child {
           display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
+          align-items: center;
           gap: 8px;
         }
 
         .trend-table-topic-chips strong {
-          color: #fde68a;
+          color: #8f153f;
           font-size: 12px;
-          font-weight: 950;
-        }
-
-        .trend-table-topic-chips strong small,
-        .trend-table-topic-chips > div:first-child span small {
-          display: block;
-          margin-top: 2px;
-          font-size: 9px;
-          font-weight: 800;
-          letter-spacing: 0;
-          text-transform: none;
-        }
-
-        .trend-table-topic-chips > div:first-child span {
-          color: rgba(255, 247, 237, 0.58);
-          font-size: 10px;
-          font-weight: 850;
-          text-align: right;
+          font-weight: 600;
         }
 
         .trend-table-chip-row {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 8px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
         }
 
         .trend-table-topic-chip {
-          display: grid;
-          justify-items: center;
-          gap: 4px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 34px;
           min-width: 0;
-          border: 0;
-          border-radius: 16px;
-          padding: 4px 3px;
-          color: rgba(255, 247, 237, 0.84);
-          background: transparent;
+          border: 1px solid rgba(146, 64, 14, 0.1);
+          border-radius: 999px;
+          padding: 6px 10px;
+          color: #2f1b13;
+          background: rgba(255, 255, 255, 0.76);
           font: inherit;
-          font-size: 10px;
-          font-weight: 900;
+          font-size: 11px;
+          font-weight: 600;
           line-height: 1.12;
-          text-align: center;
+          text-align: left;
           cursor: pointer;
+          box-shadow: none;
         }
 
         .trend-table-topic-chip > span {
-          width: 18px;
-          height: 18px;
+          flex: 0 0 auto;
+          width: 10px;
+          height: 10px;
           border-radius: 999px;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.38),
-            0 0 0 3px rgba(255, 247, 237, 0.06);
-        }
-
-        .trend-table-topic-chip small {
-          display: block;
-          color: rgba(255, 247, 237, 0.52);
-          font-size: 8px;
-          font-weight: 750;
+          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
         }
 
         .trend-table-topic-chip:hover,
         .trend-table-topic-chip:focus-visible {
           outline: none;
-          background: rgba(255, 247, 237, 0.08);
+          border-color: rgba(244, 114, 105, 0.34);
+          background: rgba(255, 246, 243, 0.92);
         }
 
         .trend-chip-marigold > span {
@@ -4972,26 +5615,6 @@ export default function ChoNeoGossipPage() {
           background: #c4b5fd;
         }
 
-        .trend-table-value-note {
-          margin: 0;
-          padding: 12px 14px;
-          border: 1px solid rgba(253, 230, 138, 0.16);
-          border-radius: 18px;
-          color: rgba(255, 247, 237, 0.78);
-          background: rgba(253, 230, 138, 0.055);
-          font-size: 12px;
-          font-weight: 800;
-          line-height: 1.42;
-        }
-
-        .trend-table-value-note span {
-          display: block;
-          margin-top: 5px;
-          color: rgba(255, 247, 237, 0.54);
-          font-size: 10px;
-          font-weight: 750;
-        }
-
         .trend-table-empty-state {
           width: min(100%, 620px);
           padding: 16px;
@@ -5008,16 +5631,16 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-empty-state strong {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 15px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .trend-table-empty-state p {
           margin: 8px 0 0;
           color: rgba(255, 247, 237, 0.74);
           font-size: 13px;
-          font-weight: 750;
+          font-weight: 600;
           line-height: 1.45;
         }
 
@@ -5028,11 +5651,12 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-thread {
-          margin-top: 14px;
-          border-color: rgba(253, 230, 138, 0.2);
-          background:
-            radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.12), transparent 30%),
-            rgba(255, 247, 237, 0.06);
+          margin-top: 8px;
+          padding: 14px;
+          border: 1px solid rgba(146, 64, 14, 0.08);
+          border-radius: 8px;
+          background: #fbf6ef;
+          box-shadow: none;
         }
 
         .trend-table-thread-heading strong,
@@ -5041,24 +5665,18 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-thread-heading strong {
-          color: #fde68a;
+          color: #8f153f;
           font-size: 13px;
-          font-weight: 950;
-        }
-
-        .trend-table-thread-heading span {
-          margin-top: 2px;
-          color: rgba(255, 247, 237, 0.58);
-          font-size: 10px;
+          font-weight: 600;
         }
 
         .trend-table-starter-list {
           display: grid;
-          gap: 10px;
-          padding: 12px;
-          border: 1px dashed rgba(253, 230, 138, 0.22);
-          border-radius: 18px;
-          background: rgba(255, 247, 237, 0.045);
+          gap: 8px;
+          padding: 8px 0 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
         }
 
         .trend-table-starter-list strong,
@@ -5067,47 +5685,28 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-starter-list strong {
-          color: #fde68a;
+          color: #2f1b13;
           font-size: 13px;
-          font-weight: 950;
-        }
-
-        .trend-table-starter-list strong span {
-          margin-top: 2px;
-          color: rgba(255, 247, 237, 0.58);
-          font-size: 10px;
-        }
-
-        .trend-table-empty-copy {
-          padding-bottom: 2px;
+          font-weight: 600;
         }
 
         .trend-table-empty-copy strong,
-        .trend-table-empty-copy strong span,
-        .trend-table-empty-copy p,
-        .trend-table-empty-copy p span {
+        .trend-table-empty-copy p {
           display: block;
         }
 
         .trend-table-empty-copy p {
-          margin: 6px 0 0;
-          color: rgba(255, 247, 237, 0.72);
+          margin: 4px 0 0;
+          color: #6f4b3b;
           font-size: 12px;
-          font-weight: 800;
-          line-height: 1.35;
-        }
-
-        .trend-table-empty-copy p span {
-          margin-top: 2px;
-          color: rgba(255, 247, 237, 0.5);
-          font-size: 10px;
-          font-weight: 750;
+          font-weight: 500;
+          line-height: 1.34;
         }
 
         .trend-table-starter-list > div {
           display: flex;
           flex-wrap: wrap;
-          gap: 8px;
+          gap: 7px;
         }
 
         .trend-table-starter-list > .trend-table-empty-copy {
@@ -5115,73 +5714,154 @@ export default function ChoNeoGossipPage() {
         }
 
         .trend-table-starter-list button {
-          min-height: 34px;
-          padding: 7px 11px;
-          border: 1px solid rgba(253, 230, 138, 0.18);
+          min-height: 32px;
+          padding: 6px 10px;
+          border: 1px solid rgba(146, 64, 14, 0.07);
           border-radius: 999px;
-          color: #fff7ed;
-          background: rgba(253, 230, 138, 0.08);
+          color: #3b2318;
+          background: rgba(255, 255, 255, 0.7);
           font: inherit;
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1.12;
           text-align: left;
           cursor: pointer;
         }
 
-        .trend-table-starter-list button span {
-          display: inline;
-          margin-left: 4px;
-          color: rgba(255, 247, 237, 0.58);
-          font-size: 9px;
-          font-weight: 800;
-        }
-
         .trend-table-starter-list button:hover,
         .trend-table-starter-list button:focus-visible {
           outline: none;
-          border-color: rgba(253, 230, 138, 0.4);
-          background: rgba(253, 230, 138, 0.14);
+          border-color: rgba(244, 114, 105, 0.28);
+          background: rgba(255, 241, 242, 0.84);
         }
 
         .detail-panel-trend-table .thread-message {
-          border-color: rgba(244, 114, 182, 0.18);
-          border-radius: 18px;
-          background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.08), rgba(255, 247, 237, 0.04)),
-            rgba(15, 23, 42, 0.32);
+          border-color: rgba(146, 64, 14, 0.08);
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.78);
+          box-shadow: none;
         }
 
         .detail-panel-trend-table .thread-message small {
-          color: rgba(249, 168, 212, 0.74);
+          color: #7d4f40;
           font-size: 10px;
-          font-weight: 800;
+          font-weight: 550;
         }
 
         .detail-panel-trend-table .thread-message p {
-          color: rgba(255, 247, 237, 0.92);
+          color: #2f1b13;
           font-size: 14px;
-          line-height: 1.42;
+          font-weight: 450;
+          line-height: 1.48;
+        }
+
+        .detail-panel-trend-table .trend-table-report-action {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          min-height: 28px;
+          border-radius: 10px;
+          color: #6f3d2f;
+          background: transparent;
+          font-weight: 550;
+        }
+
+        .detail-panel-trend-table .trend-table-report-action svg {
+          width: 14px;
+          height: 14px;
         }
 
         .detail-panel-trend-table .table-note-form {
-          border-color: rgba(244, 114, 182, 0.2);
-          border-radius: 24px;
-          background:
-            radial-gradient(circle at 10% 0%, rgba(244, 114, 182, 0.14), transparent 32%),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.09), rgba(255, 247, 237, 0.045)),
-            rgba(15, 23, 42, 0.42);
+          gap: 8px;
+          margin-top: 8px;
+          padding: 12px;
+          border-color: rgba(146, 64, 14, 0.08);
+          border-radius: 8px 8px 16px 16px;
+          background: #f7eee9;
+          box-shadow: none;
         }
 
         .detail-panel-trend-table .table-note-form label {
-          color: #fde68a;
-          font-size: 13px;
+          color: #8f153f;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .detail-panel-trend-table .table-safety-line {
+          order: 3;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin: 0;
+          color: #6f4b3b;
+          font-size: 11px;
+          font-weight: 550;
+        }
+
+        .detail-panel-trend-table .table-safety-line::before {
+          content: "";
+          flex: 0 0 auto;
+          width: 11px;
+          height: 11px;
+          border: 1.4px solid currentColor;
+          border-radius: 70% 30% 70% 30%;
+          transform: rotate(-28deg);
+          opacity: 0.68;
+        }
+
+        .detail-panel-trend-table .table-note-form .avatar-chip {
+          order: 1;
+        }
+
+        .detail-panel-trend-table .message-row {
+          order: 2;
         }
 
         .detail-panel-trend-table .message-row input {
-          border-color: rgba(244, 114, 182, 0.2);
-          border-radius: 999px;
-          background: rgba(8, 13, 28, 0.56);
+          border-color: rgba(146, 64, 14, 0.16);
+          border-radius: 16px;
+          color: #2f1b13;
+          background: rgba(255, 255, 255, 0.98);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        .detail-panel-trend-table .message-row input::placeholder {
+          color: #8a6858;
+          opacity: 1;
+        }
+
+        .detail-panel-trend-table .composer-avatar-passport {
+          color: #2f1b13;
+        }
+
+        .detail-panel-trend-table .composer-avatar-passport strong {
+          color: #2f1b13;
+          font-weight: 600;
+        }
+
+        .detail-panel-trend-table .composer-avatar-passport small {
+          color: #7d4f40;
+          font-weight: 550;
+        }
+
+        .detail-panel-trend-table .composer-avatar-action {
+          color: #7f1d3f;
+          font-weight: 600;
+        }
+
+        .detail-panel-trend-table .post-feedback {
+          color: #7a3d2d;
+          font-weight: 600;
+        }
+
+        .detail-panel-trend-table .character-count {
+          color: #6f4b3b;
+          font-weight: 600;
+        }
+
+        .detail-panel-trend-table .character-count span {
+          color: #7d5a49;
+          font-weight: 550;
         }
 
         .detail-panel-trend-table .message-row button {
@@ -5192,11 +5872,45 @@ export default function ChoNeoGossipPage() {
           min-width: 48px;
           min-height: 48px;
           padding: 0;
-          border-radius: 999px;
-          color: #422006;
-          background: #fde68a;
-          font-size: 24px;
+          border-radius: 16px;
+          color: var(--cho-neo-text-primary);
+          background: #f87171;
+          font-size: 18px;
           line-height: 1;
+          box-shadow: 0 8px 18px rgba(190, 24, 93, 0.16);
+        }
+
+        .detail-panel-trend-table .message-row button svg {
+          width: 20px;
+          height: 20px;
+        }
+
+        .detail-panel-trend-table .message-row button:disabled {
+          color: #7d5a49;
+          background: rgba(255, 255, 255, 0.7);
+          box-shadow: none;
+        }
+
+        .detail-panel-trend-table .table-light-rules {
+          border-color: rgba(190, 24, 93, 0.1);
+          background: rgba(255, 247, 237, 0.62);
+          box-shadow: none;
+        }
+
+        .detail-panel-trend-table .table-light-rules summary {
+          color: #8f153f;
+        }
+
+        .detail-panel-trend-table .leave-button {
+          justify-self: start;
+          min-height: 32px;
+          margin-top: 12px;
+          border: 1px solid rgba(190, 24, 93, 0.12);
+          padding: 0 12px;
+          color: #7c2d12;
+          background: rgba(255, 247, 237, 0.62);
+          font-size: 11px;
+          box-shadow: none;
         }
 
         .trend-table-rules {
@@ -5214,7 +5928,7 @@ export default function ChoNeoGossipPage() {
           margin: 0;
           color: rgba(255, 247, 237, 0.82);
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1.25;
         }
 
@@ -5223,7 +5937,7 @@ export default function ChoNeoGossipPage() {
           margin-top: 3px;
           color: rgba(255, 247, 237, 0.52);
           font-size: 9px;
-          font-weight: 750;
+          font-weight: 600;
         }
 
         .front-counter-table-scene {
@@ -5345,7 +6059,7 @@ export default function ChoNeoGossipPage() {
           border: 1px solid rgba(253, 230, 138, 0.22);
           border-radius: 999px;
           background: rgba(8, 13, 28, 0.46);
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
           backdrop-filter: blur(10px);
         }
@@ -5365,7 +6079,7 @@ export default function ChoNeoGossipPage() {
           text-overflow: ellipsis;
           white-space: nowrap;
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .scene-avatar-chip-current {
@@ -5383,10 +6097,10 @@ export default function ChoNeoGossipPage() {
           padding: 8px 12px;
           border-radius: 999px;
           background: rgba(253, 230, 138, 0.14);
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           text-align: center;
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
           transform: translateX(-50%);
         }
 
@@ -5399,30 +6113,39 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-focused-stage {
           position: relative;
-          overflow: hidden;
-          aspect-ratio: 16 / 9;
+          display: grid;
+          gap: 12px;
+          overflow: visible;
+          aspect-ratio: unset;
           min-height: auto;
-          border: 1px solid rgba(253, 230, 138, 0.2);
+          border: 0;
           border-radius: 30px;
-          background:
-            radial-gradient(circle at 52% 70%, rgba(253, 230, 138, 0.2), transparent 38%),
-            linear-gradient(135deg, #1a1110, #4a2d1f 48%, #120d10);
-          box-shadow:
-            0 30px 76px rgba(0, 0, 0, 0.28),
-            inset 0 0 36px rgba(255, 247, 237, 0.06);
+          background: transparent;
+          box-shadow: none;
         }
 
         .front-counter-focused-stage::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          z-index: 2;
-          background:
-            radial-gradient(ellipse at 50% 58%, rgba(255, 247, 237, 0.12) 0 28%, transparent 58%),
-            radial-gradient(ellipse at 84% 14%, rgba(35, 21, 18, 0.22) 0 16%, rgba(35, 21, 18, 0.1) 31%, transparent 48%),
-            linear-gradient(180deg, rgba(255, 247, 237, 0.035), transparent 46%, rgba(34, 20, 18, 0.12) 78%, rgba(34, 20, 18, 0.3) 100%);
-          mix-blend-mode: soft-light;
-          pointer-events: none;
+          display: none;
+        }
+
+        .front-counter-artwork-frame {
+          display: grid;
+          place-items: center;
+          width: 100%;
+          min-height: clamp(320px, 52vw, 560px);
+          border: 1px solid var(--room-pass2-border-soft);
+          border-radius: 26px;
+          background: #2c1a17;
+          box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+        }
+
+        .front-counter-artwork-surface {
+          position: relative;
+          overflow: hidden;
+          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.499));
+          aspect-ratio: 1535 / 1024;
+          border-radius: 25px;
+          background: #2c1a17;
         }
 
         .front-counter-focused-image {
@@ -5432,20 +6155,134 @@ export default function ChoNeoGossipPage() {
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          object-fit: cover;
           object-position: center;
           transform: none;
           filter: saturate(1.04) brightness(1.03) contrast(0.98);
         }
 
-        .front-counter-focused-scrim {
+        .shop-talk-focused-stage .front-counter-artwork-surface {
+          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.776));
+          aspect-ratio: 1671 / 941;
+        }
+
+        .shop-talk-focused-stage .front-counter-focused-image {
+          object-fit: contain;
+          background: #1f1412;
+        }
+
+        .shop-talk-room-caption {
+          display: grid;
+          gap: 4px;
+          width: min(100%, calc(clamp(320px, 52vw, 560px) * 1.776));
+          margin: 9px auto 0;
+          color: var(--room-pass2-text-secondary);
+        }
+
+        .shop-talk-room-caption strong {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 8px;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
+          font-size: clamp(19px, 2.5vw, 28px);
+          font-weight: 500;
+          line-height: 1.05;
+        }
+
+        .shop-talk-room-caption strong span {
+          color: var(--room-pass2-text-muted);
+          font-size: 0.48em;
+          font-weight: 400;
+        }
+
+        .shop-talk-room-caption p {
+          max-width: 680px;
+          margin: 0;
+          color: var(--room-pass2-text-secondary);
+          font-size: 13px;
+          font-weight: 500;
+          line-height: 1.38;
+        }
+
+        .front-counter-scene-ambience {
           position: absolute;
           inset: 0;
           z-index: 1;
-          background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.025), transparent 48%, rgba(45, 25, 20, 0.32)),
-            linear-gradient(90deg, rgba(45, 25, 20, 0.16), transparent 24% 76%, rgba(45, 25, 20, 0.16));
+          overflow: hidden;
           pointer-events: none;
+          mix-blend-mode: screen;
+        }
+
+        .front-counter-ambient-glow,
+        .front-counter-ambient-steam,
+        .front-counter-ambient-reflection {
+          position: absolute;
+          display: block;
+          pointer-events: none;
+        }
+
+        .front-counter-ambient-glow {
+          border-radius: 999px;
+          filter: blur(8px);
+          transform: translate3d(-50%, -50%, 0);
+          will-change: opacity, transform;
+        }
+
+        .front-counter-ambient-lantern {
+          left: 73%;
+          top: 16%;
+          width: 18%;
+          height: 23%;
+          background:
+            radial-gradient(circle at 46% 45%, rgba(255, 214, 130, 0.52), rgba(232, 127, 48, 0.22) 42%, transparent 72%);
+          opacity: 0.54;
+          animation: frontCounterLanternGlow 6.8s ease-in-out 500ms infinite;
+        }
+
+        .front-counter-ambient-counter {
+          left: 37%;
+          top: 53%;
+          width: 30%;
+          height: 21%;
+          background:
+            radial-gradient(ellipse at 50% 55%, rgba(255, 216, 143, 0.36), rgba(185, 88, 38, 0.16) 48%, transparent 74%);
+          opacity: 0.42;
+          animation: frontCounterCounterGlow 8.9s ease-in-out 1.6s infinite;
+        }
+
+        .front-counter-ambient-steam {
+          left: 64%;
+          top: 38%;
+          width: 8%;
+          height: 18%;
+          border-radius: 999px;
+          background:
+            radial-gradient(ellipse at 50% 20%, rgba(255, 247, 237, 0.34), transparent 42%),
+            linear-gradient(180deg, transparent, rgba(255, 247, 237, 0.24), transparent);
+          filter: blur(7px);
+          opacity: 0.26;
+          transform: translate3d(0, 8px, 0) rotate(-5deg);
+          animation: frontCounterSteamDrift 7.4s ease-in-out 900ms infinite;
+        }
+
+        .front-counter-ambient-reflection {
+          left: 31%;
+          bottom: 10%;
+          width: 34%;
+          height: 10%;
+          border-radius: 999px;
+          background:
+            linear-gradient(90deg, transparent, rgba(255, 206, 120, 0.22), transparent);
+          filter: blur(9px);
+          opacity: 0.34;
+          transform: rotate(-5deg);
+          animation: frontCounterReflectionWarmth 10.5s ease-in-out 2.2s infinite;
+        }
+
+        .front-counter-focused-scrim {
+          display: none;
         }
 
         .front-counter-focused-scrim::after {
@@ -5461,43 +6298,34 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-bubbles {
-          position: absolute;
-          z-index: 3;
-          left: clamp(120px, 17vw, 245px);
-          right: clamp(120px, 17vw, 245px);
-          bottom: clamp(200px, 22vw, 282px);
+          position: relative;
+          z-index: 0;
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 240px));
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           justify-content: center;
-          gap: 10px clamp(32px, 5vw, 76px);
+          gap: 9px;
           align-items: end;
           pointer-events: auto;
         }
 
         .front-counter-stage-bubbles::before {
-          content: "";
-          position: absolute;
-          inset: -14px -12px;
-          z-index: -1;
-          border-radius: 28px;
-          background:
-            radial-gradient(ellipse at 50% 50%, rgba(255, 247, 237, 0.38), rgba(253, 230, 138, 0.15) 48%, rgba(120, 53, 15, 0.08) 66%, transparent 82%);
-          filter: blur(7px);
-          opacity: 0.7;
+          display: none;
         }
 
         .front-counter-stage-bubble {
-          max-width: 240px;
-          padding: 7px 9px;
-          border: 1px solid rgba(255, 247, 237, 0.5);
+          animation: frontCounterNoteIn 420ms ease-out both;
+          width: min(100%, 520px);
+          max-width: 100%;
+          padding: 14px 15px;
+          border: 1px solid #c7bab1;
           border-radius: 15px 15px 15px 6px;
           background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(254, 243, 199, 0.92));
-          color: #3f2418;
+            linear-gradient(180deg, #fffefc, #fff8f1);
+          color: #2f2926;
           box-shadow:
-            0 10px 22px rgba(0, 0, 0, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.7);
-          backdrop-filter: blur(7px);
+            0 14px 28px rgba(27, 18, 14, 0.24),
+            0 0 0 1px rgba(255, 254, 252, 0.72),
+            inset 0 1px 0 rgba(255, 255, 255, 0.86);
         }
 
         .front-counter-stage-bubble-right {
@@ -5505,7 +6333,7 @@ export default function ChoNeoGossipPage() {
           margin-top: 22px;
           border-radius: 15px 15px 6px 15px;
           background:
-            linear-gradient(180deg, rgba(253, 230, 138, 0.96), rgba(251, 191, 36, 0.9));
+            linear-gradient(180deg, #fffaf0, #f7d08f);
         }
 
         .front-counter-stage-bubble-left {
@@ -5558,10 +6386,11 @@ export default function ChoNeoGossipPage() {
           align-items: baseline;
           gap: 4px;
           min-width: 0;
-          color: #3f2418;
-          font-size: 9px;
-          font-weight: 950;
-          line-height: 1.1;
+          color: #2f2926;
+          font-family: var(--cho-neo-font-display);
+          font-size: 13px;
+          font-weight: 600;
+          line-height: 1.12;
         }
 
         .front-counter-bubble-header strong span {
@@ -5572,17 +6401,18 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-bubble-header strong span {
           max-width: 104px;
-          color: rgba(63, 36, 24, 0.68);
-          font-size: 8px;
+          color: #6b625d;
+          font-size: 11px;
+          font-weight: 600;
         }
 
         .front-counter-bubble-header small {
           display: block;
           margin-top: 2px;
-          color: rgba(63, 36, 24, 0.62);
-          font-size: 7px;
-          font-weight: 900;
-          line-height: 1.1;
+          color: #6b625d;
+          font-size: 11.5px;
+          font-weight: 600;
+          line-height: 1.2;
         }
 
         .front-counter-stage-bubble p {
@@ -5591,9 +6421,10 @@ export default function ChoNeoGossipPage() {
           -webkit-box-orient: vertical;
           -webkit-line-clamp: 4;
           margin: 0;
-          font-size: 11px;
-          font-weight: 800;
-          line-height: 1.3;
+          color: #2f2926;
+          font-size: 15px;
+          font-weight: 600;
+          line-height: 1.48;
         }
 
         .front-counter-bubble-controls {
@@ -5605,14 +6436,14 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-bubble-controls button {
           min-height: 21px;
-          padding: 3px 6px;
-          border: 1px solid rgba(63, 36, 24, 0.14);
-          border-radius: 999px;
-          color: #3f2418;
-          background: rgba(255, 247, 237, 0.5);
+          padding: 5px 9px;
+          border: 1px solid #c7bab1;
+          border-radius: 10px;
+          color: #4f4641;
+          background: rgba(255, 254, 252, 0.82);
           font: inherit;
-          font-size: 8px;
-          font-weight: 950;
+          font-size: 11px;
+          font-weight: 600;
           cursor: pointer;
         }
 
@@ -5626,25 +6457,22 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-form {
-          position: absolute;
-          z-index: 4;
-          left: clamp(12px, 3vw, 28px);
-          right: clamp(12px, 3vw, 28px);
-          bottom: clamp(12px, 2.4vw, 24px);
+          position: relative;
+          z-index: 0;
           display: grid;
           grid-template-columns: 1fr;
-          gap: 6px;
+          gap: 8px;
           align-items: center;
           margin: 0;
-          padding: 8px;
-          border: 1px solid rgba(253, 230, 138, 0.24);
+          padding: 15px;
+          border: 1px solid #c7bab1;
           border-radius: 22px;
           background:
-            linear-gradient(180deg, rgba(83, 47, 31, 0.72), rgba(45, 26, 21, 0.68));
+            linear-gradient(180deg, #fffefc, #fbf2ec);
           box-shadow:
-            0 18px 34px rgba(0, 0, 0, 0.24),
-            inset 0 1px 0 rgba(255, 247, 237, 0.18);
-          backdrop-filter: blur(14px);
+            0 16px 34px rgba(27, 18, 14, 0.24),
+            0 0 0 1px rgba(255, 254, 252, 0.62),
+            inset 0 1px 0 rgba(255, 255, 255, 0.74);
         }
 
         .front-counter-stage-form label,
@@ -5655,11 +6483,10 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-form label {
-          color: #fde68a;
-          font-size: 10px;
-          font-weight: 950;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          color: #7c2d12;
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0;
         }
 
         .front-counter-stage-form label span,
@@ -5673,7 +6500,7 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-stage-form label span {
           margin-top: 2px;
-          color: rgba(255, 247, 237, 0.58);
+          color: rgba(92, 45, 24, 0.56);
           font-size: 8px;
           letter-spacing: 0.04em;
         }
@@ -5681,25 +6508,25 @@ export default function ChoNeoGossipPage() {
         .front-counter-stage-posting-as,
         .front-counter-stage-feedback,
         .front-counter-stage-count {
-          color: rgba(255, 247, 237, 0.72);
-          font-size: 10px;
-          font-weight: 850;
-          line-height: 1.25;
+          color: #4f4641;
+          font-size: 14px;
+          font-weight: 600;
+          line-height: 1.4;
         }
 
         .front-counter-stage-posting-as strong {
-          color: #fde68a;
+          color: #7c2d12;
         }
 
         .front-counter-stage-seat-button,
         .front-counter-stage-message-row button {
           border: 0;
-          border-radius: 999px;
+          border-radius: 12px;
           color: #3f2418;
           background: #fde68a;
           font: inherit;
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
           cursor: pointer;
         }
 
@@ -5724,11 +6551,11 @@ export default function ChoNeoGossipPage() {
           min-width: 0;
           height: 38px;
           padding: 3px;
-          border: 1px solid rgba(253, 230, 138, 0.26);
-          border-radius: 999px;
-          color: #fde68a;
-          background: rgba(255, 247, 237, 0.1);
-          box-shadow: inset 0 1px 0 rgba(255, 247, 237, 0.12);
+          border: 1px solid rgba(146, 64, 14, 0.28);
+          border-radius: 12px;
+          color: #5c2d18;
+          background: rgba(255, 255, 255, 0.74);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
         }
 
         .front-counter-stage-message-row .front-counter-input-avatar span {
@@ -5737,16 +6564,16 @@ export default function ChoNeoGossipPage() {
           width: 20px;
           height: 20px;
           border-radius: 999px;
-          background: rgba(253, 230, 138, 0.18);
+          background: rgba(253, 230, 138, 0.42);
           font-size: 11px;
         }
 
         .front-counter-input-avatar strong {
           max-width: 26px;
           overflow: hidden;
-          color: #fff7ed;
+          color: #7c2d12;
           font-size: 8px;
-          font-weight: 950;
+          font-weight: 600;
           line-height: 1;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -5755,29 +6582,57 @@ export default function ChoNeoGossipPage() {
         .front-counter-stage-message-row input {
           width: 100%;
           min-width: 0;
-          border: 1px solid rgba(253, 230, 138, 0.22);
-          border-radius: 999px;
-          padding: 10px 12px;
-          color: #fff7ed;
-          background: rgba(28, 18, 18, 0.58);
+          min-height: 48px;
+          border: 1px solid #c7bab1;
+          border-radius: 12px;
+          padding: 12px 14px;
+          color: #2f2926;
+          background: #fffefc;
           font: inherit;
-          font-size: 12px;
-          font-weight: 850;
+          font-size: 16px;
+          font-weight: 600;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            0 0 0 1px rgba(255, 254, 252, 0.62);
         }
 
         .front-counter-stage-message-row input::placeholder {
-          color: rgba(255, 247, 237, 0.48);
+          color: #756c67;
+          opacity: 1;
+        }
+
+        .front-counter-stage-form:focus-within {
+          border-color: #8d7d74;
+          box-shadow:
+            0 16px 34px rgba(45, 18, 8, 0.22),
+            0 0 0 3px rgba(184, 95, 85, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.68);
         }
 
         .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
-          min-width: 76px;
-          padding: 8px 12px;
+          min-width: 96px;
+          min-height: 48px;
+          padding: 10px 16px;
+          border: 1px solid rgba(115, 55, 49, 0.22);
+          border-radius: 14px;
+          color: #fffefc;
+          background: #b85f55;
+          box-shadow: 0 10px 20px rgba(97, 45, 39, 0.26);
         }
 
-        .front-counter-stage-message-row input:disabled,
+        .front-counter-stage-message-row input:disabled {
+          cursor: not-allowed;
+          color: #6b625d;
+          background: #f4efeb;
+          opacity: 1;
+        }
+
         .front-counter-stage-message-row button:disabled {
           cursor: not-allowed;
-          opacity: 0.58;
+          color: rgba(255, 254, 252, 0.86);
+          background: #c9948d;
+          box-shadow: none;
+          opacity: 1;
         }
 
         .front-counter-stage-feedback,
@@ -5789,23 +6644,23 @@ export default function ChoNeoGossipPage() {
           display: grid;
           gap: 6px;
           padding: 10px 11px;
-          border: 1px solid rgba(253, 230, 138, 0.2);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 16px;
-          color: rgba(255, 247, 237, 0.78);
-          background: rgba(253, 230, 138, 0.07);
+          color: var(--room-pass2-text-secondary);
+          background: rgba(99, 52, 44, 0.58);
         }
 
         .front-counter-stage-etiquette strong {
           display: block;
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .front-counter-stage-etiquette strong span {
           display: block;
           margin-top: 2px;
-          color: rgba(255, 247, 237, 0.58);
+          color: var(--room-pass2-text-muted);
           font-size: 9px;
         }
 
@@ -5821,13 +6676,134 @@ export default function ChoNeoGossipPage() {
         .front-counter-stage-etiquette p {
           margin: 0;
           font-size: 10px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.25;
         }
 
         .front-counter-stage-etiquette p {
           margin-top: 6px;
-          color: rgba(255, 247, 237, 0.56);
+          color: var(--room-pass2-text-muted);
+        }
+
+        .table-host-nudge {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+          margin: 0 0 12px;
+          padding: 10px 11px;
+          border: 1px solid var(--room-pass2-border);
+          border-radius: 18px;
+          color: var(--cho-neo-text-primary);
+          background:
+            radial-gradient(circle at 12% 0%, rgba(217, 141, 126, 0.18), transparent 34%),
+            var(--room-pass2-surface);
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+        }
+
+        .table-host-nudge strong {
+          display: block;
+          color: var(--cho-neo-text-accent);
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1.1;
+        }
+
+        .table-host-nudge p {
+          margin: 4px 0 0;
+          color: var(--room-pass2-text-secondary);
+          font-size: 13px;
+          font-weight: 600;
+          line-height: 1.32;
+        }
+
+        .table-host-nudge button {
+          width: 28px;
+          height: 28px;
+          flex: 0 0 auto;
+          border: 0;
+          border-radius: 999px;
+          color: #422006;
+          background: #fde68a;
+          font-size: 18px;
+          font-weight: 600;
+          line-height: 1;
+        }
+
+        .front-counter-stage-safety,
+        .table-safety-line {
+          margin: 2px 2px 0;
+          color: rgba(92, 45, 24, 0.68);
+          font-size: 13px;
+          font-weight: 600;
+          line-height: 1.32;
+        }
+
+        .front-counter-stage-safety span,
+        .table-safety-line span {
+          display: block;
+          margin-top: 2px;
+          color: rgba(92, 45, 24, 0.46);
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .front-counter-stage-form .front-counter-stage-safety {
+          color: rgba(92, 45, 24, 0.68);
+        }
+
+        .front-counter-stage-form .front-counter-stage-safety span {
+          color: rgba(92, 45, 24, 0.48);
+        }
+
+        .table-light-rules {
+          margin-top: 10px;
+          border: 1px solid rgba(146, 64, 14, 0.14);
+          border-radius: 16px;
+          background:
+            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.18), transparent 34%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(254, 243, 199, 0.72));
+          box-shadow: 0 10px 24px rgba(69, 26, 3, 0.1);
+        }
+
+        .table-light-rules summary {
+          min-height: 36px;
+          padding: 9px 11px;
+          color: #7c2d12;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          list-style-position: inside;
+        }
+
+        .table-light-rules div {
+          display: grid;
+          gap: 7px;
+          padding: 0 11px 11px;
+        }
+
+        .table-light-rules p {
+          margin: 0;
+          color: rgba(63, 36, 24, 0.82);
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1.3;
+        }
+
+        .table-light-rules p span {
+          display: block;
+          margin-top: 2px;
+          color: rgba(92, 45, 24, 0.54);
+          font-size: 10px;
+          font-weight: 600;
+        }
+
+        .trend-table-rules.table-light-rules,
+        .front-counter-stage-etiquette.table-light-rules {
+          display: block;
+          grid-template-columns: none;
+          gap: 0;
+          padding: 0;
         }
 
         .front-counter-focused-stage-drawer-open .front-counter-stage-form {
@@ -5835,12 +6811,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-drawer {
-          position: absolute;
-          z-index: 6;
-          left: clamp(12px, 2.6vw, 30px);
-          right: clamp(12px, 2.6vw, 30px);
-          bottom: clamp(12px, 2.6vw, 30px);
-          max-height: min(62%, 470px);
+          position: relative;
+          z-index: 0;
+          max-height: min(70vh, 520px);
           overflow: auto;
           display: grid;
           gap: 10px;
@@ -5872,11 +6845,11 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-stage-drawer-heading strong {
           display: block;
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 12px;
-          font-weight: 950;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .front-counter-stage-drawer-heading strong span,
@@ -5904,21 +6877,21 @@ export default function ChoNeoGossipPage() {
           margin-top: 6px;
           color: rgba(255, 247, 237, 0.66);
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.3;
         }
 
         .front-counter-stage-drawer-heading button {
           flex: 0 0 auto;
-          min-height: 30px;
-          padding: 6px 10px;
-          border: 1px solid rgba(253, 230, 138, 0.26);
-          border-radius: 999px;
-          color: #fde68a;
-          background: rgba(253, 230, 138, 0.08);
+          min-height: 34px;
+          padding: 7px 10px;
+          border: 1px solid rgba(244, 198, 118, 0.26);
+          border-radius: 14px;
+          color: rgba(255, 247, 237, 0.82);
+          background: rgba(54, 32, 27, 0.5);
           font: inherit;
           font-size: 10px;
-          font-weight: 950;
+          font-weight: 500;
           cursor: pointer;
         }
 
@@ -5943,15 +6916,15 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-host-tools strong {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .front-counter-stage-host-tools p {
           color: rgba(255, 247, 237, 0.68);
           font-size: 10px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .front-counter-stage-host-tools input {
@@ -5960,11 +6933,11 @@ export default function ChoNeoGossipPage() {
           border: 1px solid rgba(253, 230, 138, 0.2);
           border-radius: 999px;
           padding: 8px 10px;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background: rgba(8, 13, 28, 0.52);
           font: inherit;
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .front-counter-stage-host-actions {
@@ -5974,15 +6947,15 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-host-actions button {
-          min-height: 28px;
-          border: 0;
-          border-radius: 999px;
-          padding: 6px 10px;
-          color: #3f2418;
-          background: #fde68a;
+          min-height: 34px;
+          border: 1px solid rgba(244, 198, 118, 0.24);
+          border-radius: 14px;
+          padding: 7px 10px;
+          color: rgba(255, 247, 237, 0.84);
+          background: rgba(54, 32, 27, 0.5);
           font: inherit;
           font-size: 10px;
-          font-weight: 950;
+          font-weight: 500;
           cursor: pointer;
         }
 
@@ -6001,15 +6974,15 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-host-card small {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 10px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .front-counter-stage-host-card p {
           color: rgba(255, 247, 237, 0.78);
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.35;
         }
 
@@ -6025,7 +6998,7 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.72);
           background: rgba(255, 255, 255, 0.08);
           font-size: 9px;
-          font-weight: 900;
+          font-weight: 600;
         }
 
         .front-counter-stage-thread-note {
@@ -6055,14 +7028,406 @@ export default function ChoNeoGossipPage() {
         .front-counter-stage-thread-note small {
           color: rgba(63, 36, 24, 0.64);
           font-size: 10px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .front-counter-stage-thread-note p {
           margin: 0;
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.35;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-form {
+          gap: 12px;
+          padding: 16px;
+          border: 1px solid #c7bab1;
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, #fffefc, #fbf2ec);
+          box-shadow:
+            0 18px 38px rgba(27, 18, 14, 0.24),
+            0 0 0 1px rgba(255, 254, 252, 0.72),
+            inset 0 1px 0 rgba(255, 255, 255, 0.82);
+        }
+
+        .front-counter-stage-form .composer-avatar-passport {
+          border-color: rgba(199, 186, 177, 0.84);
+          border-radius: 16px;
+          color: #2f2926;
+          background: rgba(255, 254, 252, 0.92);
+          box-shadow: 0 8px 18px rgba(27, 18, 14, 0.1);
+        }
+
+        .front-counter-stage-form .composer-avatar-passport strong,
+        .front-counter-stage-form .composer-avatar-action {
+          color: #2f2926;
+          font-weight: 600;
+        }
+
+        .front-counter-stage-form .composer-avatar-passport small {
+          color: #6b625d;
+          font-weight: 600;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row {
+          grid-template-columns: 40px minmax(0, 1fr) auto;
+          gap: 10px;
+        }
+
+        .front-counter-focused-stage .front-counter-input-avatar {
+          width: 48px;
+          height: 48px;
+          border-color: #c7bab1;
+          border-radius: 14px;
+          color: #2f2926;
+          background: #fffefc;
+          box-shadow: 0 8px 18px rgba(27, 18, 14, 0.1);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row .front-counter-input-avatar span {
+          background: rgba(255, 232, 223, 0.78);
+        }
+
+        .front-counter-focused-stage .front-counter-input-avatar strong {
+          color: #2f2926;
+          font-weight: 600;
+        }
+
+        .front-counter-focused-stage .front-counter-input-avatar img {
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          object-fit: cover;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row input {
+          min-height: 48px;
+          border-color: #c7bab1;
+          border-radius: 16px;
+          padding: 12px 14px;
+          color: #2f2926;
+          background: #fffefc;
+          font-size: 16px;
+          font-weight: 600;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.92),
+            0 0 0 1px rgba(255, 254, 252, 0.72);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row input::placeholder {
+          color: #756c67;
+          opacity: 1;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-form:focus-within {
+          border-color: #8d7d74;
+          box-shadow:
+            0 18px 38px rgba(27, 18, 14, 0.24),
+            0 0 0 3px rgba(184, 95, 85, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.84);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row input:focus {
+          border-color: #8d7d74;
+          outline: none;
+          box-shadow:
+            0 0 0 3px rgba(184, 95, 85, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.92);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          min-width: 92px;
+          min-height: 48px;
+          padding: 10px 17px;
+          border: 1px solid rgba(115, 55, 49, 0.26);
+          border-radius: 16px;
+          color: #fffefc;
+          background: #b85f55;
+          box-shadow: 0 12px 22px rgba(97, 45, 39, 0.28);
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row > button:not(.front-counter-input-avatar):hover:not(:disabled) {
+          border-color: rgba(115, 55, 49, 0.38);
+          background: #a94f47;
+          box-shadow: 0 14px 24px rgba(97, 45, 39, 0.34);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row > button:not(.front-counter-input-avatar):focus-visible {
+          outline: 3px solid rgba(184, 95, 85, 0.24);
+          outline-offset: 2px;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-message-row > button:not(.front-counter-input-avatar):disabled {
+          color: rgba(255, 254, 252, 0.88);
+          background: #c9948d;
+          box-shadow: none;
+          opacity: 1;
+        }
+
+        .front-counter-send-icon {
+          display: grid;
+          place-items: center;
+          width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          background: rgba(255, 250, 245, 0.18);
+          font-size: 13px;
+          line-height: 1;
+        }
+
+        .front-counter-send-copy {
+          display: grid;
+          gap: 1px;
+          line-height: 1.05;
+        }
+
+        .front-counter-send-copy small {
+          color: rgba(255, 250, 245, 0.78);
+          font-size: 10px;
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-safety {
+          display: flex;
+          align-items: flex-start;
+          gap: 7px;
+          margin: 2px 6px 0;
+          color: #4f4641;
+          font-size: 14px;
+          font-weight: 600;
+          line-height: 1.45;
+        }
+
+        .front-counter-safety-leaf {
+          flex: 0 0 auto;
+          color: rgba(217, 111, 97, 0.8);
+          font-size: 15px;
+          line-height: 1.15;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-safety > span:not(.front-counter-safety-leaf) {
+          display: block;
+          margin: 0;
+          color: #4f4641;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-safety small {
+          display: block;
+          margin-top: 2px;
+          color: #6b625d;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-feedback,
+        .front-counter-focused-stage .front-counter-stage-count {
+          color: #4f4641;
+          font-size: 13.5px;
+          font-weight: 600;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-drawer {
+          border: 1px solid rgba(141, 92, 69, 0.14);
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(255, 242, 238, 0.96));
+          box-shadow:
+            0 18px 38px rgba(75, 42, 30, 0.13),
+            inset 0 1px 0 rgba(255, 255, 255, 0.82);
+          backdrop-filter: none;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-drawer-heading strong {
+          color: #3b2118;
+          font-size: 12px;
+          font-weight: 500;
+          letter-spacing: 0;
+          text-transform: none;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-drawer-heading strong span,
+        .front-counter-focused-stage .front-counter-stage-drawer-heading p,
+        .front-counter-focused-stage .front-counter-stage-drawer-notice {
+          color: rgba(106, 75, 62, 0.68);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-drawer-heading button,
+        .front-counter-focused-stage .front-counter-stage-host-actions button {
+          border-color: rgba(141, 92, 69, 0.16);
+          color: #4a2a1d;
+          background: rgba(255, 255, 255, 0.72);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-host-tools,
+        .front-counter-focused-stage .front-counter-stage-host-card {
+          border-color: rgba(141, 92, 69, 0.14);
+          background: rgba(255, 255, 255, 0.58);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-host-tools strong,
+        .front-counter-focused-stage .front-counter-stage-host-card small {
+          color: #4a2a1d;
+          font-weight: 500;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-host-tools p,
+        .front-counter-focused-stage .front-counter-stage-host-card p {
+          color: rgba(74, 42, 29, 0.76);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-host-tools input {
+          border-color: rgba(141, 92, 69, 0.16);
+          color: #3b2118;
+          background: rgba(255, 255, 255, 0.9);
+          font-weight: 400;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread {
+          gap: 10px;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread-note {
+          gap: 10px;
+          width: min(560px, 94%);
+          padding: 15px 16px;
+          border: 1px solid #c7bab1;
+          border-radius: 18px;
+          color: #2f2926;
+          background: linear-gradient(180deg, #fffefc, #fff8f1);
+          box-shadow:
+            0 14px 30px rgba(27, 18, 14, 0.22),
+            0 0 0 1px rgba(255, 254, 252, 0.72);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread-note.thread-note-warm {
+          border-radius: 18px;
+          background: linear-gradient(180deg, #fffaf0, #f7d08f);
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread-note.thread-note-muted {
+          opacity: 0.74;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-header {
+          gap: 8px;
+          margin-bottom: 0;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-avatar,
+        .front-counter-focused-stage .front-counter-bubble-avatar-image {
+          width: 30px;
+          height: 30px;
+          border-color: rgba(141, 92, 69, 0.16);
+          background: rgba(255, 232, 223, 0.7);
+          font-size: 14px;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-header strong {
+          color: #2f2926;
+          font-family: inherit;
+          font-size: 15px;
+          font-weight: 600;
+          letter-spacing: 0;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-header strong span,
+        .front-counter-focused-stage .front-counter-bubble-header small,
+        .front-counter-focused-stage .front-counter-stage-thread-note small {
+          color: #6b625d;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .front-counter-focused-stage .front-counter-stage-thread-note p {
+          color: #2f2926;
+          font-size: 15px;
+          font-weight: 600;
+          line-height: 1.52;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-controls {
+          gap: 8px;
+          margin-top: 4px;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-controls button {
+          min-height: 28px;
+          padding: 5px 10px;
+          border: 1px solid #c7bab1;
+          border-radius: 10px;
+          color: #4f4641;
+          background: rgba(255, 254, 252, 0.78);
+          font-size: 12px;
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        .front-counter-focused-stage .front-counter-bubble-controls button:hover:not(:disabled) {
+          border-color: #a8978d;
+          color: #2f2926;
+          background: #fffefc;
+        }
+
+        .shop-talk-prompt-strip {
+          gap: 8px;
+          padding: 12px;
+        }
+
+        .shop-talk-prompt-strip strong {
+          display: block;
+          color: #2f2926;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .shop-talk-prompt-row {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+          scrollbar-width: thin;
+        }
+
+        .shop-talk-prompt-chip {
+          flex: 0 0 auto;
+          min-height: 34px;
+          padding: 7px 11px;
+          border: 1px solid #c7bab1;
+          border-radius: 12px;
+          color: #4f4641;
+          background: #fffefc;
+          font: inherit;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition:
+            border-color 160ms ease,
+            background 160ms ease,
+            color 160ms ease;
+        }
+
+        .shop-talk-prompt-chip:hover,
+        .shop-talk-prompt-chip:focus-visible {
+          border-color: #a8978d;
+          color: #2f2926;
+          background: #fff8f1;
+        }
+
+        .shop-talk-prompt-chip:focus-visible {
+          outline: 3px solid rgba(184, 95, 85, 0.18);
+          outline-offset: 2px;
         }
 
         .detail-panel-front-counter > .host-tools-panel,
@@ -6084,16 +7449,108 @@ export default function ChoNeoGossipPage() {
           }
         }
 
+        @keyframes frontCounterLanternGlow {
+          0%, 100% { opacity: 0.42; transform: translate3d(-50%, -50%, 0) scale(0.98); }
+          36% { opacity: 0.68; transform: translate3d(-50%, -50%, 0) scale(1.04); }
+          61% { opacity: 0.5; transform: translate3d(-50%, -50%, 0) scale(1); }
+          78% { opacity: 0.62; transform: translate3d(-50%, -50%, 0) scale(1.03); }
+        }
+
+        @keyframes frontCounterCounterGlow {
+          0%, 100% { opacity: 0.34; transform: translate3d(-50%, -50%, 0) scale(0.99); }
+          43% { opacity: 0.52; transform: translate3d(-50%, -50%, 0) scale(1.03); }
+          70% { opacity: 0.4; transform: translate3d(-50%, -50%, 0) scale(1); }
+        }
+
+        @keyframes frontCounterSteamDrift {
+          0%, 100% { opacity: 0.18; transform: translate3d(0, 8px, 0) rotate(-5deg) scaleY(0.96); }
+          46% { opacity: 0.34; transform: translate3d(8px, -10px, 0) rotate(3deg) scaleY(1.08); }
+          72% { opacity: 0.24; transform: translate3d(3px, -3px, 0) rotate(-1deg) scaleY(1); }
+        }
+
+        @keyframes frontCounterReflectionWarmth {
+          0%, 100% { opacity: 0.24; transform: translateX(-10px) rotate(-5deg); }
+          45% { opacity: 0.42; transform: translateX(16px) rotate(-5deg); }
+          72% { opacity: 0.3; transform: translateX(4px) rotate(-5deg); }
+        }
+
+        @keyframes frontCounterNoteIn {
+          from { opacity: 0; transform: translateY(7px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes trendTableSunrayDrift {
+          0% {
+            opacity: 0;
+            transform: translate3d(-42%, 0, 0);
+          }
+          12% {
+            opacity: 0.12;
+          }
+          48% {
+            opacity: 0.18;
+            transform: translate3d(12%, 0, 0);
+          }
+          72% {
+            opacity: 0.13;
+            transform: translate3d(32%, 0, 0);
+          }
+          86%,
+          100% {
+            opacity: 0;
+            transform: translate3d(46%, 0, 0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .front-counter-ambient-glow,
+          .front-counter-ambient-steam,
+          .front-counter-ambient-reflection,
+          .front-counter-stage-bubble,
+          .front-counter-stage-drawer,
+          .trend-table-stage::after {
+            animation: none;
+          }
+
+          .trend-table-stage::after {
+            opacity: 0.07;
+            transform: translate3d(6%, 0, 0);
+          }
+
+          .front-counter-ambient-lantern {
+            opacity: 0.5;
+          }
+
+          .front-counter-ambient-counter {
+            opacity: 0.34;
+          }
+
+          .front-counter-ambient-steam,
+          .front-counter-ambient-reflection {
+            opacity: 0.18;
+          }
+        }
+
         .mock-thread {
           display: grid;
           gap: 12px;
-          margin-top: 20px;
+          margin-top: 16px;
           padding: 14px;
-          border: 1px solid rgba(253, 230, 138, 0.12);
+          border: 1px solid rgba(146, 64, 14, 0.14);
           border-radius: 24px;
           background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.07), rgba(255, 247, 237, 0.035)),
-            rgba(8, 13, 28, 0.22);
+            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.18), transparent 34%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(254, 243, 199, 0.74));
+          box-shadow: 0 14px 34px rgba(69, 26, 3, 0.12);
+        }
+
+        .detail-panel-trend-table .mock-thread.trend-table-thread {
+          margin-top: 8px;
+          padding: 14px;
+          border: 1px solid rgba(146, 64, 14, 0.08);
+          border-radius: 8px;
+          background: #fbf6ef;
+          box-shadow: none;
         }
 
         .detail-panel-front-counter .mock-thread {
@@ -6136,11 +7593,11 @@ export default function ChoNeoGossipPage() {
 
         .daily-table-talk p {
           margin: 0;
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .daily-table-talk p span {
@@ -6148,12 +7605,12 @@ export default function ChoNeoGossipPage() {
           margin-top: 3px;
           color: rgba(255, 247, 237, 0.62);
           font-size: 10px;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.02em;
         }
 
         .daily-table-talk strong {
           max-width: 760px;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: 14px;
           line-height: 1.28;
         }
@@ -6163,14 +7620,14 @@ export default function ChoNeoGossipPage() {
           margin-top: 5px;
           color: rgba(255, 247, 237, 0.66);
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.35;
         }
 
         .daily-table-talk > span {
           color: rgba(255, 247, 237, 0.68);
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.4;
         }
 
@@ -6196,9 +7653,9 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-atmosphere strong,
         .front-counter-empty-state strong {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .front-counter-atmosphere strong span {
@@ -6222,7 +7679,7 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.76);
           background: rgba(8, 13, 28, 0.28);
           font-size: 10px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .front-counter-atmosphere p,
@@ -6260,9 +7717,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .host-tools-panel strong {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .host-tools-panel p {
@@ -6277,7 +7734,7 @@ export default function ChoNeoGossipPage() {
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 999px;
           padding: 0 12px;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background: rgba(8, 13, 28, 0.62);
           font: inherit;
           outline: none;
@@ -6295,7 +7752,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: #fde68a;
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .host-tools-actions {
@@ -6316,7 +7773,7 @@ export default function ChoNeoGossipPage() {
           padding: 10px 12px;
           color: rgba(255, 247, 237, 0.74);
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.4;
         }
 
@@ -6350,10 +7807,10 @@ export default function ChoNeoGossipPage() {
 
         .host-review-card small {
           display: block;
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.06em;
+          font-weight: 600;
+          letter-spacing: 0.02em;
         }
 
         .host-review-card p {
@@ -6376,18 +7833,18 @@ export default function ChoNeoGossipPage() {
           color: rgba(255, 247, 237, 0.76);
           background: rgba(8, 13, 28, 0.28);
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 600;
         }
 
         .thread-message {
           position: relative;
           width: min(82%, 430px);
           padding: 12px 14px;
-          border: 1px solid rgba(253, 230, 138, 0.15);
+          border: 1px solid rgba(146, 64, 14, 0.14);
           background:
-            linear-gradient(180deg, rgba(255, 247, 237, 0.16), rgba(255, 247, 237, 0.08)),
-            rgba(54, 31, 35, 0.72);
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+            linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(254, 243, 199, 0.82)),
+            rgba(255, 255, 255, 0.36);
+          box-shadow: 0 12px 28px rgba(69, 26, 3, 0.14);
         }
 
         .thread-avatar {
@@ -6397,9 +7854,9 @@ export default function ChoNeoGossipPage() {
           height: 26px;
           display: grid;
           place-items: center;
-          border: 1px solid rgba(253, 230, 138, 0.22);
+          border: 1px solid rgba(146, 64, 14, 0.16);
           border-radius: 999px;
-          background: rgba(8, 13, 28, 0.82);
+          background: rgba(255, 247, 237, 0.94);
           font-size: 15px;
         }
 
@@ -6416,9 +7873,9 @@ export default function ChoNeoGossipPage() {
           justify-self: end;
           border-radius: 18px 18px 6px 18px;
           background:
-            linear-gradient(180deg, rgba(253, 230, 138, 0.2), rgba(253, 230, 138, 0.1)),
-            rgba(62, 39, 28, 0.72);
-          border-color: rgba(253, 230, 138, 0.18);
+            linear-gradient(180deg, rgba(254, 243, 199, 0.96), rgba(253, 230, 138, 0.66)),
+            rgba(255, 247, 237, 0.5);
+          border-color: rgba(146, 64, 14, 0.16);
         }
 
         .thread-message-right .thread-avatar {
@@ -6427,35 +7884,35 @@ export default function ChoNeoGossipPage() {
 
         .thread-message small {
           display: block;
-          color: #fde68a;
+          color: rgba(124, 45, 18, 0.7);
           font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.06em;
+          font-weight: 600;
+          letter-spacing: 0.02em;
         }
 
         .thread-message p {
           margin: 6px 0 0;
-          color: rgba(255, 247, 237, 0.84);
+          color: #3f2418;
           font-size: 14px;
           line-height: 1.45;
         }
 
         .thread-message-removed {
           border-style: dashed;
-          background: rgba(255, 255, 255, 0.07);
+          background: rgba(255, 247, 237, 0.56);
         }
 
         .thread-message-removed p {
-          color: rgba(255, 247, 237, 0.62);
+          color: rgba(63, 36, 24, 0.6);
           font-style: italic;
         }
 
         .reaction-row {
           display: block;
           margin-top: 8px;
-          color: rgba(253, 230, 138, 0.7);
+          color: rgba(124, 45, 18, 0.62);
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .moderation-row {
@@ -6468,13 +7925,13 @@ export default function ChoNeoGossipPage() {
 
         .moderation-row button {
           min-height: 27px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(146, 64, 14, 0.12);
           border-radius: 999px;
           padding: 0 9px;
-          color: rgba(255, 247, 237, 0.76);
-          background: rgba(8, 13, 28, 0.28);
+          color: rgba(92, 45, 24, 0.74);
+          background: rgba(255, 255, 255, 0.48);
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 600;
           line-height: 1.15;
         }
 
@@ -6484,35 +7941,38 @@ export default function ChoNeoGossipPage() {
         }
 
         .moderation-row span {
-          color: rgba(253, 230, 138, 0.68);
+          color: rgba(124, 45, 18, 0.6);
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .conversation-form {
           display: grid;
           gap: 10px;
-          margin-top: 20px;
+          margin-top: 16px;
           padding: 14px;
-          border: 1px solid rgba(253, 230, 138, 0.18);
+          border: 1px solid rgba(146, 64, 14, 0.16);
           border-radius: 22px;
           background:
-            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.14), transparent 34%),
-            rgba(255, 247, 237, 0.08);
+            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 247, 237, 0.97), rgba(254, 243, 199, 0.88));
+          box-shadow:
+            0 14px 34px rgba(69, 26, 3, 0.13),
+            inset 0 1px 0 rgba(255, 255, 255, 0.7);
         }
 
         .prototype-note {
           margin: 0;
-          color: rgba(255, 247, 237, 0.72);
+          color: rgba(92, 45, 24, 0.66);
           font-size: 13px;
           line-height: 1.4;
         }
 
         .memory-notice {
           margin: -2px 0 0;
-          color: rgba(253, 230, 138, 0.74);
+          color: rgba(124, 45, 18, 0.7);
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.4;
         }
 
@@ -6546,7 +8006,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .seat-person strong {
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: 12px;
           line-height: 1.1;
           text-align: center;
@@ -6555,7 +8015,7 @@ export default function ChoNeoGossipPage() {
         .seat-person > span {
           color: rgba(255, 247, 237, 0.55);
           font-size: 11px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .take-seat-button {
@@ -6567,7 +8027,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: #fde68a;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .identity-needed {
@@ -6580,7 +8040,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .identity-needed strong {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 14px;
         }
 
@@ -6598,7 +8058,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: #fde68a;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .posting-as {
@@ -6613,7 +8073,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .posting-as strong {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
         }
 
         .founding-pass {
@@ -6628,9 +8088,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .founding-pass strong {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 14px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .founding-pass p {
@@ -6650,7 +8110,7 @@ export default function ChoNeoGossipPage() {
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 999px;
           padding: 0 13px;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           background: rgba(8, 13, 28, 0.64);
           font: inherit;
           outline: none;
@@ -6672,7 +8132,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: #fde68a;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .founding-pass button:disabled {
@@ -6684,14 +8144,14 @@ export default function ChoNeoGossipPage() {
 
         .pass-error {
           color: #fecdd3 !important;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .conversation-form label {
-          color: #fde68a;
+          color: #7c2d12;
           font-size: 11px;
-          font-weight: 950;
-          letter-spacing: 0.14em;
+          font-weight: 600;
+          letter-spacing: 0.02em;
           line-height: 1.35;
           text-transform: none;
         }
@@ -6699,14 +8159,14 @@ export default function ChoNeoGossipPage() {
         .conversation-form label span {
           display: block;
           margin-top: 3px;
-          color: rgba(255, 247, 237, 0.62);
+          color: rgba(92, 45, 24, 0.58);
           font-size: 10px;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.02em;
         }
 
         .posting-helper {
           margin: -3px 0 0;
-          color: rgba(255, 247, 237, 0.66);
+          color: rgba(92, 45, 24, 0.68);
           font-size: 12px;
           line-height: 1.4;
         }
@@ -6715,25 +8175,25 @@ export default function ChoNeoGossipPage() {
           display: inline-flex;
           width: fit-content;
           max-width: 100%;
-          min-height: 38px;
+          min-height: 32px;
           align-items: center;
-          gap: 8px;
+          gap: 7px;
           justify-self: start;
-          border: 1px solid rgba(253, 230, 138, 0.2);
+          border: 1px solid rgba(146, 64, 14, 0.14);
           border-radius: 999px;
-          padding: 5px 12px 5px 6px;
-          color: #fff7ed;
+          padding: 4px 8px 4px 5px;
+          color: #6f2b21;
           background:
-            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.12), transparent 34%),
-            rgba(255, 247, 237, 0.075);
+            radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.2), transparent 34%),
+            rgba(255, 255, 255, 0.58);
           text-decoration: none;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
         }
 
         .composer-avatar-passport img,
         .composer-avatar-placeholder {
-          width: 30px;
-          height: 30px;
+          width: 24px;
+          height: 24px;
           flex: 0 0 auto;
           border-radius: 999px;
         }
@@ -6747,16 +8207,16 @@ export default function ChoNeoGossipPage() {
           place-items: center;
           color: #111827;
           background: #fde68a;
-          font-size: 18px;
-          font-weight: 950;
+          font-size: 15px;
+          font-weight: 600;
         }
 
         .composer-avatar-passport strong {
           display: block;
           overflow: hidden;
-          color: #fff7ed;
-          font-size: 12px;
-          font-weight: 950;
+          color: #6f2b21;
+          font-size: 11px;
+          font-weight: 600;
           line-height: 1.05;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -6765,29 +8225,49 @@ export default function ChoNeoGossipPage() {
         .composer-avatar-passport small {
           display: block;
           overflow: hidden;
-          margin-top: 3px;
-          color: rgba(255, 247, 237, 0.58);
-          font-size: 10px;
-          font-weight: 850;
+          margin-top: 2px;
+          color: rgba(92, 45, 24, 0.58);
+          font-size: 9px;
+          font-weight: 600;
           line-height: 1.05;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
 
+        .composer-avatar-action {
+          flex: 0 0 auto;
+          color: #7c2d12;
+          font-size: 10px;
+          font-weight: 600;
+          line-height: 1;
+          white-space: nowrap;
+        }
+
         .composer-avatar-passport-empty {
-          color: #fde68a;
+          color: #7c2d12;
         }
 
         .front-counter-stage-form .composer-avatar-passport {
-          min-height: 32px;
-          padding: 4px 10px 4px 5px;
-          background: rgba(255, 247, 237, 0.09);
+          min-height: 30px;
+          padding: 3px 8px 3px 4px;
+          border-color: rgba(146, 64, 14, 0.14);
+          color: #6f2b21;
+          background: rgba(255, 255, 255, 0.58);
+        }
+
+        .front-counter-stage-form .composer-avatar-passport strong {
+          color: #6f2b21;
+        }
+
+        .front-counter-stage-form .composer-avatar-passport small,
+        .front-counter-stage-form .composer-avatar-action {
+          color: rgba(92, 45, 24, 0.58);
         }
 
         .front-counter-stage-form .composer-avatar-passport img,
         .front-counter-stage-form .composer-avatar-placeholder {
-          width: 26px;
-          height: 26px;
+          width: 23px;
+          height: 23px;
         }
 
         .message-row {
@@ -6799,17 +8279,17 @@ export default function ChoNeoGossipPage() {
         .message-row input {
           width: 100%;
           min-height: 42px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
+          border: 1px solid rgba(146, 64, 14, 0.18);
           border-radius: 999px;
           padding: 0 14px;
-          color: #fff7ed;
-          background: rgba(8, 13, 28, 0.62);
+          color: #3f2418;
+          background: rgba(255, 255, 255, 0.84);
           font: inherit;
           outline: none;
         }
 
         .message-row input::placeholder {
-          color: rgba(255, 247, 237, 0.44);
+          color: rgba(92, 45, 24, 0.46);
         }
 
         .message-row input:focus {
@@ -6819,8 +8299,8 @@ export default function ChoNeoGossipPage() {
 
         .message-row input:disabled {
           cursor: not-allowed;
-          color: rgba(255, 247, 237, 0.48);
-          background: rgba(255, 255, 255, 0.08);
+          color: rgba(92, 45, 24, 0.48);
+          background: rgba(255, 247, 237, 0.56);
         }
 
         .message-row button {
@@ -6831,30 +8311,30 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: #fde68a;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .message-row button:disabled {
           cursor: not-allowed;
-          color: rgba(255, 247, 237, 0.54);
-          background: rgba(255, 255, 255, 0.14);
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+          color: rgba(92, 45, 24, 0.48);
+          background: rgba(146, 64, 14, 0.12);
+          box-shadow: inset 0 0 0 1px rgba(146, 64, 14, 0.08);
         }
 
         .post-feedback {
           margin: -2px 4px 0 0;
-          color: rgba(253, 230, 138, 0.78);
+          color: rgba(124, 45, 18, 0.72);
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.4;
         }
 
         .character-count {
           justify-self: end;
           margin: -2px 4px 0 0;
-          color: rgba(255, 247, 237, 0.56);
+          color: rgba(92, 45, 24, 0.58);
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.35;
         }
 
@@ -6867,7 +8347,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: #fde68a;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .table-heading {
@@ -6879,11 +8359,11 @@ export default function ChoNeoGossipPage() {
 
         .table-heading p {
           margin: 0 0 8px;
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          text-transform: none;
         }
 
         .table-heading h2 {
@@ -6900,22 +8380,22 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: rgba(253, 230, 138, 0.92);
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .table-heading > span small {
           display: block;
           margin-top: 1px;
           font-size: 9px;
-          font-weight: 900;
+          font-weight: 600;
           opacity: 0.68;
         }
 
         .topic {
           margin: 16px 0 0;
-          color: #fff7ed;
+          color: var(--cho-neo-text-primary);
           font-size: 15px;
-          font-weight: 850;
+          font-weight: 600;
           line-height: 1.35;
         }
 
@@ -6924,7 +8404,7 @@ export default function ChoNeoGossipPage() {
           margin-top: 3px;
           color: rgba(255, 247, 237, 0.56);
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .note {
@@ -6951,7 +8431,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: linear-gradient(180deg, #fff7ed, #fcd34d);
           font-size: 11px;
-          font-weight: 950;
+          font-weight: 600;
           box-shadow: 0 0 22px rgba(251, 191, 36, 0.18);
         }
 
@@ -6976,7 +8456,7 @@ export default function ChoNeoGossipPage() {
           color: #111827;
           background: #fde68a;
           font-size: 12px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .house-rules {
@@ -7034,7 +8514,7 @@ export default function ChoNeoGossipPage() {
           border-radius: 18px;
           background: rgba(255, 255, 255, 0.07);
           color: rgba(255, 247, 237, 0.84);
-          font-weight: 850;
+          font-weight: 600;
         }
 
         .host-note {
@@ -7047,9 +8527,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .host-note strong {
-          color: #fde68a;
+          color: var(--cho-neo-text-accent);
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 600;
         }
 
         .host-note p {
@@ -7072,7 +8552,7 @@ export default function ChoNeoGossipPage() {
           background: rgba(8, 13, 28, 0.42);
           color: rgba(255, 247, 237, 0.78);
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 600;
         }
 
         @media (max-width: 1080px) {
@@ -7163,6 +8643,10 @@ export default function ChoNeoGossipPage() {
             gap: 10px;
           }
 
+          .cafe-hero-actions {
+            align-self: flex-end;
+          }
+
           .cafe-stage-controls {
             align-items: stretch;
           }
@@ -7217,6 +8701,70 @@ export default function ChoNeoGossipPage() {
             min-height: 34px;
             padding: 5px 10px;
             font-size: 10px;
+          }
+
+          .compact-table-header {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+          }
+
+          .compact-table-back {
+            flex: 0 0 auto;
+            min-height: 30px;
+            padding: 5px 9px;
+            font-size: 11px;
+          }
+
+          .compact-table-enter {
+            flex: 0 0 auto;
+            min-height: 30px;
+            padding: 5px 9px;
+            font-size: 11px;
+          }
+
+          .compact-table-count {
+            flex: 1 1 100%;
+            min-width: 0;
+            max-width: 100%;
+            min-height: 28px;
+            margin-left: 0;
+            padding: 5px 8px;
+            font-size: 10.5px;
+            overflow: visible;
+            text-align: left;
+            white-space: normal;
+          }
+
+          .front-counter-quick-controls {
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 8px;
+            overflow-x: visible;
+          }
+
+          .front-counter-seat-control {
+            min-height: 44px;
+            font-size: 11px;
+          }
+
+          .front-counter-quick-controls .compact-table-back,
+          .front-counter-quick-controls .compact-table-count {
+            min-height: 44px;
+            padding: 8px 10px;
+            font-size: 11px;
+          }
+
+          .front-counter-quick-controls span,
+          .front-counter-seat-control span {
+            white-space: nowrap;
+          }
+
+          .front-counter-count-control {
+            flex: 1 1 calc(100% - 154px);
+            max-width: calc(100% - 154px);
+            white-space: normal;
           }
 
           .gossip-rules-acknowledgement {
@@ -7322,15 +8870,15 @@ export default function ChoNeoGossipPage() {
           }
 
           .mobile-table-picker-heading strong {
-            color: #fde68a;
+            color: var(--cho-neo-text-accent);
             font-size: 12px;
-            font-weight: 950;
+            font-weight: 600;
           }
 
           .mobile-table-picker-heading span {
             color: rgba(255, 247, 237, 0.58);
             font-size: 10px;
-            font-weight: 850;
+            font-weight: 600;
           }
 
           .mobile-table-picker-grid {
@@ -7353,7 +8901,7 @@ export default function ChoNeoGossipPage() {
               radial-gradient(circle at 12% 0%, rgba(253, 230, 138, 0.16), transparent 34%),
               linear-gradient(180deg, rgba(255, 247, 237, 0.1), rgba(255, 247, 237, 0.045)),
               rgba(28, 18, 18, 0.72);
-            color: #fff7ed;
+            color: var(--cho-neo-text-primary);
             font: inherit;
             text-align: left;
             touch-action: manipulation;
@@ -7365,9 +8913,9 @@ export default function ChoNeoGossipPage() {
           .mobile-table-card strong {
             display: block;
             min-width: 0;
-            color: #fff7ed;
+            color: var(--cho-neo-text-primary);
             font-size: 14px;
-            font-weight: 950;
+            font-weight: 600;
             line-height: 1.08;
             overflow-wrap: anywhere;
           }
@@ -7377,7 +8925,7 @@ export default function ChoNeoGossipPage() {
             margin-top: 2px;
             color: rgba(253, 230, 138, 0.72);
             font-size: 10px;
-            font-weight: 900;
+            font-weight: 600;
           }
 
           .mobile-table-card small {
@@ -7385,17 +8933,17 @@ export default function ChoNeoGossipPage() {
             overflow: hidden;
             color: rgba(255, 247, 237, 0.68);
             font-size: 11px;
-            font-weight: 800;
+            font-weight: 600;
             line-height: 1.25;
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
           }
 
           .mobile-table-card em {
-            color: #fde68a;
+            color: var(--cho-neo-text-accent);
             font-size: 10px;
             font-style: normal;
-            font-weight: 950;
+            font-weight: 600;
           }
 
           .room-scene::before {
@@ -7426,7 +8974,7 @@ export default function ChoNeoGossipPage() {
           }
 
           .gossip-room-stage {
-            min-height: 300px;
+            min-height: auto;
             border-radius: 24px;
           }
 
@@ -7437,22 +8985,46 @@ export default function ChoNeoGossipPage() {
           .table-detail:has(.detail-panel-trend-table) {
             width: 100%;
             margin-top: 36px;
-          }
-
-          .detail-panel-trend-table {
             padding: 14px;
             border-radius: 24px;
           }
 
+          .detail-panel-trend-table {
+            padding: 0;
+            border-radius: 0;
+          }
+
+          .detail-panel-trend-table .compact-table-header {
+            align-items: center;
+            gap: 8px;
+          }
+
+          .detail-panel-trend-table .compact-table-back,
+          .detail-panel-trend-table .compact-table-enter,
+          .detail-panel-trend-table .compact-table-count {
+            min-height: 44px;
+            padding: 7px 10px;
+            font-size: 11px;
+          }
+
+          .detail-panel-trend-table .compact-table-count {
+            margin-left: 0;
+            max-width: 100%;
+          }
+
           .detail-panel-trend-table .detail-heading {
             display: grid;
-            gap: 4px;
+            gap: 3px;
+          }
+
+          .detail-panel-trend-table .detail-heading h2 {
+            font-size: clamp(25px, 7.2vw, 30px);
           }
 
           .trend-table-subtitle {
-            margin-top: 8px;
+            margin-top: 6px;
             font-size: 12px;
-            line-height: 1.42;
+            line-height: 1.4;
           }
 
           .trend-table-stage {
@@ -7480,11 +9052,6 @@ export default function ChoNeoGossipPage() {
           .trend-table-topic-chip > span {
             width: 14px;
             height: 14px;
-          }
-
-          .trend-table-topic-chip small,
-          .trend-table-value-note {
-            display: none;
           }
 
           .trend-table-topic-chips {
@@ -7519,27 +9086,15 @@ export default function ChoNeoGossipPage() {
             margin-top: 8px;
           }
 
-          .local-table-heading {
-            display: grid;
-            gap: 8px;
-          }
-
           .local-table-heading p {
             margin-bottom: 2px;
             font-size: 10px;
-            letter-spacing: 0.11em;
+            letter-spacing: 0.02em;
           }
 
           .local-table-heading h2 {
             font-size: clamp(28px, 9vw, 38px);
             line-height: 0.98;
-          }
-
-          .local-table-heading strong {
-            justify-self: start;
-            min-height: 34px;
-            padding: 7px 10px;
-            font-size: 11px;
           }
 
           .local-table-subtitle {
@@ -7610,13 +9165,13 @@ export default function ChoNeoGossipPage() {
           .detail-panel-trend-table .character-count {
             justify-self: start;
             margin-top: -4px;
-            color: rgba(255, 247, 237, 0.38);
+            color: rgba(92, 45, 24, 0.58);
             font-size: 10px;
-            font-weight: 750;
+            font-weight: 600;
           }
 
           .detail-panel-trend-table .character-count span {
-            color: rgba(255, 247, 237, 0.3);
+            color: rgba(92, 45, 24, 0.42);
           }
 
           .front-counter-count-pill {
@@ -7629,10 +9184,10 @@ export default function ChoNeoGossipPage() {
             padding: 6px 8px;
             border: 1px solid rgba(253, 230, 138, 0.18);
             border-radius: 999px;
-            color: #fde68a;
+            color: var(--cho-neo-text-accent);
             background: rgba(253, 230, 138, 0.08);
             font-size: 9px;
-            font-weight: 950;
+            font-weight: 600;
             line-height: 1.05;
             text-align: center;
           }
@@ -7642,33 +9197,12 @@ export default function ChoNeoGossipPage() {
             margin-top: 2px;
             color: rgba(255, 247, 237, 0.6);
             font-size: 0.78em;
-            font-weight: 850;
+            font-weight: 600;
           }
 
           .table-detail:has(.detail-panel-front-counter) {
             width: 100%;
             margin-top: 0;
-          }
-
-          .cafe-page:has(.detail-panel-front-counter) .cafe-stage-controls {
-            display: grid;
-            gap: 8px;
-            margin: 8px 2px 10px;
-          }
-
-          .cafe-page:has(.detail-panel-front-counter) .cafe-control-row {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            width: 100%;
-            gap: 7px;
-          }
-
-          .cafe-page:has(.detail-panel-front-counter) .cafe-control-pill {
-            width: 100%;
-            min-height: 38px;
-            padding: 6px 7px;
-            font-size: 10px;
-            text-align: center;
           }
 
           .cafe-page:has(.detail-panel-front-counter) .front-counter-topic-note {
@@ -7742,27 +9276,33 @@ export default function ChoNeoGossipPage() {
             display: none;
           }
 
+          .front-counter-artwork-frame {
+            min-height: clamp(210px, 36svh, 310px);
+            border-radius: 24px;
+          }
+
+          .front-counter-artwork-surface {
+            width: min(100%, calc(clamp(210px, 36svh, 310px) * 1.499));
+            border-radius: 23px;
+          }
+
           .front-counter-focused-image {
-            position: relative;
-            inset: auto;
+            position: absolute;
+            inset: 0;
             z-index: 0;
             width: 100%;
-            height: auto;
-            min-height: clamp(200px, 36svh, 310px);
-            border: 1px solid rgba(253, 230, 138, 0.2);
-            border-radius: 24px;
-            background: #1f1412;
-            object-fit: contain;
+            height: 100%;
+            min-height: 0;
+            object-fit: cover;
             object-position: center;
             transform: none;
-            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
           }
 
           .front-counter-stage-bubbles {
             position: relative;
             inset: auto;
             z-index: 0;
-            order: 3;
+            order: 2;
             transform: none;
             grid-template-columns: 1fr;
             justify-items: stretch;
@@ -7781,6 +9321,10 @@ export default function ChoNeoGossipPage() {
 
           .front-counter-stage-bubble:nth-last-child(n+3) {
             display: none;
+          }
+
+          .shop-talk-stage-feed .front-counter-stage-bubble:nth-last-child(n+3) {
+            display: grid;
           }
 
           .front-counter-stage-bubble-right {
@@ -7812,23 +9356,24 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-bubble-controls button {
-            min-height: 22px;
-            padding: 4px 6px;
-            font-size: 8px;
+            min-height: 34px;
+            padding: 6px 11px;
+            font-size: 13px;
           }
 
           .front-counter-stage-form {
             position: relative;
             z-index: 0;
             inset: auto;
-            order: 2;
+            order: 3;
             grid-template-columns: 1fr;
             gap: 6px;
             margin-top: 0;
-            padding: 11px;
+            padding: 15px;
             border-radius: 20px;
+            border-color: #c7bab1;
             background:
-              linear-gradient(180deg, rgba(83, 47, 31, 0.86), rgba(45, 26, 21, 0.82));
+              linear-gradient(180deg, #fffefc, #fbf2ec);
           }
 
           .front-counter-stage-message-row {
@@ -7848,16 +9393,16 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-stage-message-row input {
-            min-height: 40px;
+            min-height: 48px;
             padding: 10px 12px;
             font-size: 16px;
           }
 
           .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
             min-width: 0;
-            min-height: 40px;
-            padding: 8px 9px;
-            font-size: 11px;
+            min-height: 48px;
+            padding: 10px 12px;
+            font-size: 14px;
           }
 
           .gossip-image-lobby .table-hotspot {
@@ -8096,24 +9641,28 @@ export default function ChoNeoGossipPage() {
 
           .composer-avatar-passport {
             width: 100%;
-            min-height: 44px;
-            padding: 6px 12px 6px 7px;
-            border-radius: 18px;
+            min-height: 38px;
+            padding: 5px 10px 5px 6px;
+            border-radius: 16px;
           }
 
           .composer-avatar-passport img,
           .composer-avatar-placeholder {
-            width: 34px;
-            height: 34px;
+            width: 28px;
+            height: 28px;
           }
 
           .composer-avatar-passport strong {
             min-width: 0;
-            font-size: 12px;
+            font-size: 11px;
           }
 
           .composer-avatar-passport small {
-            font-size: 10px;
+            font-size: 9px;
+          }
+
+          .composer-avatar-action {
+            font-size: 9px;
           }
 
           .thread-message {
@@ -8129,6 +9678,124 @@ export default function ChoNeoGossipPage() {
           }
         }
 
+        @media (max-width: 640px) {
+          .local-table-heading h2 {
+            font-size: clamp(28px, 8.5vw, 32px);
+            line-height: 1;
+          }
+
+          .detail-panel-trend-table .detail-heading h2 {
+            font-size: clamp(24px, 7vw, 30px);
+            line-height: 1;
+          }
+
+          .local-table-subtitle {
+            font-size: 16px;
+            line-height: 1.42;
+          }
+
+          .trend-table-subtitle {
+            font-size: 12px;
+            line-height: 1.4;
+          }
+
+          .table-note-form label,
+          .front-counter-stage-form label {
+            font-size: 18px;
+            line-height: 1.2;
+          }
+
+          .mock-thread,
+          .conversation-form,
+          .local-table-prompts,
+          .local-table-thread,
+          .table-light-rules {
+            border-radius: 18px;
+          }
+
+          .mock-thread,
+          .conversation-form {
+            gap: 9px;
+            margin-top: 12px;
+            padding: 12px;
+          }
+
+          .local-table-prompts,
+          .local-table-thread {
+            padding: 11px;
+          }
+
+          .thread-message,
+          .local-table-note {
+            padding: 10px 11px;
+          }
+
+          .message-row {
+            grid-template-columns: 1fr;
+            gap: 9px;
+          }
+
+          .message-row input {
+            min-height: 48px;
+            padding-inline: 14px;
+            font-size: 17px;
+          }
+
+          .message-row button {
+            width: 100%;
+            min-height: 48px;
+            font-size: 17px;
+          }
+
+          .message-row button span {
+            display: block;
+            margin-top: 2px;
+            font-size: 11px;
+          }
+
+          .detail-panel-trend-table .message-row {
+            grid-template-columns: minmax(0, 1fr) 48px;
+          }
+
+          .detail-panel-trend-table .message-row button {
+            width: 48px;
+            min-width: 48px;
+            min-height: 48px;
+            padding-inline: 0;
+          }
+
+          .front-counter-stage-message-row {
+            grid-template-columns: 42px minmax(0, 1fr);
+          }
+
+          .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
+            grid-column: 1 / -1;
+            width: 100%;
+            min-height: 48px;
+            font-size: 17px;
+          }
+
+          .front-counter-stage-message-row input {
+            min-height: 48px;
+            font-size: 17px;
+          }
+
+          .front-counter-stage-safety,
+          .table-safety-line {
+            font-size: 14px;
+          }
+
+          .front-counter-stage-safety span,
+          .table-safety-line span {
+            font-size: 13px;
+          }
+
+          .table-host-nudge {
+            margin-bottom: 10px;
+            padding: 9px 10px;
+          }
+        }
+
         @media (max-width: 380px) {
           .message-row {
             grid-template-columns: 1fr;
@@ -8136,6 +9803,14 @@ export default function ChoNeoGossipPage() {
 
           .message-row button {
             width: 100%;
+          }
+
+          .detail-panel-trend-table .message-row {
+            grid-template-columns: minmax(0, 1fr) 48px;
+          }
+
+          .detail-panel-trend-table .message-row button {
+            width: 48px;
           }
         }
       `}</style>

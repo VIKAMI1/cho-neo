@@ -1,23 +1,23 @@
 import { Suspense } from "react";
 import LoginClient from "./LoginClient";
 
-function LoginFallback() {
+export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-[#fbf7ef] text-zinc-900">
-      <div className="mx-auto max-w-sm px-4 py-12">
-        <div className="rounded-2xl border border-zinc-200 bg-white/85 shadow-sm p-6">
-          <h1 className="text-xl font-semibold">Sign in</h1>
-          <p className="mt-1 text-sm text-zinc-600">Loading sign in…</p>
-        </div>
-      </div>
-    </main>
+    <Suspense fallback={<ChoNeoLoginLoading />}>
+      <LoginClient />
+    </Suspense>
   );
 }
 
-export default function LoginPage() {
+function ChoNeoLoginLoading() {
   return (
-    <Suspense fallback={<LoginFallback />}>
-      <LoginClient />
-    </Suspense>
+    <main className="min-h-screen bg-[#12080f] text-[#fff1cf]">
+      <div className="mx-auto grid min-h-screen max-w-md place-items-center px-4">
+        <section className="w-full rounded-2xl border border-[#d8a95d66] bg-[#24101a] p-6 shadow-2xl">
+          <h1 className="text-xl font-semibold">Vào Chợ Neo</h1>
+          <p className="mt-2 text-sm text-[#e8cf9d]">Đang mở cổng Chợ Neo...</p>
+        </section>
+      </div>
+    </main>
   );
 }
