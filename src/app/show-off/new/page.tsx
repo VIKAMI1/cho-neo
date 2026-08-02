@@ -1,6 +1,5 @@
-// src/app/show-off/new/page.tsx
-import ShowOffUploaderClient from "./ShowOffUploaderClient";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <ShowOffUploaderClient />;
+export default function ShowOffNewCompatibilityPage() {
+  redirect("/cho-neo/show-off");
 }
