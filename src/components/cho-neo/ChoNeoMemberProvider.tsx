@@ -5,17 +5,15 @@ import {
   CHO_NEO_MEMBER_PROFILE_TABLE,
   CHO_NEO_MEMBER_OPEN_EVENT,
   CHO_NEO_MEMBER_PROFILE_EVENT,
-  CHO_NEO_NAIL_ROLES,
-  isChoNeoNailRole,
   isVerifiedChoNeoMemberProfile,
   mapChoNeoMemberProfileRow,
   resolveChoNeoMemberAvatarKey,
   validateChoNeoMemberDisplayName,
-  type ChoNeoNailRole,
   type ChoNeoMemberProfile,
 } from "@/lib/cho-neo/member-identity";
 import { CHO_NEO_AVATARS } from "@/lib/cho-neo/avatar-identity";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import Link from "next/link";
 import {
   createContext,
   useCallback,
@@ -149,29 +147,6 @@ export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
     [profile, session],
   );
 
-  const completeMembership = useCallback(
-    async (nextProfile: ChoNeoMemberProfile, nextSession: Session) => {
-      setSession(nextSession);
-      setProfile(nextProfile);
-      setStatus("ready");
-      setIsMemberVerificationOpen(false);
-      forgetPendingMemberAction();
-      window.dispatchEvent(
-        new CustomEvent(CHO_NEO_MEMBER_PROFILE_EVENT, {
-          detail: nextProfile,
-        }),
-      );
-
-      if (pendingActionRef.current && !hasResumedRef.current) {
-        hasResumedRef.current = true;
-        const action = pendingActionRef.current;
-        pendingActionRef.current = null;
-        await action();
-      }
-    },
-    [],
-  );
-
   const value = useMemo(
     () => ({
       ensureChoNeoMember,
@@ -188,11 +163,9 @@ export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
     <ChoNeoMemberContext.Provider value={value}>
       {children}
       <ChoNeoMemberVerificationModal
-        onComplete={completeMembership}
         onClose={() => setIsMemberVerificationOpen(false)}
         open={isMemberVerificationOpen}
         profile={profile}
-        supabase={supabase}
       />
       <ChoNeoMemberProfileSheet
         onClose={() => setIsProfileOpen(false)}
@@ -221,107 +194,11 @@ async function loadChoNeoMemberProfile(
   return mapChoNeoMemberProfileRow(data);
 }
 
-function ChoNeoMemberVerificationModal({
-  onClose,
-  onComplete,
-  open,
-  profile,
-  supabase,
-}: {
+function ChoNeoMemberVerificationModal({ onClose, open, profile }: {
   onClose: () => void;
-  onComplete: (profile: ChoNeoMemberProfile, session: Session) => Promise<void>;
   open: boolean;
   profile: ChoNeoMemberProfile | null;
-  supabase: SupabaseClient;
 }) {
-  const [nickname, setNickname] = useState("");
-  const [avatarKey, setAvatarKey] = useState(CHO_NEO_AVATARS[0].id);
-  const [invitationCode, setInvitationCode] = useState("");
-  const [nailRole, setNailRole] =
-    useState<ChoNeoNailRole>("nail_technician");
-  const [status, setStatus] = useState<"idle" | "saving" | "error">("idle");
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    if (getLocalMemberMock() === "invalid-invitation") {
-      setStatus("error");
-      setMessage("Lời mời chưa đúng. Kiểm tra lại giúp Chợ Neo nha.");
-      return;
-    }
-
-    if (!open) return;
-    setStatus("idle");
-    setMessage("");
-    setInvitationCode("");
-  }, [open]);
-
-  async function submit() {
-    const validation = validateChoNeoMemberDisplayName(nickname);
-    if (validation.ok === false) {
-      setStatus("error");
-      setMessage(validation.message);
-      return;
-    }
-
-    setStatus("saving");
-    setMessage("");
-
-    try {
-      const existingSessionResult = await supabase.auth.getSession();
-      const activeSession = existingSessionResult.data.session ?? null;
-
-      if (!activeSession?.user) {
-        window.location.assign("/login?next=/cho-neo");
-        return;
-      }
-
-      if (!invitationCode.trim()) {
-        setStatus("error");
-        setMessage("Nhập lời mời Chợ Neo để hoàn tất thành viên.");
-        return;
-      }
-
-      if (!isChoNeoNailRole(nailRole)) {
-        setStatus("error");
-        setMessage("Chọn vai trò trong ngành nail.");
-        return;
-      }
-
-      const response = await fetch("/api/cho-neo/member/verify", {
-        body: JSON.stringify({
-          avatarKey: resolveChoNeoMemberAvatarKey(avatarKey),
-          displayName: validation.displayName,
-          invitationCode,
-          nailRole,
-        }),
-        headers: {
-          Authorization: `Bearer ${activeSession.access_token}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      });
-
-      const payload = await response.json().catch(() => null);
-
-      if (!response.ok || !payload?.profile) {
-        setStatus("error");
-        setMessage(
-          payload?.error ??
-            "Lời mời chưa dùng được. Kiểm tra lại rồi thử một nhịp nha.",
-        );
-        return;
-      }
-
-      await onComplete(
-        mapChoNeoMemberProfileRow(payload.profile),
-        activeSession,
-      );
-    } catch {
-      setStatus("error");
-      setMessage("Chưa xác nhận được thành viên. Thử lại một nhịp nha.");
-    }
-  }
-
   if (!open) return null;
 
   const isRestricted =
@@ -362,7 +239,7 @@ function ChoNeoMemberVerificationModal({
   return (
     <div aria-modal="true" className="cho-neo-member-overlay" role="dialog">
       <button
-        aria-label="Đóng xác nhận thành viên"
+        aria-label="Đóng lời mời riêng"
         className="cho-neo-member-backdrop"
         onClick={onClose}
         type="button"
@@ -370,86 +247,18 @@ function ChoNeoMemberVerificationModal({
       <section className="cho-neo-member-card">
         <header>
           <div>
-            <h2>Xác nhận người trong nghề</h2>
+            <h2>Chợ Neo mở theo lời mời riêng</h2>
             <p>
-              Chợ Neo dành cho người làm trong ngành nail. Nhập lời mời để hoàn
-              tất thành viên.
+              Mở liên kết riêng bạn nhận được để tạo tên hiển thị và bước vào chợ.
             </p>
           </div>
           <button aria-label="Đóng" onClick={onClose} type="button">
             ×
           </button>
         </header>
-        <label className="cho-neo-member-field">
-          <span>Lời mời Chợ Neo</span>
-          <input
-            autoComplete="one-time-code"
-            onChange={(event) => setInvitationCode(event.target.value)}
-            placeholder="Nhập mã lời mời"
-            value={invitationCode}
-          />
-        </label>
-        <label className="cho-neo-member-field">
-          <span>Vai trò trong ngành nail</span>
-          <select
-            onChange={(event) =>
-              setNailRole(
-                isChoNeoNailRole(event.target.value)
-                  ? event.target.value
-                  : "nail_technician",
-              )
-            }
-            value={nailRole}
-          >
-            {CHO_NEO_NAIL_ROLES.map((role) => (
-              <option key={role} value={role}>
-                {getNailRoleLabel(role)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="cho-neo-member-field">
-          <span>Nickname Chợ Neo</span>
-          <input
-            maxLength={24}
-            onChange={(event) => setNickname(event.target.value)}
-            placeholder="Ví dụ: Mai Calgary"
-            value={nickname}
-          />
-        </label>
-        <fieldset className="cho-neo-member-avatars">
-          <legend>Chọn avatar nếu muốn</legend>
-          <div>
-            {CHO_NEO_AVATARS.slice(0, 8).map((avatar) => (
-              <button
-                aria-pressed={avatarKey === avatar.id}
-                className={avatarKey === avatar.id ? "selected" : ""}
-                key={avatar.id}
-                onClick={() => setAvatarKey(avatar.id)}
-                type="button"
-              >
-                <span aria-hidden="true">{avatar.emoji}</span>
-                <small>{avatar.name}</small>
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <p className="cho-neo-member-note">
-          Bạn chỉ cần làm bước này một lần.
-        </p>
-        {message ? (
-          <p className="cho-neo-member-message" role={status === "error" ? "alert" : "status"}>
-            {message}
-          </p>
-        ) : null}
-        <button
-          className="cho-neo-member-primary"
-          disabled={status === "saving"}
-          onClick={submit}
-          type="button"
-        >
-          {status === "saving" ? "Đang xác nhận..." : "Vào Chợ"}
-        </button>
+        <Link className="cho-neo-member-primary" href="/join">
+          Mở lời mời
+        </Link>
       </section>
       <ChoNeoMemberStyles />
     </div>
@@ -593,23 +402,6 @@ function ChoNeoMemberProfileSheet({
       <ChoNeoMemberStyles />
     </div>
   );
-}
-
-function getNailRoleLabel(role: ChoNeoNailRole) {
-  switch (role) {
-    case "nail_technician":
-      return "Thợ nail";
-    case "salon_owner":
-      return "Chủ tiệm";
-    case "nail_student":
-      return "Người học nghề";
-    case "supplier":
-      return "Nhà cung cấp";
-    case "educator":
-      return "Người dạy nghề";
-    case "other_industry":
-      return "Vai trò khác trong ngành";
-  }
 }
 
 function getLocalMemberMock() {

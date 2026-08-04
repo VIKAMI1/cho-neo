@@ -187,7 +187,7 @@ test("repair migration removes legacy Guest Pass profile requirements", () => {
 test("controlled routes derive identity from the verified Supabase session", () => {
   assert.match(verifyRoute, /auth\.getUser\(token\)/);
   assert.match(verifyRoute, /data\.user\.is_anonymous/);
-  assert.match(verifyRoute, /p_user_id: userId/);
+  assert.match(verifyRoute, /p_user_id: authenticatedUser\.id/);
   assert.doesNotMatch(verifyRoute, /body\?\.userId|body\?\.authorUserId/);
   assert.match(verifyRoute, /invitation-rate-limited/);
 });

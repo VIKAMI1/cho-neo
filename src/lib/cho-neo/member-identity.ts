@@ -8,6 +8,7 @@ export const CHO_NEO_MEMBER_PROFILE_TABLE = "cho_neo_member_profiles";
 export const CHO_NEO_MEMBER_INVITATION_TABLE = "cho_neo_member_invitations";
 export const CHO_NEO_MEMBER_PROFILE_EVENT = "cho-neo:member-identity-profile";
 export const CHO_NEO_MEMBER_OPEN_EVENT = "cho-neo:member-identity-open";
+export const CHO_NEO_AGREEMENT_VERSION = "cho-neo-user-agreement-v1";
 export const CHO_NEO_MEMBER_NICKNAME_MIN_LENGTH = 2;
 export const CHO_NEO_MEMBER_NICKNAME_MAX_LENGTH = 24;
 
@@ -33,6 +34,8 @@ export type ChoNeoMembershipStatus =
   (typeof CHO_NEO_MEMBERSHIP_STATUSES)[number];
 
 export type ChoNeoMemberProfile = {
+  agreementAcceptedAt?: string | null;
+  agreementVersion?: string | null;
   avatarKey: string | null;
   avatar: ChoNeoAvatar;
   displayName: string;
@@ -146,6 +149,8 @@ export function isVerifiedChoNeoMemberProfile(
 }
 
 export function mapChoNeoMemberProfileRow(row: {
+  agreement_accepted_at?: string | null;
+  agreement_version?: string | null;
   avatar_key: string | null;
   display_name: string;
   nail_role?: ChoNeoNailRole | null;
@@ -159,6 +164,8 @@ export function mapChoNeoMemberProfileRow(row: {
     : null;
 
   return {
+    agreementAcceptedAt: row.agreement_accepted_at ?? null,
+    agreementVersion: row.agreement_version ?? null,
     avatar: getAvatarById(avatarKey ?? CHO_NEO_AVATARS[0].id),
     avatarKey,
     displayName: row.display_name,

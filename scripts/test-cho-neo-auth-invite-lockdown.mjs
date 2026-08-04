@@ -15,10 +15,20 @@ const providerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoMemberProvider.tsx",
 );
+const joinPath = path.join(repoRoot, "src/app/join/JoinClient.tsx");
+const privateInvitationMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260803100000_cho_neo_private_invitation_onboarding_v1.sql",
+);
 
 const inviteRoute = fs.readFileSync(inviteRoutePath, "utf8");
 const memberVerifyRoute = fs.readFileSync(memberVerifyRoutePath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
+const join = fs.readFileSync(joinPath, "utf8");
+const privateInvitationMigration = fs.readFileSync(
+  privateInvitationMigrationPath,
+  "utf8",
+);
 const trackedFiles = execFileSync("git", ["ls-files", "-z"], {
   cwd: repoRoot,
 })
@@ -57,13 +67,15 @@ test("no tracked UI, route, script, test, or documentation calls /auth/invite", 
   assert.deepEqual(callSiteFiles, []);
 });
 
-test("membership invitation-code redemption remains the only approved invite path", () => {
-  assert.match(provider, /fetch\("\/api\/cho-neo\/member\/verify"/);
-  assert.match(provider, /invitationCode/);
+test("private invitation-link redemption remains the only approved invite path", () => {
+  assert.match(join, /fetch\("\/api\/cho-neo\/member\/verify"/);
+  assert.match(join, /invitationToken/);
   assert.match(memberVerifyRoute, /auth\.getUser\(token\)/);
   assert.match(memberVerifyRoute, /data\.user\.is_anonymous/);
-  assert.match(memberVerifyRoute, /hashChoNeoInvitationCode\(invitationCode\)/);
-  assert.match(memberVerifyRoute, /redeem_cho_neo_member_invitation/);
+  assert.match(memberVerifyRoute, /hashChoNeoInvitationToken\(invitationToken\)/);
+  assert.match(memberVerifyRoute, /redeem_cho_neo_private_invitation/);
+  assert.match(privateInvitationMigration, /redeem_cho_neo_private_invitation/);
   assert.match(memberVerifyRoute, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(memberVerifyRoute, /inviteUserByEmail|auth\.admin/);
+  assert.doesNotMatch(provider, /invitationCode|<select/);
 });

@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import LoginClient from "@/app/login/LoginClient";
+import PrivateInvitationEntry from "@/app/login/PrivateInvitationEntry";
 
 export default function AccountLoginPage() {
-  return (
-    <Suspense fallback={<main className="min-h-screen bg-[#fbf7ef]" />}>
-      <LoginClient />
-    </Suspense>
-  );
+  return <PrivateInvitationEntry />;
 }

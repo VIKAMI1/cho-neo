@@ -18,6 +18,13 @@ const usageMigration = fs.readFileSync(
   path.join(migrationDir, "20260801100000_cho_neo_openai_usage_reservations.sql"),
   "utf8",
 );
+const privateInvitationMigration = fs.readFileSync(
+  path.join(
+    migrationDir,
+    "20260803100000_cho_neo_private_invitation_onboarding_v1.sql",
+  ),
+  "utf8",
+);
 
 const sensitiveFunctions = [
   ["redeem_cho_neo_member_invitation", "text, uuid, text, text, text, text"],
@@ -28,26 +35,36 @@ const sensitiveFunctions = [
   ],
   ["finalize_cho_neo_openai_usage", "uuid, boolean, integer"],
 ];
+const additionalSensitiveFunctions = [
+  [
+    "redeem_cho_neo_private_invitation",
+    "text, uuid, text, text, text, text",
+    privateInvitationMigration,
+  ],
+];
 
-function functionSql(name) {
-  const start = hardening.indexOf(`create or replace function public.${name}`);
+function functionSql(name, source = hardening) {
+  const start = source.indexOf(`create or replace function public.${name}`);
   assert.notEqual(start, -1, `${name} must be replaced by the hardening migration`);
-  const end = hardening.indexOf("$$;", start);
+  const end = source.indexOf("$$;", start);
   assert.notEqual(end, -1, `${name} must have a complete function body`);
-  return hardening.slice(start, end + 3);
+  return source.slice(start, end + 3);
 }
 
-function aclSql(name) {
-  const start = hardening.indexOf(`revoke all on function public.${name}`);
+function aclSql(name, source = hardening) {
+  const start = source.indexOf(`revoke all on function public.${name}`);
   assert.notEqual(start, -1, `${name} must have explicit ACL hardening`);
-  const end = hardening.indexOf("grant execute", start);
+  const end = source.indexOf("grant execute", start);
   assert.notEqual(end, -1, `${name} must grant the server role explicitly`);
-  return hardening.slice(start, hardening.indexOf(";", end) + 1);
+  return source.slice(start, source.indexOf(";", end) + 1);
 }
 
 test("every sensitive SECURITY DEFINER RPC revokes PUBLIC and grants only service_role", () => {
-  for (const [name, signature] of sensitiveFunctions) {
-    const acl = aclSql(name);
+  for (const [name, signature, source] of [
+    ...sensitiveFunctions.map(([rpcName, rpcSignature]) => [rpcName, rpcSignature, hardening]),
+    ...additionalSensitiveFunctions,
+  ]) {
+    const acl = aclSql(name, source);
     const signaturePattern = signature.replaceAll(", ", "\\s*,\\s*");
     assert.match(
       acl,
@@ -153,7 +170,12 @@ test("repository SECURITY DEFINER inventory is fully covered by this hardening m
 
   assert.deepEqual(
     [...securityDefinerFunctions].sort(),
-    sensitiveFunctions.map(([name]) => name).sort(),
+    [...sensitiveFunctions, ...additionalSensitiveFunctions]
+      .map(([name]) => name)
+      .sort(),
   );
   for (const [name] of sensitiveFunctions) assert.match(hardening, new RegExp(`public\\.${name}`));
+  for (const [name] of additionalSensitiveFunctions) {
+    assert.match(privateInvitationMigration, new RegExp(`public\\.${name}`));
+  }
 });
