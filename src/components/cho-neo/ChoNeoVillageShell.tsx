@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ChoNeoBetaFeedback } from "./ChoNeoBetaFeedback";
 import { ChoNeoMemberHeaderControl } from "./ChoNeoMemberHeaderControl";
@@ -25,12 +26,22 @@ export function ChoNeoVillageShell() {
       <section className="village-device" aria-labelledby="cho-neo-title">
         <header className="village-topbar">
           <div className="village-brand">
-            <div className="village-brand-mark">
+            <Link
+              aria-label="Về trang chính Chợ Neo"
+              className="village-brand-mark"
+              href="/cho-neo"
+            >
               <p>Chợ Neo</p>
               <span aria-hidden="true" className="village-brand-seal">
-                市
+                <Image
+                  alt=""
+                  height={34}
+                  priority
+                  src="/images/cho-neo/cho-neo-verified-seal.svg"
+                  width={34}
+                />
               </span>
-            </div>
+            </Link>
             <small>Chuyện nghề, chuyện đời, chuyện mình.</small>
             <a className="village-guide-link" href="#cho-neo-village-guide">
               Hướng dẫn làng
@@ -246,6 +257,15 @@ export function ChoNeoVillageShell() {
           align-items: center;
           gap: 9px;
           min-width: 0;
+          width: fit-content;
+          color: inherit;
+          text-decoration: none;
+        }
+
+        .village-brand-mark:focus-visible {
+          border-radius: 10px;
+          outline: 2px solid rgba(248, 211, 145, 0.78);
+          outline-offset: 4px;
         }
 
         .village-brand p {
@@ -264,16 +284,41 @@ export function ChoNeoVillageShell() {
           display: grid;
           flex: 0 0 auto;
           place-items: center;
-          width: 30px;
-          height: 30px;
-          border: 1px solid rgba(255, 48, 48, 0.84);
-          border-radius: 7px;
-          color: #ff3b30;
-          background: rgba(32, 0, 0, 0.38);
-          font-size: 21px;
-          font-weight: 600;
-          line-height: 1;
-          text-shadow: 0 0 14px rgba(255, 59, 48, 0.26);
+          width: 34px;
+          height: 34px;
+          overflow: hidden;
+          border: 1px solid rgba(248, 211, 145, 0.72);
+          border-radius: 9px;
+          background: linear-gradient(
+            145deg,
+            rgba(255, 250, 239, 0.98),
+            rgba(239, 211, 158, 0.94)
+          );
+          box-shadow:
+            0 6px 16px rgba(0, 0, 0, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.78),
+            0 0 0 1px rgba(126, 39, 38, 0.22);
+          transition:
+            transform 160ms ease,
+            border-color 160ms ease,
+            box-shadow 160ms ease;
+        }
+
+        .village-brand-seal img {
+          display: block;
+          width: 76%;
+          height: 76%;
+          object-fit: contain;
+        }
+
+        .village-brand-mark:hover .village-brand-seal,
+        .village-brand-mark:focus-visible .village-brand-seal {
+          transform: translateY(-1px);
+          border-color: rgba(248, 211, 145, 0.96);
+          box-shadow:
+            0 8px 20px rgba(0, 0, 0, 0.34),
+            inset 0 1px 0 rgba(255, 255, 255, 0.86),
+            0 0 0 1px rgba(126, 39, 38, 0.28);
         }
 
         .village-brand small {
@@ -1461,6 +1506,12 @@ export function ChoNeoVillageShell() {
 
           .village-brand p {
             font-size: clamp(30px, 10vw, 38px);
+          }
+
+          .village-brand-seal {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
           }
 
           .village-brand small {
