@@ -37,7 +37,7 @@ export function ChoNeoMemberHeaderControl() {
       </span>
       <span>
         <strong>Vào Chợ</strong>
-        <small>Lời mời riêng</small>
+        <small>Member</small>
       </span>
     </button>
   );

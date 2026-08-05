@@ -6,99 +6,107 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 export const CHO_NEO_OAUTH_SCOPES = {
-  facebook: "public_profile email",
   google: "openid email profile",
 } as const;
 
 export default function LoginClient() {
   const supabase = useMemo(() => createClient(), []);
   const search = useSearchParams();
-  const [busyProvider, setBusyProvider] = useState<"google" | "facebook" | null>(
-    null,
-  );
+  const [busyProvider, setBusyProvider] = useState<"google" | null>(null);
   const [message, setMessage] = useState("");
 
   const googleEnabled =
-    process.env.NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED === "true";
-  const facebookEnabled =
-    process.env.NEXT_PUBLIC_CHO_NEO_FACEBOOK_LOGIN_ENABLED === "true";
+    process.env.NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED !== "false";
 
   const next = getSafeReturnTo(search.get("next"));
 
-  async function startOAuth(provider: "google" | "facebook") {
-    setBusyProvider(provider);
+  async function startGoogle() {
+    setBusyProvider("google");
     setMessage("");
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-      next,
-    )}`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo,
-        scopes: CHO_NEO_OAUTH_SCOPES[provider],
-      },
-    });
+    try {
+      const openRegistrationNext = `/join?open=1&next=${encodeURIComponent(next)}`;
+      const errorNext = `/login?next=${encodeURIComponent(next)}`;
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+        openRegistrationNext,
+      )}&error_next=${encodeURIComponent(errorNext)}`;
+      const session = (await supabase.auth.getSession()).data.session;
+      const result = session?.user?.is_anonymous
+        ? await supabase.auth.linkIdentity({
+            provider: "google",
+            options: { redirectTo, scopes: CHO_NEO_OAUTH_SCOPES.google },
+          })
+        : await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo,
+              scopes: CHO_NEO_OAUTH_SCOPES.google,
+            },
+          });
 
-    if (error) {
-      setMessage("Chưa mở được cổng đăng nhập. Thử lại giúp Chợ Neo nha.");
+      if (!result.error) return;
+      setMessage("Google chưa kết nối được với Chợ Neo. Thử lại hoặc liên hệ Chợ Neo nha.");
+    } catch {
+      setMessage("Google chưa kết nối được với Chợ Neo. Thử lại hoặc liên hệ Chợ Neo nha.");
+    } finally {
       setBusyProvider(null);
     }
   }
+
+  const authError = search.get("auth_error");
 
   return (
     <main className="cho-neo-login-page">
       <section className="cho-neo-login-card" aria-labelledby="cho-neo-login-title">
         <p className="cho-neo-login-kicker">Chợ Neo</p>
-        <h1 id="cho-neo-login-title">Vào Chợ Neo</h1>
+        <h1 id="cho-neo-login-title">Welcome to Chợ Neo</h1>
         <p className="cho-neo-login-copy">
-          Chợ Neo dành cho thợ nail, chủ tiệm, người học nghề và nhà cung cấp.
+          A warm place for people in the nail community to meet, share, and belong.
         </p>
 
-        {googleEnabled || facebookEnabled ? (
+        {googleEnabled ? (
           <div className="cho-neo-login-actions">
-            {googleEnabled ? (
-              <button
-                disabled={busyProvider !== null}
-                onClick={() => startOAuth("google")}
-                type="button"
-              >
-                {busyProvider === "google"
-                  ? "Đang mở Google..."
-                  : "Tiếp tục với Google"}
-              </button>
-            ) : null}
-          {facebookEnabled ? (
             <button
-              className="secondary"
               disabled={busyProvider !== null}
-              onClick={() => startOAuth("facebook")}
+              onClick={startGoogle}
               type="button"
             >
-              {busyProvider === "facebook"
-                ? "Đang mở Facebook..."
-                : "Tiếp tục với Facebook"}
+              {busyProvider === "google" ? "Opening Google..." : "Continue with Google"}
             </button>
-          ) : null}
           </div>
         ) : (
           <p className="cho-neo-login-message" role="status">
-            Cổng đăng nhập thành viên đang tạm đóng. Bạn vẫn có thể quay lại Chợ
-            Neo để xem các khu công khai.
+            Google sign-in is temporarily unavailable. You can still explore the public areas.
           </p>
         )}
 
         <p className="cho-neo-login-privacy">
-          Chợ Neo chỉ dùng thông tin đăng nhập cơ bản để nhận ra bạn. Không đăng
-          bài hay truy cập tài khoản mạng xã hội của bạn.
+          Google verifies your identity. Chợ Neo never sees your Google password.
         </p>
         {message ? (
           <p className="cho-neo-login-message" role="alert">
             {message}
           </p>
         ) : null}
+        {authError ? (
+          <p className="cho-neo-login-message" role="alert">
+            {authError === "cancelled"
+              ? "Google sign-in was cancelled. You can try again whenever you are ready."
+              : authError === "identity-conflict"
+                ? "That Google account is already connected to another Chợ Neo account. Please use that account or contact Chợ Neo support."
+                : "Google sign-in did not finish. Please try again."}
+          </p>
+        ) : null}
+        <nav aria-label="Chợ Neo policies" className="cho-neo-login-links">
+          <Link href={`/join?open=1&next=${encodeURIComponent(next)}#agreement`}>
+            User Agreement
+          </Link>
+          <Link href={`/join?open=1&next=${encodeURIComponent(next)}#privacy`}>
+            Privacy Policy
+          </Link>
+        </nav>
         <Link className="cho-neo-login-back" href={next}>
-          Trở lại Chợ Neo
+          Return to Chợ Neo
         </Link>
       </section>
       <style jsx>{`
@@ -139,6 +147,17 @@ export default function LoginClient() {
         .cho-neo-login-privacy,
         .cho-neo-login-message {
           margin: 0;
+        }
+
+        .cho-neo-login-links {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          font-size: 12px;
+        }
+
+        .cho-neo-login-links a {
+          color: var(--cho-neo-text-secondary);
         }
 
         .cho-neo-login-kicker {

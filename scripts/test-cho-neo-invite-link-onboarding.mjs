@@ -17,6 +17,10 @@ const verifyRoutePath = path.join(
   repoRoot,
   "src/app/api/cho-neo/member/verify/route.ts",
 );
+const bootstrapRoutePath = path.join(
+  repoRoot,
+  "src/app/api/cho-neo/member/bootstrap/route.ts",
+);
 const migrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260803100000_cho_neo_private_invitation_onboarding_v1.sql",
@@ -32,6 +36,7 @@ const loginClient = fs.readFileSync(loginClientPath, "utf8");
 const entry = fs.readFileSync(entryPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
+const bootstrapRoute = fs.readFileSync(bootstrapRoutePath, "utf8");
 const migration = fs.readFileSync(migrationPath, "utf8");
 const inviteScript = fs.readFileSync(inviteScriptPath, "utf8");
 
@@ -48,15 +53,16 @@ test("anonymous auth is created only when the device has no session", () => {
   assert.match(join, /supabase\.auth\.signInAnonymously\(\)/);
   assert.match(verifyRoute, /auth\.getUser\(token\)/);
   assert.match(verifyRoute, /isAnonymous: data\.user\.is_anonymous === true/);
-  assert.match(join, /if \(!session && token\)/);
+  assert.match(join, /if \(!session && activeInvitationToken\)/);
 });
 
-test("onboarding has no visible invitation code, role selector, password, or OAuth controls", () => {
-  assert.doesNotMatch(join, /Mã Lời Mời|Nhập mã|invitationCode|nailRole|<select|password|Google|Facebook/);
+test("open onboarding has no visible invitation code, role selector, or password", () => {
+  assert.match(join, /openRegistration/);
+  assert.doesNotMatch(join, /<select|password/);
   assert.doesNotMatch(entry, /Google|Facebook|signInWithOAuth/);
-  assert.doesNotMatch(loginPage, /LoginClient/);
+  assert.match(loginPage, /LoginClient/);
   assert.match(loginClient, /signInWithOAuth\(\{/);
-  assert.match(provider, /href="\/join"/);
+  assert.match(provider, /href="\/join\?open=1"/);
   assert.doesNotMatch(provider, /<select|Nhập mã lời mời|Vai trò trong ngành nail/);
 });
 
@@ -69,7 +75,7 @@ test("agreement acceptance is required and recorded with a fixed version", () =>
   assert.match(migration, /agreement_version text null/);
   assert.match(migration, /agreement_accepted_at timestamptz null/);
   assert.match(migration, /p_agreement_version is distinct from 'cho-neo-user-agreement-v1'/);
-  assert.match(join, /profile\.agreementVersion === CHO_NEO_AGREEMENT_VERSION/);
+  assert.match(join, /loadedProfile\.agreementVersion === CHO_NEO_AGREEMENT_VERSION/);
   assert.match(verifyRoute, /agreementNeedsAcceptance/);
 });
 
@@ -119,11 +125,13 @@ test("plain invitation tokens are not stored or emitted by server application lo
   assert.match(join, /clearInvitationToken\(\)/);
 });
 
-test("existing OAuth implementation remains dormant and isolated", () => {
+test("private invitation redemption remains available alongside open registration", () => {
   assert.match(loginClient, /signInWithOAuth\(\{/);
   assert.match(loginClient, /auth\/callback/);
-  assert.doesNotMatch(loginPage, /LoginClient/);
   assert.match(entry, /Mở lời mời/);
+  assert.match(join, /invitationToken/);
+  assert.match(join, /linkIdentity/);
+  assert.match(bootstrapRoute, /other_industry/);
 });
 
 test("verified members still load through the existing provider", () => {

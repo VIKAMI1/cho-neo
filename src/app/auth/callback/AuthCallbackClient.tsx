@@ -26,10 +26,24 @@ export default function AuthCallbackClient() {
     const supabase = createClient();
 
     const next = getSafeReturnTo(search.get("next"));
+    const errorNext = getSafeReturnTo(search.get("error_next"), "/login");
 
     const run = async () => {
       try {
         const url = new URL(window.location.href);
+        const providerError = url.searchParams.get("error");
+        if (providerError) {
+          const reason = classifyAuthError(
+            `${providerError} ${url.searchParams.get("error_description") ?? ""}`,
+          );
+          cleanCallbackUrl(url);
+          setMsg("Google sign-in did not finish. Returning to Chợ Neo…");
+          setTimeout(
+            () => router.replace(addAuthError(errorNext, reason)),
+            500,
+          );
+          return;
+        }
         const code = url.searchParams.get("code");
         const hasVisibleToken =
           url.hash.includes("access_token") ||
@@ -62,10 +76,8 @@ export default function AuthCallbackClient() {
         router.replace(next);
       } catch (e: any) {
         console.error("Auth callback failed:", e?.message ?? "unknown");
-        setMsg(
-          `Đăng nhập bị lỗi. Quay lại trang login thử lại nha. (${e?.message ?? "unknown"})`
-        );
-        setTimeout(() => router.replace(`/login?next=${encodeURIComponent(next)}`), 1200);
+        setMsg("Google sign-in did not finish. Returning to Chợ Neo…");
+        setTimeout(() => router.replace(addAuthError(errorNext, "failed")), 900);
       }
     };
 
@@ -86,9 +98,19 @@ function cleanCallbackUrl(url: URL) {
   window.history.replaceState({}, "", `${url.origin}${url.pathname}`);
 }
 
-export function getSafeReturnTo(value: string | null) {
-  if (!value) return "/cho-neo";
-  if (!value.startsWith("/") || value.startsWith("//")) return "/cho-neo";
-  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return "/cho-neo";
+export function getSafeReturnTo(value: string | null, fallback = "/cho-neo") {
+  if (!value) return fallback;
+  if (!value.startsWith("/") || value.startsWith("//")) return fallback;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return fallback;
   return value;
+}
+
+function classifyAuthError(value: string) {
+  if (value === "access_denied" || value === "user_cancelled") return "cancelled";
+  if (/already|exists|linked|identity/i.test(value)) return "identity-conflict";
+  return "failed";
+}
+
+function addAuthError(path: string, reason: string) {
+  return `${path}${path.includes("?") ? "&" : "?"}auth_error=${encodeURIComponent(reason)}`;
 }

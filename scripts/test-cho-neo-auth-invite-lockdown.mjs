@@ -67,8 +67,8 @@ test("no tracked UI, route, script, test, or documentation calls /auth/invite", 
   assert.deepEqual(callSiteFiles, []);
 });
 
-test("private invitation-link redemption remains the only approved invite path", () => {
-  assert.match(join, /fetch\("\/api\/cho-neo\/member\/verify"/);
+test("private invitation-link redemption remains the approved elevated-role path", () => {
+  assert.match(join, /\/api\/cho-neo\/member\/verify/);
   assert.match(join, /invitationToken/);
   assert.match(memberVerifyRoute, /auth\.getUser\(token\)/);
   assert.match(memberVerifyRoute, /data\.user\.is_anonymous/);
@@ -78,4 +78,6 @@ test("private invitation-link redemption remains the only approved invite path",
   assert.match(memberVerifyRoute, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(memberVerifyRoute, /inviteUserByEmail|auth\.admin/);
   assert.doesNotMatch(provider, /invitationCode|<select/);
+  assert.match(join, /openRegistration/);
+  assert.match(join, /linkIdentity/);
 });

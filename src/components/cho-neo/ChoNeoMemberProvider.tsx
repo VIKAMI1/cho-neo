@@ -245,19 +245,19 @@ function ChoNeoMemberVerificationModal({ onClose, open, profile }: {
         type="button"
       />
       <section className="cho-neo-member-card">
-        <header>
-          <div>
-            <h2>Chợ Neo mở theo lời mời riêng</h2>
-            <p>
-              Mở liên kết riêng bạn nhận được để tạo tên hiển thị và bước vào chợ.
-            </p>
+          <header>
+            <div>
+              <h2>Complete your Chợ Neo profile</h2>
+              <p>
+                Choose your display name and accept the Chợ Neo agreement to enter.
+              </p>
           </div>
           <button aria-label="Đóng" onClick={onClose} type="button">
             ×
           </button>
         </header>
-        <Link className="cho-neo-member-primary" href="/join">
-          Mở lời mời
+        <Link className="cho-neo-member-primary" href="/join?open=1">
+          Continue to Chợ Neo
         </Link>
       </section>
       <ChoNeoMemberStyles />

@@ -11,6 +11,7 @@ import {
 import { CHO_NEO_AVATARS } from "@/lib/cho-neo/avatar-identity";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 
 type JoinState =
   | "capturing"
@@ -19,6 +20,7 @@ type JoinState =
   | "ready"
   | "saving"
   | "error"
+  | "signed-out"
   | "restricted";
 
 export default function JoinClient() {
@@ -26,6 +28,10 @@ export default function JoinClient() {
   const supabase = useMemo(() => createClient(), []);
   const [invitationToken, setInvitationToken] = useState("");
   const [returnTo, setReturnTo] = useState("/cho-neo");
+  const [openRegistration, setOpenRegistration] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<ChoNeoMemberProfile | null>(null);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
   const [state, setState] = useState<JoinState>("capturing");
   const [message, setMessage] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -37,15 +43,23 @@ export default function JoinClient() {
       ? window.location.hash.slice(1)
       : window.location.hash;
     const token = new URLSearchParams(hash).get("invite")?.trim() ?? "";
-    const requestedReturnTo = new URLSearchParams(window.location.search).get("next");
+    const params = new URLSearchParams(window.location.search);
+    const requestedReturnTo = params.get("next");
+    const isOpenRegistration = params.get("open") === "1";
+    const storedToken = window.sessionStorage.getItem(PENDING_INVITATION_KEY) ?? "";
+    const activeInvitationToken = token || storedToken;
     const redirectTo =
       requestedReturnTo && isSafeReturnTo(requestedReturnTo)
         ? requestedReturnTo
         : "/cho-neo";
     setReturnTo(redirectTo);
+    setOpenRegistration(isOpenRegistration && !activeInvitationToken);
+    const authErrorMessage = getAuthErrorMessage(params.get("auth_error"));
+    setMessage(authErrorMessage);
 
-    if (token) {
-      setInvitationToken(token);
+    if (activeInvitationToken) {
+      setInvitationToken(activeInvitationToken);
+      window.sessionStorage.setItem(PENDING_INVITATION_KEY, activeInvitationToken);
       window.history.replaceState(
         null,
         "",
@@ -57,12 +71,13 @@ export default function JoinClient() {
 
     async function prepareDeviceSession() {
       setState("signing-in");
-      setMessage("");
+      if (!authErrorMessage) setMessage("");
 
       const existingSessionResult = await supabase.auth.getSession();
       let session = existingSessionResult.data.session ?? null;
+      if (!cancelled) setSession(session);
 
-      if (!session && token) {
+      if (!session && activeInvitationToken) {
         const anonymousResult = await supabase.auth.signInAnonymously();
         if (anonymousResult.error || !anonymousResult.data.session) {
           if (!cancelled) {
@@ -73,36 +88,64 @@ export default function JoinClient() {
           return;
         }
         session = anonymousResult.data.session;
+        if (!cancelled) setSession(session);
       }
 
       if (!session) {
         if (!cancelled) {
-          setState("missing-invitation");
-          setMessage("Chợ Neo hiện đang mở theo lời mời riêng.");
+          setState("signed-out");
+          setMessage(
+            isOpenRegistration
+              ? "Continue with Google to create your Chợ Neo member account."
+              : "Chợ Neo hiện đang mở theo lời mời riêng.",
+          );
         }
         return;
       }
 
-      const profile = await loadProfile(supabase, session.user.id);
+      const loadedProfile = await loadProfile(supabase, session.user.id);
       if (cancelled) return;
+      setProfile(loadedProfile);
 
-      if (profile?.status === "suspended" || profile?.status === "rejected") {
-        if (token) clearInvitationToken();
+      if (loadedProfile?.status === "suspended" || loadedProfile?.status === "rejected") {
+        if (activeInvitationToken) clearInvitationToken();
         setState("restricted");
         setMessage("Hồ sơ này hiện chưa thể vào Chợ Neo.");
         return;
       }
 
       if (
-        profile?.status === "verified_nail_member" &&
-        profile.agreementVersion === CHO_NEO_AGREEMENT_VERSION
+        loadedProfile?.status === "verified_nail_member" &&
+        loadedProfile.agreementVersion === CHO_NEO_AGREEMENT_VERSION
       ) {
-        if (token) clearInvitationToken();
+        if (activeInvitationToken) clearInvitationToken();
         router.replace(redirectTo);
         return;
       }
 
-      if (!token && profile?.status !== "verified_nail_member") {
+      if (isOpenRegistration && !activeInvitationToken && !session.user.is_anonymous) {
+        const bootstrap = await bootstrapMemberProfile(session);
+        if (cancelled) return;
+        if (!bootstrap.ok) {
+          setState(bootstrap.reason === "member-restricted" ? "restricted" : "error");
+          setMessage(bootstrap.message);
+          return;
+        }
+        const bootstrappedProfile = mapChoNeoMemberProfileRow(bootstrap.profile);
+        setProfile(bootstrappedProfile);
+        setDisplayName(bootstrappedProfile.displayName);
+        if (
+          bootstrappedProfile.status === "verified_nail_member" &&
+          bootstrappedProfile.agreementVersion === CHO_NEO_AGREEMENT_VERSION
+        ) {
+          router.replace(redirectTo);
+          return;
+        }
+        setState("ready");
+        return;
+      }
+
+      if (!activeInvitationToken && !isOpenRegistration) {
         setState("missing-invitation");
         setMessage("Chợ Neo hiện đang mở theo lời mời riêng.");
         return;
@@ -151,20 +194,25 @@ export default function JoinClient() {
         return;
       }
 
-      const response = await fetch("/api/cho-neo/member/verify", {
+      const response = await fetch(
+        openRegistration
+          ? "/api/cho-neo/member/bootstrap"
+          : "/api/cho-neo/member/verify",
+        {
         body: JSON.stringify({
           agreementAccepted: true,
           agreementVersion: CHO_NEO_AGREEMENT_VERSION,
           avatarKey: resolveChoNeoMemberAvatarKey(avatarKey),
           displayName: validation.displayName,
-          invitationToken,
+          ...(openRegistration ? {} : { invitationToken }),
         }),
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
         method: "POST",
-      });
+        },
+      );
       const payload = await response.json().catch(() => null);
 
       if (!response.ok || !payload?.profile) {
@@ -172,7 +220,12 @@ export default function JoinClient() {
           clearInvitationToken();
         }
         setState(response.status === 403 ? "restricted" : "error");
-        setMessage(payload?.error ?? "Lời mời chưa dùng được. Thử lại nha.");
+        setMessage(
+          payload?.error ??
+            (openRegistration
+              ? "Chợ Neo chưa tạo được hồ sơ. Thử lại nha."
+              : "Lời mời chưa dùng được. Thử lại nha."),
+        );
         return;
       }
 
@@ -187,11 +240,40 @@ export default function JoinClient() {
 
   function clearInvitationToken() {
     setInvitationToken("");
+    window.sessionStorage.removeItem(PENDING_INVITATION_KEY);
     window.history.replaceState(
       null,
       "",
       `${window.location.pathname}${window.location.search}`,
     );
+  }
+
+  async function linkGoogleIdentity() {
+    if (!session?.user?.is_anonymous || !invitationToken) return;
+    setLinkingGoogle(true);
+    setMessage("");
+    window.sessionStorage.setItem(PENDING_INVITATION_KEY, invitationToken);
+    const successNext = `/join?link=1&next=${encodeURIComponent(returnTo)}`;
+    const errorNext = `/join?next=${encodeURIComponent(returnTo)}`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+      successNext,
+    )}&error_next=${encodeURIComponent(errorNext)}`;
+    try {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: "google",
+        options: { redirectTo, scopes: "openid email profile" },
+      });
+      if (!error) return;
+      setLinkingGoogle(false);
+      setMessage(
+        "That Google account could not be connected to this Chợ Neo account. Please use the account already connected or contact Chợ Neo support.",
+      );
+    } catch {
+      setLinkingGoogle(false);
+      setMessage(
+        "That Google account could not be connected to this Chợ Neo account. Please use the account already connected or contact Chợ Neo support.",
+      );
+    }
   }
 
   const isBusy = state === "capturing" || state === "signing-in" || state === "saving";
@@ -202,7 +284,19 @@ export default function JoinClient() {
         <p className="cho-neo-join-kicker">Chợ Neo</p>
         <h1 id="cho-neo-join-title">Vào Chợ Neo</h1>
 
-        {state === "missing-invitation" ? (
+        {state === "signed-out" ? (
+          <>
+            <p aria-live="polite" className="cho-neo-join-message" role="alert">
+              {message}
+            </p>
+            <a
+              className="cho-neo-join-secondary"
+              href={`/login?next=${encodeURIComponent(returnTo)}`}
+            >
+              Continue with Google
+            </a>
+          </>
+        ) : state === "missing-invitation" ? (
           <>
             <p className="cho-neo-join-copy">
               Chợ Neo hiện đang mở theo lời mời riêng. Liên kết mời cần được gửi trực tiếp cho bạn.
@@ -218,18 +312,38 @@ export default function JoinClient() {
         ) : (
           <>
             <p className="cho-neo-join-copy">
-              Một góc nhỏ để người trong nghề gặp nhau, nói chuyện thật và giữ nhau tử tế.
+              {openRegistration
+                ? "Welcome to Chợ Neo. A simple Google sign-in creates your basic Member account."
+                : "Một góc nhỏ để người trong nghề gặp nhau, nói chuyện thật và giữ nhau tử tế."}
             </p>
+            {session?.user?.is_anonymous && invitationToken ? (
+              <div className="cho-neo-join-link-google">
+                <p>
+                  Connect Google to keep this same Chợ Neo account, profile, and invitation history.
+                </p>
+                <button
+                  disabled={linkingGoogle}
+                  onClick={linkGoogleIdentity}
+                  type="button"
+                >
+                  {linkingGoogle ? "Opening Google..." : "Continue with Google"}
+                </button>
+              </div>
+            ) : null}
             <div className="cho-neo-join-agreement">
               <h2>Trước khi vào chợ</h2>
-              <p>Chợ Neo là không gian riêng theo lời mời. Hãy dùng tên gọi bạn muốn mọi người nhận ra.</p>
-              <details open>
+              <p>
+                {openRegistration
+                  ? "Read the agreement and choose the name you want people in Chợ Neo to recognize."
+                  : "Chợ Neo là không gian riêng theo lời mời. Hãy dùng tên gọi bạn muốn mọi người nhận ra."}
+              </p>
+              <details id="agreement" open>
                 <summary>Thỏa thuận người dùng</summary>
                 <p>
                   Bạn đồng ý nói chuyện tôn trọng, không đăng thông tin riêng tư của người khác, không mạo danh và không dùng Chợ Neo để gây hại.
                 </p>
               </details>
-              <details>
+              <details id="privacy">
                 <summary>Chính sách riêng tư</summary>
                 <p>
                   Chợ Neo lưu tên hiển thị, avatar đã chọn, trạng thái thành viên và thời điểm đồng ý để duy trì quyền vào chợ. Lời mời chỉ được lưu dưới dạng mã băm.
@@ -289,7 +403,9 @@ export default function JoinClient() {
                 ? "Đang mở lời mời..."
                 : state === "saving"
                   ? "Đang đưa bạn vào chợ..."
-                  : "Vào Chợ Neo"}
+                  : openRegistration
+                    ? "Enter Chợ Neo"
+                    : "Vào Chợ Neo"}
             </button>
           </>
         )}
@@ -348,6 +464,30 @@ export default function JoinClient() {
           padding: 16px;
           border-left: 3px solid #d58b4d;
           background: #fbf4e9;
+        }
+
+        .cho-neo-join-link-google {
+          display: grid;
+          gap: 10px;
+          padding: 14px;
+          border: 1px solid #cfae80;
+          background: #fff;
+        }
+
+        .cho-neo-join-link-google p {
+          color: #654d54;
+          line-height: 1.5;
+        }
+
+        .cho-neo-join-link-google button {
+          min-height: 44px;
+          border: 1px solid #8b3a3c;
+          border-radius: 4px;
+          color: #fffaf0;
+          background: #8b3a3c;
+          cursor: pointer;
+          font: inherit;
+          font-weight: 700;
         }
 
         .cho-neo-join-agreement h2 {
@@ -508,6 +648,38 @@ async function loadProfile(supabase: ReturnType<typeof createClient>, userId: st
 
   if (error || !data) return null;
   return mapChoNeoMemberProfileRow(data) as ChoNeoMemberProfile;
+}
+
+const PENDING_INVITATION_KEY = "cho-neo:pending-invitation-token";
+
+async function bootstrapMemberProfile(session: Session) {
+  const response = await fetch("/api/cho-neo/member/bootstrap", {
+    body: JSON.stringify({}),
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.profile) {
+    return {
+      message: payload?.error ?? "Chợ Neo chưa tạo được hồ sơ. Thử lại nha.",
+      ok: false as const,
+      reason: payload?.reason ?? "bootstrap-failed",
+    };
+  }
+  return { ok: true as const, profile: payload.profile };
+}
+
+function getAuthErrorMessage(value: string | null) {
+  if (value === "cancelled") {
+    return "Google sign-in was cancelled. You can try again whenever you are ready.";
+  }
+  if (value === "identity-conflict") {
+    return "That Google account is already connected to another Chợ Neo account. Please use that account or contact Chợ Neo support.";
+  }
+  return value ? "Google sign-in did not finish. Please try again." : "";
 }
 
 function isSafeReturnTo(value: string) {

@@ -12,6 +12,7 @@ const privateEntryPath = path.join(
   "src/app/login/PrivateInvitationEntry.tsx",
 );
 const loginClientPath = path.join(repoRoot, "src/app/login/LoginClient.tsx");
+const joinPath = path.join(repoRoot, "src/app/join/JoinClient.tsx");
 const supabaseBrowserPath = path.join(repoRoot, "src/lib/supabase-browser.ts");
 const authCallbackPath = path.join(
   repoRoot,
@@ -30,6 +31,10 @@ const verifyRoutePath = path.join(
   repoRoot,
   "src/app/api/cho-neo/member/verify/route.ts",
 );
+const bootstrapRoutePath = path.join(
+  repoRoot,
+  "src/app/api/cho-neo/member/bootstrap/route.ts",
+);
 const voteRepositoryPath = path.join(
   repoRoot,
   "src/lib/cho-neo/room-vote-repository.ts",
@@ -47,6 +52,10 @@ const migrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260726204500_cho_neo_social_member_login_v1.sql",
 );
+const privateMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260803100000_cho_neo_private_invitation_onboarding_v1.sql",
+);
 const inviteScriptPath = path.join(
   repoRoot,
   "scripts/create-cho-neo-member-invitation.mjs",
@@ -55,38 +64,39 @@ const inviteScriptPath = path.join(
 const loginPage = fs.readFileSync(loginPagePath, "utf8");
 const privateEntry = fs.readFileSync(privateEntryPath, "utf8");
 const loginClient = fs.readFileSync(loginClientPath, "utf8");
+const join = fs.readFileSync(joinPath, "utf8");
 const supabaseBrowser = fs.readFileSync(supabaseBrowserPath, "utf8");
 const authCallback = fs.readFileSync(authCallbackPath, "utf8");
 const member = fs.readFileSync(memberPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
 const header = fs.readFileSync(headerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
+const bootstrapRoute = fs.readFileSync(bootstrapRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
 const voteService = fs.readFileSync(voteServicePath, "utf8");
 const voteApi = fs.readFileSync(voteApiPath, "utf8");
 const gossipRoute = fs.readFileSync(gossipRoutePath, "utf8");
 const migration = fs.readFileSync(migrationPath, "utf8");
+const privateMigration = fs.readFileSync(privateMigrationPath, "utf8");
 const inviteScript = fs.readFileSync(inviteScriptPath, "utf8");
 const memberModule = await importMemberModule();
 
-test("/login is the private invitation entrance", () => {
-  assert.match(loginPage, /PrivateInvitationEntry/);
+test("/login is the friendly Google entrance", () => {
+  assert.match(loginPage, /LoginClient/);
+  assert.match(loginClient, /Welcome to Chợ Neo/);
+  assert.match(loginClient, /Continue with Google/);
+  assert.match(loginClient, /Google verifies your identity/);
+  assert.doesNotMatch(loginClient, /Supabase|Vercel|Project ID|Database/);
   assert.match(privateEntry, /Mở cửa theo lời mời riêng/);
-  assert.match(privateEntry, /href=\{joinHref\}/);
-  assert.doesNotMatch(privateEntry, /Google|Facebook|signInWithOAuth/);
-  assert.doesNotMatch(loginPage, /LoginClient/);
 });
 
-test("OAuth providers use Supabase PKCE callback, basic scopes and feature flags", () => {
+test("Google OAuth uses PKCE and supports anonymous identity linking", () => {
   assert.match(loginClient, /signInWithOAuth\(\{/);
-  assert.match(loginClient, /provider,/);
+  assert.match(loginClient, /linkIdentity\(\{/);
   assert.match(loginClient, /redirectTo,/);
-  assert.match(loginClient, /window\.location\.origin\}\/auth\/callback\?next=/);
   assert.match(loginClient, /google: "openid email profile"/);
-  assert.match(loginClient, /facebook: "public_profile email"/);
-  assert.match(loginClient, /scopes: CHO_NEO_OAUTH_SCOPES\[provider\]/);
-  assert.match(loginClient, /NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED === "true"/);
-  assert.match(loginClient, /NEXT_PUBLIC_CHO_NEO_FACEBOOK_LOGIN_ENABLED === "true"/);
+  assert.match(loginClient, /openRegistrationNext/);
+  assert.match(loginClient, /is_anonymous/);
   assert.doesNotMatch(loginClient, /friends|contacts|pages|business|publish|posts/i);
   assert.doesNotMatch(loginClient, /provider_token|provider_refresh_token|access_token/);
 });
@@ -98,13 +108,10 @@ test("Supabase browser client uses one PKCE session-completion path", () => {
   assert.match(supabaseBrowser, /autoRefreshToken: true/);
 });
 
-test("provider buttons fail closed behind independent flags", () => {
-  assert.match(loginClient, /googleEnabled \|\| facebookEnabled/);
+test("Google sign-in is available by default and can be explicitly disabled", () => {
   assert.match(loginClient, /googleEnabled \? \(/);
-  assert.match(loginClient, /facebookEnabled \? \(/);
-  assert.match(loginClient, /Cổng đăng nhập thành viên đang tạm đóng/);
-  assert.match(loginClient, /Trở lại Chợ Neo/);
-  assert.doesNotMatch(loginClient, /NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED !== "false"/);
+  assert.match(loginClient, /NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED !== "false"/);
+  assert.match(loginClient, /Return to Chợ Neo/);
 });
 
 test("return destinations are local and callback exchanges the PKCE code", () => {
@@ -115,7 +122,9 @@ test("return destinations are local and callback exchanges the PKCE code", () =>
   assert.doesNotMatch(authCallback, /exchangeCodeForSession\(url\.href\)/);
   assert.match(authCallback, /const \{ data, error \} =\s+await supabase\.auth\.exchangeCodeForSession\(code\)/);
   assert.match(authCallback, /oauth-session-missing/);
-  assert.match(authCallback, /setTimeout\(\(\) => router\.replace\(`\/login\?next=\$\{encodeURIComponent\(next\)\}`\), 1200\)/);
+  assert.match(authCallback, /error_next/);
+  assert.match(authCallback, /classifyAuthError/);
+  assert.match(authCallback, /addAuthError/);
   assert.match(authCallback, /cleanCallbackUrl\(url\)/);
   assert.match(authCallback, /window\.history\.replaceState\(\{\}, "", `\$\{url\.origin\}\$\{url\.pathname\}`\)/);
   assert.match(authCallback, /url\.hash\.includes\("access_token"\)/);
@@ -127,9 +136,9 @@ test("return destinations are local and callback exchanges the PKCE code", () =>
   assert.doesNotMatch(authCallback, /getSessionFromUrl/);
 });
 
-test("ordinary public header says Vào Chợ and uses private invitations", () => {
+test("ordinary public header says Vào Chợ and uses Member language", () => {
   assert.match(header, /Vào Chợ/);
-  assert.match(header, /Lời mời riêng/);
+  assert.match(header, /Member/);
   assert.doesNotMatch(header, /Google|Facebook/);
   assert.match(header, /Thành viên/);
   assert.doesNotMatch(header, /Nhận Thẻ|Thẻ Chợ Neo/);
@@ -137,14 +146,34 @@ test("ordinary public header says Vào Chợ and uses private invitations", () =
   assert.doesNotMatch(provider, /ChoNeoGuestPass|useChoNeoGuestPass|GuestPass/);
 });
 
-test("member provider sends first-time users to the private join flow", () => {
-  assert.match(provider, /Chợ Neo mở theo lời mời riêng/);
-  assert.match(provider, /href="\/join"/);
+test("member provider sends first-time users to the open member flow", () => {
+  assert.match(provider, /Complete your Chợ Neo profile/);
+  assert.match(provider, /href="\/join\?open=1"/);
   assert.doesNotMatch(provider, /Nhập mã lời mời|Lời mời Chợ Neo|Vai trò trong ngành nail/);
   assert.doesNotMatch(provider, /<select|signInAnonymously/);
   assert.match(provider, /profile\?\.status === "suspended"/);
   assert.match(provider, /profile\?\.status === "rejected"/);
   assert.match(provider, /Chưa vào khu thành viên được/);
+});
+
+test("Google bootstrap creates or resumes one server-derived basic profile", () => {
+  assert.match(bootstrapRoute, /auth\.getUser\(token\)/);
+  assert.match(bootstrapRoute, /is_anonymous/);
+  assert.match(bootstrapRoute, /nail_role: "other_industry"/);
+  assert.match(bootstrapRoute, /membership_status: agreementResult\.accepted \? "verified_nail_member" : "pending"/);
+  assert.match(bootstrapRoute, /eq\("user_id", authenticated\.id\)/);
+  assert.doesNotMatch(bootstrapRoute, /body\?\.nailRole|body\?\.role|p_nail_role/);
+  assert.match(bootstrapRoute, /agreement_version/);
+});
+
+test("the four Google onboarding cases remain separated from invitation redemption", () => {
+  assert.match(loginClient, /openRegistrationNext/);
+  assert.match(loginClient, /linkIdentity/);
+  assert.match(join, /PENDING_INVITATION_KEY/);
+  assert.match(join, /bootstrapMemberProfile/);
+  assert.match(join, /\/api\/cho-neo\/member\/verify/);
+  assert.match(verifyRoute, /p_user_id: authenticatedUser\.id/);
+  assert.match(privateMigration, /role_value := coalesce\(invitation_row\.intended_role, 'other_industry'\)/);
 });
 
 test("member model has approved roles, statuses and verified-member helper", () => {
