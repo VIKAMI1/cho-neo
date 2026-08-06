@@ -3,15 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-
-type ChoNeoAvatar = {
-  id: string;
-  nameVi: string;
-  nameEn: string;
-  description: string;
-  src: string;
-  tone: string;
-};
+import {
+  CHO_NEO_AVATARS,
+  getAvatarById,
+  resolveChoNeoAvatarId,
+} from "@/lib/cho-neo/avatar-identity";
+import { isVerifiedChoNeoMemberProfile } from "@/lib/cho-neo/member-identity";
+import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
 
 type ChoNeoAvatarProfile = {
   avatarId: string;
@@ -25,73 +23,6 @@ const AVATAR_PROFILE_STORAGE_KEY = "choNeoAvatarProfile";
 const LEGACY_GOSSIP_AVATAR_STORAGE_KEY = "choNeoGossipAvatarV1";
 const LEGACY_GOSSIP_AVATAR_PROFILE_STORAGE_KEY = "choNeoGossipAvatarProfileV1";
 
-const AVATARS: ChoNeoAvatar[] = [
-  {
-    id: "nail-tech",
-    nameVi: "Thợ Nail",
-    nameEn: "Nail Tech",
-    description: "Skilled hands. Shop-floor wisdom.",
-    src: "/images/cho-neo/avatars/nail-tech-girl.png",
-    tone: "rose",
-  },
-  {
-    id: "male-salon-owner",
-    nameVi: "Chủ Tiệm Nam",
-    nameEn: "Male Salon Owner",
-    description: "Runs the shop. Carries the weight.",
-    src: "/images/cho-neo/avatars/salon-owner-male.png",
-    tone: "amber",
-  },
-  {
-    id: "nail-tech-guy",
-    nameVi: "Thợ Nail Nam",
-    nameEn: "Nail Tech Guy",
-    description: "Skilled on the floor. Hands-on energy.",
-    src: "/images/cho-neo/avatars/nail-tech-guy.png",
-    tone: "teal",
-  },
-  {
-    id: "gossip-cafe-regular",
-    nameVi: "Khách Quen Quán Tám",
-    nameEn: "Gossip Café Regular",
-    description: "Warm, social, always around the table.",
-    src: "/images/cho-neo/avatars/gossip-cafe-regular.png",
-    tone: "gold",
-  },
-  {
-    id: "show-off-gay",
-    nameVi: "Người Có Gu",
-    nameEn: "Show-Off Gay",
-    description: "Playful confidence. Big energy. Proud.",
-    src: "/images/cho-neo/avatars/show-off-guy.png",
-    tone: "violet",
-  },
-  {
-    id: "bling-bling-girl",
-    nameVi: "Cô Lấp Lánh",
-    nameEn: "Bling-Bling Girl",
-    description: "Extra core. Beauty-forward.",
-    src: "/images/cho-neo/avatars/bling-bling-girl.png",
-    tone: "pink",
-  },
-  {
-    id: "creative-soul",
-    nameVi: "Tâm Hồn Sáng Tạo",
-    nameEn: "Creative Soul",
-    description: "Creative heart. Loves color, mood, and design.",
-    src: "/images/cho-neo/avatars/creative-soul.png",
-    tone: "cyan",
-  },
-  {
-    id: "female-salon-owner",
-    nameVi: "Chủ Tiệm Nữ",
-    nameEn: "Female Salon Owner",
-    description: "Leads with heart. Runs the shop.",
-    src: "/images/cho-neo/avatars/salon-owner-female.png",
-    tone: "green",
-  },
-];
-
 const MOODS = [
   "Nhẹ nhàng",
   "Vui vui",
@@ -100,33 +31,25 @@ const MOODS = [
   "Cần yên một chút",
 ];
 
-const GOSSIP_AVATAR_ID_TO_PASSPORT_ID: Record<string, string> = {
-  "auntie-owner": "female-salon-owner",
-  "front-counter-pro": "male-salon-owner",
-  "golden-scissors": "creative-soul",
-  "gossip-auntie": "gossip-cafe-regular",
-  "salon-queen": "bling-bling-girl",
-  "uncle-coffee": "gossip-cafe-regular",
-  "weekend-warrior": "show-off-gay",
-  "young-nail-tech": "nail-tech",
-};
-
 export default function ChoNeoAvatarPage() {
-  const [selectedAvatarId, setSelectedAvatarId] = useState(AVATARS[0].id);
+  const { profile, saveMemberProfile } = useChoNeoMember();
+  const [selectedAvatarId, setSelectedAvatarId] = useState(CHO_NEO_AVATARS[0].id);
   const [nickname, setNickname] = useState("");
   const [mood, setMood] = useState(MOODS[0]);
   const [saveNotice, setSaveNotice] = useState("");
 
-  const selectedAvatar = useMemo(
-    () =>
-      AVATARS.find((avatar) => avatar.id === selectedAvatarId) ?? AVATARS[0],
-    [selectedAvatarId]
-  );
+  const selectedAvatar = useMemo(() => getAvatarById(selectedAvatarId), [selectedAvatarId]);
 
   const previewName = nickname.trim() || "Người Ghé Chợ";
   const previewMood = mood.trim() || "Nhẹ nhàng";
 
   useEffect(() => {
+    if (isVerifiedChoNeoMemberProfile(profile)) {
+      setSelectedAvatarId(profile.avatarKey ?? profile.avatar.id);
+      setNickname(profile.displayName);
+      return;
+    }
+
     try {
       const savedProfile =
         window.localStorage.getItem(AVATAR_PROFILE_STORAGE_KEY) ??
@@ -137,15 +60,8 @@ export default function ChoNeoAvatarPage() {
       }
 
       const parsedProfile = JSON.parse(savedProfile) as Partial<ChoNeoAvatarProfile>;
-      const savedAvatarId =
-        typeof parsedProfile.avatarId === "string"
-          ? GOSSIP_AVATAR_ID_TO_PASSPORT_ID[parsedProfile.avatarId] ??
-            parsedProfile.avatarId
-          : "";
-      const savedAvatar = AVATARS.find((avatar) => avatar.id === savedAvatarId);
-
-      if (savedAvatar) {
-        setSelectedAvatarId(savedAvatar.id);
+      if (typeof parsedProfile.avatarId === "string") {
+        setSelectedAvatarId(resolveChoNeoAvatarId(parsedProfile.avatarId));
       }
 
       if (typeof parsedProfile.nickname === "string") {
@@ -158,10 +74,10 @@ export default function ChoNeoAvatarPage() {
     } catch {
       // Storage-restricted sessions can still use the page for this visit.
     }
-  }, []);
+  }, [profile]);
 
-  function saveProfile() {
-    const profile: ChoNeoAvatarProfile = {
+  async function saveProfile() {
+    const storedProfile: ChoNeoAvatarProfile = {
       avatarId: selectedAvatar.id,
       avatarSrc: selectedAvatar.src,
       nickname: previewName,
@@ -169,12 +85,28 @@ export default function ChoNeoAvatarPage() {
       updatedAt: new Date().toISOString(),
     };
 
+    if (isVerifiedChoNeoMemberProfile(profile)) {
+      const result = await saveMemberProfile({
+        avatarKey: selectedAvatar.id,
+        displayName: previewName,
+      });
+
+      if (!result.ok) {
+        setSaveNotice(result.message ?? "Chưa lưu được hồ sơ. Thử lại giúp Chợ Neo nha.");
+        return;
+      }
+    }
+
     try {
       window.localStorage.setItem(
         AVATAR_PROFILE_STORAGE_KEY,
-        JSON.stringify(profile)
+        JSON.stringify(storedProfile)
       );
-      setSaveNotice("Đã lưu dáng này. Vào Quán Tám thôi.");
+      setSaveNotice(
+        isVerifiedChoNeoMemberProfile(profile)
+          ? "Đã lưu avatar vào hồ sơ Chợ Neo."
+          : "Đã lưu dáng này. Vào Quán Tám thôi."
+      );
     } catch {
       setSaveNotice("Đã chọn cho phiên này. Trình duyệt chưa cho lưu lâu dài.");
     }
@@ -221,7 +153,7 @@ export default function ChoNeoAvatarPage() {
               <label htmlFor="nickname">Tên hiển thị</label>
               <input
                 id="nickname"
-                maxLength={32}
+                maxLength={24}
                 onChange={(event) => {
                   setNickname(event.target.value);
                   setSaveNotice("");
@@ -273,7 +205,7 @@ export default function ChoNeoAvatarPage() {
         </div>
 
         <section className="avatar-picker" aria-label="Choose avatar">
-          {AVATARS.map((avatar) => {
+          {CHO_NEO_AVATARS.map((avatar) => {
             const isSelected = avatar.id === selectedAvatar.id;
 
             return (
@@ -769,9 +701,10 @@ function migrateLegacyGossipAvatarProfile() {
     const parsedProfile = legacyProfile
       ? (JSON.parse(legacyProfile) as { id?: string })
       : null;
-    const avatarId = parsedProfile?.id ?? legacyAvatarId ?? AVATARS[0].id;
-    const selectedAvatar =
-      AVATARS.find((avatar) => avatar.id === avatarId) ?? AVATARS[0];
+    const avatarId = resolveChoNeoAvatarId(
+      parsedProfile?.id ?? legacyAvatarId ?? CHO_NEO_AVATARS[0].id,
+    );
+    const selectedAvatar = getAvatarById(avatarId);
     const migratedProfile: ChoNeoAvatarProfile = {
       avatarId: selectedAvatar.id,
       avatarSrc: selectedAvatar.src,

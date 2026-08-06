@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { createClient } from "@/lib/supabase-browser";
 import {
   CHO_NEO_AGREEMENT_VERSION,
@@ -268,7 +269,14 @@ export default function JoinClient() {
                     onClick={() => setAvatarKey(avatar.id)}
                     type="button"
                   >
-                    <span aria-hidden="true">{avatar.emoji}</span>
+                    <Image
+                      alt=""
+                      aria-hidden="true"
+                      height={56}
+                      src={avatar.src}
+                      width={56}
+                    />
+                    <span>{avatar.nameVi}</span>
                   </button>
                 ))}
               </div>
@@ -431,14 +439,28 @@ export default function JoinClient() {
         }
 
         .cho-neo-join-avatars button {
-          width: 42px;
-          aspect-ratio: 1;
+          display: grid;
+          width: 76px;
+          min-height: 84px;
+          gap: 3px;
+          align-content: start;
           border: 1px solid #cfae80;
-          border-radius: 50%;
+          border-radius: 10px;
+          padding: 6px;
           color: #3b1d2a;
           background: #fff;
           cursor: pointer;
-          font-size: 1.2rem;
+          font: inherit;
+          font-size: 10px;
+          text-align: center;
+        }
+
+        .cho-neo-join-avatars button img {
+          width: 56px;
+          height: 56px;
+          justify-self: center;
+          border-radius: 8px;
+          object-fit: cover;
         }
 
         .cho-neo-join-avatars button.selected {

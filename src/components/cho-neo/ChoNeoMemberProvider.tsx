@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { createClient } from "@/lib/supabase-browser";
 import {
   CHO_NEO_MEMBER_PROFILE_TABLE,
@@ -33,6 +34,10 @@ type ChoNeoMemberContextValue = {
   openProfileSheet: () => void;
   profile: ChoNeoMemberProfile | null;
   refreshProfile: () => Promise<void>;
+  saveMemberProfile: (input: {
+    avatarKey: string;
+    displayName: string;
+  }) => Promise<{ message?: string; ok: boolean }>;
   session: Session | null;
   status: "checking" | "public" | "ready" | "error";
 };
@@ -147,16 +152,58 @@ export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
     [profile, session],
   );
 
+  const saveMemberProfile = useCallback(
+    async (input: { avatarKey: string; displayName: string }) => {
+      if (!profile) {
+        return { message: "Chưa có hồ sơ thành viên để lưu.", ok: false };
+      }
+
+      const validation = validateChoNeoMemberDisplayName(input.displayName);
+      if (validation.ok === false) {
+        return { message: validation.message, ok: false };
+      }
+
+      const { error } = await supabase
+        .from(CHO_NEO_MEMBER_PROFILE_TABLE)
+        .update({
+          avatar_key: resolveChoNeoMemberAvatarKey(input.avatarKey),
+          display_name: validation.displayName,
+          normalized_display_name: validation.normalizedDisplayName,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", profile.userId);
+
+      if (error) {
+        return {
+          message: "Chưa lưu được hồ sơ. Thử lại giúp Chợ Neo nha.",
+          ok: false,
+        };
+      }
+
+      await refreshProfile();
+      return { ok: true };
+    },
+    [profile, refreshProfile, supabase],
+  );
+
   const value = useMemo(
     () => ({
       ensureChoNeoMember,
       openProfileSheet: () => setIsProfileOpen(true),
       profile,
       refreshProfile,
+      saveMemberProfile,
       session,
       status,
     }),
-    [ensureChoNeoMember, profile, refreshProfile, session, status],
+    [
+      ensureChoNeoMember,
+      profile,
+      refreshProfile,
+      saveMemberProfile,
+      session,
+      status,
+    ],
   );
 
   return (
@@ -172,6 +219,7 @@ export function ChoNeoMemberProvider({ children }: { children: ReactNode }) {
         onRefresh={refreshProfile}
         open={isProfileOpen}
         profile={profile}
+        saveMemberProfile={saveMemberProfile}
         supabase={supabase}
       />
     </ChoNeoMemberContext.Provider>
@@ -286,12 +334,17 @@ function ChoNeoMemberProfileSheet({
   onRefresh,
   open,
   profile,
+  saveMemberProfile,
   supabase,
 }: {
   onClose: () => void;
   onRefresh: () => Promise<void>;
   open: boolean;
   profile: ChoNeoMemberProfile | null;
+  saveMemberProfile: (input: {
+    avatarKey: string;
+    displayName: string;
+  }) => Promise<{ message?: string; ok: boolean }>;
   supabase: SupabaseClient;
 }) {
   const [nickname, setNickname] = useState("");
@@ -313,18 +366,13 @@ function ChoNeoMemberProfileSheet({
       return;
     }
 
-    const { error } = await supabase
-      .from(CHO_NEO_MEMBER_PROFILE_TABLE)
-      .update({
-        avatar_key: resolveChoNeoMemberAvatarKey(avatarKey),
-        display_name: validation.displayName,
-        normalized_display_name: validation.normalizedDisplayName,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", profile.userId);
+    const result = await saveMemberProfile({
+      avatarKey,
+      displayName: validation.displayName,
+    });
 
-    if (error) {
-      setMessage("Chưa lưu được hồ sơ. Thử lại giúp Chợ Neo nha.");
+    if (!result.ok) {
+      setMessage(result.message ?? "Chưa lưu được hồ sơ. Thử lại giúp Chợ Neo nha.");
       return;
     }
 
@@ -381,8 +429,15 @@ function ChoNeoMemberProfileSheet({
                 onClick={() => setAvatarKey(avatar.id)}
                 type="button"
               >
-                <span aria-hidden="true">{avatar.emoji}</span>
-                <small>{avatar.name}</small>
+                <Image
+                  alt=""
+                  aria-hidden="true"
+                  height={56}
+                  src={avatar.src}
+                  width={56}
+                />
+                <small>{avatar.nameVi}</small>
+                <span>{avatar.nameEn}</span>
               </button>
             ))}
           </div>
@@ -563,8 +618,10 @@ function ChoNeoMemberStyles() {
       .cho-neo-member-avatars button {
         display: grid;
         gap: 4px;
-        min-height: 58px;
+        min-height: 92px;
+        align-content: start;
         padding: 7px;
+        overflow: hidden;
         border: 1px solid rgba(248, 211, 145, 0.18);
         border-radius: 13px;
         color: var(--cho-neo-text-secondary);
@@ -578,12 +635,28 @@ function ChoNeoMemberStyles() {
         background: rgba(248, 211, 145, 0.14);
       }
 
+      .cho-neo-member-avatars button img {
+        width: 56px;
+        height: 56px;
+        justify-self: center;
+        border-radius: 11px;
+        object-fit: cover;
+      }
+
       .cho-neo-member-avatars small {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         font-size: 10px;
         font-weight: 400;
+      }
+
+      .cho-neo-member-avatars button > span:last-child {
+        overflow: hidden;
+        color: var(--cho-neo-text-secondary);
+        font-size: 9px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .cho-neo-member-message {

@@ -19,6 +19,7 @@ import {
   getChoNeoIdentity,
   saveChoNeoIdentity,
 } from "@/lib/cho-neo/avatar-identity";
+import { isVerifiedChoNeoMemberProfile } from "@/lib/cho-neo/member-identity";
 import {
   FRONT_COUNTER_MESSAGE_CAP,
   FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
@@ -185,7 +186,6 @@ const FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS = 3;
 const TABLE_NOTE_MESSAGE_LIMIT = FRONT_COUNTER_MESSAGE_TEXT_LIMIT;
 const TABLE_NOTE_MIN_MEANINGFUL_CHARACTERS =
   FRONT_COUNTER_MIN_MEANINGFUL_CHARACTERS;
-const QUIET_GOSSIP_AVATAR_SRC = "/images/cho-neo/avatars/nail-tech-girl.png";
 const QUIET_GOSSIP_MOOD = "Muốn tám chút";
 const QUIET_GOSSIP_NICKNAME = "Bạn làng";
 const QUAN_TAM_DAY_ARTWORK_SRC = "/images/cho-neo/Quan-Tam-Daytime.png";
@@ -829,7 +829,7 @@ function useQuanTamArtworkSources() {
 
 export default function ChoNeoGossipPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { ensureChoNeoMember } = useChoNeoMember();
+  const { ensureChoNeoMember, profile } = useChoNeoMember();
   const cafeControlPillClassName = "cafe-control-pill";
   const quanTamArtworkSources = useQuanTamArtworkSources();
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
@@ -939,47 +939,64 @@ export default function ChoNeoGossipPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const readAvatarProfile = () => {
+    const readStoredAvatarProfile = () => {
       try {
         const rawProfile = window.localStorage.getItem(CHO_NEO_AVATAR_PROFILE_KEY);
 
         if (!rawProfile) {
-          setAvatarProfile(null);
-          return;
+          return null;
         }
 
         const parsedProfile = JSON.parse(rawProfile) as Partial<ChoNeoAvatarProfile>;
 
         if (
           typeof parsedProfile.avatarId !== "string" ||
-          typeof parsedProfile.avatarSrc !== "string" ||
           typeof parsedProfile.nickname !== "string" ||
           typeof parsedProfile.mood !== "string" ||
           typeof parsedProfile.updatedAt !== "string"
         ) {
-          setAvatarProfile(null);
-          return;
+          return null;
         }
 
-        setAvatarProfile({
-          avatarId: parsedProfile.avatarId,
-          avatarSrc: parsedProfile.avatarSrc,
+        const avatar = getAvatarById(parsedProfile.avatarId);
+        return {
+          avatarId: avatar.id,
+          avatarSrc: avatar.src,
           nickname: parsedProfile.nickname.trim(),
           mood: parsedProfile.mood.trim(),
           updatedAt: parsedProfile.updatedAt,
-        });
+        };
       } catch {
-        setAvatarProfile(null);
+        return null;
       }
     };
-    const savedIdentity = getChoNeoIdentity();
 
-    readAvatarProfile();
-
-    if (savedIdentity) {
-      setIdentity(savedIdentity);
+    const storedProfile = readStoredAvatarProfile();
+    if (isVerifiedChoNeoMemberProfile(profile)) {
+      const memberAvatar = profile.avatar;
+      const memberIdentity: ChoNeoIdentity = {
+        avatarId: memberAvatar.id,
+        createdAt: storedProfile?.updatedAt ?? new Date().toISOString(),
+        nickname: profile.displayName,
+        updatedAt: new Date().toISOString(),
+      };
+      setIdentity(memberIdentity);
+      setAvatarProfile({
+        avatarId: memberAvatar.id,
+        avatarSrc: memberAvatar.src,
+        mood: storedProfile?.mood ?? QUIET_GOSSIP_MOOD,
+        nickname: profile.displayName,
+        updatedAt: memberIdentity.updatedAt,
+      });
     } else {
-      createQuietGossipIdentity();
+      setAvatarProfile(storedProfile);
+      const savedIdentity = getChoNeoIdentity();
+
+      if (savedIdentity) {
+        setIdentity(savedIdentity);
+      } else {
+        createQuietGossipIdentity();
+      }
     }
 
     const searchParams = new URLSearchParams(window.location.search);
@@ -1030,8 +1047,8 @@ export default function ChoNeoGossipPage() {
     void loadSharedFrontCounterMessages();
 
     function handleAvatarStorage(event: StorageEvent) {
-      if (event.key === CHO_NEO_AVATAR_PROFILE_KEY) {
-        readAvatarProfile();
+      if (event.key === CHO_NEO_AVATAR_PROFILE_KEY && !isVerifiedChoNeoMemberProfile(profile)) {
+        setAvatarProfile(readStoredAvatarProfile());
       }
     }
 
@@ -1041,7 +1058,7 @@ export default function ChoNeoGossipPage() {
       cancelled = true;
       window.removeEventListener("storage", handleAvatarStorage);
     };
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     if (!selectedTable?.hostNudge) {
@@ -1562,7 +1579,7 @@ export default function ChoNeoGossipPage() {
     setIdentity(nextIdentity);
     setAvatarProfile({
       avatarId: nextIdentity.avatarId,
-      avatarSrc: QUIET_GOSSIP_AVATAR_SRC,
+      avatarSrc: getAvatarById(nextIdentity.avatarId).src,
       mood: QUIET_GOSSIP_MOOD,
       nickname: nextIdentity.nickname,
       updatedAt: nextIdentity.updatedAt,
@@ -1690,13 +1707,10 @@ export default function ChoNeoGossipPage() {
       <div className={`post-author-chip ${input.className ?? ""}`}>
         {author?.avatarSrc ? (
           <img alt="" src={author.avatarSrc} />
+        ) : fallbackAvatar ? (
+          <img alt="" src={fallbackAvatar.src} />
         ) : (
-          <span
-            className={fallbackAvatar ? `avatar-${fallbackAvatar.tone}` : ""}
-            aria-hidden="true"
-          >
-            {fallbackAvatar?.emoji ?? initials}
-          </span>
+          <span aria-hidden="true">{initials}</span>
         )}
         <strong>
           {displayName}
@@ -2138,12 +2152,11 @@ export default function ChoNeoGossipPage() {
                                       src={messageAuthor.avatarSrc}
                                     />
                                   ) : (
-                                    <span
-                                      className="front-counter-bubble-avatar avatar-ember"
-                                      aria-hidden="true"
-                                    >
-                                      {displayInitials.slice(0, 1)}
-                                    </span>
+                                    <img
+                                      alt=""
+                                      className="front-counter-bubble-avatar-image"
+                                      src={CHO_NEO_AVATARS[0].src}
+                                    />
                                   )}
                                   <div>
                                     <strong>
@@ -2162,12 +2175,11 @@ export default function ChoNeoGossipPage() {
                         ) : (
                           <div className="front-counter-stage-bubble front-counter-stage-bubble-left">
                             <div className="front-counter-bubble-header">
-                              <span
-                                className="front-counter-bubble-avatar avatar-ember"
-                                aria-hidden="true"
-                              >
-                                BN
-                              </span>
+                              <img
+                                alt=""
+                                className="front-counter-bubble-avatar-image"
+                                src={CHO_NEO_AVATARS[0].src}
+                              />
                               <div>
                                 <strong>
                                   Bàn nghề
@@ -2355,12 +2367,11 @@ export default function ChoNeoGossipPage() {
                                     src={messageAuthor.avatarSrc}
                                   />
                                 ) : messageAvatar ? (
-                                  <span
-                                    className={`front-counter-bubble-avatar avatar-${messageAvatar.tone}`}
-                                    aria-hidden="true"
-                                  >
-                                    {messageAvatar.emoji}
-                                  </span>
+                                  <img
+                                    alt=""
+                                    className="front-counter-bubble-avatar-image"
+                                    src={messageAvatar.src}
+                                  />
                                 ) : null}
                                 <div>
                                   <strong>
@@ -2440,12 +2451,7 @@ export default function ChoNeoGossipPage() {
                               }}
                               type="button"
                             >
-                              <span
-                                className={`avatar-${currentAvatar.tone}`}
-                                aria-hidden="true"
-                              >
-                                {currentAvatar.emoji}
-                              </span>
+                              <img alt="" src={currentAvatar.src} />
                               <strong>{getNicknameInitials(identity.nickname)}</strong>
                             </button>
                           ) : (
@@ -2455,7 +2461,7 @@ export default function ChoNeoGossipPage() {
                               onClick={takeFrontCounterSeat}
                               type="button"
                             >
-                              <span aria-hidden="true">☕</span>
+                              <img alt="" src={CHO_NEO_AVATARS[0].src} />
                               <strong>?</strong>
                             </button>
                           )}
@@ -2734,12 +2740,11 @@ export default function ChoNeoGossipPage() {
                                           src={messageAuthor.avatarSrc}
                                         />
                                       ) : messageAvatar ? (
-                                        <span
-                                          className={`front-counter-bubble-avatar avatar-${messageAvatar.tone}`}
-                                          aria-hidden="true"
-                                        >
-                                          {messageAvatar.emoji}
-                                        </span>
+                                        <img
+                                          alt=""
+                                          className="front-counter-bubble-avatar-image"
+                                          src={messageAvatar.src}
+                                        />
                                       ) : null}
                                       <div>
                                         <strong>
@@ -6566,6 +6571,13 @@ export default function ChoNeoGossipPage() {
           border-radius: 999px;
           background: rgba(253, 230, 138, 0.42);
           font-size: 11px;
+        }
+
+        .front-counter-stage-message-row .front-counter-input-avatar img {
+          width: 20px;
+          height: 20px;
+          border-radius: 999px;
+          object-fit: cover;
         }
 
         .front-counter-input-avatar strong {

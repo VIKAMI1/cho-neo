@@ -433,6 +433,17 @@ export function ChoNeoVillageShell() {
           stroke-width: 2.6;
         }
 
+        .village-member-avatar {
+          overflow: hidden;
+          border-radius: 999px;
+        }
+
+        .village-member-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
         .village-nav-card > span:last-child,
         .village-nav-card strong,
         .village-nav-card small,
