@@ -27,18 +27,17 @@ export function ChoNeoVillageShell() {
         <header className="village-topbar">
           <div className="village-brand">
             <Link className="village-brand-mark" href="/cho-neo">
+              <p>Chợ Neo</p>
               <Image
                 alt=""
-                height={533}
+                className="village-brand-seal"
+                height={44}
                 priority
-                src="/images/cho-neo/branding/cho-neo-approved-header-lockup.png"
-                width={1600}
+                src="/images/cho-neo/branding/cho-neo-emblem-red.svg"
+                width={44}
               />
-              <span className="village-brand-accessible-text">
-                <span>Chợ Neo</span>
-                <span>Chuyện nghề, chuyện đời, chuyện mình.</span>
-              </span>
             </Link>
+            <small>Chuyện nghề, chuyện đời, chuyện mình.</small>
             <a className="village-guide-link" href="#cho-neo-village-guide">
               Hướng dẫn làng
             </a>
@@ -242,32 +241,49 @@ export function ChoNeoVillageShell() {
           padding: 0;
         }
 
-        .village-brand-mark {
+        .village-brand p,
+        .village-brand small {
           display: block;
+          margin: 0;
+        }
+
+        .village-brand-mark {
+          display: flex;
+          align-items: center;
+          gap: 9px;
           min-width: 0;
-          width: min(100%, 320px);
           color: inherit;
           text-decoration: none;
         }
 
-        .village-brand-mark img {
+        .village-brand p {
+          flex: 0 0 auto;
+          width: fit-content;
+          color: var(--cho-neo-text-primary);
+          font-family: var(--cho-neo-font-display);
+          font-size: clamp(30px, 2.05vw, 34px);
+          font-weight: 600;
+          line-height: 0.96;
+          letter-spacing: -0.01em;
+          white-space: nowrap;
+        }
+
+        .village-brand-seal {
           display: block;
-          width: 100%;
-          height: auto;
-          max-width: 100%;
+          flex: 0 0 auto;
+          width: 44px;
+          height: 44px;
           object-fit: contain;
         }
 
-        .village-brand-accessible-text {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          padding: 0;
-          margin: -1px;
-          overflow: hidden;
-          clip: rect(0, 0, 0, 0);
-          white-space: nowrap;
-          border: 0;
+        .village-brand small {
+          margin-top: 3px;
+          color: var(--cho-neo-text-secondary);
+          font-family: var(--cho-neo-font-display);
+          font-size: 13px;
+          font-style: italic;
+          font-weight: 400;
+          line-height: 1.16;
         }
 
         .cho-neo-shared-music-slot {
@@ -1439,8 +1455,19 @@ export function ChoNeoVillageShell() {
             z-index: 3;
           }
 
-          .village-brand-mark {
-            width: min(100%, 340px);
+          .village-brand p {
+            font-size: clamp(30px, 10vw, 38px);
+          }
+
+          .village-brand small {
+            margin-top: 5px;
+            font-size: 13px;
+            line-height: 1.3;
+          }
+
+          .village-brand-seal {
+            width: 36px;
+            height: 36px;
           }
 
           .village-guide-link {
