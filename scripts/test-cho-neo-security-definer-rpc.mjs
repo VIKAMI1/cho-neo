@@ -25,6 +25,13 @@ const privateInvitationMigration = fs.readFileSync(
   ),
   "utf8",
 );
+const privateInvitationUpsertFix = fs.readFileSync(
+  path.join(
+    migrationDir,
+    "20260806110000_fix_cho_neo_private_invitation_upsert.sql",
+  ),
+  "utf8",
+);
 
 const sensitiveFunctions = [
   ["redeem_cho_neo_member_invitation", "text, uuid, text, text, text, text"],
@@ -146,6 +153,22 @@ test("service-role invitation redemption remains a successful server path", () =
   assert.match(
     aclSql("redeem_cho_neo_member_invitation"),
     /to service_role;/,
+  );
+});
+
+test("private invitation redemption uses dynamic SQL and keeps service-only ACL", () => {
+  const sql = functionSql(
+    "redeem_cho_neo_private_invitation",
+    privateInvitationUpsertFix,
+  );
+  const dynamicUpsertStart = sql.indexOf("execute $sql$");
+  assert.notEqual(dynamicUpsertStart, -1);
+  assert.doesNotMatch(sql.slice(0, dynamicUpsertStart), /on conflict \(user_id\) do update/);
+  assert.match(sql.slice(dynamicUpsertStart), /on conflict \(user_id\) do update/);
+  assert.match(sql, /coalesce\(invitation_row\.intended_role, 'other_industry'\)/);
+  assert.match(
+    aclSql("redeem_cho_neo_private_invitation", privateInvitationUpsertFix),
+    /from public;[\s\S]*from anon, authenticated;[\s\S]*to service_role;/,
   );
 });
 

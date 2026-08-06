@@ -21,6 +21,10 @@ const migrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260803100000_cho_neo_private_invitation_onboarding_v1.sql",
 );
+const upsertFixMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260806110000_fix_cho_neo_private_invitation_upsert.sql",
+);
 const inviteScriptPath = path.join(
   repoRoot,
   "scripts/create-cho-neo-member-invitation.mjs",
@@ -33,6 +37,7 @@ const entry = fs.readFileSync(entryPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const migration = fs.readFileSync(migrationPath, "utf8");
+const upsertFixMigration = fs.readFileSync(upsertFixMigrationPath, "utf8");
 const inviteScript = fs.readFileSync(inviteScriptPath, "utf8");
 
 test("private invite uses a URL fragment and removes it after capture", () => {
@@ -105,6 +110,31 @@ test("redemption remains atomic and server-only", () => {
   assert.match(migration, /to service_role/);
   assert.match(verifyRoute, /hashChoNeoInvitationToken\(invitationToken\)/);
   assert.doesNotMatch(verifyRoute, /from\("cho_neo_member_invitations"\)/);
+});
+
+test("private invitation redemption uses the portable profile upsert fix", () => {
+  assert.match(upsertFixMigration, /create or replace function public\.redeem_cho_neo_private_invitation/);
+  assert.match(upsertFixMigration, /execute \$sql\$/);
+  assert.match(upsertFixMigration, /values \(\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11,\$12\)/);
+  assert.match(upsertFixMigration, /on conflict \(user_id\) do update/);
+  assert.match(upsertFixMigration, /using[\s\S]*p_user_id;/);
+  assert.match(upsertFixMigration, /from public\.cho_neo_member_profiles as member_profile/);
+  assert.match(upsertFixMigration, /where member_profile\.user_id = p_user_id/);
+  assert.match(upsertFixMigration, /from public\.cho_neo_member_invitations as invitation/);
+  assert.match(upsertFixMigration, /where invitation\.code_hash = p_code_hash/);
+  assert.doesNotMatch(upsertFixMigration, /where user_id = p_user_id/);
+  assert.match(upsertFixMigration, /for update/);
+  assert.match(upsertFixMigration, /membership_status = 'verified_nail_member'/);
+  assert.match(upsertFixMigration, /grant execute on function public\.redeem_cho_neo_private_invitation/);
+  assert.match(upsertFixMigration, /to service_role;/);
+  assert.doesNotMatch(upsertFixMigration, /cho_neo_member_profiles_pkey/);
+});
+
+test("database redemption failures expose a safe specific reason", () => {
+  assert.match(verifyRoute, /invitation-redeem-schema-conflict/);
+  assert.match(verifyRoute, /invitation-rpc-missing/);
+  assert.match(verifyRoute, /invitation-rpc-permission/);
+  assert.match(verifyRoute, /invitationFailure\(profileError\.message, profileError\.code\)/);
 });
 
 test("plain invitation tokens are not stored or emitted by server application logs", () => {

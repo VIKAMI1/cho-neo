@@ -187,7 +187,7 @@ export async function POST(request: Request) {
     console.error("[cho-neo:member-verify] invitation redemption failed", {
       code: profileError.code ?? null,
     });
-    return invitationFailure(profileError.message);
+    return invitationFailure(profileError.message, profileError.code);
   }
 
   const nextProfile = Array.isArray(profile) ? profile[0] : profile;
@@ -254,7 +254,7 @@ function isInvitationAttemptRateLimited(key: string, now = Date.now()) {
   return false;
 }
 
-function invitationFailure(message: string) {
+function invitationFailure(message: string, code?: string) {
   if (message.includes("expired-invitation")) {
     return NextResponse.json(
       { error: "Lời mời này đã hết hạn.", reason: "expired-invitation" },
@@ -291,6 +291,18 @@ function invitationFailure(message: string) {
       },
       { status: 400 },
     );
+  }
+
+  if (code === "42702" || message.includes('column reference "user_id" is ambiguous')) {
+    return unavailable("invitation-redeem-schema-conflict");
+  }
+
+  if (code === "PGRST202" || message.includes("does not exist")) {
+    return unavailable("invitation-rpc-missing");
+  }
+
+  if (code === "42501" || message.includes("permission denied")) {
+    return unavailable("invitation-rpc-permission");
   }
 
   return unavailable("invitation-redeem-failed");
