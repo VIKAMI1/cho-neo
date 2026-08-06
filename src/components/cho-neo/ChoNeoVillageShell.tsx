@@ -35,10 +35,10 @@ export function ChoNeoVillageShell() {
               <span aria-hidden="true" className="village-brand-seal">
                 <Image
                   alt=""
-                  height={34}
+                  height={38}
                   priority
                   src="/images/cho-neo/cho-neo-verified-seal.svg"
-                  width={34}
+                  width={38}
                 />
               </span>
             </Link>
@@ -281,44 +281,19 @@ export function ChoNeoVillageShell() {
         }
 
         .village-brand-seal {
-          display: grid;
+          display: block;
           flex: 0 0 auto;
-          place-items: center;
-          width: 34px;
-          height: 34px;
-          overflow: hidden;
-          border: 1px solid rgba(248, 211, 145, 0.72);
-          border-radius: 9px;
-          background: linear-gradient(
-            145deg,
-            rgba(255, 250, 239, 0.98),
-            rgba(239, 211, 158, 0.94)
-          );
-          box-shadow:
-            0 6px 16px rgba(0, 0, 0, 0.28),
-            inset 0 1px 0 rgba(255, 255, 255, 0.78),
-            0 0 0 1px rgba(126, 39, 38, 0.22);
-          transition:
-            transform 160ms ease,
-            border-color 160ms ease,
-            box-shadow 160ms ease;
+          width: 38px;
+          height: 38px;
+          overflow: visible;
+          background: transparent;
         }
 
         .village-brand-seal img {
           display: block;
-          width: 76%;
-          height: 76%;
+          width: 100%;
+          height: 100%;
           object-fit: contain;
-        }
-
-        .village-brand-mark:hover .village-brand-seal,
-        .village-brand-mark:focus-visible .village-brand-seal {
-          transform: translateY(-1px);
-          border-color: rgba(248, 211, 145, 0.96);
-          box-shadow:
-            0 8px 20px rgba(0, 0, 0, 0.34),
-            inset 0 1px 0 rgba(255, 255, 255, 0.86),
-            0 0 0 1px rgba(126, 39, 38, 0.28);
         }
 
         .village-brand small {
@@ -1509,9 +1484,8 @@ export function ChoNeoVillageShell() {
           }
 
           .village-brand-seal {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
+            width: 34px;
+            height: 34px;
           }
 
           .village-brand small {
