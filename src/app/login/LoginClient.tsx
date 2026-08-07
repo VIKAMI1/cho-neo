@@ -96,12 +96,9 @@ export default function LoginClient() {
           </p>
         ) : null}
         <div className="cho-neo-login-invitation">
-          <p>Bạn có lời mời mới?</p>
-          <Link href={`/join?next=${encodeURIComponent(next)}`}>Mở lời mời riêng</Link>
+          <p>Lần đầu đến Chợ Neo?</p>
+          <Link href={`/join?next=${encodeURIComponent(next)}`}>Dùng lời mời</Link>
         </div>
-        <Link className="cho-neo-login-back" href={next}>
-          Trở lại Chợ Neo
-        </Link>
       </section>
       <style jsx>{`
         .cho-neo-login-page {
@@ -173,8 +170,7 @@ export default function LoginClient() {
           gap: 10px;
         }
 
-        button,
-        .cho-neo-login-back {
+        button {
           min-height: 46px;
           border-radius: 14px;
           font: inherit;
@@ -234,12 +230,6 @@ export default function LoginClient() {
           font-weight: 500;
         }
 
-        .cho-neo-login-back {
-          display: inline-grid;
-          place-items: center;
-          color: var(--cho-neo-text-secondary);
-          text-decoration: none;
-        }
       `}</style>
     </main>
   );
