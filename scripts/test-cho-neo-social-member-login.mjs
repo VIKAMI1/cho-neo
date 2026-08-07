@@ -126,8 +126,16 @@ test("return destinations are local and callback exchanges the PKCE code", () =>
   assert.match(authCallback, /router\.replace\(next\)/);
   assert.match(authCallback, /search\.get\("mode"\) === "link"/);
   assert.match(authCallback, /from\("cho_neo_member_profiles"\)/);
-  assert.match(authCallback, /profile\.user_id !== session\.user\.id/);
-  assert.match(authCallback, /membership_status !== "verified_nail_member"/);
+  assert.match(authCallback, /profile\.userId !== session\.user\.id/);
+  assert.match(authCallback, /profile\.status !== "verified_nail_member"/);
+  assert.match(authCallback, /profile\.avatarKey/);
+  assert.match(
+    authCallback,
+    /display_name, normalized_display_name, avatar_key, nail_role, membership_status, agreement_version, agreement_accepted_at/,
+  );
+  assert.match(authCallback, /isApprovedChoNeoMemberAvatarKey\(data\.avatar_key\)/);
+  assert.match(authCallback, /mapChoNeoMemberProfileRow\(data\)/);
+  assert.doesNotMatch(authCallback, /user_metadata|avatar_url|picture|updateUser/);
   assert.match(authCallback, /auth\.signOut\(\)/);
   assert.match(authCallback, /addAuthError\(next, "unlinked"\)/);
   assert.doesNotMatch(authCallback, /console\.error/);
@@ -164,6 +172,18 @@ test("invite redemption offers same-user Google identity linking without bootstr
   assert.match(join, /session\.user\.is_anonymous/);
   assert.match(join, /window\.location\.assign\(data\.url\)/);
   assert.doesNotMatch(join, /api\/cho-neo\/member\/bootstrap|openRegistration/);
+});
+
+test("invite-selected avatar and server identity remain authoritative through Google return", () => {
+  const join = fs.readFileSync(path.join(repoRoot, "src/app/join/JoinClient.tsx"), "utf8");
+  assert.match(join, /avatarKey: resolveChoNeoMemberAvatarKey\(avatarKey\)/);
+  assert.doesNotMatch(join, /user_metadata|avatar_url|picture|updateUser/);
+  assert.match(verifyRoute, /p_avatar_key: avatarKey/);
+  assert.match(verifyRoute, /auth\.getUser\(token\)/);
+  assert.doesNotMatch(verifyRoute, /body\?\.userId|body\?\.authorUserId/);
+  assert.match(authCallback, /\.eq\("user_id", userId\)/);
+  assert.match(authCallback, /profile\.userId !== session\.user\.id/);
+  assert.match(authCallback, /profile\.avatarKey/);
 });
 
 test("unlinked Google sessions are signed out and never bootstrapped into members", () => {

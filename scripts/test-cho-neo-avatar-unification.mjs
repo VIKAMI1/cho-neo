@@ -14,6 +14,10 @@ const memberHeader = readFileSync(
 );
 const avatarPage = readFileSync("src/app/cho-neo/avatar/page.tsx", "utf8");
 const joinPage = readFileSync("src/app/join/JoinClient.tsx", "utf8");
+const authCallback = readFileSync(
+  "src/app/auth/callback/AuthCallbackClient.tsx",
+  "utf8",
+);
 const gossipPage = readFileSync("src/app/cho-neo/gossip/page.tsx", "utf8");
 const gossipIdentity = readFileSync(
   "src/lib/cho-neo/gossip-front-counter.ts",
@@ -78,4 +82,13 @@ test("Quán Tám gives a verified member profile precedence over local avatar st
   assert.match(gossipPage, /src=\{currentAvatar\.src\}/);
   assert.match(gossipPage, /src=\{messageAvatar\.src\}/);
   assert.doesNotMatch(gossipPage, /\{messageAvatar\.emoji\}/);
+});
+
+test("Google return preserves the server-backed Chợ Neo portrait identity", () => {
+  assert.match(authCallback, /avatar_key/);
+  assert.match(authCallback, /isApprovedChoNeoMemberAvatarKey\(data\.avatar_key\)/);
+  assert.match(authCallback, /mapChoNeoMemberProfileRow\(data\)/);
+  assert.match(authCallback, /profile\.userId !== session\.user\.id/);
+  assert.match(authCallback, /profile\.avatarKey/);
+  assert.doesNotMatch(authCallback, /user_metadata|avatar_url|picture|updateUser/);
 });

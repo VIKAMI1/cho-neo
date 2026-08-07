@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  isApprovedChoNeoMemberAvatarKey,
+  mapChoNeoMemberProfileRow,
+} from "@/lib/cho-neo/member-identity";
 import { createClient } from "@/lib/supabase-browser";
 
 /**
@@ -82,7 +86,12 @@ export default function AuthCallbackClient() {
 
         const profile = await loadMemberProfile(supabase, session.user.id);
         if (linkMode) {
-          if (!profile || profile.user_id !== session.user.id || profile.membership_status !== "verified_nail_member") {
+          if (
+            !profile ||
+            profile.userId !== session.user.id ||
+            profile.status !== "verified_nail_member" ||
+            !profile.avatarKey
+          ) {
             throw new Error("linked-member-profile-missing");
           }
           cleanCallbackUrl(url);
@@ -97,14 +106,14 @@ export default function AuthCallbackClient() {
           return;
         }
 
-        if (profile.membership_status === "suspended" || profile.membership_status === "rejected") {
+        if (profile.status === "suspended" || profile.status === "rejected") {
           await supabase.auth.signOut();
           cleanCallbackUrl(url);
           router.replace(addAuthError(next, "restricted"));
           return;
         }
 
-        if (profile.membership_status !== "verified_nail_member") {
+        if (profile.status !== "verified_nail_member") {
           await supabase.auth.signOut();
           cleanCallbackUrl(url);
           router.replace(addAuthError(next, "unlinked"));
@@ -161,12 +170,19 @@ async function loadMemberProfile(
 ) {
   const { data, error } = await supabase
     .from("cho_neo_member_profiles")
-    .select("user_id, membership_status")
+    .select(
+      "user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status, agreement_version, agreement_accepted_at",
+    )
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw new Error("member-profile-read-failed");
-  return data;
+  if (!data) return null;
+  if (!isApprovedChoNeoMemberAvatarKey(data.avatar_key)) {
+    throw new Error("member-avatar-missing-or-invalid");
+  }
+
+  return mapChoNeoMemberProfileRow(data);
 }
 
 function addAuthError(path: string, reason: string) {
