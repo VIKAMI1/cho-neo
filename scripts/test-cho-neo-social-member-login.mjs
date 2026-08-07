@@ -242,7 +242,7 @@ async function importMemberModule() {
   const source = fs
     .readFileSync(memberPath, "utf8")
     .replace(
-      'import {\n  CHO_NEO_AVATARS,\n  getAvatarById,\n  type ChoNeoAvatar,\n} from "./avatar-identity";',
+      /import \{[\s\S]*?\} from "\.\/avatar-identity";/,
       `const CHO_NEO_AVATARS = [
         { id: "young-nail-tech", name: "Nail Tech", description: "", emoji: "x", tone: "cyan" },
         { id: "auntie-owner", name: "Salon Owner", description: "", emoji: "x", tone: "rose" }

@@ -1,6 +1,6 @@
 import {
   type ChoNeoIdentity,
-  getAvatarById,
+  isChoNeoAvatarId,
   isValidVillageNickname,
 } from "./avatar-identity";
 
@@ -348,7 +348,7 @@ function isFrontCounterMessage(message: unknown): message is FrontCounterMessage
 
   return (
     typeof candidate.id === "string" &&
-    getAvatarById(candidate.avatarId).id === candidate.avatarId &&
+    isChoNeoAvatarId(candidate.avatarId) &&
     isValidVillageNickname(candidate.nickname).valid &&
     typeof candidate.text === "string" &&
     candidate.text.trim().length > 0 &&
@@ -378,7 +378,7 @@ function isFrontCounterSeat(seat: unknown): seat is FrontCounterSeat {
   const candidate = seat as FrontCounterSeat;
 
   return (
-    getAvatarById(candidate.avatarId).id === candidate.avatarId &&
+    isChoNeoAvatarId(candidate.avatarId) &&
     isValidVillageNickname(candidate.nickname).valid &&
     typeof candidate.seatedAt === "string"
   );

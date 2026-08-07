@@ -1,6 +1,8 @@
 import {
   CHO_NEO_AVATARS,
   getAvatarById,
+  LEGACY_CHO_NEO_AVATAR_ID_MAP,
+  resolveChoNeoAvatarId,
   type ChoNeoAvatar,
 } from "./avatar-identity";
 
@@ -122,13 +124,14 @@ export function validateChoNeoMemberDisplayName(
 export function isApprovedChoNeoMemberAvatarKey(value: unknown): value is string {
   return (
     typeof value === "string" &&
-    CHO_NEO_AVATARS.some((avatar) => avatar.id === value)
+    (CHO_NEO_AVATARS.some((avatar) => avatar.id === value) ||
+      Object.prototype.hasOwnProperty.call(LEGACY_CHO_NEO_AVATAR_ID_MAP, value))
   );
 }
 
 export function resolveChoNeoMemberAvatarKey(value: unknown) {
   return isApprovedChoNeoMemberAvatarKey(value)
-    ? value
+    ? resolveChoNeoAvatarId(value)
     : CHO_NEO_AVATARS[0].id;
 }
 

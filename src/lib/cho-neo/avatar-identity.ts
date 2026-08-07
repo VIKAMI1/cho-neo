@@ -1,8 +1,11 @@
 export type ChoNeoAvatar = {
   id: string;
   name: string;
+  nameEn: string;
+  nameVi: string;
   description: string;
-  emoji: string;
+  emoji?: string;
+  src: string;
   tone: string;
 };
 
@@ -24,7 +27,7 @@ type ChoNeoAvatarProfileStorage = {
 
 export const CHO_NEO_IDENTITY_KEY = "choNeoAvatarProfile";
 
-const CANONICAL_AVATAR_ID_MAP: Record<string, string> = {
+export const LEGACY_CHO_NEO_AVATAR_ID_MAP: Record<string, string> = {
   "bling-bling-girl": "salon-queen",
   "creative-soul": "golden-scissors",
   "female-salon-owner": "auntie-owner",
@@ -35,121 +38,155 @@ const CANONICAL_AVATAR_ID_MAP: Record<string, string> = {
   "show-off-gay": "weekend-warrior",
 };
 
-const AVATAR_PROFILE_SRC_BY_ID: Record<string, string> = {
-  "auntie-owner": "/images/cho-neo/avatars/salon-owner-female.png",
-  "front-counter-pro": "/images/cho-neo/avatars/salon-owner-male.png",
-  "golden-scissors": "/images/cho-neo/avatars/creative-soul.png",
-  "gossip-auntie": "/images/cho-neo/avatars/gossip-cafe-regular.png",
-  "salon-queen": "/images/cho-neo/avatars/bling-bling-girl.png",
-  "uncle-coffee": "/images/cho-neo/avatars/gossip-cafe-regular.png",
-  "weekend-warrior": "/images/cho-neo/avatars/show-off-guy.png",
-  "young-nail-tech": "/images/cho-neo/avatars/nail-tech-girl.png",
-};
-
 export const CHO_NEO_AVATARS: ChoNeoAvatar[] = [
   {
     id: "young-nail-tech",
     name: "Nail Tech",
-    description: "Skilled hands. Shop-floor wisdom.",
+    nameEn: "Nail Tech",
+    nameVi: "Thợ Nail",
+    description: "Tay nghề chắc. Biết chuyện dưới sàn tiệm.",
     emoji: "💅",
+    src: "/images/cho-neo/avatars/nail-tech-girl.png",
     tone: "cyan",
   },
   {
     id: "auntie-owner",
-    name: "Salon Owner",
-    description: "Runs the show. Carries the weight.",
+    name: "Female Salon Owner",
+    nameEn: "Female Salon Owner",
+    nameVi: "Chủ Tiệm Nữ",
+    description: "Dẫn dắt bằng tình. Quán xuyến cả tiệm.",
     emoji: "🧾",
+    src: "/images/cho-neo/avatars/salon-owner-female.png",
     tone: "rose",
   },
   {
     id: "quiet-listener",
     name: "Quiet Listener",
-    description: "Calm soul. Observes everything.",
+    nameEn: "Quiet Listener",
+    nameVi: "Người Lắng Nghe",
+    description: "Điềm tĩnh. Nhìn thấy nhiều chuyện.",
     emoji: "🪑",
+    src: "/images/cho-neo/avatars/gossip-cafe-regular.png",
     tone: "blue",
   },
   {
     id: "gossip-auntie",
     name: "Gossip Café Regular",
-    description: "Warm. Social. Always around the table.",
+    nameEn: "Gossip Café Regular",
+    nameVi: "Khách Quen Quán Tám",
+    description: "Ấm áp. Hay trò chuyện. Luôn quanh bàn.",
     emoji: "🫖",
+    src: "/images/cho-neo/avatars/gossip-cafe-regular.png",
     tone: "rose",
   },
   {
     id: "weekend-warrior",
     name: "Show-Off Guy",
-    description: "Confident. Loves wins. Flexes the journey.",
+    nameEn: "Show-Off Guy",
+    nameVi: "Người Có Gu",
+    description: "Tự tin. Thích thắng. Khoe hành trình.",
     emoji: "🏆",
+    src: "/images/cho-neo/avatars/show-off-guy.png",
     tone: "gold",
   },
   {
     id: "salon-queen",
     name: "Bling-Bling Girl",
-    description: "Glam. Sparkle. Beauty-forward.",
+    nameEn: "Bling-Bling Girl",
+    nameVi: "Cô Lấp Lánh",
+    description: "Lấp lánh. Đẹp. Thích nổi bật.",
     emoji: "✨",
+    src: "/images/cho-neo/avatars/bling-bling-girl.png",
     tone: "violet",
   },
   {
     id: "ong-dia-buddy",
     name: "Lucky Seeker",
-    description: "Xin xăm. Ông Địa believer. Hopeful heart.",
+    nameEn: "Lucky Seeker",
+    nameVi: "Người Tìm May",
+    description: "Tin xin xăm, Ông Địa. Lòng còn hy vọng.",
     emoji: "🍊",
+    src: "/images/cho-neo/avatars/creative-soul.png",
     tone: "gold",
   },
   {
     id: "new-village-guest",
     name: "Young Apprentice",
-    description: "New. Curious. Learning the trade.",
+    nameEn: "Young Apprentice",
+    nameVi: "Học Việc Trẻ",
+    description: "Mới vào nghề. Tò mò. Đang học.",
     emoji: "🏮",
+    src: "/images/cho-neo/avatars/nail-tech-guy.png",
     tone: "slate",
   },
   {
     id: "uncle-coffee",
     name: "Waterfront Thinker",
-    description: "Reflective. Late-night mind. Needs quiet.",
+    nameEn: "Waterfront Thinker",
+    nameVi: "Người Suy Nghĩ Bên Nước",
+    description: "Hay nghĩ. Thức khuya. Cần yên tĩnh.",
     emoji: "☕",
+    src: "/images/cho-neo/avatars/gossip-cafe-regular.png",
     tone: "blue",
   },
   {
     id: "bubble-tea-tech",
     name: "Radio Listener",
-    description: "Tuned in. Listens. Reacts. Village voice lover.",
+    nameEn: "Radio Listener",
+    nameVi: "Người Nghe Radio",
+    description: "Bắt sóng nhanh. Biết nghe. Biết phản ứng.",
     emoji: "📻",
+    src: "/images/cho-neo/avatars/nail-tech-guy.png",
     tone: "cyan",
   },
   {
     id: "product-hunter",
     name: "Tool Hunter",
-    description: "Product geek. Always chasing the next best thing.",
+    nameEn: "Tool Hunter",
+    nameVi: "Người Săn Dụng Cụ",
+    description: "Mê sản phẩm. Luôn tìm món tốt tiếp theo.",
     emoji: "🧴",
+    src: "/images/cho-neo/avatars/creative-soul.png",
     tone: "green",
   },
   {
     id: "market-runner",
     name: "Night Owl",
-    description: "After-hours talker. Closes the café.",
+    nameEn: "Night Owl",
+    nameVi: "Cú Đêm",
+    description: "Hay nói sau giờ. Khép cửa quán sau cùng.",
     emoji: "🌙",
+    src: "/images/cho-neo/avatars/show-off-guy.png",
     tone: "violet",
   },
   {
     id: "golden-scissors",
     name: "Color Queen",
-    description: "Loves color. Match. Design. Details matter.",
+    nameEn: "Color Queen",
+    nameVi: "Nữ Hoàng Màu",
+    description: "Mê màu, phối màu, thiết kế. Chi tiết là chuyện lớn.",
     emoji: "🎨",
+    src: "/images/cho-neo/avatars/creative-soul.png",
     tone: "gold",
   },
   {
     id: "lucky-cat-friend",
     name: "Tea Table Friend",
-    description: "Brings calm. Good energy. Tea heals.",
+    nameEn: "Tea Table Friend",
+    nameVi: "Người Bạn Bàn Trà",
+    description: "Mang sự dịu lại. Trà giúp lòng chậm hơn.",
     emoji: "🍵",
+    src: "/images/cho-neo/avatars/gossip-cafe-regular.png",
     tone: "green",
   },
   {
     id: "front-counter-pro",
     name: "Problem Solver",
-    description: "Business brain. Gives advice. Finds solutions.",
+    nameEn: "Problem Solver",
+    nameVi: "Người Giải Quyết",
+    description: "Đầu óc kinh doanh. Góp ý thực tế. Tìm được đường ra.",
     emoji: "🧠",
+    src: "/images/cho-neo/avatars/salon-owner-male.png",
     tone: "blue",
   },
 ];
@@ -166,10 +203,22 @@ const nicknameSuggestions = [
 ];
 
 export function getAvatarById(avatarId: string) {
-  return CHO_NEO_AVATARS.find((avatar) => avatar.id === avatarId) ?? CHO_NEO_AVATARS[0];
+  const resolvedAvatarId = resolveChoNeoAvatarId(avatarId);
+  return (
+    CHO_NEO_AVATARS.find((avatar) => avatar.id === resolvedAvatarId) ??
+    CHO_NEO_AVATARS[0]
+  );
 }
 
-function resolveAvatarId(avatarId: string | undefined) {
+export function isChoNeoAvatarId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (CHO_NEO_AVATARS.some((avatar) => avatar.id === value) ||
+      Object.prototype.hasOwnProperty.call(LEGACY_CHO_NEO_AVATAR_ID_MAP, value))
+  );
+}
+
+export function resolveChoNeoAvatarId(avatarId: string | undefined) {
   if (!avatarId) {
     return CHO_NEO_AVATARS[0].id;
   }
@@ -178,11 +227,7 @@ function resolveAvatarId(avatarId: string | undefined) {
     return avatarId;
   }
 
-  return CANONICAL_AVATAR_ID_MAP[avatarId] ?? CHO_NEO_AVATARS[0].id;
-}
-
-function getAvatarProfileSrc(avatarId: string) {
-  return AVATAR_PROFILE_SRC_BY_ID[avatarId] ?? "/images/cho-neo/avatars/nail-tech-girl.png";
+  return LEGACY_CHO_NEO_AVATAR_ID_MAP[avatarId] ?? CHO_NEO_AVATARS[0].id;
 }
 
 function readStoredAvatarProfile(): ChoNeoAvatarProfileStorage | null {
@@ -215,7 +260,7 @@ export function getChoNeoIdentity(): ChoNeoIdentity | null {
     return null;
   }
 
-  const avatarId = resolveAvatarId(parsed.avatarId);
+  const avatarId = resolveChoNeoAvatarId(parsed.avatarId);
 
   return {
     avatarId,
@@ -234,7 +279,7 @@ export function saveChoNeoIdentity(input: {
     return null;
   }
 
-  const avatarId = resolveAvatarId(input.avatarId);
+  const avatarId = resolveChoNeoAvatarId(input.avatarId);
   const nickname = input.nickname.trim();
   const validation = isValidVillageNickname(nickname);
 
@@ -255,7 +300,7 @@ export function saveChoNeoIdentity(input: {
     CHO_NEO_IDENTITY_KEY,
     JSON.stringify({
       avatarId,
-      avatarSrc: getAvatarProfileSrc(avatarId),
+      avatarSrc: getAvatarById(avatarId).src,
       nickname,
       mood: storedProfile?.mood ?? "Muốn tám chút",
       updatedAt: now,

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useChoNeoMember } from "./ChoNeoMemberProvider";
 import { isVerifiedChoNeoMemberProfile } from "@/lib/cho-neo/member-identity";
 
@@ -16,7 +17,12 @@ export function ChoNeoMemberHeaderControl() {
         type="button"
       >
         <span aria-hidden="true" className="village-nav-icon village-member-avatar">
-          {profile.avatar.emoji}
+          <Image
+            alt=""
+            height={34}
+            src={profile.avatar.src}
+            width={34}
+          />
         </span>
         <span>
           <strong>{profile.displayName}</strong>
