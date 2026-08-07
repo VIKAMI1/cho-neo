@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase-browser";
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 export const CHO_NEO_OAUTH_SCOPES = {
@@ -97,7 +96,7 @@ export default function LoginClient() {
         ) : null}
         <div className="cho-neo-login-invitation">
           <p>Lần đầu đến Chợ Neo?</p>
-          <Link href={`/join?next=${encodeURIComponent(next)}`}>Dùng lời mời</Link>
+          <p>Mở liên kết lời mời bạn đã nhận trong tin nhắn hoặc email.</p>
         </div>
       </section>
       <style jsx>{`
@@ -222,12 +221,6 @@ export default function LoginClient() {
           margin: 0;
           color: var(--cho-neo-text-secondary);
           font-size: 13px;
-        }
-
-        .cho-neo-login-invitation a {
-          color: var(--cho-neo-text-primary);
-          font-size: 14px;
-          font-weight: 500;
         }
 
       `}</style>

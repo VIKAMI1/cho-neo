@@ -74,8 +74,9 @@ test("/login separates returning Google login from private invitations", () => {
   assert.match(loginClient, /Trở lại Chợ Neo/);
   assert.match(loginClient, /Đăng nhập với Google/);
   assert.match(loginClient, /Lần đầu đến Chợ Neo\?/);
-  assert.match(loginClient, /Dùng lời mời/);
+  assert.match(loginClient, /Mở liên kết lời mời bạn đã nhận trong tin nhắn hoặc email\./);
   assert.doesNotMatch(loginClient, /cho-neo-login-back/);
+  assert.doesNotMatch(loginClient, /Dùng lời mời|href=.*join/);
   assert.match(privateEntry, /Mở cửa theo lời mời riêng/);
   assert.match(privateEntry, /href=\{joinHref\}/);
   assert.doesNotMatch(privateEntry, /Google|Facebook|signInWithOAuth/);

@@ -158,7 +158,7 @@ test("returning Google login is active while invitation creation remains separat
   assert.match(loginClient, /auth\/callback/);
   assert.match(loginPage, /LoginClient/);
   assert.match(loginClient, /Đăng nhập với Google/);
-  assert.match(loginClient, /Dùng lời mời/);
+  assert.match(loginClient, /Mở liên kết lời mời bạn đã nhận trong tin nhắn hoặc email\./);
   assert.match(entry, /Mở lời mời/);
   assert.doesNotMatch(loginClient, /openRegistration|member\/bootstrap/);
 });
