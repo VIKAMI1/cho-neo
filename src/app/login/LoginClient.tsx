@@ -6,37 +6,43 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 export const CHO_NEO_OAUTH_SCOPES = {
-  facebook: "public_profile email",
   google: "openid email profile",
 } as const;
 
 export default function LoginClient() {
   const supabase = useMemo(() => createClient(), []);
   const search = useSearchParams();
-  const [busyProvider, setBusyProvider] = useState<"google" | "facebook" | null>(
-    null,
-  );
+  const [busyProvider, setBusyProvider] = useState<"google" | null>(null);
   const [message, setMessage] = useState("");
 
   const googleEnabled =
     process.env.NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED === "true";
-  const facebookEnabled =
-    process.env.NEXT_PUBLIC_CHO_NEO_FACEBOOK_LOGIN_ENABLED === "true";
-
   const next = getSafeReturnTo(search.get("next"));
+  const reason = search.get("reason");
+  const callbackMessage =
+    reason === "unlinked"
+      ? [
+          "Tài khoản Google này chưa được liên kết với một thành viên Chợ Neo.",
+          "Nếu bạn có lời mời mới, hãy mở liên kết lời mời đó trước.",
+        ]
+      : reason === "restricted"
+        ? ["Hồ sơ này hiện chưa thể vào Chợ Neo."]
+        : reason === "failed"
+          ? ["Google chưa đăng nhập xong. Thử lại giúp Chợ Neo nha."]
+        : null;
 
-  async function startOAuth(provider: "google" | "facebook") {
-    setBusyProvider(provider);
+  async function startGoogleOAuth() {
+    setBusyProvider("google");
     setMessage("");
 
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
       next,
     )}`;
     const { error } = await supabase.auth.signInWithOAuth({
-      provider,
+      provider: "google",
       options: {
         redirectTo,
-        scopes: CHO_NEO_OAUTH_SCOPES[provider],
+        scopes: CHO_NEO_OAUTH_SCOPES.google,
       },
     });
 
@@ -50,36 +56,28 @@ export default function LoginClient() {
     <main className="cho-neo-login-page">
       <section className="cho-neo-login-card" aria-labelledby="cho-neo-login-title">
         <p className="cho-neo-login-kicker">Chợ Neo</p>
-        <h1 id="cho-neo-login-title">Vào Chợ Neo</h1>
+        <h1 id="cho-neo-login-title">Trở lại Chợ Neo</h1>
         <p className="cho-neo-login-copy">
-          Chợ Neo dành cho thợ nail, chủ tiệm, người học nghề và nhà cung cấp.
+          Đăng nhập Google để trở lại đúng hồ sơ thành viên Chợ Neo của bạn.
         </p>
 
-        {googleEnabled || facebookEnabled ? (
+        {callbackMessage ? (
+          <div aria-live="polite" className="cho-neo-login-message" role="alert">
+            {callbackMessage.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        ) : null}
+
+        {googleEnabled ? (
           <div className="cho-neo-login-actions">
-            {googleEnabled ? (
-              <button
-                disabled={busyProvider !== null}
-                onClick={() => startOAuth("google")}
-                type="button"
-              >
-                {busyProvider === "google"
-                  ? "Đang mở Google..."
-                  : "Tiếp tục với Google"}
-              </button>
-            ) : null}
-          {facebookEnabled ? (
             <button
-              className="secondary"
               disabled={busyProvider !== null}
-              onClick={() => startOAuth("facebook")}
+              onClick={startGoogleOAuth}
               type="button"
             >
-              {busyProvider === "facebook"
-                ? "Đang mở Facebook..."
-                : "Tiếp tục với Facebook"}
+              {busyProvider === "google" ? "Đang mở Google..." : "Đăng nhập với Google"}
             </button>
-          ) : null}
           </div>
         ) : (
           <p className="cho-neo-login-message" role="status">
@@ -97,6 +95,10 @@ export default function LoginClient() {
             {message}
           </p>
         ) : null}
+        <div className="cho-neo-login-invitation">
+          <p>Bạn có lời mời mới?</p>
+          <Link href={`/join?next=${encodeURIComponent(next)}`}>Mở lời mời riêng</Link>
+        </div>
         <Link className="cho-neo-login-back" href={next}>
           Trở lại Chợ Neo
         </Link>
@@ -203,6 +205,33 @@ export default function LoginClient() {
           color: var(--cho-neo-text-primary);
           background: rgba(255, 247, 237, 0.06);
           font-size: 13px;
+        }
+
+        .cho-neo-login-message p {
+          margin: 0;
+        }
+
+        .cho-neo-login-message p + p {
+          margin-top: 6px;
+        }
+
+        .cho-neo-login-invitation {
+          display: grid;
+          gap: 4px;
+          padding-top: 4px;
+          border-top: 1px solid rgba(255, 247, 237, 0.12);
+        }
+
+        .cho-neo-login-invitation p {
+          margin: 0;
+          color: var(--cho-neo-text-secondary);
+          font-size: 13px;
+        }
+
+        .cho-neo-login-invitation a {
+          color: var(--cho-neo-text-primary);
+          font-size: 14px;
+          font-weight: 500;
         }
 
         .cho-neo-login-back {

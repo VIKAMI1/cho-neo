@@ -69,24 +69,27 @@ const migration = fs.readFileSync(migrationPath, "utf8");
 const inviteScript = fs.readFileSync(inviteScriptPath, "utf8");
 const memberModule = await importMemberModule();
 
-test("/login is the private invitation entrance", () => {
-  assert.match(loginPage, /PrivateInvitationEntry/);
+test("/login separates returning Google login from private invitations", () => {
+  assert.match(loginPage, /LoginClient/);
+  assert.match(loginClient, /Trở lại Chợ Neo/);
+  assert.match(loginClient, /Đăng nhập với Google/);
+  assert.match(loginClient, /Bạn có lời mời mới\?/);
+  assert.match(loginClient, /Mở lời mời riêng/);
   assert.match(privateEntry, /Mở cửa theo lời mời riêng/);
   assert.match(privateEntry, /href=\{joinHref\}/);
   assert.doesNotMatch(privateEntry, /Google|Facebook|signInWithOAuth/);
-  assert.doesNotMatch(loginPage, /LoginClient/);
+  assert.doesNotMatch(loginPage, /PrivateInvitationEntry/);
 });
 
-test("OAuth providers use Supabase PKCE callback, basic scopes and feature flags", () => {
+test("returning login uses Google-only Supabase PKCE with a basic scope", () => {
   assert.match(loginClient, /signInWithOAuth\(\{/);
-  assert.match(loginClient, /provider,/);
+  assert.match(loginClient, /provider: "google"/);
   assert.match(loginClient, /redirectTo,/);
   assert.match(loginClient, /window\.location\.origin\}\/auth\/callback\?next=/);
   assert.match(loginClient, /google: "openid email profile"/);
-  assert.match(loginClient, /facebook: "public_profile email"/);
-  assert.match(loginClient, /scopes: CHO_NEO_OAUTH_SCOPES\[provider\]/);
+  assert.match(loginClient, /scopes: CHO_NEO_OAUTH_SCOPES\.google/);
   assert.match(loginClient, /NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED === "true"/);
-  assert.match(loginClient, /NEXT_PUBLIC_CHO_NEO_FACEBOOK_LOGIN_ENABLED === "true"/);
+  assert.doesNotMatch(loginClient, /Facebook|facebook|FACEBOOK/);
   assert.doesNotMatch(loginClient, /friends|contacts|pages|business|publish|posts/i);
   assert.doesNotMatch(loginClient, /provider_token|provider_refresh_token|access_token/);
 });
@@ -98,10 +101,9 @@ test("Supabase browser client uses one PKCE session-completion path", () => {
   assert.match(supabaseBrowser, /autoRefreshToken: true/);
 });
 
-test("provider buttons fail closed behind independent flags", () => {
-  assert.match(loginClient, /googleEnabled \|\| facebookEnabled/);
+test("Google login fails closed behind its feature flag", () => {
+  assert.match(loginClient, /googleEnabled \?/);
   assert.match(loginClient, /googleEnabled \? \(/);
-  assert.match(loginClient, /facebookEnabled \? \(/);
   assert.match(loginClient, /Cổng đăng nhập thành viên đang tạm đóng/);
   assert.match(loginClient, /Trở lại Chợ Neo/);
   assert.doesNotMatch(loginClient, /NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED !== "false"/);
@@ -115,7 +117,6 @@ test("return destinations are local and callback exchanges the PKCE code", () =>
   assert.doesNotMatch(authCallback, /exchangeCodeForSession\(url\.href\)/);
   assert.match(authCallback, /const \{ data, error \} =\s+await supabase\.auth\.exchangeCodeForSession\(code\)/);
   assert.match(authCallback, /oauth-session-missing/);
-  assert.match(authCallback, /setTimeout\(\(\) => router\.replace\(`\/login\?next=\$\{encodeURIComponent\(next\)\}`\), 1200\)/);
   assert.match(authCallback, /cleanCallbackUrl\(url\)/);
   assert.match(authCallback, /window\.history\.replaceState\(\{\}, "", `\$\{url\.origin\}\$\{url\.pathname\}`\)/);
   assert.match(authCallback, /url\.hash\.includes\("access_token"\)/);
@@ -123,6 +124,13 @@ test("return destinations are local and callback exchanges the PKCE code", () =>
   assert.match(authCallback, /didRunRef/);
   assert.match(authCallback, /const next = getSafeReturnTo\(search\.get\("next"\)\)/);
   assert.match(authCallback, /router\.replace\(next\)/);
+  assert.match(authCallback, /search\.get\("mode"\) === "link"/);
+  assert.match(authCallback, /from\("cho_neo_member_profiles"\)/);
+  assert.match(authCallback, /profile\.user_id !== session\.user\.id/);
+  assert.match(authCallback, /membership_status !== "verified_nail_member"/);
+  assert.match(authCallback, /auth\.signOut\(\)/);
+  assert.match(authCallback, /addAuthError\(next, "unlinked"\)/);
+  assert.doesNotMatch(authCallback, /console\.error/);
   assert.doesNotMatch(authCallback, /localhost:3000/);
   assert.doesNotMatch(authCallback, /getSessionFromUrl/);
 });
@@ -145,6 +153,27 @@ test("member provider sends first-time users to the private join flow", () => {
   assert.match(provider, /profile\?\.status === "suspended"/);
   assert.match(provider, /profile\?\.status === "rejected"/);
   assert.match(provider, /Chưa vào khu thành viên được/);
+});
+
+test("invite redemption offers same-user Google identity linking without bootstrap", () => {
+  const join = fs.readFileSync(path.join(repoRoot, "src/app/join/JoinClient.tsx"), "utf8");
+  assert.match(join, /supabase\.auth\.linkIdentity\(\{/);
+  assert.match(join, /provider: "google"/);
+  assert.match(join, /mode=link/);
+  assert.match(join, /Liên kết với Google/);
+  assert.match(join, /session\.user\.is_anonymous/);
+  assert.match(join, /window\.location\.assign\(data\.url\)/);
+  assert.doesNotMatch(join, /api\/cho-neo\/member\/bootstrap|openRegistration/);
+});
+
+test("unlinked Google sessions are signed out and never bootstrapped into members", () => {
+  assert.match(authCallback, /if \(!profile\)/);
+  assert.match(authCallback, /await supabase\.auth\.signOut\(\)/);
+  assert.match(loginClient, /Tài khoản Google này chưa được liên kết với một thành viên Chợ Neo/);
+  assert.match(loginClient, /Nếu bạn có lời mời mới, hãy mở liên kết lời mời đó trước/);
+  assert.match(loginClient, /reason === "failed"/);
+  assert.doesNotMatch(loginClient, /signInAnonymously|member\/bootstrap/);
+  assert.doesNotMatch(authCallback, /insert\(|bootstrap|createMember|cho_neo_member_profiles.*upsert/);
 });
 
 test("member model has approved roles, statuses and verified-member helper", () => {

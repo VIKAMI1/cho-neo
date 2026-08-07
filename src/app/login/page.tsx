@@ -1,5 +1,10 @@
-import PrivateInvitationEntry from "./PrivateInvitationEntry";
+import LoginClient from "./LoginClient";
+import { Suspense } from "react";
 
 export default function LoginPage() {
-  return <PrivateInvitationEntry />;
+  return (
+    <Suspense fallback={null}>
+      <LoginClient />
+    </Suspense>
+  );
 }

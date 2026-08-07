@@ -26,10 +26,28 @@ export default function AuthCallbackClient() {
     const supabase = createClient();
 
     const next = getSafeReturnTo(search.get("next"));
+    const linkMode = search.get("mode") === "link";
 
     const run = async () => {
       try {
         const url = new URL(window.location.href);
+        const callbackFailurePath = linkMode
+          ? `/join?link=failed&next=${encodeURIComponent(next)}`
+          : addAuthError(next, "failed");
+        const providerError =
+          url.searchParams.get("error") ||
+          url.searchParams.get("error_code") ||
+          url.searchParams.get("error_description");
+        if (providerError) {
+          cleanCallbackUrl(url);
+          setMsg(
+            linkMode
+              ? "Google chưa liên kết được với tài khoản Chợ Neo này. Thử lại nha."
+              : "Google chưa đăng nhập xong. Quay lại Chợ Neo thử lại nha.",
+          );
+          setTimeout(() => router.replace(callbackFailurePath), 700);
+          return;
+        }
         const code = url.searchParams.get("code");
         const hasVisibleToken =
           url.hash.includes("access_token") ||
@@ -47,25 +65,69 @@ export default function AuthCallbackClient() {
         } else if (hasVisibleToken) {
           cleanCallbackUrl(url);
           setMsg("Đường đăng nhập cũ không dùng được. Mở Google lại giúp Chợ Neo nha.");
-          setTimeout(() => router.replace(`/login?next=${encodeURIComponent(next)}`), 900);
+          setTimeout(() => router.replace(callbackFailurePath), 900);
           return;
         } else {
           const { data } = await supabase.auth.getSession();
           if (!data.session?.user) {
             setMsg("Không thấy mã đăng nhập. Thử đăng nhập lại nha.");
-            setTimeout(() => router.replace(`/login?next=${encodeURIComponent(next)}`), 900);
+            setTimeout(() => router.replace(callbackFailurePath), 900);
             return;
           }
         }
 
+        const { data: sessionResult } = await supabase.auth.getSession();
+        const session = sessionResult.session;
+        if (!session?.user) throw new Error("oauth-session-missing");
+
+        const profile = await loadMemberProfile(supabase, session.user.id);
+        if (linkMode) {
+          if (!profile || profile.user_id !== session.user.id || profile.membership_status !== "verified_nail_member") {
+            throw new Error("linked-member-profile-missing");
+          }
+          cleanCallbackUrl(url);
+          router.replace(next);
+          return;
+        }
+
+        if (!profile) {
+          await supabase.auth.signOut();
+          cleanCallbackUrl(url);
+          router.replace(addAuthError(next, "unlinked"));
+          return;
+        }
+
+        if (profile.membership_status === "suspended" || profile.membership_status === "rejected") {
+          await supabase.auth.signOut();
+          cleanCallbackUrl(url);
+          router.replace(addAuthError(next, "restricted"));
+          return;
+        }
+
+        if (profile.membership_status !== "verified_nail_member") {
+          await supabase.auth.signOut();
+          cleanCallbackUrl(url);
+          router.replace(addAuthError(next, "unlinked"));
+          return;
+        }
+
         cleanCallbackUrl(url);
         router.replace(next);
-      } catch (e: any) {
-        console.error("Auth callback failed:", e?.message ?? "unknown");
+      } catch {
         setMsg(
-          `Đăng nhập bị lỗi. Quay lại trang login thử lại nha. (${e?.message ?? "unknown"})`
+          linkMode
+            ? "Google chưa liên kết được với tài khoản Chợ Neo này. Thử lại nha."
+            : "Google chưa đăng nhập xong. Quay lại Chợ Neo thử lại nha.",
         );
-        setTimeout(() => router.replace(`/login?next=${encodeURIComponent(next)}`), 1200);
+        setTimeout(
+          () =>
+            router.replace(
+              linkMode
+                ? `/join?link=failed&next=${encodeURIComponent(next)}`
+                : addAuthError(next, "failed"),
+            ),
+          900,
+        );
       }
     };
 
@@ -91,4 +153,22 @@ export function getSafeReturnTo(value: string | null) {
   if (!value.startsWith("/") || value.startsWith("//")) return "/cho-neo";
   if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return "/cho-neo";
   return value;
+}
+
+async function loadMemberProfile(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from("cho_neo_member_profiles")
+    .select("user_id, membership_status")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw new Error("member-profile-read-failed");
+  return data;
+}
+
+function addAuthError(path: string, reason: string) {
+  return `${path}${path.includes("?") ? "&" : "?"}reason=${encodeURIComponent(reason)}`;
 }

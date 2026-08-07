@@ -56,10 +56,14 @@ test("anonymous auth is created only when the device has no session", () => {
   assert.match(join, /if \(!session && token\)/);
 });
 
-test("onboarding has no visible invitation code, role selector, password, or OAuth controls", () => {
-  assert.doesNotMatch(join, /Mã Lời Mời|Nhập mã|invitationCode|nailRole|<select|password|Google|Facebook/);
+test("onboarding has no public registration controls and only links Google after invite redemption", () => {
+  assert.doesNotMatch(join, /Mã Lời Mời|Nhập mã|invitationCode|nailRole|<select|password|Facebook|signInWithOAuth/);
+  assert.match(join, /linkIdentity\(\{/);
+  assert.match(join, /mode=link/);
+  assert.match(join, /Liên kết với Google/);
+  assert.doesNotMatch(join, /api\/cho-neo\/member\/bootstrap|openRegistration/);
   assert.doesNotMatch(entry, /Google|Facebook|signInWithOAuth/);
-  assert.doesNotMatch(loginPage, /LoginClient/);
+  assert.match(loginPage, /LoginClient/);
   assert.match(loginClient, /signInWithOAuth\(\{/);
   assert.match(provider, /href="\/join"/);
   assert.doesNotMatch(provider, /<select|Nhập mã lời mời|Vai trò trong ngành nail/);
@@ -149,11 +153,14 @@ test("plain invitation tokens are not stored or emitted by server application lo
   assert.match(join, /clearInvitationToken\(\)/);
 });
 
-test("existing OAuth implementation remains dormant and isolated", () => {
+test("returning Google login is active while invitation creation remains separate", () => {
   assert.match(loginClient, /signInWithOAuth\(\{/);
   assert.match(loginClient, /auth\/callback/);
-  assert.doesNotMatch(loginPage, /LoginClient/);
+  assert.match(loginPage, /LoginClient/);
+  assert.match(loginClient, /Đăng nhập với Google/);
+  assert.match(loginClient, /Mở lời mời riêng/);
   assert.match(entry, /Mở lời mời/);
+  assert.doesNotMatch(loginClient, /openRegistration|member\/bootstrap/);
 });
 
 test("verified members still load through the existing provider", () => {

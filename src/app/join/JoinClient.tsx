@@ -22,12 +22,18 @@ type JoinState =
   | "error"
   | "restricted";
 
+type GoogleLinkState = "idle" | "prompt" | "linking" | "error";
+
+const GOOGLE_LINK_FAILURE_MESSAGE =
+  "Google chưa liên kết được với tài khoản Chợ Neo này. Bạn vẫn có thể thử lại nha.";
+
 export default function JoinClient() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [invitationToken, setInvitationToken] = useState("");
   const [returnTo, setReturnTo] = useState("/cho-neo");
   const [state, setState] = useState<JoinState>("capturing");
+  const [googleLinkState, setGoogleLinkState] = useState<GoogleLinkState>("idle");
   const [message, setMessage] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [avatarKey, setAvatarKey] = useState(CHO_NEO_AVATARS[0].id);
@@ -39,6 +45,7 @@ export default function JoinClient() {
       : window.location.hash;
     const token = new URLSearchParams(hash).get("invite")?.trim() ?? "";
     const requestedReturnTo = new URLSearchParams(window.location.search).get("next");
+    const linkStatus = new URLSearchParams(window.location.search).get("link");
     const redirectTo =
       requestedReturnTo && isSafeReturnTo(requestedReturnTo)
         ? requestedReturnTo
@@ -99,6 +106,16 @@ export default function JoinClient() {
         profile.agreementVersion === CHO_NEO_AGREEMENT_VERSION
       ) {
         if (token) clearInvitationToken();
+        if (session.user.is_anonymous) {
+          if (linkStatus === "failed") {
+            setGoogleLinkState("error");
+            setMessage(GOOGLE_LINK_FAILURE_MESSAGE);
+          } else {
+            setGoogleLinkState("prompt");
+          }
+          setState("ready");
+          return;
+        }
         router.replace(redirectTo);
         return;
       }
@@ -178,11 +195,37 @@ export default function JoinClient() {
       }
 
       clearInvitationToken();
-      router.replace(returnTo);
+      setGoogleLinkState(session.user.is_anonymous ? "prompt" : "idle");
+      setState("ready");
     } catch {
       clearInvitationToken();
       setState("error");
       setMessage("Chợ Neo chưa xác nhận được thành viên. Thử lại một nhịp nha.");
+    }
+  }
+
+  async function linkGoogleIdentity() {
+    setGoogleLinkState("linking");
+    setMessage("");
+
+    try {
+      const currentSession = (await supabase.auth.getSession()).data.session;
+      if (!currentSession?.user?.is_anonymous) {
+        throw new Error("anonymous-session-required");
+      }
+
+      const redirectTo = `${window.location.origin}/auth/callback?mode=link&next=${encodeURIComponent(
+        returnTo,
+      )}`;
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider: "google",
+        options: { redirectTo, scopes: "openid email profile" },
+      });
+      if (error || !data?.url) throw new Error("google-link-unavailable");
+      window.location.assign(data.url);
+    } catch {
+      setGoogleLinkState("error");
+      setMessage(GOOGLE_LINK_FAILURE_MESSAGE);
     }
   }
 
@@ -221,84 +264,115 @@ export default function JoinClient() {
             <p className="cho-neo-join-copy">
               Một góc nhỏ để người trong nghề gặp nhau, nói chuyện thật và giữ nhau tử tế.
             </p>
-            <div className="cho-neo-join-agreement">
-              <h2>Trước khi vào chợ</h2>
-              <p>Chợ Neo là không gian riêng theo lời mời. Hãy dùng tên gọi bạn muốn mọi người nhận ra.</p>
-              <details open>
-                <summary>Thỏa thuận người dùng</summary>
+            {googleLinkState !== "idle" ? (
+              <div className="cho-neo-join-link-google">
+                <h2>Giữ lối vào Chợ Neo</h2>
                 <p>
-                  Bạn đồng ý nói chuyện tôn trọng, không đăng thông tin riêng tư của người khác, không mạo danh và không dùng Chợ Neo để gây hại.
+                  Liên kết Google để lần sau bạn có thể trở lại Chợ Neo trên thiết bị khác.
                 </p>
-              </details>
-              <details>
-                <summary>Chính sách riêng tư</summary>
-                <p>
-                  Chợ Neo lưu tên hiển thị, avatar đã chọn, trạng thái thành viên và thời điểm đồng ý để duy trì quyền vào chợ. Lời mời chỉ được lưu dưới dạng mã băm.
-                </p>
-              </details>
-              <label className="cho-neo-join-check">
-                <input
-                  checked={agreementAccepted}
-                  onChange={(event) => setAgreementAccepted(event.target.checked)}
-                  type="checkbox"
-                />
-                <span>Tôi đã đọc và đồng ý với cả hai nội dung trên.</span>
-              </label>
-            </div>
-
-            <label className="cho-neo-join-field">
-              <span>Tên hiển thị</span>
-              <input
-                autoComplete="nickname"
-                maxLength={24}
-                onChange={(event) => setDisplayName(event.target.value)}
-                placeholder="Ví dụ: Mai Calgary"
-                value={displayName}
-              />
-            </label>
-
-            <fieldset className="cho-neo-join-avatars">
-              <legend>Avatar (tuỳ chọn)</legend>
-              <div>
-                {CHO_NEO_AVATARS.slice(0, 8).map((avatar) => (
-                  <button
-                    aria-label={`Chọn avatar ${avatar.name}`}
-                    aria-pressed={avatarKey === avatar.id}
-                    className={avatarKey === avatar.id ? "selected" : ""}
-                    key={avatar.id}
-                    onClick={() => setAvatarKey(avatar.id)}
-                    type="button"
-                  >
-                    <Image
-                      alt=""
-                      aria-hidden="true"
-                      height={56}
-                      src={avatar.src}
-                      width={56}
-                    />
-                    <span>{avatar.nameVi}</span>
-                  </button>
-                ))}
+                {message ? (
+                  <p aria-live="polite" className="cho-neo-join-message" role="alert">
+                    {message}
+                  </p>
+                ) : null}
+                <button
+                  className="cho-neo-join-primary"
+                  disabled={googleLinkState === "linking"}
+                  onClick={linkGoogleIdentity}
+                  type="button"
+                >
+                  {googleLinkState === "linking" ? "Đang mở Google..." : "Liên kết với Google"}
+                </button>
+                <button
+                  className="cho-neo-join-secondary"
+                  onClick={() => router.replace(returnTo)}
+                  type="button"
+                >
+                  Vào Chợ Neo trên thiết bị này
+                </button>
               </div>
-            </fieldset>
+            ) : (
+              <>
+                <div className="cho-neo-join-agreement">
+                  <h2>Trước khi vào chợ</h2>
+                  <p>Chợ Neo là không gian riêng theo lời mời. Hãy dùng tên gọi bạn muốn mọi người nhận ra.</p>
+                  <details open>
+                    <summary>Thỏa thuận người dùng</summary>
+                    <p>
+                      Bạn đồng ý nói chuyện tôn trọng, không đăng thông tin riêng tư của người khác, không mạo danh và không dùng Chợ Neo để gây hại.
+                    </p>
+                  </details>
+                  <details>
+                    <summary>Chính sách riêng tư</summary>
+                    <p>
+                      Chợ Neo lưu tên hiển thị, avatar đã chọn, trạng thái thành viên và thời điểm đồng ý để duy trì quyền vào chợ. Lời mời chỉ được lưu dưới dạng mã băm.
+                    </p>
+                  </details>
+                  <label className="cho-neo-join-check">
+                    <input
+                      checked={agreementAccepted}
+                      onChange={(event) => setAgreementAccepted(event.target.checked)}
+                      type="checkbox"
+                    />
+                    <span>Tôi đã đọc và đồng ý với cả hai nội dung trên.</span>
+                  </label>
+                </div>
 
-            {message ? (
-              <p aria-live="polite" className="cho-neo-join-message" role="alert">
-                {message}
-              </p>
-            ) : null}
-            <button
-              className="cho-neo-join-primary"
-              disabled={isBusy}
-              onClick={submit}
-              type="button"
-            >
-              {state === "signing-in"
-                ? "Đang mở lời mời..."
-                : state === "saving"
-                  ? "Đang đưa bạn vào chợ..."
-                  : "Vào Chợ Neo"}
-            </button>
+                <label className="cho-neo-join-field">
+                  <span>Tên hiển thị</span>
+                  <input
+                    autoComplete="nickname"
+                    maxLength={24}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    placeholder="Ví dụ: Mai Calgary"
+                    value={displayName}
+                  />
+                </label>
+
+                <fieldset className="cho-neo-join-avatars">
+                  <legend>Avatar (tuỳ chọn)</legend>
+                  <div>
+                    {CHO_NEO_AVATARS.slice(0, 8).map((avatar) => (
+                      <button
+                        aria-label={`Chọn avatar ${avatar.name}`}
+                        aria-pressed={avatarKey === avatar.id}
+                        className={avatarKey === avatar.id ? "selected" : ""}
+                        key={avatar.id}
+                        onClick={() => setAvatarKey(avatar.id)}
+                        type="button"
+                      >
+                        <Image
+                          alt=""
+                          aria-hidden="true"
+                          height={56}
+                          src={avatar.src}
+                          width={56}
+                        />
+                        <span>{avatar.nameVi}</span>
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+
+                {message ? (
+                  <p aria-live="polite" className="cho-neo-join-message" role="alert">
+                    {message}
+                  </p>
+                ) : null}
+                <button
+                  className="cho-neo-join-primary"
+                  disabled={isBusy}
+                  onClick={submit}
+                  type="button"
+                >
+                  {state === "signing-in"
+                    ? "Đang mở lời mời..."
+                    : state === "saving"
+                      ? "Đang đưa bạn vào chợ..."
+                      : "Vào Chợ Neo"}
+                </button>
+              </>
+            )}
           </>
         )}
       </section>
@@ -358,6 +432,30 @@ export default function JoinClient() {
           background: #fbf4e9;
         }
 
+        .cho-neo-join-link-google {
+          display: grid;
+          gap: 10px;
+          padding: 16px;
+          border: 1px solid #cfae80;
+          border-radius: 8px;
+          background: #fffaf0;
+        }
+
+        .cho-neo-join-link-google h2,
+        .cho-neo-join-link-google p {
+          margin: 0;
+        }
+
+        .cho-neo-join-link-google h2 {
+          color: #3b1d2a;
+          font-size: 1.1rem;
+        }
+
+        .cho-neo-join-link-google p {
+          color: #654d54;
+          line-height: 1.5;
+        }
+
         .cho-neo-join-agreement h2 {
           color: #3b1d2a;
           font-size: 1rem;
@@ -414,7 +512,8 @@ export default function JoinClient() {
         .cho-neo-join-check input:focus-visible,
         .cho-neo-join-avatars button:focus-visible,
         .cho-neo-join-primary:focus-visible,
-        .cho-neo-join-secondary:focus-visible {
+        .cho-neo-join-secondary:focus-visible,
+        .cho-neo-join-link-google button:focus-visible {
           outline: 3px solid #e0a45d;
           outline-offset: 2px;
         }
@@ -495,6 +594,7 @@ export default function JoinClient() {
           border: 1px solid #cfae80;
           color: #3b1d2a;
           background: #fff;
+          cursor: pointer;
         }
 
         .cho-neo-join-message {
