@@ -817,7 +817,7 @@ function useQuanTamArtworkSources() {
 export default function ChoNeoGossipPage() {
   const supabase = useMemo(() => createClient(), []);
   const { ensureChoNeoMember, profile } = useChoNeoMember();
-  const cafeControlPillClassName = "cafe-control-pill";
+  const cafeControlButtonClassName = "cafe-control-button";
   const quanTamArtworkSources = useQuanTamArtworkSources();
   const [selectedTableName, setSelectedTableName] = useState<string | null>(null);
   const [frontCounterMessages, setFrontCounterMessages] = useState<
@@ -1814,10 +1814,10 @@ export default function ChoNeoGossipPage() {
         {!(isFrontCounter || isShopTalkTable) ? (
         <div className="cafe-stage-controls">
           <nav className="cafe-control-row" aria-label="Quán Tám controls">
-            <Link className={cafeControlPillClassName} href="/cho-neo">
+            <Link className={cafeControlButtonClassName} href="/cho-neo">
               <span>← Về Sân Làng</span>
             </Link>
-            <Link className={cafeControlPillClassName} href="/cho-neo/avatar">
+            <Link className={cafeControlButtonClassName} href="/cho-neo/avatar">
               <span>Chọn avatar</span>
             </Link>
           </nav>
@@ -3490,7 +3490,8 @@ export default function ChoNeoGossipPage() {
           margin: 0;
         }
 
-        .cafe-control-pill {
+        .cafe-control-button {
+          box-sizing: border-box;
           display: inline-flex;
           flex: 0 1 auto;
           flex-direction: row;
@@ -3499,10 +3500,11 @@ export default function ChoNeoGossipPage() {
           gap: 6px;
           height: 44px;
           min-height: 44px;
+          max-height: 44px;
           min-width: 0;
-          padding: 0 12px;
+          padding: 0 11px;
           border: 1px solid var(--room-pass2-border-soft);
-          border-radius: 12px;
+          border-radius: 10px;
           background: rgba(255, 247, 237, 0.055);
           color: var(--room-pass2-text-secondary);
           cursor: pointer;
@@ -3517,35 +3519,35 @@ export default function ChoNeoGossipPage() {
           touch-action: manipulation;
         }
 
-        .cafe-control-pill:hover,
-        .cafe-control-pill:focus-visible {
+        .cafe-control-button:hover,
+        .cafe-control-button:focus-visible {
           border-color: rgba(253, 230, 138, 0.54);
           outline: none;
           background: rgba(253, 230, 138, 0.12);
         }
 
-        .cafe-control-pill-primary {
+        .cafe-control-button-primary {
           border-color: rgba(253, 230, 138, 0.28);
           background: rgba(255, 247, 237, 0.065);
           color: var(--room-pass2-text-primary);
         }
 
-        .cafe-control-pill-secondary {
+        .cafe-control-button-secondary {
           border-color: var(--room-pass2-border-soft);
           color: var(--room-pass2-text-secondary);
         }
 
-        .cafe-control-pill-seated {
+        .cafe-control-button-seated {
           border-color: rgba(134, 239, 172, 0.28);
           color: rgba(255, 247, 237, 0.84);
           background: rgba(22, 101, 52, 0.2);
         }
 
-        .front-counter-count-pill {
+        .front-counter-count-button {
           display: none;
         }
 
-        .cafe-control-pill small {
+        .cafe-control-button small {
           display: block;
           margin-top: 2px;
           color: var(--room-pass2-text-muted);
@@ -3564,10 +3566,11 @@ export default function ChoNeoGossipPage() {
           width: auto !important;
           min-width: 78px !important;
           min-height: 44px !important;
+          max-height: 44px !important;
           height: 44px !important;
           border: 1px solid var(--room-pass2-border-soft) !important;
-          border-radius: 12px !important;
-          padding: 0 12px !important;
+          border-radius: 10px !important;
+          padding: 0 11px !important;
           color: var(--room-pass2-text-secondary) !important;
           background: rgba(255, 247, 237, 0.055) !important;
           box-shadow: none !important;
@@ -3604,8 +3607,9 @@ export default function ChoNeoGossipPage() {
           min-width: 0 !important;
           height: 44px !important;
           min-height: 44px !important;
+          max-height: 44px !important;
           border: 0 !important;
-          border-radius: 12px !important;
+          border-radius: 10px !important;
           padding: 0 !important;
           background: transparent !important;
           box-shadow: none !important;
@@ -3628,9 +3632,10 @@ export default function ChoNeoGossipPage() {
           width: auto !important;
           min-width: 78px !important;
           height: 44px !important;
+          max-height: 44px !important;
           border: 1px solid var(--room-pass2-border-soft) !important;
-          border-radius: 12px !important;
-          padding: 0 12px !important;
+          border-radius: 10px !important;
+          padding: 0 11px !important;
           color: var(--room-pass2-text-secondary) !important;
           background: rgba(255, 247, 237, 0.055) !important;
           box-shadow: none !important;
@@ -3786,7 +3791,7 @@ export default function ChoNeoGossipPage() {
             0 0 28px rgba(251, 191, 36, 0.26);
         }
 
-        .cafe-control-pill small,
+        .cafe-control-button small,
         button span,
         .identity-nudge span,
         .identity-picker h2 span,
@@ -4924,9 +4929,11 @@ export default function ChoNeoGossipPage() {
         .front-counter-count-control,
         .front-counter-quick-controls :global(.cho-neo-feedback-button),
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
+          box-sizing: border-box;
           flex: 0 0 auto;
           height: 44px;
           min-height: 44px;
+          max-height: 44px;
           border: 1px solid var(--room-pass2-border-soft);
           border-radius: 10px;
           color: var(--room-pass2-text-primary);
@@ -4950,7 +4957,7 @@ export default function ChoNeoGossipPage() {
         .front-counter-count-control,
         .front-counter-quick-controls :global(.cho-neo-feedback-button),
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
-          padding: 0 12px;
+          padding: 0 11px;
         }
 
         .front-counter-seat-control {
@@ -4979,6 +4986,7 @@ export default function ChoNeoGossipPage() {
           width: auto;
           min-width: 0;
           height: 44px;
+          max-height: 44px;
         }
 
         .front-counter-count-control {
@@ -5002,7 +5010,10 @@ export default function ChoNeoGossipPage() {
           gap: 6px !important;
           width: auto !important;
           min-width: 78px !important;
+          height: 44px !important;
+          max-height: 44px !important;
           border-radius: 10px !important;
+          padding: 0 11px !important;
           box-shadow: none !important;
           font-size: 11px !important;
           font-weight: 500 !important;
@@ -5035,6 +5046,7 @@ export default function ChoNeoGossipPage() {
           min-width: 0 !important;
           height: 44px !important;
           min-height: 44px !important;
+          max-height: 44px !important;
           border: 0 !important;
           border-radius: 10px !important;
           padding: 0 !important;
@@ -5058,7 +5070,10 @@ export default function ChoNeoGossipPage() {
           gap: 6px !important;
           width: auto !important;
           min-width: 78px !important;
+          height: 44px !important;
+          max-height: 44px !important;
           border-radius: 10px !important;
+          padding: 0 11px !important;
           box-shadow: none !important;
           line-height: 1 !important;
           text-shadow: none !important;
@@ -9168,9 +9183,11 @@ export default function ChoNeoGossipPage() {
             gap: 6px;
           }
 
-          .cafe-control-pill {
+          .cafe-control-button {
+            height: 44px;
             min-height: 44px;
-            padding: 6px 10px;
+            max-height: 44px;
+            padding: 0 10px;
             font-size: 10px;
           }
 
@@ -9226,16 +9243,22 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-seat-control {
+            height: 44px;
             min-height: 44px;
+            max-height: 44px;
             font-size: 11px;
           }
 
           .front-counter-quick-controls .compact-table-back,
+          .front-counter-seat-control,
           .front-counter-quick-controls .compact-table-count,
           .front-counter-quick-controls :global(.cho-neo-feedback-button),
           .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
+            height: 44px;
             min-height: 44px;
-            padding: 8px 10px;
+            max-height: 44px;
+            border-radius: 10px;
+            padding: 0 10px;
             font-size: 11px;
           }
 
@@ -9683,16 +9706,16 @@ export default function ChoNeoGossipPage() {
             color: rgba(92, 45, 24, 0.42);
           }
 
-          .front-counter-count-pill {
+          .front-counter-count-button {
             display: inline-flex;
             flex: 1 1 0;
             flex-direction: column;
             justify-content: center;
-            min-height: 36px;
+            min-height: 44px;
             min-width: 0;
-            padding: 6px 8px;
+            padding: 0 10px;
             border: 1px solid rgba(253, 230, 138, 0.18);
-            border-radius: 999px;
+            border-radius: 10px;
             color: var(--cho-neo-text-accent);
             background: rgba(253, 230, 138, 0.08);
             font-size: 9px;
@@ -9701,7 +9724,7 @@ export default function ChoNeoGossipPage() {
             text-align: center;
           }
 
-          .front-counter-count-pill small {
+          .front-counter-count-button small {
             display: block;
             margin-top: 2px;
             color: rgba(255, 247, 237, 0.6);
@@ -9958,10 +9981,10 @@ export default function ChoNeoGossipPage() {
             font-size: 8px;
           }
 
-          .cafe-control-pill {
+          .cafe-control-button {
             flex: 1 1 calc(33.333% - 6px);
             min-width: 96px;
-            min-height: 42px;
+            min-height: 44px;
           }
 
           .current-identity,
