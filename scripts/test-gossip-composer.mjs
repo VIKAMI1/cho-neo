@@ -230,7 +230,8 @@ test("front counter conversation stream uses person-first public messages", () =
   ]);
   assert.doesNotMatch(page, /selectedMessages\.slice\(-2\)/);
   assert.match(page, /\.front-counter-conversation-panel \{[\s\S]*border: 1px solid #c7bab1;[\s\S]*background:[\s\S]*linear-gradient\(180deg, rgba\(255, 254, 252, 0\.92\), rgba\(251, 242, 236, 0\.9\)\);/);
-  assert.match(page, /\.front-counter-conversation-message \{[\s\S]*grid-template-columns: 36px minmax\(0, 1fr\);[\s\S]*border-bottom: 1px solid rgba\(199, 186, 177, 0\.38\);/);
+  assert.match(page, /\.front-counter-conversation-message \{[\s\S]*grid-template-columns: 36px minmax\(0, 1fr\);[\s\S]*border: 1px solid rgba\(199, 186, 177, 0\.72\);[\s\S]*background:[\s\S]*linear-gradient\(180deg, #fffefc, #fff8f1\);/);
+  assert.match(page, /\.front-counter-conversation-message-current \{[\s\S]*justify-self: end;[\s\S]*background:/);
   assert.match(page, /\.front-counter-conversation-meta strong \{[\s\S]*font-size: 14px;[\s\S]*font-weight: 600;/);
   assert.match(page, /\.front-counter-conversation-copy p,[\s\S]*\.front-counter-conversation-empty \{[\s\S]*font-weight: 400;[\s\S]*line-height: 1\.45;/);
   assert.match(page, /\.front-counter-conversation-actions button \{[\s\S]*font-weight: 500;/);
@@ -328,7 +329,7 @@ test("Bàn Chuyện Nghề header controls use the same compact front-counter co
     'className="compact-table-count front-counter-count-control"',
   ]);
   assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);
-  assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control,[\s\S]*\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\),[\s\S]*\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;/);
+  assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control,[\s\S]*\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\),[\s\S]*\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;[\s\S]*box-shadow: none;/);
 });
 
 test("Quầy Xã Giao utility row includes compact shared music and feedback controls", () => {
@@ -350,26 +351,28 @@ test("Quầy Xã Giao utility row includes compact shared music and feedback con
   assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*justify-content: space-between;[\s\S]*width: 100%;/);
   assert.match(page, /\.front-counter-control-group \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);
   assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control,[\s\S]*\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\),[\s\S]*\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
-  assert.match(page, /\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\)::before \{[\s\S]*content: "♡";/);
+  assert.match(page, /\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\)::before \{[\s\S]*content: "♡" !important;/);
+  assert.match(page, /\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\)::before \{[\s\S]*content: "♪";/);
   assert.match(page, /\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\)::after \{[\s\S]*content: "Nhạc";/);
 });
 
-test("Quầy Xã Giao composer keeps avatar route and hides visible remaining count", () => {
+test("Quầy Xã Giao composer shows compact identity without edit controls", () => {
   const frontCounterComposer = extractSnippetBetween(
     page,
-    'className="front-counter-stage-form"',
+    "{isFrontCounter ? (",
     "{frontCounterDrawerOpen ? ("
   );
 
-  includesAll(page, [
-    'className="composer-avatar-identity"',
-    'className="composer-avatar-action">Đổi dáng</span>',
-    'href="/cho-neo/avatar"',
+  includesAll(frontCounterComposer, [
+    "renderAvatarPassportChip({ showAction: false })",
     "maxLength={FRONT_COUNTER_MESSAGE_LIMIT}",
   ]);
+  assert.match(page, /className="composer-avatar-identity"/);
+  assert.doesNotMatch(frontCounterComposer, /composer-avatar-action|Đổi dáng|href="\/cho-neo\/avatar"/);
   assert.doesNotMatch(frontCounterComposer, /Còn \{remainingFrontCounterCharacters\} ký tự/);
   assert.doesNotMatch(frontCounterComposer, /\{remainingFrontCounterCharacters\} left/);
   assert.match(page, /\.front-counter-stage-form \.composer-avatar-passport \{[\s\S]*justify-content: space-between;[\s\S]*min-height: 52px;/);
+  assert.match(page, /\.front-counter-focused-stage:not\(\.shop-talk-focused-stage\) \.front-counter-stage-form \.composer-avatar-passport \{[\s\S]*min-height: 36px;[\s\S]*background: transparent;/);
   assert.match(page, /\.front-counter-stage-form \.composer-avatar-action \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-safety \{[\s\S]*font-weight: 400;/);
 });

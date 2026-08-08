@@ -1724,8 +1724,22 @@ export default function ChoNeoGossipPage() {
     );
   }
 
-  function renderAvatarPassportChip() {
+  function renderAvatarPassportChip({ showAction = true } = {}) {
     if (!avatarProfile) {
+      if (!showAction) {
+        return (
+          <div className="composer-avatar-passport composer-avatar-passport-empty">
+            <span className="composer-avatar-placeholder" aria-hidden="true">
+              +
+            </span>
+            <strong>
+              Bạn làng
+              <small>Muốn tám chút</small>
+            </strong>
+          </div>
+        );
+      }
+
       return (
         <Link
           className="composer-avatar-passport composer-avatar-passport-empty"
@@ -1741,12 +1755,8 @@ export default function ChoNeoGossipPage() {
       );
     }
 
-    return (
-      <Link
-        className="composer-avatar-passport"
-        href="/cho-neo/avatar"
-        aria-label="Đổi dáng vào chợ"
-      >
+    const identityContent = (
+      <>
         <span className="composer-avatar-identity">
           {currentAvatar ? (
             <img alt="" src={currentAvatar.src} />
@@ -1758,8 +1768,24 @@ export default function ChoNeoGossipPage() {
             <small>{avatarProfile.mood || "Nhẹ nhàng"}</small>
           </strong>
         </span>
-        <span className="composer-avatar-action">Đổi dáng</span>
+        {showAction ? (
+          <span className="composer-avatar-action">Đổi dáng</span>
+        ) : null}
+      </>
+    );
+
+    return showAction ? (
+      <Link
+        className="composer-avatar-passport"
+        href="/cho-neo/avatar"
+        aria-label="Đổi dáng vào chợ"
+      >
+        {identityContent}
       </Link>
+    ) : (
+      <div className="composer-avatar-passport">
+        {identityContent}
+      </div>
     );
   }
 
@@ -2389,6 +2415,12 @@ export default function ChoNeoGossipPage() {
                                 <article
                                   className={`front-counter-conversation-message ${
                                     isRemoved ? "front-counter-conversation-message-muted" : ""
+                                  } ${
+                                    frontCounterMessage &&
+                                    identity &&
+                                    frontCounterMessage.nickname === identity.nickname
+                                      ? "front-counter-conversation-message-current"
+                                      : ""
                                   }`}
                                   key={
                                     "id" in message
@@ -2466,7 +2498,7 @@ export default function ChoNeoGossipPage() {
                         }}
                         onSubmit={handleFrontCounterSubmit}
                       >
-                        {renderAvatarPassportChip()}
+                        {renderAvatarPassportChip({ showAction: false })}
                         <div className="front-counter-stage-message-row">
                           <input
                             disabled={frontCounterPosting}
@@ -4913,18 +4945,16 @@ export default function ChoNeoGossipPage() {
           flex: 0 0 auto;
           height: 44px;
           min-height: 44px;
-          border: 1px solid var(--room-pass2-border);
+          border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
           color: var(--room-pass2-text-primary);
-          background: var(--room-pass2-control);
+          background: rgba(255, 247, 237, 0.055);
           font: inherit;
           font-size: 12px;
           font-weight: 500;
           line-height: 1.1;
           letter-spacing: 0;
-          box-shadow:
-            0 8px 20px rgba(18, 10, 8, 0.18),
-            inset 0 1px 0 rgba(255, 247, 237, 0.08);
+          box-shadow: none;
           transition:
             border-color 160ms ease,
             background 160ms ease,
@@ -4943,7 +4973,7 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-seat-control {
           color: var(--cho-neo-text-primary);
-          background: rgba(111, 56, 47, 0.58);
+          background: rgba(255, 247, 237, 0.055);
         }
 
         .front-counter-seat-control-seated {
@@ -4981,64 +5011,78 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-quick-controls :global(.cho-neo-feedback-button) {
-          display: inline-flex;
-          flex-direction: row;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          width: auto;
-          min-width: 0;
-          box-shadow: none;
-          font-size: 11px;
-          line-height: 1;
-          text-shadow: none;
+          display: inline-flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 6px !important;
+          width: auto !important;
+          min-width: 78px !important;
+          box-shadow: none !important;
+          font-size: 11px !important;
+          font-weight: 500 !important;
+          line-height: 1 !important;
+          text-shadow: none !important;
         }
 
         .front-counter-quick-controls :global(.cho-neo-feedback-button)::before {
-          content: "♡";
-          color: #efb8aa;
-          font-size: 13px;
-          line-height: 1;
+          content: "♡" !important;
+          color: #efb8aa !important;
+          font-size: 13px !important;
+          line-height: 1 !important;
+          text-shadow: none !important;
         }
 
         .front-counter-quick-controls :global(.cho-neo-feedback-button span) {
-          display: inline;
-          font-size: 11px;
-          font-weight: 500;
-          line-height: 1;
+          display: inline !important;
+          font-size: 11px !important;
+          font-weight: 500 !important;
+          line-height: 1 !important;
         }
 
         .front-counter-quick-controls :global(.cho-neo-feedback-button small) {
-          display: none;
+          display: none !important;
         }
 
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio) {
-          flex: 0 0 auto;
-          width: auto;
-          min-width: 0;
-          height: 44px;
-          min-height: 44px;
-          border-radius: 12px;
-          padding: 0;
-          background: transparent;
-          box-shadow: none;
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 0 !important;
+          height: 44px !important;
+          min-height: 44px !important;
+          border: 0 !important;
+          border-radius: 12px !important;
+          padding: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          backdrop-filter: none !important;
         }
 
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-audio-controls) {
-          width: auto;
-          height: 100%;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: auto !important;
+          height: 100% !important;
         }
 
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          width: auto;
-          min-width: 78px;
-          box-shadow: none;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 6px !important;
+          width: auto !important;
+          min-width: 78px !important;
+          box-shadow: none !important;
+          line-height: 1 !important;
+          text-shadow: none !important;
+        }
+
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::before {
+          content: "♪";
+          font-size: 14px;
+          font-weight: 500;
           line-height: 1;
-          text-shadow: none;
         }
 
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::after {
@@ -5049,12 +5093,12 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle span) {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 12px;
-          font-size: 14px;
-          line-height: 1;
+          position: absolute !important;
+          width: 1px !important;
+          height: 1px !important;
+          overflow: hidden !important;
+          clip: rect(0 0 0 0) !important;
+          clip-path: inset(50%) !important;
         }
 
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"]) {
@@ -6553,12 +6597,25 @@ export default function ChoNeoGossipPage() {
           grid-template-columns: 36px minmax(0, 1fr);
           gap: 9px;
           align-items: start;
-          padding: 7px 2px;
-          border-bottom: 1px solid rgba(199, 186, 177, 0.38);
+          width: min(100%, 760px);
+          padding: 11px 12px;
+          border: 1px solid rgba(199, 186, 177, 0.72);
+          border-radius: 14px;
+          background:
+            linear-gradient(180deg, #fffefc, #fff8f1);
+          box-shadow:
+            0 8px 18px rgba(27, 18, 14, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.76);
         }
 
         .front-counter-conversation-message:last-child {
-          border-bottom: 0;
+          border-bottom: 1px solid rgba(199, 186, 177, 0.72);
+        }
+
+        .front-counter-conversation-message-current {
+          justify-self: end;
+          background:
+            linear-gradient(180deg, #fffaf0, #fbefd7);
         }
 
         .front-counter-conversation-message-muted {
@@ -7467,6 +7524,24 @@ export default function ChoNeoGossipPage() {
           background: rgba(255, 254, 252, 0.52);
           font-size: 11px;
           font-weight: 500;
+        }
+
+        .front-counter-focused-stage:not(.shop-talk-focused-stage) .front-counter-stage-form .composer-avatar-passport {
+          width: auto;
+          min-height: 36px;
+          justify-content: flex-start;
+          padding: 0 2px;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          text-decoration: none;
+        }
+
+        .front-counter-focused-stage:not(.shop-talk-focused-stage) .front-counter-stage-form .composer-avatar-passport img,
+        .front-counter-focused-stage:not(.shop-talk-focused-stage) .front-counter-stage-form .composer-avatar-placeholder {
+          width: 34px;
+          height: 34px;
         }
 
         .front-counter-focused-stage .front-counter-stage-message-row {
