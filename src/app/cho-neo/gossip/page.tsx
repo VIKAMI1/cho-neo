@@ -1750,7 +1750,7 @@ export default function ChoNeoGossipPage() {
         <div className="cafe-stage-controls">
           <nav className="cafe-control-row" aria-label="Quán Tám controls">
             <Link className={cafeControlPillClassName} href="/cho-neo">
-              <span>Về Sân Làng</span>
+              <span>← Về Sân Làng</span>
               <small>Village</small>
             </Link>
             <Link className={cafeControlPillClassName} href="/cho-neo/avatar">
@@ -3385,11 +3385,12 @@ export default function ChoNeoGossipPage() {
         }
 
         .cafe-theme-audio {
-          display: grid;
-          flex: 0 0 44px;
-          place-items: center;
-          width: 44px;
-          min-width: 44px;
+          display: inline-flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: center;
+          width: auto;
+          min-width: 0;
           height: 44px;
         }
 
@@ -3511,13 +3512,18 @@ export default function ChoNeoGossipPage() {
         .cafe-hero-actions :global(.cho-neo-feedback-button) {
           box-sizing: border-box;
           display: inline-flex;
+          flex: 0 0 auto;
+          flex-direction: row;
           align-items: center;
           justify-content: center;
           gap: 6px;
+          width: auto;
           min-height: 44px;
+          height: 44px;
+          min-width: 0;
           border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
-          padding: 7px 12px;
+          padding: 0 12px;
           color: var(--room-pass2-text-secondary);
           background: rgba(255, 247, 237, 0.055);
           box-shadow: none;
@@ -3525,12 +3531,21 @@ export default function ChoNeoGossipPage() {
           font: inherit;
           font-size: 11px;
           font-weight: 500;
+          line-height: 1;
+          text-shadow: none;
         }
 
         .cafe-hero-actions :global(.cho-neo-feedback-button)::before {
-          content: "♥";
+          content: "♡";
           color: #efb8aa;
           font-size: 13px;
+          line-height: 1;
+        }
+
+        .cafe-hero-actions :global(.cho-neo-feedback-button span) {
+          display: inline;
+          font-size: 11px;
+          font-weight: 500;
           line-height: 1;
         }
 
@@ -3538,9 +3553,10 @@ export default function ChoNeoGossipPage() {
           display: none;
         }
 
-        .cafe-theme-audio :global(.cho-neo-theme-audio) {
-          width: 44px;
-          min-width: 44px;
+        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio) {
+          flex: 0 0 auto;
+          width: auto;
+          min-width: 0;
           height: 44px;
           min-height: 44px;
           border-radius: 12px;
@@ -3549,23 +3565,48 @@ export default function ChoNeoGossipPage() {
           box-shadow: none;
         }
 
-        .cafe-theme-audio :global(.cho-neo-theme-audio .theme-audio-controls) {
-          width: 100%;
+        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-audio-controls) {
+          width: auto;
           height: 100%;
         }
 
-        .cafe-theme-audio :global(.cho-neo-theme-audio .theme-music-toggle) {
-          width: 100%;
-          height: 100%;
+        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: auto;
+          min-width: 78px;
+          height: 44px;
           border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
+          padding: 0 12px;
+          color: var(--room-pass2-text-secondary);
           background: transparent;
           box-shadow: none;
-          font-size: 21px;
+          font-size: 14px;
+          font-weight: 500;
+          line-height: 1;
           text-shadow: none;
         }
 
-        .cafe-theme-audio :global(.cho-neo-theme-audio .theme-music-toggle[aria-pressed="true"]) {
+        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::after {
+          content: "Nhạc";
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle span) {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 12px;
+          font-size: 14px;
+          line-height: 1;
+        }
+
+        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"]) {
           color: var(--cho-neo-text-accent);
           text-shadow: none;
         }

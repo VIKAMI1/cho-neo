@@ -327,7 +327,7 @@ test("Quán Tám hero uses one compact utility row", () => {
   );
   includesAll(controls, [
     '<Link className={cafeControlPillClassName} href="/cho-neo">',
-    "<span>Về Sân Làng</span>",
+    "<span>← Về Sân Làng</span>",
     '<Link className={cafeControlPillClassName} href="/cho-neo/avatar">',
     "<span>Chọn avatar</span>",
     'className="cho-neo-shared-music-slot cafe-theme-audio"',
@@ -336,6 +336,9 @@ test("Quán Tám hero uses one compact utility row", () => {
   ]);
   assert.match(page, /\.cafe-stage-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*justify-content: space-between;/);
   assert.match(page, /\.cafe-control-pill \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
-  assert.match(page, /\.cafe-hero-actions :global\(\.cho-neo-feedback-button\) \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
-  assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\) \{[\s\S]*width: 44px;[\s\S]*height: 44px;[\s\S]*border-radius: 12px;/);
+  assert.match(page, /\.cafe-hero-actions :global\(\.cho-neo-feedback-button\) \{[\s\S]*height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
+  assert.match(page, /\.cafe-hero-actions :global\(\.cho-neo-feedback-button\)::before \{[\s\S]*content: "♡";/);
+  assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio\) \{[\s\S]*width: auto;[\s\S]*height: 44px;[\s\S]*border-radius: 12px;/);
+  assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*min-width: 78px;[\s\S]*height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
+  assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\)::after \{[\s\S]*content: "Nhạc";/);
 });
