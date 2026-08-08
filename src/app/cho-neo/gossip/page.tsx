@@ -4931,19 +4931,28 @@ export default function ChoNeoGossipPage() {
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
           box-sizing: border-box;
           flex: 0 0 auto;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
           height: 44px;
           min-height: 44px;
           max-height: 44px;
+          min-width: 0;
           border: 1px solid var(--room-pass2-border-soft);
           border-radius: 10px;
-          color: var(--room-pass2-text-primary);
+          color: var(--room-pass2-text-secondary);
           background: rgba(255, 247, 237, 0.055);
+          cursor: pointer;
           font: inherit;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 500;
-          line-height: 1.1;
+          line-height: 1;
           letter-spacing: 0;
+          text-decoration: none;
           box-shadow: none;
+          backdrop-filter: blur(10px);
+          touch-action: manipulation;
           transition:
             border-color 160ms ease,
             background 160ms ease,
@@ -4961,7 +4970,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-seat-control {
-          color: var(--cho-neo-text-primary);
+          color: var(--room-pass2-text-secondary);
           background: rgba(255, 247, 237, 0.055);
         }
 
@@ -5011,9 +5020,13 @@ export default function ChoNeoGossipPage() {
           width: auto !important;
           min-width: 78px !important;
           height: 44px !important;
+          min-height: 44px !important;
           max-height: 44px !important;
+          border: 1px solid var(--room-pass2-border-soft) !important;
           border-radius: 10px !important;
           padding: 0 11px !important;
+          color: var(--room-pass2-text-secondary) !important;
+          background: rgba(255, 247, 237, 0.055) !important;
           box-shadow: none !important;
           font-size: 11px !important;
           font-weight: 500 !important;
@@ -5071,9 +5084,13 @@ export default function ChoNeoGossipPage() {
           width: auto !important;
           min-width: 78px !important;
           height: 44px !important;
+          min-height: 44px !important;
           max-height: 44px !important;
+          border: 1px solid var(--room-pass2-border-soft) !important;
           border-radius: 10px !important;
           padding: 0 11px !important;
+          color: var(--room-pass2-text-secondary) !important;
+          background: rgba(255, 247, 237, 0.055) !important;
           box-shadow: none !important;
           line-height: 1 !important;
           text-shadow: none !important;
