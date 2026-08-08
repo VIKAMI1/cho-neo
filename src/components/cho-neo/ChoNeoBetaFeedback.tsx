@@ -119,9 +119,19 @@ const MUSIC_OPTION_QUESTIONS: OptionQuestion[] = [
   },
 ];
 
-export function ChoNeoBetaFeedback() {
+type ChoNeoBetaFeedbackProps = {
+  presentation?: "default" | "rect";
+};
+
+export function ChoNeoBetaFeedback({
+  presentation = "default",
+}: ChoNeoBetaFeedbackProps = {}) {
   const pathname = usePathname();
   const room = useMemo(() => inferChoNeoRoomFromPath(pathname), [pathname]);
+  const feedbackButtonClassName =
+    presentation === "rect"
+      ? "cho-neo-feedback-button cho-neo-feedback-button-rect"
+      : "cho-neo-feedback-button";
   const [isOpen, setIsOpen] = useState(false);
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [comments, setComments] = useState({
@@ -286,7 +296,7 @@ export function ChoNeoBetaFeedback() {
   return (
     <>
       <button
-        className="cho-neo-feedback-button"
+        className={feedbackButtonClassName}
         onClick={openFeedback}
         type="button"
       >
@@ -488,6 +498,40 @@ export function ChoNeoBetaFeedback() {
 
         .cho-neo-feedback-button small {
           display: none;
+        }
+
+        .cho-neo-feedback-button-rect {
+          box-sizing: border-box;
+          flex-direction: row;
+          gap: 6px;
+          width: auto;
+          min-width: 78px;
+          height: 44px;
+          min-height: 44px;
+          max-height: 44px;
+          padding: 0 11px;
+          border: 1px solid var(--room-pass2-border-soft);
+          border-radius: 10px;
+          color: var(--room-pass2-text-secondary);
+          background: rgba(255, 247, 237, 0.055);
+          box-shadow: none;
+          font-size: 11px;
+          font-weight: 500;
+          text-shadow: none;
+        }
+
+        .cho-neo-feedback-button-rect::before {
+          content: "♡";
+          color: #efb8aa;
+          font-size: 13px;
+          line-height: 1;
+          text-shadow: none;
+        }
+
+        .cho-neo-feedback-button-rect span {
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1;
         }
 
         .cho-neo-feedback-modal {
@@ -962,6 +1006,27 @@ export function ChoNeoBetaFeedback() {
 
           .cho-neo-feedback-button small {
             display: none;
+          }
+
+          .cho-neo-feedback-button-rect {
+            position: static;
+            flex-direction: row;
+            gap: 6px;
+            width: auto;
+            min-width: 78px;
+            height: 44px;
+            min-height: 44px;
+            max-height: 44px;
+            padding: 0 11px;
+            border-radius: 10px;
+          }
+
+          .cho-neo-feedback-button-rect::before {
+            font-size: 13px;
+          }
+
+          .cho-neo-feedback-button-rect span {
+            font-size: 11px;
           }
 
           .cho-neo-feedback-modal {

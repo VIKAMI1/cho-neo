@@ -1825,8 +1825,9 @@ export default function ChoNeoGossipPage() {
             <span
               className="cho-neo-shared-music-slot cafe-theme-audio"
               data-cho-neo-shared-music-slot
+              data-cho-neo-music-presentation="rect"
             />
-            <ChoNeoBetaFeedback />
+            <ChoNeoBetaFeedback presentation="rect" />
           </div>
         </div>
         ) : null}
@@ -1882,14 +1883,14 @@ export default function ChoNeoGossipPage() {
                   <div className="front-counter-quick-controls">
                     <div className="front-counter-control-group">
                       <button
-                        className="compact-table-back front-counter-back-control"
+                        className="cafe-control-button compact-table-back front-counter-back-control"
                         onClick={() => setSelectedTableName(null)}
                         type="button"
                       >
                         ← Quán Tám
                       </button>
                       <button
-                        className={`front-counter-seat-control ${
+                        className={`cafe-control-button front-counter-seat-control ${
                           isFrontCounter && isCurrentIdentitySeated
                             ? "front-counter-seat-control-seated"
                             : ""
@@ -1912,9 +1913,10 @@ export default function ChoNeoGossipPage() {
                       <span
                         className="cho-neo-shared-music-slot front-counter-theme-audio"
                         data-cho-neo-shared-music-slot
+                        data-cho-neo-music-presentation="rect"
                       />
-                      <ChoNeoBetaFeedback />
-                      <span className="compact-table-count front-counter-count-control">
+                      <ChoNeoBetaFeedback presentation="rect" />
+                      <span className="cafe-control-button compact-table-count front-counter-count-control">
                         {getCompactTableCountLabel(selectedTable)}
                       </span>
                     </div>
@@ -3645,31 +3647,8 @@ export default function ChoNeoGossipPage() {
           text-shadow: none !important;
         }
 
-        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::before {
-          content: "♪";
-          font-size: 14px;
-          font-weight: 500;
-          line-height: 1;
-        }
-
-        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::after {
-          content: "Nhạc";
-          font-size: 11px;
-          font-weight: 500;
-          line-height: 1;
-        }
-
-        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle span) {
-          position: absolute !important;
-          width: 1px !important;
-          height: 1px !important;
-          overflow: hidden !important;
-          clip: rect(0 0 0 0) !important;
-          clip-path: inset(50%) !important;
-        }
-
         .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"]) {
-          color: var(--cho-neo-text-accent);
+          color: var(--room-pass2-text-secondary);
           text-shadow: none;
         }
 
@@ -4974,6 +4953,19 @@ export default function ChoNeoGossipPage() {
           background: rgba(255, 247, 237, 0.055);
         }
 
+        .front-counter-quick-controls .front-counter-back-control {
+          height: 44px !important;
+          min-height: 44px !important;
+          max-height: 44px !important;
+          padding: 0 11px !important;
+          border-radius: 10px !important;
+          color: var(--room-pass2-text-secondary) !important;
+          background: rgba(255, 247, 237, 0.055) !important;
+          font-size: 11px !important;
+          font-weight: 500 !important;
+          line-height: 1 !important;
+        }
+
         .front-counter-seat-control-seated {
           color: #f7d594;
           border-color: rgba(247, 213, 148, 0.38);
@@ -4999,11 +4991,19 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-count-control {
+          height: 44px !important;
+          min-height: 44px !important;
+          max-height: 44px !important;
+          max-width: none;
+          margin-left: 0;
+          padding: 0 11px !important;
           border-color: rgba(255, 247, 237, 0.12);
+          border-radius: 10px !important;
           color: var(--room-pass2-text-muted);
           background: rgba(255, 247, 237, 0.035);
           font-size: 11px;
           font-weight: 400;
+          line-height: 1;
           box-shadow: none;
         }
 
@@ -5096,31 +5096,8 @@ export default function ChoNeoGossipPage() {
           text-shadow: none !important;
         }
 
-        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::before {
-          content: "♪";
-          font-size: 14px;
-          font-weight: 500;
-          line-height: 1;
-        }
-
-        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::after {
-          content: "Nhạc";
-          font-size: 11px;
-          font-weight: 500;
-          line-height: 1;
-        }
-
-        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle span) {
-          position: absolute !important;
-          width: 1px !important;
-          height: 1px !important;
-          overflow: hidden !important;
-          clip: rect(0 0 0 0) !important;
-          clip-path: inset(50%) !important;
-        }
-
         .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"]) {
-          color: var(--cho-neo-text-accent);
+          color: var(--room-pass2-text-secondary);
           text-shadow: none;
         }
 

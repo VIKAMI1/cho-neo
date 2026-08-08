@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const page = readFileSync("src/app/cho-neo/gossip/page.tsx", "utf8");
+const feedbackComponent = readFileSync(
+  "src/components/cho-neo/ChoNeoBetaFeedback.tsx",
+  "utf8"
+);
+const musicComponent = readFileSync(
+  "src/components/cho-neo/ChoNeoThemeParkAudio.tsx",
+  "utf8"
+);
 
 function includesAll(source, snippets) {
   for (const snippet of snippets) {
@@ -326,9 +334,9 @@ test("Bàn Chuyện Nghề header controls use the same compact front-counter co
 
   includesAll(controlsBranch, [
     'className="front-counter-quick-controls"',
-    'className="compact-table-back front-counter-back-control"',
+    'className="cafe-control-button compact-table-back front-counter-back-control"',
     "front-counter-seat-control",
-    'className="compact-table-count front-counter-count-control"',
+    'className="cafe-control-button compact-table-count front-counter-count-control"',
   ]);
   assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);
   assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control,[\s\S]*\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\),[\s\S]*\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*box-sizing: border-box;[\s\S]*display: inline-flex;[\s\S]*align-items: center;[\s\S]*justify-content: center;[\s\S]*height: 44px;[\s\S]*min-height: 44px;[\s\S]*max-height: 44px;[\s\S]*border-radius: 10px;[\s\S]*background: rgba\(255, 247, 237, 0\.055\);[\s\S]*font-size: 11px;[\s\S]*box-shadow: none;/);
@@ -346,8 +354,9 @@ test("Quầy Xã Giao utility row includes compact shared music and feedback con
     'className="front-counter-control-group front-counter-action-group"',
     'className="cho-neo-shared-music-slot front-counter-theme-audio"',
     "data-cho-neo-shared-music-slot",
-    "<ChoNeoBetaFeedback />",
-    'className="compact-table-count front-counter-count-control"',
+    'data-cho-neo-music-presentation="rect"',
+    '<ChoNeoBetaFeedback presentation="rect" />',
+    'className="cafe-control-button compact-table-count front-counter-count-control"',
   ]);
   assert.match(page, /\{!\(isFrontCounter \|\| isShopTalkTable\) \? \(\s*<div className="cafe-stage-controls">/);
   assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*justify-content: space-between;[\s\S]*width: 100%;/);
@@ -358,8 +367,6 @@ test("Quầy Xã Giao utility row includes compact shared music and feedback con
   assert.match(page, /\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\) \{[\s\S]*border: 1px solid var\(--room-pass2-border-soft\) !important;[\s\S]*border-radius: 10px !important;[\s\S]*background: rgba\(255, 247, 237, 0\.055\) !important;/);
   assert.match(page, /\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\)::before \{[\s\S]*content: "♡" !important;/);
   assert.match(page, /\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*border: 1px solid var\(--room-pass2-border-soft\) !important;[\s\S]*border-radius: 10px !important;[\s\S]*background: rgba\(255, 247, 237, 0\.055\) !important;/);
-  assert.match(page, /\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\)::before \{[\s\S]*content: "♪";/);
-  assert.match(page, /\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\)::after \{[\s\S]*content: "Nhạc";/);
 });
 
 test("Quầy Xã Giao composer shows compact identity without edit controls", () => {
@@ -402,7 +409,8 @@ test("Quán Tám hero uses one compact utility row", () => {
     "<span>Chọn avatar</span>",
     'className="cho-neo-shared-music-slot cafe-theme-audio"',
     "data-cho-neo-shared-music-slot",
-    "<ChoNeoBetaFeedback />",
+    'data-cho-neo-music-presentation="rect"',
+    '<ChoNeoBetaFeedback presentation="rect" />',
   ]);
   assert.doesNotMatch(page, /cafeControlPillClassName|cafe-control-pill|front-counter-count-pill/);
   assert.doesNotMatch(controls, /<small>Village<\/small>|<small>Choose village face<\/small>/);
@@ -412,6 +420,25 @@ test("Quán Tám hero uses one compact utility row", () => {
   assert.match(page, /\.cafe-hero-actions :global\(\.cho-neo-feedback-button\)::before \{[\s\S]*content: "♡" !important;/);
   assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio\) \{[\s\S]*width: auto !important;[\s\S]*height: 44px !important;[\s\S]*max-height: 44px !important;[\s\S]*border-radius: 10px !important;/);
   assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*min-width: 78px !important;[\s\S]*height: 44px !important;[\s\S]*max-height: 44px !important;[\s\S]*border-radius: 10px !important;[\s\S]*font-weight: 500 !important;/);
-  assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\)::before \{[\s\S]*content: "♪";/);
-  assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\)::after \{[\s\S]*content: "Nhạc";/);
+});
+
+test("shared music and feedback expose actual rectangular presentation variants", () => {
+  includesAll(feedbackComponent, [
+    'presentation?: "default" | "rect";',
+    'presentation === "rect"',
+    '"cho-neo-feedback-button cho-neo-feedback-button-rect"',
+    ".cho-neo-feedback-button-rect {",
+    "height: 44px;",
+    "border-radius: 10px;",
+    'content: "♡";',
+  ]);
+  includesAll(musicComponent, [
+    "getAttribute('data-cho-neo-music-presentation')",
+    "const isRectPresentation = musicPresentation === 'rect';",
+    "'cho-neo-theme-audio-rect'",
+    "{isRectPresentation ? <strong>Nhạc</strong> : null}",
+    ".cho-neo-theme-audio-rect.cho-neo-layout-theme-audio .theme-music-toggle {",
+    "height: 44px;",
+    "border-radius: 10px;",
+  ]);
 });

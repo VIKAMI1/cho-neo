@@ -53,6 +53,9 @@ export default function ChoNeoThemeParkAudio({
   const [panelPosition, setPanelPosition] = useState({ left: 12, top: 72 });
   const panelId = useId();
   const playlistId = `${panelId}-playlist`;
+  const musicPresentation =
+    portalTarget?.getAttribute('data-cho-neo-music-presentation') ?? '';
+  const isRectPresentation = musicPresentation === 'rect';
 
   const selectedTrack = useMemo(
     () => getChoNeoMusicTrack(trackId),
@@ -467,7 +470,7 @@ export default function ChoNeoThemeParkAudio({
       ref={playerRef}
       className={`cho-neo-theme-audio ${
         variant === 'compact' ? 'cho-neo-theme-audio-compact' : ''
-      } ${className}`}
+      } ${isRectPresentation ? 'cho-neo-theme-audio-rect' : ''} ${className}`}
       aria-label="Chợ Neo music player"
     >
       {loadError ? (
@@ -500,7 +503,8 @@ export default function ChoNeoThemeParkAudio({
           aria-label="Mở danh sách nhạc Chợ Neo"
           aria-pressed={isPlaying}
         >
-          <span aria-hidden="true">{isPlaying ? 'Ⅱ' : '♪'}</span>
+          <span aria-hidden="true">{isRectPresentation ? '♪' : isPlaying ? 'Ⅱ' : '♪'}</span>
+          {isRectPresentation ? <strong>Nhạc</strong> : null}
         </button>
 
       </div>
@@ -619,6 +623,65 @@ export default function ChoNeoThemeParkAudio({
 
         .theme-music-toggle span {
           display: block;
+          line-height: 1;
+        }
+
+        .cho-neo-theme-audio-rect.cho-neo-layout-theme-audio {
+          box-sizing: border-box;
+          width: auto;
+          min-width: 0;
+          height: 44px;
+          min-height: 44px;
+          max-height: 44px;
+          padding: 0;
+          border: 0;
+          border-radius: 10px;
+          background: transparent;
+          box-shadow: none;
+          backdrop-filter: none;
+        }
+
+        .cho-neo-theme-audio-rect.cho-neo-layout-theme-audio .theme-audio-controls {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: auto;
+          height: 100%;
+        }
+
+        .cho-neo-theme-audio-rect.cho-neo-layout-theme-audio .theme-music-toggle {
+          box-sizing: border-box;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: auto;
+          min-width: 78px;
+          height: 44px;
+          min-height: 44px;
+          max-height: 44px;
+          padding: 0 11px;
+          border: 1px solid var(--room-pass2-border-soft);
+          border-radius: 10px;
+          color: var(--room-pass2-text-secondary);
+          background: rgba(255, 247, 237, 0.055);
+          box-shadow: none;
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1;
+          text-shadow: none;
+        }
+
+        .cho-neo-theme-audio-rect.cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"] {
+          color: var(--room-pass2-text-secondary);
+          text-shadow: none;
+        }
+
+        .cho-neo-theme-audio-rect .theme-music-toggle span,
+        .cho-neo-theme-audio-rect .theme-music-toggle strong {
+          display: inline;
+          font-size: 11px;
+          font-weight: 500;
           line-height: 1;
         }
 
