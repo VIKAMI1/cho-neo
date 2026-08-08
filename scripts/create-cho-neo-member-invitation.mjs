@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import {
+  CHO_NEO_INVITATION_DEFAULT_MAX_USES,
+  buildChoNeoPrivateInvitationLink,
+  createChoNeoInvitationCode,
+  hashChoNeoInvitationCode as hashChoNeoInvitationCodeFromSharedHelper,
+} from "../src/lib/cho-neo/member-invitations.ts";
 
-const CODE_BYTES = 16; // 128 bits of entropy.
-const CODE_PREFIX = "CNEO";
-const DEFAULT_MAX_USES = 1;
 if (import.meta.url === `file://${process.argv[1]}`) {
   await main();
 }
@@ -73,7 +75,7 @@ async function main() {
     code_hash: codeHash,
     expires_at: new Date(expiresAt).toISOString(),
     intended_role: intendedRole,
-    max_uses: Number(args.get("max-uses") ?? DEFAULT_MAX_USES),
+    max_uses: Number(args.get("max-uses") ?? CHO_NEO_INVITATION_DEFAULT_MAX_USES),
     status: "issued",
   });
 
@@ -99,43 +101,13 @@ async function main() {
 }
 
 export function createInvitationCode() {
-  return `${CODE_PREFIX}-${base32NoPadding(randomBytes(CODE_BYTES))}`;
+  return createChoNeoInvitationCode();
 }
 
 export function hashChoNeoInvitationCode(code) {
-  return createHash("sha256")
-    .update(`cho-neo-member-invitation-v1:${code.trim().toUpperCase()}`)
-    .digest("hex");
+  return hashChoNeoInvitationCodeFromSharedHelper(code);
 }
 
 export function buildPrivateInvitationLink(code, joinUrl) {
-  if (!joinUrl) throw new Error("join-url is required");
-  const url = new URL(joinUrl);
-  if (!/^https?:$/.test(url.protocol)) {
-    throw new Error("join-url must use http or https");
-  }
-  url.hash = `invite=${encodeURIComponent(code)}`;
-  return url.toString();
-}
-
-function base32NoPadding(buffer) {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = 0;
-  let value = 0;
-  let output = "";
-
-  for (const byte of buffer) {
-    value = (value << 8) | byte;
-    bits += 8;
-    while (bits >= 5) {
-      output += alphabet[(value >>> (bits - 5)) & 31];
-      bits -= 5;
-    }
-  }
-
-  if (bits > 0) {
-    output += alphabet[(value << (5 - bits)) & 31];
-  }
-
-  return output;
+  return buildChoNeoPrivateInvitationLink(code, joinUrl);
 }

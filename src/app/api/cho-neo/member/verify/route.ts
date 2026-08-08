@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { hashChoNeoInvitationCode as hashStoredChoNeoInvitationCode } from "@/lib/cho-neo/member-invitations";
 import {
   CHO_NEO_AGREEMENT_VERSION,
   CHO_NEO_MEMBER_PROFILE_TABLE,
@@ -197,9 +197,7 @@ export async function POST(request: Request) {
 }
 
 export function hashChoNeoInvitationToken(token: string) {
-  return createHash("sha256")
-    .update(`cho-neo-member-invitation-v1:${token.trim().toUpperCase()}`)
-    .digest("hex");
+  return hashStoredChoNeoInvitationCode(token);
 }
 
 export const hashChoNeoInvitationCode = hashChoNeoInvitationToken;

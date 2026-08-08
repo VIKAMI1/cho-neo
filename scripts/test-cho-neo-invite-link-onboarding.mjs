@@ -29,6 +29,10 @@ const inviteScriptPath = path.join(
   repoRoot,
   "scripts/create-cho-neo-member-invitation.mjs",
 );
+const invitationHelperPath = path.join(
+  repoRoot,
+  "src/lib/cho-neo/member-invitations.ts",
+);
 
 const join = fs.readFileSync(joinPath, "utf8");
 const loginPage = fs.readFileSync(loginPagePath, "utf8");
@@ -39,6 +43,7 @@ const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const migration = fs.readFileSync(migrationPath, "utf8");
 const upsertFixMigration = fs.readFileSync(upsertFixMigrationPath, "utf8");
 const inviteScript = fs.readFileSync(inviteScriptPath, "utf8");
+const invitationHelper = fs.readFileSync(invitationHelperPath, "utf8");
 
 test("private invite uses a URL fragment and removes it after capture", () => {
   assert.match(join, /window\.location\.hash/);
@@ -144,7 +149,8 @@ test("database redemption failures expose a safe specific reason", () => {
 test("plain invitation tokens are not stored or emitted by server application logs", () => {
   assert.match(verifyRoute, /code_hash/);
   assert.doesNotMatch(verifyRoute, /console\.(log|error|warn)\([^)]*invitationToken/);
-  assert.match(inviteScript, /createHash\("sha256"\)/);
+  assert.match(invitationHelper, /createHash\("sha256"\)/);
+  assert.match(invitationHelper, /CHO_NEO_INVITATION_HASH_PREFIX/);
   assert.match(inviteScript, /code_hash: codeHash/);
   assert.doesNotMatch(inviteScript, /console\.log\(code\)/);
   assert.match(inviteScript, /buildPrivateInvitationLink\(code/);

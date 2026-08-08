@@ -51,6 +51,10 @@ const inviteScriptPath = path.join(
   repoRoot,
   "scripts/create-cho-neo-member-invitation.mjs",
 );
+const invitationHelperPath = path.join(
+  repoRoot,
+  "src/lib/cho-neo/member-invitations.ts",
+);
 
 const loginPage = fs.readFileSync(loginPagePath, "utf8");
 const privateEntry = fs.readFileSync(privateEntryPath, "utf8");
@@ -67,6 +71,7 @@ const voteApi = fs.readFileSync(voteApiPath, "utf8");
 const gossipRoute = fs.readFileSync(gossipRoutePath, "utf8");
 const migration = fs.readFileSync(migrationPath, "utf8");
 const inviteScript = fs.readFileSync(inviteScriptPath, "utf8");
+const invitationHelper = fs.readFileSync(invitationHelperPath, "utf8");
 const memberModule = await importMemberModule();
 
 test("/login separates returning Google login from private invitations", () => {
@@ -277,11 +282,11 @@ test("direct browser writes remain denied for gossip and pending members cannot 
 });
 
 test("server-only invitation generator uses 128-bit random codes and hashes storage", () => {
-  assert.match(inviteScript, /randomBytes\(CODE_BYTES\)/);
-  assert.match(inviteScript, /const CODE_BYTES = 16/);
-  assert.match(inviteScript, /createHash\("sha256"\)/);
+  assert.match(invitationHelper, /randomBytes\(CODE_BYTES\)/);
+  assert.match(invitationHelper, /const CODE_BYTES = 16/);
+  assert.match(invitationHelper, /createHash\("sha256"\)/);
   assert.match(inviteScript, /code_hash: codeHash/);
-  assert.match(inviteScript, /max_uses: Number\(args\.get\("max-uses"\) \?\? DEFAULT_MAX_USES\)/);
+  assert.match(inviteScript, /max_uses: Number\(args\.get\("max-uses"\) \?\? CHO_NEO_INVITATION_DEFAULT_MAX_USES\)/);
   assert.match(inviteScript, /Plain invitation is intentionally hidden in dry-run mode/);
 });
 
