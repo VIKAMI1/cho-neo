@@ -132,6 +132,11 @@ export function ChoNeoVillageShell() {
 
           <ChoNeoVillageMap />
         </div>
+
+        <footer className="village-maker-signature" aria-label="VIKAMI Canada attribution">
+          <strong>VIKAMI Canada</strong>
+          <span>Powered by hustle, grit, and just a touch of GPT.</span>
+        </footer>
       </section>
 
       <style>{`
@@ -184,6 +189,37 @@ export function ChoNeoVillageShell() {
           pointer-events: none;
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 27px;
+        }
+
+        .village-maker-signature {
+          position: absolute;
+          left: 50%;
+          bottom: 17px;
+          z-index: 6;
+          display: grid;
+          justify-items: center;
+          gap: 2px;
+          width: min(360px, calc(100% - 48px));
+          pointer-events: none;
+          transform: translateX(-50%);
+          color: rgba(248, 211, 145, 0.78);
+          text-align: center;
+          text-shadow: 0 2px 12px rgba(0, 0, 0, 0.56);
+        }
+
+        .village-maker-signature strong {
+          color: rgba(255, 247, 237, 0.82);
+          font-size: 11px;
+          font-weight: 600;
+          line-height: 1.1;
+        }
+
+        .village-maker-signature span {
+          color: rgba(248, 211, 145, 0.68);
+          font-size: 10px;
+          font-style: italic;
+          font-weight: 400;
+          line-height: 1.25;
         }
 
         .village-topbar {
@@ -1460,6 +1496,19 @@ export function ChoNeoVillageShell() {
 
           .village-device::before {
             display: none;
+          }
+
+          .village-maker-signature {
+            bottom: 8px;
+            width: min(300px, calc(100% - 40px));
+          }
+
+          .village-maker-signature strong {
+            font-size: 10px;
+          }
+
+          .village-maker-signature span {
+            font-size: 9px;
           }
 
           .village-topbar {
