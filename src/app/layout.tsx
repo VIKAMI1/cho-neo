@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Be_Vietnam_Pro, Newsreader } from "next/font/google";
+import { ChoNeoPersistentMusic } from "@/components/cho-neo/ChoNeoPersistentMusic";
 
 const choNeoDisplay = Newsreader({
   subsets: ["latin", "vietnamese"],
@@ -33,7 +34,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" className={`${choNeoDisplay.variable} ${choNeoUi.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <ChoNeoPersistentMusic />
+      </body>
     </html>
   )
 }

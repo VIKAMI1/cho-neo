@@ -12,11 +12,17 @@ const playerPath = path.join(
 const playlistPath = path.join(repoRoot, "src/lib/cho-neo/music-playlist.ts");
 const mainPagePath = path.join(repoRoot, "src/app/cho-neo/page.tsx");
 const layoutPath = path.join(repoRoot, "src/app/cho-neo/layout.tsx");
+const rootLayoutPath = path.join(repoRoot, "src/app/layout.tsx");
+const persistentMusicPath = path.join(
+  repoRoot,
+  "src/components/cho-neo/ChoNeoPersistentMusic.tsx",
+);
 const villageShellPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoVillageShell.tsx",
 );
 const ongDiaPagePath = path.join(repoRoot, "src/app/cho-neo/ong-dia/page.tsx");
+const xinXamPagePath = path.join(repoRoot, "src/app/xin-xam/page.tsx");
 const musicPath = path.join(
   repoRoot,
   "public/Cho_Neo_music/cho-neo-main-theme-vietnamese-style-1.mp3",
@@ -26,8 +32,11 @@ const player = fs.readFileSync(playerPath, "utf8");
 const playlist = fs.readFileSync(playlistPath, "utf8");
 const mainPage = fs.readFileSync(mainPagePath, "utf8");
 const layout = fs.readFileSync(layoutPath, "utf8");
+const rootLayout = fs.readFileSync(rootLayoutPath, "utf8");
+const persistentMusic = fs.readFileSync(persistentMusicPath, "utf8");
 const villageShell = fs.readFileSync(villageShellPath, "utf8");
 const ongDiaPage = fs.readFileSync(ongDiaPagePath, "utf8");
+const xinXamPage = fs.readFileSync(xinXamPagePath, "utf8");
 
 test("Chợ Neo theme player starts with Vietnamese Style 1 main theme", () => {
   assert.match(playlist, /id: "main-theme-vietnamese-style-1"/);
@@ -64,22 +73,33 @@ test("Chợ Neo theme player keeps user-initiated playback behavior", () => {
   assert.equal(player.includes("autoPlay"), false);
 });
 
-test("Chợ Neo route layout uses one shared theme player through room navigation", () => {
+test("Root layout keeps one shared theme player through Chợ Neo and Xin Xăm navigation", () => {
   assert.match(
-    layout,
-    /import ChoNeoThemeParkAudio from "@\/components\/cho-neo\/ChoNeoThemeParkAudio";/,
+    rootLayout,
+    /import \{ ChoNeoPersistentMusic \} from "@\/components\/cho-neo\/ChoNeoPersistentMusic";/,
   );
-  assert.match(layout, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
+  assert.match(rootLayout, /<ChoNeoPersistentMusic \/>/);
+  assert.match(
+    persistentMusic,
+    /import ChoNeoThemeParkAudio from "\.\/ChoNeoThemeParkAudio";/,
+  );
+  assert.match(persistentMusic, /pathname === "\/xin-xam" \|\| pathname\?\.startsWith\("\/cho-neo"\)/);
+  assert.match(persistentMusic, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
+  assert.doesNotMatch(layout, /ChoNeoThemeParkAudio/);
+  assert.match(layout, /<ChoNeoMemberProvider>\{children\}<\/ChoNeoMemberProvider>/);
   assert.match(layout, /\{children\}/);
   assert.match(player, /document\.querySelector\('\[data-cho-neo-shared-music-slot\]'\)/);
   assert.match(player, /createPortal\(player, portalTarget\)/);
   assert.match(villageShell, /data-cho-neo-shared-music-slot/);
   assert.match(ongDiaPage, /data-cho-neo-shared-music-slot/);
+  assert.match(xinXamPage, /data-cho-neo-shared-music-slot/);
+  assert.match(xinXamPage, /data-cho-neo-music-presentation="rect"/);
   assert.match(player, /\.cho-neo-layout-theme-audio[\s\S]*border-radius: 999px/);
   assert.doesNotMatch(player, /theme-track-select-label/);
   assert.doesNotMatch(mainPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(villageShell, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(ongDiaPage, /ChoNeoThemeParkAudio/);
+  assert.doesNotMatch(xinXamPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(mainPage, /cho-neo-main-theme-vietnamese-style-1\.mp3/);
 });
 
@@ -88,7 +108,7 @@ test("Chợ Neo shared music control opens the canonical 17-song panel", () => {
   assert.match(player, /setIsPanelOpen\(\(open\) => !open\)/);
   assert.match(player, /aria-expanded=\{isPanelOpen\}/);
   assert.match(player, /aria-controls=\{panelId\}/);
-  assert.match(player, /\{isPlaying \? 'Ⅱ' : '♪'\}/);
+  assert.match(player, /\{isRectPresentation \? '♪' : isPlaying \? 'Ⅱ' : '♪'\}/);
   assert.match(player, /Danh sách nhạc Chợ Neo/);
   assert.match(player, /theme-music-panel/);
   assert.match(player, /theme-playback-row/);

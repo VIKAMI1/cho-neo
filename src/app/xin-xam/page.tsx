@@ -4,7 +4,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import ChoNeoThemeParkAudio from "@/components/cho-neo/ChoNeoThemeParkAudio";
 import {
   getChoNeoBetaSessionId,
   getChoNeoDeviceType,
@@ -310,9 +309,10 @@ export default function XinXamPage() {
         </Link>
 
         <div className="xin-xam-topbar-actions">
-          <ChoNeoThemeParkAudio
-            className="xin-xam-header-music"
-            variant="compact"
+          <span
+            className="cho-neo-shared-music-slot xin-xam-header-music"
+            data-cho-neo-shared-music-slot
+            data-cho-neo-music-presentation="rect"
           />
           <button
             type="button"
@@ -625,6 +625,65 @@ export default function XinXamPage() {
           font-weight: 600;
           line-height: 1;
           white-space: nowrap;
+        }
+
+        .xin-xam-header-music {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          height: 44px;
+          min-width: 92px;
+        }
+
+        .xin-xam-header-music :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio) {
+          width: auto !important;
+          min-width: 0 !important;
+          height: 44px !important;
+          min-height: 44px !important;
+          max-height: 44px !important;
+          padding: 0 !important;
+          border: 0 !important;
+          border-radius: 12px !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          backdrop-filter: none !important;
+        }
+
+        .xin-xam-header-music :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
+          width: auto !important;
+          min-width: 92px !important;
+          height: 44px !important;
+          min-height: 44px !important;
+          max-height: 44px !important;
+          padding: 0 0.8rem !important;
+          border: 1px solid var(--room-pass2-border) !important;
+          border-radius: 12px !important;
+          color: var(--cho-neo-text-accent) !important;
+          background: var(--room-pass2-control) !important;
+          box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2) !important;
+          font: inherit !important;
+          font-size: 0.88rem !important;
+          font-weight: 600 !important;
+          line-height: 1 !important;
+          text-shadow: none !important;
+        }
+
+        .xin-xam-header-music :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"]) {
+          color: var(--cho-neo-text-accent) !important;
+          text-shadow: none !important;
+        }
+
+        .xin-xam-header-music :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle:hover),
+        .xin-xam-header-music :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle:focus-visible) {
+          border-color: rgba(255, 212, 139, 0.52) !important;
+          background: rgba(72, 31, 16, 0.78) !important;
+          outline: none;
+        }
+
+        .xin-xam-header-music :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle:focus-visible) {
+          box-shadow:
+            0 0 0 2px rgba(255, 229, 146, 0.3),
+            0 12px 26px rgba(0, 0, 0, 0.2) !important;
         }
 
         .xin-xam-header-control:hover,

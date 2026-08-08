@@ -10,13 +10,22 @@ const playlistPath = path.join(repoRoot, "src/lib/cho-neo/music-playlist.ts");
 const playerPath = path.join(repoRoot, "src/components/cho-neo/ChoNeoThemeParkAudio.tsx");
 const villageShellPath = path.join(repoRoot, "src/components/cho-neo/ChoNeoVillageShell.tsx");
 const layoutPath = path.join(repoRoot, "src/app/cho-neo/layout.tsx");
+const rootLayoutPath = path.join(repoRoot, "src/app/layout.tsx");
+const persistentMusicPath = path.join(
+  repoRoot,
+  "src/components/cho-neo/ChoNeoPersistentMusic.tsx",
+);
 const ongDiaPagePath = path.join(repoRoot, "src/app/cho-neo/ong-dia/page.tsx");
+const xinXamPagePath = path.join(repoRoot, "src/app/xin-xam/page.tsx");
 
 const playlist = fs.readFileSync(playlistPath, "utf8");
 const player = fs.readFileSync(playerPath, "utf8");
 const villageShell = fs.readFileSync(villageShellPath, "utf8");
 const layout = fs.readFileSync(layoutPath, "utf8");
+const rootLayout = fs.readFileSync(rootLayoutPath, "utf8");
+const persistentMusic = fs.readFileSync(persistentMusicPath, "utf8");
 const ongDiaPage = fs.readFileSync(ongDiaPagePath, "utf8");
+const xinXamPage = fs.readFileSync(xinXamPagePath, "utf8");
 
 function readString(block, key) {
   const match = block.match(new RegExp(`${key}: \"([^\"]+)\"`));
@@ -137,12 +146,19 @@ test("Danh sách nhạc Chợ Neo lives in the shared circular button panel", ()
   assert.doesNotMatch(player, /<select/);
 });
 
-test("Chợ Neo keeps one shared layout-level player and no autoplay", () => {
-  assert.match(layout, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
+test("Chợ Neo keeps one root-level player across Chợ Neo and Xin Xăm with no autoplay", () => {
+  assert.match(rootLayout, /<ChoNeoPersistentMusic \/>/);
+  assert.match(persistentMusic, /pathname === "\/xin-xam" \|\| pathname\?\.startsWith\("\/cho-neo"\)/);
+  assert.match(persistentMusic, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
+  assert.doesNotMatch(layout, /ChoNeoThemeParkAudio/);
+  assert.match(layout, /ChoNeoMemberProvider/);
   assert.doesNotMatch(villageShell, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(ongDiaPage, /ChoNeoThemeParkAudio/);
+  assert.doesNotMatch(xinXamPage, /ChoNeoThemeParkAudio/);
   assert.match(villageShell, /data-cho-neo-shared-music-slot/);
   assert.match(ongDiaPage, /data-cho-neo-shared-music-slot/);
+  assert.match(xinXamPage, /data-cho-neo-shared-music-slot/);
+  assert.match(xinXamPage, /data-cho-neo-music-presentation="rect"/);
   assert.match(player, /createPortal\(player, portalTarget\)/);
   assert.match(player, /CHO_NEO_MUSIC_SELECTED_TRACK_KEY/);
   assert.match(player, /CHO_NEO_MUSIC_VOLUME_KEY/);
