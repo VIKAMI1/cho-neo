@@ -29,23 +29,29 @@ export function ChoNeoMobileVillageNav({ currentId }: ChoNeoMobileVillageNavProp
             position: sticky;
             top: 0;
             z-index: 20;
-            display: grid;
+            display: flex;
+            align-items: stretch;
+            gap: 0.24rem;
             width: 100%;
             max-width: 100%;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.34rem;
+            overflow-x: auto;
+            scrollbar-width: none;
             border-bottom: 1px solid rgba(121, 49, 34, 0.1);
             padding: calc(0.48rem + env(safe-area-inset-top, 0px)) 0.54rem 0.48rem;
-            background:
-              linear-gradient(180deg, rgba(255, 249, 239, 0.96), rgba(255, 240, 235, 0.94)),
-              #fff5ed;
-            box-shadow: 0 12px 30px rgba(112, 43, 31, 0.08);
+            background: rgba(255, 249, 239, 0.92);
+            box-shadow: 0 6px 18px rgba(112, 43, 31, 0.055);
+          }
+
+          .cho-neo-mobile-village-nav::-webkit-scrollbar {
+            display: none;
           }
 
           .cho-neo-mobile-village-nav :global(.cho-neo-rail-item) {
+            flex: 0 0 auto;
             min-height: 44px;
-            min-width: 0;
-            grid-template-columns: 26px minmax(0, 1fr);
+            width: max-content;
+            min-width: 112px;
+            grid-template-columns: 26px auto;
             gap: 0.28rem;
             border-radius: 14px;
             padding: 0.32rem 0.34rem;
@@ -69,18 +75,10 @@ export function ChoNeoMobileVillageNav({ currentId }: ChoNeoMobileVillageNavProp
         }
 
         @media (max-width: 640px) {
-          .cho-neo-mobile-village-nav {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.24rem;
-            padding-inline: 0.38rem;
-          }
-
           .cho-neo-mobile-village-nav :global(.cho-neo-rail-item) {
             grid-template-columns: 25px minmax(0, 1fr);
-            justify-items: start;
             gap: 0.26rem;
             padding: 0.3rem 0.34rem;
-            text-align: left;
           }
 
           .cho-neo-mobile-village-nav :global(.cho-neo-rail-item__label) {

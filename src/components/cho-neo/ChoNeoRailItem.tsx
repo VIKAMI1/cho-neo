@@ -89,22 +89,22 @@ export function ChoNeoRailItem({
       <style jsx>{`
         .cho-neo-rail-item {
           box-sizing: border-box;
-          min-height: 48px;
+          min-height: 44px;
           display: grid;
-          grid-template-columns: 34px minmax(0, 1fr);
+          grid-template-columns: 28px minmax(0, 1fr);
           align-items: center;
-          gap: 0.54rem;
+          gap: 0.42rem;
           border: 1px solid transparent;
-          border-radius: 16px;
-          padding: 0.42rem 0.52rem;
-          color: #713021;
+          border-radius: 10px;
+          padding: 0.34rem 0.38rem;
+          color: rgba(91, 39, 28, 0.82);
           font-family: var(--cho-neo-font-ui);
           text-decoration: none;
         }
 
         .cho-neo-rail-item:hover {
           border-color: rgba(154, 77, 46, 0.16);
-          background: rgba(255, 248, 237, 0.68);
+          background: rgba(255, 248, 237, 0.52);
         }
 
         .cho-neo-rail-item:focus-visible {
@@ -113,36 +113,29 @@ export function ChoNeoRailItem({
         }
 
         .cho-neo-rail-item-current {
-          border-color: rgba(143, 57, 35, 0.2);
+          border-color: rgba(143, 57, 35, 0.16);
           color: #4b1717;
-          background:
-            linear-gradient(135deg, rgba(255, 229, 170, 0.52), rgba(255, 245, 237, 0.82)),
-            rgba(255, 252, 244, 0.86);
-          box-shadow: 0 12px 24px rgba(126, 49, 24, 0.1);
+          background: rgba(255, 229, 170, 0.42);
         }
 
         .cho-neo-rail-item__icon {
-          width: 34px;
-          height: 34px;
+          width: 28px;
+          height: 28px;
           display: inline-grid;
           place-items: center;
-          border-radius: 12px;
+          border-radius: 9px;
           color: #8d3b23;
-          background:
-            radial-gradient(circle at 50% 28%, rgba(255, 207, 128, 0.5), transparent 56%),
-            rgba(115, 45, 25, 0.08);
+          background: rgba(115, 45, 25, 0.07);
         }
 
         .cho-neo-rail-item-current .cho-neo-rail-item__icon {
           color: #6c2519;
-          background:
-            radial-gradient(circle at 50% 28%, rgba(255, 209, 111, 0.74), transparent 60%),
-            rgba(139, 58, 30, 0.14);
+          background: rgba(139, 58, 30, 0.12);
         }
 
         .cho-neo-rail-item__icon svg {
-          width: 24px;
-          height: 24px;
+          width: 21px;
+          height: 21px;
           display: block;
         }
 
@@ -161,8 +154,8 @@ export function ChoNeoRailItem({
 
         .cho-neo-rail-item__label {
           overflow: hidden;
-          font-size: 0.84rem;
-          font-weight: 500;
+          font-size: 0.76rem;
+          font-weight: 400;
           line-height: 1.1;
           text-overflow: ellipsis;
           white-space: nowrap;

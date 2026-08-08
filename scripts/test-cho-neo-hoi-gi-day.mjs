@@ -12,6 +12,9 @@ const read = (file) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
 const rooms = read("src/lib/cho-neo/rooms.ts");
 const rail = read("src/components/cho-neo/ChoNeoVillageRail.tsx");
 const railItem = read("src/components/cho-neo/ChoNeoRailItem.tsx");
+const mobileNav = read("src/components/cho-neo/ChoNeoMobileVillageNav.tsx");
+const roomShell = read("src/components/cho-neo/ChoNeoRoomShell.tsx");
+const roomTopBar = read("src/components/cho-neo/ChoNeoRoomTopBar.tsx");
 const page = read("src/app/cho-neo/hoi-cho-neo/page.tsx");
 const legacyPage = read("src/app/cho-neo/hoi-gi-day/page.tsx");
 const route = read("src/app/api/cho-neo/hoi-gi-day/questions/route.ts");
@@ -45,6 +48,18 @@ test("desktop map, open-room drawer, rail and mobile navigation use the shared r
   assert.match(railItem, /symbol === "question"/);
   assert.match(rooms, /export const openChoNeoRooms = choNeoRooms\.filter/);
   assert.match(page, /ChoNeoRoomShell currentNavId="hoi-cho-neo"/);
+});
+
+test("shared shell keeps the navigation quiet and touchable", () => {
+  assert.match(rail, /width: clamp\(136px, 11vw, 148px\)/);
+  assert.match(railItem, /min-height: 44px/);
+  assert.match(railItem, /grid-template-columns: 28px minmax\(0, 1fr\)/);
+  assert.match(mobileNav, /display: flex/);
+  assert.match(mobileNav, /overflow-x: auto/);
+  assert.doesNotMatch(mobileNav, /grid-template-columns: repeat\(2/);
+  assert.match(roomShell, /grid-template-columns: minmax\(136px, 148px\) minmax\(0, 1fr\)/);
+  assert.match(page, /ChoNeoRoomTopBar/);
+  assert.match(roomTopBar, /min-height: 44px/);
 });
 
 test("canonical room renders publicly and legacy route redirects safely", () => {

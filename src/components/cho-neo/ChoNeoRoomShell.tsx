@@ -39,10 +39,10 @@ export function ChoNeoRoomShell({
           box-sizing: border-box;
           width: min(1400px, 100%);
           display: grid;
-          grid-template-columns: minmax(150px, 180px) minmax(0, 1fr);
-          gap: clamp(0.72rem, 1.5vw, 1.1rem);
+          grid-template-columns: minmax(136px, 148px) minmax(0, 1fr);
+          gap: clamp(1rem, 2.2vw, 1.5rem);
           margin: 0 auto;
-          padding: clamp(0.8rem, 2vw, 1.3rem);
+          padding: clamp(0.8rem, 2vw, 1.3rem) clamp(1rem, 2.4vw, 1.6rem);
         }
 
         .cho-neo-room-shell__content {
@@ -56,14 +56,14 @@ export function ChoNeoRoomShell({
 
         .cho-neo-room-shell__layout:has(.cho-neo-room-shell__right-panel) {
           grid-template-columns:
-            minmax(150px, 180px)
+            minmax(136px, 148px)
             minmax(0, 1fr)
             minmax(230px, 300px);
         }
 
         @media (max-width: 1100px) {
           .cho-neo-room-shell__layout:has(.cho-neo-room-shell__right-panel) {
-            grid-template-columns: minmax(150px, 170px) minmax(0, 1fr);
+            grid-template-columns: minmax(136px, 148px) minmax(0, 1fr);
           }
 
           .cho-neo-room-shell__right-panel {

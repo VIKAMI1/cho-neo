@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ChoNeoBetaFeedback } from "@/components/cho-neo/ChoNeoBetaFeedback";
+import { ChoNeoRoomTopBar } from "@/components/cho-neo/ChoNeoRoomTopBar";
 import { ChoNeoRoomShell } from "@/components/cho-neo/ChoNeoRoomShell";
 import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
@@ -263,14 +264,14 @@ export default function HoiChoNeoPage() {
       <ChoNeoRoomShell currentNavId="hoi-cho-neo" className="hoi-gi-day-shell">
         <div className="hoi-gi-day-page">
           <header className="hoi-hero">
-            <div className="hoi-header-actions" aria-label="Hỏi Chợ Neo controls">
-              <Link className="hoi-back" href="/cho-neo">← Sân Làng</Link>
-              <button className="hoi-login" onClick={() => ensureChoNeoMember(async () => undefined)} type="button">
-                {profile ? profile.displayName : "Vào Chợ"}
-              </button>
-              <span className="cho-neo-shared-music-slot hoi-music" data-cho-neo-shared-music-slot />
-              <ChoNeoBetaFeedback />
-            </div>
+            <ChoNeoRoomTopBar
+              ariaLabel="Hỏi Chợ Neo controls"
+              feedback={<ChoNeoBetaFeedback />}
+              memberLabel={profile ? profile.displayName : "Vào Chợ"}
+              onMemberClick={() => {
+                void ensureChoNeoMember(async () => undefined);
+              }}
+            />
             <h1>Hỏi Chợ Neo</h1>
             <p className="hoi-subtitle">Hỏi một chuyện nghề. NeoPao trả lời trước.</p>
           </header>
@@ -375,11 +376,7 @@ export default function HoiChoNeoPage() {
         .hoi-gi-day-page { width: min(760px, 100%); min-width: 0; margin: 0 auto; padding: 12px 0 48px; }
         .hoi-hero, .hoi-composer, .hoi-active, .hoi-recent { min-width: 0; }
         .hoi-hero { padding: 4px 0 0; }
-        .hoi-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 26px; }
-        .hoi-back, .hoi-login, .hoi-submit, .hoi-active-actions button, .hoi-submit-secondary, .hoi-feedback-actions button, .hoi-chip-row button { min-height: 44px; border-radius: 12px; font: inherit; font-weight: 500; }
-        .hoi-back, .hoi-login { display: inline-flex; align-items: center; justify-content: center; padding: 7px 14px; border: 1px solid rgba(248, 211, 145, 0.26); color: #fff7ed; background: rgba(255, 247, 237, 0.08); text-decoration: none; }
-        .hoi-login { cursor: pointer; }
-        .hoi-music { display: grid; flex: 0 0 auto; place-items: center; width: 46px; min-width: 46px; height: 46px; }
+        .hoi-submit, .hoi-active-actions button, .hoi-submit-secondary, .hoi-feedback-actions button, .hoi-chip-row button { min-height: 44px; border-radius: 12px; font: inherit; font-weight: 500; }
         .hoi-hero h1 { margin: 0; color: #fff7ed; font-family: var(--cho-neo-font-display); font-size: clamp(38px, 6vw, 54px); font-weight: 500; line-height: 1; }
         .hoi-subtitle { max-width: 560px; margin: 12px 0 0; color: #f8d391; font-size: 16px; font-weight: 400; line-height: 1.45; }
         .hoi-composer { display: grid; gap: 12px; margin-top: 22px; padding: 18px; border: 1px solid rgba(248, 211, 145, 0.2); border-radius: 16px; background: rgba(255, 247, 237, 0.055); }
@@ -428,9 +425,6 @@ export default function HoiChoNeoPage() {
 
         @media (max-width: 640px) {
           .hoi-gi-day-page { padding: 4px 0 32px; }
-          .hoi-header-actions { margin-bottom: 22px; }
-          .hoi-back { flex: 1 1 auto; }
-          .hoi-login { max-width: 116px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .hoi-feedback-actions button { flex: 1 1 0; min-width: 0; }
           .hoi-composer, .hoi-active { padding: 16px; }
           .hoi-active-question { font-size: 16px; }

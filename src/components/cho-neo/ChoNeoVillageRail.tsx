@@ -66,36 +66,32 @@ export function ChoNeoVillageRail({ currentId }: ChoNeoVillageRailProps) {
           position: sticky;
           top: 1rem;
           align-self: start;
-          width: clamp(150px, 13vw, 180px);
-          border: 1px solid rgba(135, 62, 42, 0.12);
-          border-radius: 24px;
-          padding: 0.72rem;
-          background:
-            radial-gradient(circle at 20% 0%, rgba(255, 213, 143, 0.28), transparent 48%),
-            linear-gradient(180deg, rgba(255, 249, 239, 0.92), rgba(255, 235, 232, 0.86));
-          box-shadow:
-            0 22px 58px rgba(112, 43, 31, 0.1),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.52);
+          width: clamp(136px, 11vw, 148px);
+          border: 1px solid rgba(135, 62, 42, 0.1);
+          border-radius: 16px;
+          padding: 0.52rem;
+          background: rgba(255, 249, 239, 0.78);
+          box-shadow: 0 10px 30px rgba(112, 43, 31, 0.055);
           font-family: var(--cho-neo-font-ui);
         }
 
         .cho-neo-village-rail__brand {
           display: grid;
           gap: 0.16rem;
-          padding: 0.38rem 0.42rem 0.72rem;
+          padding: 0.28rem 0.32rem 0.56rem;
           color: #5d2119;
         }
 
         .cho-neo-village-rail__brand span {
           font-family: var(--cho-neo-font-display);
-          font-size: 1.28rem;
-          font-weight: 600;
+          font-size: 1.12rem;
+          font-weight: 500;
           line-height: 0.95;
         }
 
         .cho-neo-village-rail__brand strong {
           color: rgba(93, 33, 25, 0.62);
-          font-size: 0.68rem;
+          font-size: 0.64rem;
           font-weight: 400;
           letter-spacing: 0;
           text-transform: none;
@@ -103,7 +99,7 @@ export function ChoNeoVillageRail({ currentId }: ChoNeoVillageRailProps) {
 
         .cho-neo-village-rail__nav {
           display: grid;
-          gap: 0.28rem;
+          gap: 0.2rem;
         }
       `}</style>
     </aside>
