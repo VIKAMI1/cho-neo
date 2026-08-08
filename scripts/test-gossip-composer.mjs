@@ -310,7 +310,50 @@ test("Bàn Chuyện Nghề header controls use the same compact front-counter co
     'className="compact-table-count front-counter-count-control"',
   ]);
   assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);
-  assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 14px;/);
+  assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control,[\s\S]*\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\),[\s\S]*\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;/);
+});
+
+test("Quầy Xã Giao utility row includes compact shared music and feedback controls", () => {
+  const controlsBranch = extractSnippetBetween(
+    page,
+    "{isFrontCounter || isShopTalkTable ? (",
+    "<TableHostNudge"
+  );
+
+  includesAll(controlsBranch, [
+    'className="front-counter-control-group"',
+    'className="front-counter-control-group front-counter-action-group"',
+    'className="cho-neo-shared-music-slot front-counter-theme-audio"',
+    "data-cho-neo-shared-music-slot",
+    "<ChoNeoBetaFeedback />",
+    'className="compact-table-count front-counter-count-control"',
+  ]);
+  assert.match(page, /\{!\(isFrontCounter \|\| isShopTalkTable\) \? \(\s*<div className="cafe-stage-controls">/);
+  assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*justify-content: space-between;[\s\S]*width: 100%;/);
+  assert.match(page, /\.front-counter-control-group \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);
+  assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control,[\s\S]*\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\),[\s\S]*\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\) \{[\s\S]*height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
+  assert.match(page, /\.front-counter-quick-controls :global\(\.cho-neo-feedback-button\)::before \{[\s\S]*content: "♡";/);
+  assert.match(page, /\.front-counter-theme-audio :global\(\.cho-neo-theme-audio\.cho-neo-layout-theme-audio \.theme-music-toggle\)::after \{[\s\S]*content: "Nhạc";/);
+});
+
+test("Quầy Xã Giao composer keeps avatar route and hides visible remaining count", () => {
+  const frontCounterComposer = extractSnippetBetween(
+    page,
+    'className="front-counter-stage-form"',
+    "{frontCounterDrawerOpen ? ("
+  );
+
+  includesAll(page, [
+    'className="composer-avatar-identity"',
+    'className="composer-avatar-action">Đổi dáng</span>',
+    'href="/cho-neo/avatar"',
+    "maxLength={FRONT_COUNTER_MESSAGE_LIMIT}",
+  ]);
+  assert.doesNotMatch(frontCounterComposer, /Còn \{remainingFrontCounterCharacters\} ký tự/);
+  assert.doesNotMatch(frontCounterComposer, /\{remainingFrontCounterCharacters\} left/);
+  assert.match(page, /\.front-counter-stage-form \.composer-avatar-passport \{[\s\S]*justify-content: space-between;[\s\S]*min-height: 52px;/);
+  assert.match(page, /\.front-counter-stage-form \.composer-avatar-action \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
+  assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-safety \{[\s\S]*font-weight: 400;/);
 });
 
 test("Quán Tám hero uses one compact utility row", () => {

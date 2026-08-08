@@ -872,8 +872,6 @@ export default function ChoNeoGossipPage() {
           ...(selectedTable?.messages ?? []),
           ...(selectedTable ? tableNotesByName[selectedTable.name] ?? [] : []),
         ];
-  const remainingFrontCounterCharacters =
-    FRONT_COUNTER_MESSAGE_LIMIT - frontCounterDraft.length;
   const frontCounterMeaningfulCharacters =
     getMeaningfulCharacterCount(frontCounterDraft);
   const canSubmitFrontCounterMessage =
@@ -1715,11 +1713,13 @@ export default function ChoNeoGossipPage() {
         href="/cho-neo/avatar"
         aria-label="Đổi dáng vào chợ"
       >
-        <img alt="" src={avatarProfile.avatarSrc} />
-        <strong>
-          {avatarProfile.nickname || "Người Ghé Chợ"}
-          <small>{avatarProfile.mood || "Nhẹ nhàng"}</small>
-        </strong>
+        <span className="composer-avatar-identity">
+          <img alt="" src={avatarProfile.avatarSrc} />
+          <strong>
+            {avatarProfile.nickname || "Người Ghé Chợ"}
+            <small>{avatarProfile.mood || "Nhẹ nhàng"}</small>
+          </strong>
+        </span>
         <span className="composer-avatar-action">Đổi dáng</span>
       </Link>
     );
@@ -1747,6 +1747,7 @@ export default function ChoNeoGossipPage() {
           </div>
         </header>
 
+        {!(isFrontCounter || isShopTalkTable) ? (
         <div className="cafe-stage-controls">
           <nav className="cafe-control-row" aria-label="Quán Tám controls">
             <Link className={cafeControlPillClassName} href="/cho-neo">
@@ -1766,6 +1767,7 @@ export default function ChoNeoGossipPage() {
             <ChoNeoBetaFeedback />
           </div>
         </div>
+        ) : null}
 
         <>
         <section
@@ -1816,35 +1818,44 @@ export default function ChoNeoGossipPage() {
 
                 {isFrontCounter || isShopTalkTable ? (
                   <div className="front-counter-quick-controls">
-                    <button
-                      className="compact-table-back front-counter-back-control"
-                      onClick={() => setSelectedTableName(null)}
-                      type="button"
-                    >
-                      ← Quán Tám
-                    </button>
-                    <button
-                      className={`front-counter-seat-control ${
-                        isFrontCounter && isCurrentIdentitySeated
-                          ? "front-counter-seat-control-seated"
-                          : ""
-                      }`}
-                      type="button"
-                      onClick={isFrontCounter ? enterFrontCounterTable : enterSelectedTable}
-                      aria-label={
-                        isFrontCounter && isCurrentIdentitySeated
-                          ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
-                          : `Vào ${getTableNameCopy(selectedTable.name).vi} / Take a seat`
-                      }
-                    >
-                      {isFrontCounter && isCurrentIdentitySeated ? "Đang ngồi" : "Vào bàn"}
-                      <span>
-                        {isFrontCounter && isCurrentIdentitySeated ? "Seated" : "Take a seat"}
+                    <div className="front-counter-control-group">
+                      <button
+                        className="compact-table-back front-counter-back-control"
+                        onClick={() => setSelectedTableName(null)}
+                        type="button"
+                      >
+                        ← Quán Tám
+                      </button>
+                      <button
+                        className={`front-counter-seat-control ${
+                          isFrontCounter && isCurrentIdentitySeated
+                            ? "front-counter-seat-control-seated"
+                            : ""
+                        }`}
+                        type="button"
+                        onClick={isFrontCounter ? enterFrontCounterTable : enterSelectedTable}
+                        aria-label={
+                          isFrontCounter && isCurrentIdentitySeated
+                            ? "Đang ngồi tại Quầy Xã Giao / Seated at the Social Counter"
+                            : `Vào ${getTableNameCopy(selectedTable.name).vi} / Take a seat`
+                        }
+                      >
+                        {isFrontCounter && isCurrentIdentitySeated ? "Đang ngồi" : "Vào bàn"}
+                        <span>
+                          {isFrontCounter && isCurrentIdentitySeated ? "Seated" : "Take a seat"}
+                        </span>
+                      </button>
+                    </div>
+                    <div className="front-counter-control-group front-counter-action-group">
+                      <span
+                        className="cho-neo-shared-music-slot front-counter-theme-audio"
+                        data-cho-neo-shared-music-slot
+                      />
+                      <ChoNeoBetaFeedback />
+                      <span className="compact-table-count front-counter-count-control">
+                        {getCompactTableCountLabel(selectedTable)}
                       </span>
-                    </button>
-                    <span className="compact-table-count front-counter-count-control">
-                      {getCompactTableCountLabel(selectedTable)}
-                    </span>
+                    </div>
                   </div>
                 ) : null}
 
@@ -2481,12 +2492,6 @@ export default function ChoNeoGossipPage() {
                         {frontCounterPostNotice ? (
                           <p className="front-counter-stage-feedback">
                             {frontCounterPostNotice}
-                          </p>
-                        ) : frontCounterDraft.length > 0 ||
-                          remainingFrontCounterCharacters <= 40 ? (
-                          <p className="front-counter-stage-count">
-                            Còn {remainingFrontCounterCharacters} ký tự
-                            <span>{remainingFrontCounterCharacters} left</span>
                           </p>
                         ) : null}
                       </form>
@@ -4843,24 +4848,35 @@ export default function ChoNeoGossipPage() {
           display: flex;
           flex-wrap: nowrap;
           align-items: center;
+          justify-content: space-between;
           gap: 8px;
+          width: 100%;
           margin: 0 0 8px;
-          overflow-x: auto;
-          padding-bottom: 2px;
-          scrollbar-width: none;
+          overflow: visible;
         }
 
-        .front-counter-quick-controls::-webkit-scrollbar {
-          display: none;
+        .front-counter-control-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+
+        .front-counter-action-group {
+          flex: 0 1 auto;
+          justify-content: flex-end;
         }
 
         .front-counter-quick-controls .compact-table-back,
         .front-counter-seat-control,
-        .front-counter-count-control {
+        .front-counter-count-control,
+        .front-counter-quick-controls :global(.cho-neo-feedback-button),
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
           flex: 0 0 auto;
+          height: 44px;
           min-height: 44px;
           border: 1px solid var(--room-pass2-border);
-          border-radius: 14px;
+          border-radius: 12px;
           color: var(--room-pass2-text-primary);
           background: var(--room-pass2-control);
           font: inherit;
@@ -4880,13 +4896,16 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-quick-controls .compact-table-back,
-        .front-counter-seat-control {
-          padding: 8px 12px;
+        .front-counter-seat-control,
+        .front-counter-count-control,
+        .front-counter-quick-controls :global(.cho-neo-feedback-button),
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
+          padding: 0 12px;
         }
 
         .front-counter-seat-control {
           color: var(--cho-neo-text-primary);
-          background: rgba(111, 56, 47, 0.9);
+          background: rgba(111, 56, 47, 0.58);
         }
 
         .front-counter-seat-control-seated {
@@ -4897,24 +4916,118 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-back-control,
         .front-counter-count-control,
-        .front-counter-topic-note {
+        .front-counter-topic-note,
+        .front-counter-theme-audio {
           flex: 0 0 auto;
           white-space: nowrap;
         }
 
+        .front-counter-theme-audio {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: auto;
+          min-width: 0;
+          height: 44px;
+        }
+
         .front-counter-count-control {
-          padding: 8px 11px;
           color: var(--room-pass2-text-secondary);
           font-size: 11px;
           font-weight: 500;
+          box-shadow: none;
         }
 
         .front-counter-seat-control span {
           display: none;
         }
 
+        .front-counter-quick-controls :global(.cho-neo-feedback-button) {
+          display: inline-flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: auto;
+          min-width: 0;
+          box-shadow: none;
+          font-size: 11px;
+          line-height: 1;
+          text-shadow: none;
+        }
+
+        .front-counter-quick-controls :global(.cho-neo-feedback-button)::before {
+          content: "♡";
+          color: #efb8aa;
+          font-size: 13px;
+          line-height: 1;
+        }
+
+        .front-counter-quick-controls :global(.cho-neo-feedback-button span) {
+          display: inline;
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .front-counter-quick-controls :global(.cho-neo-feedback-button small) {
+          display: none;
+        }
+
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio) {
+          flex: 0 0 auto;
+          width: auto;
+          min-width: 0;
+          height: 44px;
+          min-height: 44px;
+          border-radius: 12px;
+          padding: 0;
+          background: transparent;
+          box-shadow: none;
+        }
+
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-audio-controls) {
+          width: auto;
+          height: 100%;
+        }
+
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: auto;
+          min-width: 78px;
+          box-shadow: none;
+          line-height: 1;
+          text-shadow: none;
+        }
+
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::after {
+          content: "Nhạc";
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle span) {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 12px;
+          font-size: 14px;
+          line-height: 1;
+        }
+
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"]) {
+          color: var(--cho-neo-text-accent);
+          text-shadow: none;
+        }
+
         .front-counter-quick-controls .compact-table-back:hover,
-        .front-counter-seat-control:hover {
+        .front-counter-seat-control:hover,
+        .front-counter-quick-controls :global(.cho-neo-feedback-button:hover),
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle:hover) {
           border-color: rgba(246, 207, 131, 0.42);
           background: rgba(92, 45, 24, 0.62);
           color: var(--cho-neo-text-primary);
@@ -4922,7 +5035,9 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-quick-controls .compact-table-back:focus-visible,
         .front-counter-seat-control:focus-visible,
-        .front-counter-count-control:focus-visible {
+        .front-counter-count-control:focus-visible,
+        .front-counter-quick-controls :global(.cho-neo-feedback-button:focus-visible),
+        .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle:focus-visible) {
           outline: 2px solid rgba(246, 207, 131, 0.82);
           outline-offset: 2px;
         }
@@ -6565,7 +6680,7 @@ export default function ChoNeoGossipPage() {
         .front-counter-stage-count {
           color: #4f4641;
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 400;
           line-height: 1.4;
         }
 
@@ -6652,7 +6767,7 @@ export default function ChoNeoGossipPage() {
           background: #fffefc;
           font: inherit;
           font-size: 16px;
-          font-weight: 600;
+          font-weight: 400;
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.8),
             0 0 0 1px rgba(255, 254, 252, 0.62);
@@ -6738,7 +6853,7 @@ export default function ChoNeoGossipPage() {
         .front-counter-stage-etiquette p {
           margin: 0;
           font-size: 10px;
-          font-weight: 600;
+          font-weight: 400;
           line-height: 1.25;
         }
 
@@ -6797,7 +6912,7 @@ export default function ChoNeoGossipPage() {
           margin: 2px 2px 0;
           color: rgba(92, 45, 24, 0.68);
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 400;
           line-height: 1.32;
         }
 
@@ -6807,7 +6922,7 @@ export default function ChoNeoGossipPage() {
           margin-top: 2px;
           color: rgba(92, 45, 24, 0.46);
           font-size: 12px;
-          font-weight: 600;
+          font-weight: 400;
         }
 
         .front-counter-stage-form .front-counter-stage-safety {
@@ -7114,6 +7229,11 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-stage-form .composer-avatar-passport {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          width: 100%;
+          min-height: 52px;
           border-color: rgba(199, 186, 177, 0.84);
           border-radius: 16px;
           color: #2f2926;
@@ -7121,15 +7241,35 @@ export default function ChoNeoGossipPage() {
           box-shadow: 0 8px 18px rgba(27, 18, 14, 0.1);
         }
 
-        .front-counter-stage-form .composer-avatar-passport strong,
-        .front-counter-stage-form .composer-avatar-action {
+        .front-counter-stage-form .composer-avatar-identity {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+
+        .front-counter-stage-form .composer-avatar-passport strong {
           color: #2f2926;
-          font-weight: 600;
+          font-weight: 500;
         }
 
         .front-counter-stage-form .composer-avatar-passport small {
           color: #6b625d;
-          font-weight: 600;
+          font-weight: 400;
+        }
+
+        .front-counter-stage-form .composer-avatar-action {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 44px;
+          padding: 0 11px;
+          border: 1px solid rgba(199, 186, 177, 0.84);
+          border-radius: 12px;
+          color: #6b625d;
+          background: rgba(255, 254, 252, 0.52);
+          font-size: 11px;
+          font-weight: 500;
         }
 
         .front-counter-focused-stage .front-counter-stage-message-row {
@@ -7171,7 +7311,7 @@ export default function ChoNeoGossipPage() {
           color: #2f2926;
           background: #fffefc;
           font-size: 16px;
-          font-weight: 600;
+          font-weight: 400;
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.92),
             0 0 0 1px rgba(255, 254, 252, 0.72);
@@ -7263,7 +7403,7 @@ export default function ChoNeoGossipPage() {
           margin: 2px 6px 0;
           color: #4f4641;
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 400;
           line-height: 1.45;
         }
 
@@ -7279,7 +7419,7 @@ export default function ChoNeoGossipPage() {
           margin: 0;
           color: #4f4641;
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 400;
         }
 
         .front-counter-focused-stage .front-counter-stage-safety small {
@@ -7287,14 +7427,14 @@ export default function ChoNeoGossipPage() {
           margin-top: 2px;
           color: #6b625d;
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 400;
         }
 
         .front-counter-focused-stage .front-counter-stage-feedback,
         .front-counter-focused-stage .front-counter-stage-count {
           color: #4f4641;
           font-size: 13.5px;
-          font-weight: 600;
+          font-weight: 400;
         }
 
         .front-counter-focused-stage .front-counter-stage-drawer {
@@ -8817,9 +8957,19 @@ export default function ChoNeoGossipPage() {
 
           .front-counter-quick-controls {
             flex-wrap: wrap;
+            justify-content: space-between;
             gap: 6px;
             margin-bottom: 8px;
             overflow-x: visible;
+          }
+
+          .front-counter-control-group {
+            flex: 0 1 auto;
+            gap: 6px;
+          }
+
+          .front-counter-action-group {
+            margin-left: auto;
           }
 
           .front-counter-seat-control {
@@ -8828,7 +8978,9 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-quick-controls .compact-table-back,
-          .front-counter-quick-controls .compact-table-count {
+          .front-counter-quick-controls .compact-table-count,
+          .front-counter-quick-controls :global(.cho-neo-feedback-button),
+          .front-counter-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
             min-height: 44px;
             padding: 8px 10px;
             font-size: 11px;
@@ -8840,8 +8992,8 @@ export default function ChoNeoGossipPage() {
           }
 
           .front-counter-count-control {
-            flex: 1 1 calc(100% - 154px);
-            max-width: calc(100% - 154px);
+            flex: 0 1 auto;
+            max-width: 100%;
             white-space: normal;
           }
 
