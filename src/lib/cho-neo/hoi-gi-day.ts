@@ -40,14 +40,11 @@ export function isHoiGiDayTopic(value: unknown): value is HoiGiDayTopic {
 
 export function normalizeHoiGiDayText(value: unknown) {
   return typeof value === "string"
-    ? value.normalize("NFC").replace(/\s+/g, " ").trim()
+    ? value.normalize("NFC").replace(/[ \t\r\n]+/g, " ").trim()
     : "";
 }
 
 export function getHoiGiDayTextError(value: unknown, maxLength: number) {
-  const rawSafetyError = getChoNeoTextSafetyError(value);
-  if (rawSafetyError === "control-character") return "Câu hỏi có ký tự chưa dùng được.";
-
   const text = normalizeHoiGiDayText(value);
 
   if (!text) return "Viết một câu hỏi ngắn trước khi gửi nha.";

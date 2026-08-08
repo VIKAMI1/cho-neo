@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import os from "node:os";
+import { pathToFileURL } from "node:url";
+import ts from "typescript";
 
 const read = (file) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
 const rooms = read("src/lib/cho-neo/rooms.ts");
@@ -16,6 +20,20 @@ const usage = read("src/lib/cho-neo/openai-usage.ts");
 const policy = read("src/lib/cho-neo/hoi-gi-day.ts");
 const migration = read("supabase/migrations/20260801090000_cho_neo_hoi_gi_day_room_v1.sql");
 const usageMigration = read("supabase/migrations/20260801100000_cho_neo_openai_usage_reservations.sql");
+
+const policyTestDir = await mkdtemp(path.join(os.tmpdir(), "cho-neo-hoi-policy-"));
+const transpile = (source) => ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+await writeFile(path.join(policyTestDir, "text-safety.mjs"), transpile(read("src/lib/cho-neo/text-safety.ts")));
+await writeFile(
+  path.join(policyTestDir, "hoi-gi-day.mjs"),
+  transpile(policy.replace('from "./text-safety"', 'from "./text-safety.mjs"')),
+);
+const runtimePolicy = await import(pathToFileURL(path.join(policyTestDir, "hoi-gi-day.mjs")).href);
+test.after(async () => {
+  await rm(policyTestDir, { force: true, recursive: true });
+});
 
 test("Hỏi Chợ Neo is an open central room", () => {
   assert.match(rooms, /id: "hoi-cho-neo"[\s\S]*viName: "Hỏi Chợ Neo"[\s\S]*href: "\/cho-neo\/hoi-cho-neo"[\s\S]*status: "open"/);
@@ -33,6 +51,26 @@ test("canonical room renders publicly and legacy route redirects safely", () => 
   assert.match(page, /export default function HoiChoNeoPage/);
   assert.match(page, /fetch\(API_URL, \{ cache: "no-store" \}/);
   assert.match(legacyPage, /redirect\("\/cho-neo\/hoi-cho-neo"\)/);
+});
+
+test("Hỏi Chợ Neo accepts ordinary Vietnamese and Vietlish questions", () => {
+  assert.equal(
+    runtimePolicy.getHoiGiDayTextError("Khach kho chiu thi phai lam sao may ban?", 320),
+    null,
+  );
+});
+
+test("Hỏi Chợ Neo normalizes textarea newlines and tabs", () => {
+  const text = "Khách khó chịu\tthì phải làm sao?\r\nMình nên nói gì?";
+  assert.equal(runtimePolicy.getHoiGiDayTextError(text, 320), null);
+  assert.equal(runtimePolicy.normalizeHoiGiDayText(text), "Khách khó chịu thì phải làm sao? Mình nên nói gì?");
+});
+
+test("Hỏi Chợ Neo still rejects genuine control characters", () => {
+  assert.equal(
+    runtimePolicy.getHoiGiDayTextError("Câu hỏi có ký tự\u0000 nguy hiểm", 320),
+    "Câu hỏi có ký tự chưa dùng được.",
+  );
 });
 
 test("the first screen uses one shared composer and the approved product language", () => {
