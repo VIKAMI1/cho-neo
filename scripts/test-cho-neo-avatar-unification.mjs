@@ -184,6 +184,18 @@ test("the avatar route saves verified-member choices through the provider", () =
   assert.doesNotMatch(avatarPage, /const AVATARS:/);
 });
 
+test("the avatar route keeps final presentation compact and topbar-owned", () => {
+  assert.match(avatarPage, /<Link href="\/cho-neo">Về Sân Làng<\/Link>/);
+  assert.match(avatarPage, /className="cho-neo-shared-music-slot avatar-theme-audio"/);
+  assert.match(avatarPage, /data-cho-neo-shared-music-slot/);
+  assert.match(avatarPage, /font-size: clamp\(42px, 6vw, 64px\)/);
+  assert.match(avatarPage, /\.avatar-topbar a \{[\s\S]*min-height: 44px/);
+  assert.match(avatarPage, /\.avatar-theme-audio \{[\s\S]*width: 44px;[\s\S]*height: 44px;/);
+  assert.match(avatarPage, /:global\(\.cho-neo-theme-audio \.theme-music-toggle\)/);
+  assert.doesNotMatch(avatarPage, /font-weight: (?:8|9)\d\d/);
+  assert.doesNotMatch(avatarPage, /letter-spacing: -/);
+});
+
 test("Quán Tám gives a verified member profile precedence over local avatar state", () => {
   assert.match(gossipPage, /const \{ ensureChoNeoMember, profile \} = useChoNeoMember\(\)/);
   assert.match(

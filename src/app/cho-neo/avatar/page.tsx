@@ -118,7 +118,10 @@ export default function ChoNeoAvatarPage() {
       <section className="avatar-shell" aria-labelledby="avatar-title">
         <nav className="avatar-topbar" aria-label="Chợ Neo avatar navigation">
           <Link href="/cho-neo">Về Sân Làng</Link>
-          <Link href="/cho-neo/gossip">Vào Quán Tám</Link>
+          <span
+            className="cho-neo-shared-music-slot avatar-theme-audio"
+            data-cho-neo-shared-music-slot
+          />
         </nav>
 
         <header className="avatar-hero">
@@ -276,7 +279,7 @@ export default function ChoNeoAvatarPage() {
 
         .avatar-topbar {
           display: flex;
-          flex-wrap: wrap;
+          align-items: center;
           justify-content: space-between;
           gap: 10px;
           margin-bottom: 18px;
@@ -292,8 +295,12 @@ export default function ChoNeoAvatarPage() {
           border-radius: 999px;
           padding: 0 16px;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 500;
           text-decoration: none;
+        }
+
+        .avatar-topbar a {
+          min-height: 44px;
         }
 
         .avatar-topbar a,
@@ -312,23 +319,23 @@ export default function ChoNeoAvatarPage() {
           margin: 0 0 8px;
           color: #fde68a;
           font-size: 12px;
-          font-weight: 950;
-          letter-spacing: 0.18em;
+          font-weight: 500;
+          letter-spacing: 0;
           text-transform: uppercase;
         }
 
         .avatar-hero h1 {
           margin: 0;
-          font-size: clamp(38px, 8vw, 76px);
-          line-height: 0.92;
-          letter-spacing: -0.04em;
+          font-size: clamp(42px, 6vw, 64px);
+          line-height: 0.96;
+          letter-spacing: 0;
         }
 
         .avatar-hero p:last-child {
           margin: 12px 0 0;
           color: rgba(255, 247, 237, 0.76);
           font-size: clamp(15px, 2vw, 20px);
-          font-weight: 800;
+          font-weight: 400;
           line-height: 1.42;
         }
 
@@ -383,7 +390,7 @@ export default function ChoNeoAvatarPage() {
           display: block;
           color: rgba(255, 247, 237, 0.58);
           font-size: 12px;
-          font-weight: 900;
+          font-weight: 400;
         }
 
         .preview-copy h2 {
@@ -391,14 +398,15 @@ export default function ChoNeoAvatarPage() {
           color: #fff7ed;
           font-size: clamp(26px, 5vw, 44px);
           line-height: 0.98;
-          letter-spacing: -0.035em;
+          letter-spacing: 0;
+          font-weight: 500;
         }
 
         .preview-copy p {
           margin: 0 0 8px;
           color: #fde68a;
           font-size: 15px;
-          font-weight: 950;
+          font-weight: 500;
           line-height: 1.25;
         }
 
@@ -417,7 +425,7 @@ export default function ChoNeoAvatarPage() {
         .field-group label {
           color: #fff7ed;
           font-size: 13px;
-          font-weight: 950;
+          font-weight: 500;
         }
 
         .field-group input {
@@ -430,7 +438,7 @@ export default function ChoNeoAvatarPage() {
           background: rgba(255, 247, 237, 0.08);
           font: inherit;
           font-size: 14px;
-          font-weight: 760;
+          font-weight: 400;
           outline: none;
         }
 
@@ -459,7 +467,7 @@ export default function ChoNeoAvatarPage() {
           cursor: pointer;
           font: inherit;
           font-size: 12px;
-          font-weight: 900;
+          font-weight: 500;
         }
 
         .mood-row .mood-selected {
@@ -485,7 +493,7 @@ export default function ChoNeoAvatarPage() {
           margin: 0;
           color: #fde68a;
           font-size: 13px;
-          font-weight: 900;
+          font-weight: 400;
           line-height: 1.35;
         }
 
@@ -546,7 +554,7 @@ export default function ChoNeoAvatarPage() {
         .avatar-name strong {
           color: #fff7ed;
           font-size: 17px;
-          font-weight: 950;
+          font-weight: 600;
           line-height: 1.05;
         }
 
@@ -554,7 +562,7 @@ export default function ChoNeoAvatarPage() {
           margin-top: 4px;
           color: rgba(255, 247, 237, 0.58);
           font-size: 12px;
-          font-weight: 850;
+          font-weight: 400;
         }
 
         .avatar-description {
@@ -562,7 +570,7 @@ export default function ChoNeoAvatarPage() {
           margin-top: -26px;
           color: rgba(255, 247, 237, 0.66);
           font-size: 12px;
-          font-weight: 760;
+          font-weight: 400;
           line-height: 1.34;
         }
 
@@ -578,7 +586,43 @@ export default function ChoNeoAvatarPage() {
           color: #111827;
           background: #fde68a;
           font-size: 14px;
-          font-weight: 950;
+          font-weight: 600;
+        }
+
+        .avatar-theme-audio {
+          display: grid;
+          flex: 0 0 44px;
+          place-items: center;
+          width: 44px;
+          min-width: 44px;
+          height: 44px;
+        }
+
+        .avatar-theme-audio :global(.cho-neo-theme-audio) {
+          width: 44px;
+          min-width: 44px;
+          height: 44px;
+          min-height: 44px;
+          border-radius: 999px;
+          padding: 0;
+          background: rgba(255, 247, 237, 0.08);
+          box-shadow: none;
+        }
+
+        .avatar-theme-audio :global(.cho-neo-theme-audio .theme-audio-controls) {
+          width: 100%;
+          height: 100%;
+        }
+
+        .avatar-theme-audio :global(.cho-neo-theme-audio .theme-music-toggle) {
+          width: 100%;
+          height: 100%;
+          border: 1px solid rgba(253, 230, 138, 0.22);
+          border-radius: 999px;
+          background: transparent;
+          box-shadow: none;
+          font-size: 21px;
+          text-shadow: none;
         }
 
         .avatar-tile:not(.avatar-tile-selected) .selected-mark {
