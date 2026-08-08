@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ChoNeoBetaFeedback } from "@/components/cho-neo/ChoNeoBetaFeedback";
 import { ChoNeoRoomShell } from "@/components/cho-neo/ChoNeoRoomShell";
 import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
@@ -38,12 +38,12 @@ type FeedbackDraft = {
 };
 
 const QUESTION_CHIPS = [
-  ["Lifting sau vài ngày", "nail_technique"],
-  ["Khách trễ giờ", "customer_service"],
-  ["Chọn sản phẩm", "nail_products"],
+  ["Lifting", "nail_technique"],
+  ["Khách trễ", "customer_service"],
+  ["Sản phẩm", "nail_products"],
   ["Giá dịch vụ", "salon_operations"],
   ["Giữ thợ", "workplace_experience"],
-  ["Xử lý khách khó", "customer_service"],
+  ["Khách khó", "customer_service"],
 ] as const;
 
 const API_URL = "/api/cho-neo/hoi-gi-day/questions";
@@ -53,9 +53,12 @@ export default function HoiChoNeoPage() {
   const [questionTopic, setQuestionTopic] = useState<HoiGiDayTopic>("general");
   const [questionText, setQuestionText] = useState("");
   const [questions, setQuestions] = useState<HoiGiDayQuestion[]>([]);
+  const [activeQuestion, setActiveQuestion] = useState<HoiGiDayQuestion | null>(null);
   const [notice, setNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, FeedbackDraft>>({});
+  const [openFeedbackAnswerId, setOpenFeedbackAnswerId] = useState<string | null>(null);
+  const questionInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,10 +109,12 @@ export default function HoiChoNeoPage() {
       const nextQuestion = payload?.question as HoiGiDayQuestion | undefined;
       const nextAnswer = payload?.answer as HoiGiDayAnswer | undefined;
       if (nextQuestion) {
-        setQuestions((current) => [
-          { ...nextQuestion, answers: nextAnswer ? [nextAnswer] : [] },
-          ...current,
-        ]);
+        const submittedQuestion = {
+          ...nextQuestion,
+          answers: nextAnswer ? [nextAnswer] : [],
+        };
+        setActiveQuestion(submittedQuestion);
+        setQuestions((current) => [submittedQuestion, ...current]);
       }
       setQuestionText("");
       setQuestionTopic("general");
@@ -185,18 +190,30 @@ export default function HoiChoNeoPage() {
     }
   }
 
+  function continueFromActive() {
+    if (!activeQuestion) return;
+    const context = `Tiếp chuyện câu hỏi "${activeQuestion.questionText}": `;
+    setQuestionText((current) =>
+      `${context}${current.trim()}`.slice(0, HOI_GI_DAY_QUESTION_MAX_LENGTH),
+    );
+    setQuestionTopic(activeQuestion.questionTopic);
+    setNotice("");
+    questionInputRef.current?.focus();
+  }
+
   function answerFeedback(questionId: string, answer: HoiGiDayAnswer) {
     if (answer.answerSource !== "neopao") return null;
+    if (openFeedbackAnswerId !== answer.answerId) return null;
     const draft = feedbackDrafts[answer.answerId];
     return (
       <div className="hoi-feedback" aria-label="Góp ý cho gợi ý NeoPao">
-        <p className="hoi-feedback-prompt">Gợi ý này có sát với kinh nghiệm của bạn không?</p>
+        <p className="hoi-feedback-prompt">Góp ý của bạn về câu trả lời này</p>
         <div className="hoi-feedback-actions">
           {(
               [
-              ["correct", "Đúng với kinh nghiệm của tôi"],
-              ["addition", "Tôi muốn bổ sung"],
-              ["correction", "Có điểm cần sửa"],
+              ["correct", "Đúng"],
+              ["addition", "Bổ sung"],
+              ["correction", "Cần sửa"],
             ] as const
           ).map(([type, label]) => (
             <button
@@ -236,6 +253,10 @@ export default function HoiChoNeoPage() {
     );
   }
 
+  const recentQuestions = questions.filter(
+    (question) => question.questionId !== activeQuestion?.questionId,
+  );
+
   return (
     <>
       <ChoNeoTimeAmbience />
@@ -250,28 +271,13 @@ export default function HoiChoNeoPage() {
               <span className="cho-neo-shared-music-slot hoi-music" data-cho-neo-shared-music-slot />
               <ChoNeoBetaFeedback />
             </div>
-            <p className="hoi-eyebrow">Chợ Neo · Day One</p>
-            <h1>Hỏi Chợ Neo<span>Ask Chợ Neo</span></h1>
-            <p className="hoi-subtitle">NeoPao trả lời trước. Người trong nghề góp chuyện thật.</p>
-            <p className="hoi-intro">Bạn đang vướng chuyện gì trong nghề hoặc trong tiệm?</p>
-            <p className="hoi-scope">Tập trung vào nghề nail, vận hành tiệm, khách hàng, sản phẩm và chuyện làm nghề.</p>
+            <h1>Hỏi Chợ Neo</h1>
+            <p className="hoi-subtitle">Hỏi một chuyện nghề. NeoPao trả lời trước.</p>
           </header>
-
-          <section className="hoi-destinations" aria-labelledby="hoi-destination-heading">
-            <div className="hoi-section-heading">
-              <p id="hoi-destination-heading">Một câu hỏi, một gợi ý đầu tiên</p>
-              <small>Ask once</small>
-            </div>
-            <div className="hoi-destination hoi-destination-neopao">
-              <span className="hoi-destination-icon">✦</span>
-              <span><strong>NeoPao trả lời trước</strong><small>First answer from NeoPao</small></span>
-              <em>Người trong nghề góp chuyện thật sau đó.</em>
-            </div>
-          </section>
 
           <form className="hoi-composer" onSubmit={handleQuestionSubmit}>
             <div className="hoi-section-heading">
-              <label htmlFor="hoi-question">Câu hỏi của bạn</label>
+              <label htmlFor="hoi-question">Bạn đang vướng chuyện gì?</label>
               <small>{questionText.length}/{HOI_GI_DAY_QUESTION_MAX_LENGTH}</small>
             </div>
             <textarea
@@ -279,6 +285,7 @@ export default function HoiChoNeoPage() {
               maxLength={HOI_GI_DAY_QUESTION_MAX_LENGTH}
               onChange={(event) => setQuestionText(event.target.value)}
               placeholder="Hỏi Chợ Neo một chuyện..."
+              ref={questionInputRef}
               value={questionText}
             />
             <div className="hoi-chip-row" aria-label="Gợi ý câu hỏi">
@@ -289,103 +296,135 @@ export default function HoiChoNeoPage() {
             <button className="hoi-submit" disabled={isSaving || !questionText.trim()} type="submit">
               {isSaving ? "Đang giữ câu hỏi..." : "Hỏi Chợ Neo"}
             </button>
-            <p className="hoi-private-note">Gợi ý đầu tiên không thay thế kinh nghiệm thực tế. Góp ý không tự huấn luyện hay thay đổi NeoPao.</p>
             {notice ? <p className="hoi-notice" role="status">{notice}</p> : null}
           </form>
 
-          <section className="hoi-published" aria-labelledby="hoi-published-heading">
-            <div className="hoi-section-heading">
-              <p id="hoi-published-heading">Người trong Chợ nói gì?</p>
-              <small>Published experience</small>
-            </div>
-            {questions.length ? questions.map((question) => (
-              <article className="hoi-question" key={question.questionId}>
-                <div className="hoi-question-meta">
-                  <span>Hỏi Chợ Neo</span>
-                  <small>{question.questionTopic.replaceAll("_", " ")}</small>
+          {activeQuestion ? (
+            <section className="hoi-active" aria-labelledby="hoi-active-heading">
+              <div className="hoi-active-heading">
+                <strong id="hoi-active-heading">NeoPao</strong>
+                <small>Gợi ý đầu tiên</small>
+              </div>
+              <p className="hoi-active-question">{activeQuestion.questionText}</p>
+              {activeQuestion.answers[0] ? (
+                <div className="hoi-active-answer">
+                  <p>{activeQuestion.answers[0].answerText}</p>
+                  {answerFeedback(activeQuestion.questionId, activeQuestion.answers[0])}
                 </div>
-                <h2>{question.questionText}</h2>
-                {question.answers.map((answer) => (
-                  <div className="hoi-answer" key={answer.answerId}>
-                    {answer.answerSource === "neopao" ? <strong>Gợi ý đầu tiên từ NeoPao</strong> : answer.answerSource === "community" ? <strong>Kinh nghiệm cộng đồng — đang chờ duyệt</strong> : <strong>Kinh nghiệm Chợ Neo đã duyệt</strong>}
-                    <p>{answer.answerText}</p>
-                    {answer.answerSource === "neopao" ? <small>Đây là gợi ý đầu tiên. Kiểm tra thêm với kinh nghiệm thực tế trước khi áp dụng.</small> : null}
-                    {answerFeedback(question.questionId, answer)}
-                  </div>
-                ))}
-                {question.continuation ? (
-                  <Link className="hoi-continuation" href={question.continuation.href}>
-                    Bàn tiếp chuyện này ở {question.continuation.label} →
-                  </Link>
+              ) : null}
+              <div className="hoi-active-actions">
+                <button onClick={continueFromActive} type="button">Hỏi thêm</button>
+                {activeQuestion.answers[0] ? (
+                  <button
+                    aria-expanded={openFeedbackAnswerId === activeQuestion.answers[0].answerId}
+                    onClick={() => setOpenFeedbackAnswerId((current) => current === activeQuestion.answers[0]?.answerId ? null : activeQuestion.answers[0]?.answerId ?? null)}
+                    type="button"
+                  >
+                    Góp ý
+                  </button>
                 ) : null}
-              </article>
-            )) : (
-              <p className="hoi-empty">Chưa có câu hỏi công khai. Bạn có thể mở bàn đầu tiên.</p>
-            )}
-          </section>
+              </div>
+              <p className="hoi-active-note">Gợi ý đầu tiên để tham khảo cùng kinh nghiệm thực tế của bạn.</p>
+            </section>
+          ) : null}
+
+          <details className="hoi-recent">
+            <summary>Câu hỏi gần đây · {recentQuestions.length}</summary>
+            <div className="hoi-recent-list">
+              {recentQuestions.length ? recentQuestions.map((question) => (
+                <details className="hoi-recent-item" key={question.questionId}>
+                  <summary>
+                    <span>{question.questionText}</span>
+                    <small>{question.questionTopic.replaceAll("_", " ")}</small>
+                  </summary>
+                  <div className="hoi-recent-content">
+                    {question.answers.map((answer) => (
+                      <div className="hoi-recent-answer" key={answer.answerId}>
+                        <strong>{answer.answerSource === "neopao" ? "NeoPao" : answer.answerSource === "community" ? "Kinh nghiệm cộng đồng — đang chờ duyệt" : "Kinh nghiệm Chợ Neo đã duyệt"}</strong>
+                        <p>{answer.answerText}</p>
+                        {answer.answerSource === "neopao" ? (
+                          <button
+                            aria-expanded={openFeedbackAnswerId === answer.answerId}
+                            className="hoi-feedback-trigger"
+                            onClick={() => setOpenFeedbackAnswerId((current) => current === answer.answerId ? null : answer.answerId)}
+                            type="button"
+                          >
+                            Góp ý
+                          </button>
+                        ) : null}
+                        {answerFeedback(question.questionId, answer)}
+                      </div>
+                    ))}
+                    {question.continuation ? (
+                      <Link className="hoi-continuation" href={question.continuation.href}>
+                        Bàn tiếp chuyện này ở {question.continuation.label} →
+                      </Link>
+                    ) : null}
+                  </div>
+                </details>
+              )) : (
+                <p className="hoi-empty">Chưa có câu hỏi gần đây.</p>
+              )}
+            </div>
+          </details>
         </div>
       </ChoNeoRoomShell>
 
       <style>{`
         .hoi-gi-day-shell { color: #fff7ed; background: #170b0b; }
-        .hoi-gi-day-page { width: min(820px, 100%); min-width: 0; margin: 0 auto; padding: 12px 0 48px; }
-        .hoi-hero, .hoi-destinations, .hoi-composer, .hoi-published { min-width: 0; }
-        .hoi-hero { padding: 4px 0 18px; }
-        .hoi-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 28px; }
-        .hoi-back, .hoi-login, .hoi-submit, .hoi-submit-secondary, .hoi-feedback-actions button, .hoi-chip-row button { min-height: 44px; border-radius: 12px; font: inherit; font-weight: 500; }
+        .hoi-gi-day-page { width: min(760px, 100%); min-width: 0; margin: 0 auto; padding: 12px 0 48px; }
+        .hoi-hero, .hoi-composer, .hoi-active, .hoi-recent { min-width: 0; }
+        .hoi-hero { padding: 4px 0 0; }
+        .hoi-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 26px; }
+        .hoi-back, .hoi-login, .hoi-submit, .hoi-active-actions button, .hoi-submit-secondary, .hoi-feedback-actions button, .hoi-chip-row button { min-height: 44px; border-radius: 12px; font: inherit; font-weight: 500; }
         .hoi-back, .hoi-login { display: inline-flex; align-items: center; justify-content: center; padding: 7px 14px; border: 1px solid rgba(248, 211, 145, 0.26); color: #fff7ed; background: rgba(255, 247, 237, 0.08); text-decoration: none; }
         .hoi-login { cursor: pointer; }
         .hoi-music { display: grid; flex: 0 0 auto; place-items: center; width: 46px; min-width: 46px; height: 46px; }
-        .hoi-eyebrow { margin: 0 0 10px; color: #f8d391; font-size: 12px; font-weight: 600; }
-        .hoi-hero h1 { margin: 0; color: #fff7ed; font-family: var(--cho-neo-font-display); font-size: clamp(42px, 7vw, 74px); font-weight: 600; line-height: 0.94; }
-        .hoi-hero h1 span { display: block; margin-top: 7px; color: rgba(255, 247, 237, 0.52); font-family: var(--cho-neo-font-ui); font-size: 14px; font-weight: 400; line-height: 1.2; }
-        .hoi-subtitle { margin: 14px 0 0; color: #f8d391; font-size: 16px; font-weight: 500; }
-        .hoi-intro { max-width: 640px; margin: 12px 0 0; color: #fff7ed; font-size: 18px; line-height: 1.45; }
-        .hoi-scope { max-width: 640px; margin: 8px 0 0; color: rgba(255, 247, 237, 0.62); font-size: 12px; line-height: 1.45; }
-        .hoi-destinations, .hoi-composer, .hoi-published { margin-top: 22px; }
+        .hoi-hero h1 { margin: 0; color: #fff7ed; font-family: var(--cho-neo-font-display); font-size: clamp(38px, 6vw, 54px); font-weight: 500; line-height: 1; }
+        .hoi-subtitle { max-width: 560px; margin: 12px 0 0; color: #f8d391; font-size: 16px; font-weight: 400; line-height: 1.45; }
+        .hoi-composer { display: grid; gap: 12px; margin-top: 22px; padding: 18px; border: 1px solid rgba(248, 211, 145, 0.2); border-radius: 16px; background: rgba(255, 247, 237, 0.055); }
         .hoi-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
-        .hoi-section-heading p, .hoi-section-heading label { margin: 0; color: #f8d391; font-size: 14px; font-weight: 600; }
-        .hoi-section-heading small { flex: 0 0 auto; color: rgba(255, 247, 237, 0.45); font-size: 10px; font-weight: 400; }
-        .hoi-destination { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px 12px; width: 100%; min-height: 96px; margin-top: 10px; padding: 14px; border: 1px solid rgba(248, 211, 145, 0.2); border-radius: 12px; color: #fff7ed; background: rgba(255, 247, 237, 0.055); cursor: pointer; text-align: left; }
-        .hoi-destination.is-selected { border-color: rgba(248, 211, 145, 0.62); background: linear-gradient(135deg, rgba(248, 211, 145, 0.2), rgba(123, 44, 52, 0.24)); }
-        .hoi-destination-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; color: #2b1212; background: #f8d391; font-size: 22px; }
-        .hoi-destination > span:nth-child(2) { display: grid; align-content: center; min-width: 0; }
-        .hoi-destination strong { font-size: 16px; font-weight: 600; line-height: 1.1; }
-        .hoi-destination span small { margin-top: 3px; color: rgba(255, 247, 237, 0.5); font-size: 10px; font-weight: 400; }
-        .hoi-destination em { grid-column: 1 / -1; color: rgba(255, 247, 237, 0.72); font-size: 12px; font-style: normal; line-height: 1.35; }
-        .hoi-composer { display: grid; gap: 10px; padding-top: 4px; }
-        .hoi-composer textarea, .hoi-contribution textarea { width: 100%; min-height: 104px; padding: 12px; border: 1px solid rgba(248, 211, 145, 0.24); border-radius: 12px; color: #fff7ed; background: rgba(8, 5, 8, 0.74); font: inherit; font-size: 16px; line-height: 1.4; resize: vertical; }
+        .hoi-section-heading label { margin: 0; color: #f8d391; font-size: 15px; font-weight: 500; }
+        .hoi-section-heading small { flex: 0 0 auto; color: rgba(255, 247, 237, 0.5); font-size: 11px; font-weight: 400; }
+        .hoi-composer textarea, .hoi-contribution textarea { width: 100%; min-height: 120px; padding: 13px; border: 1px solid rgba(248, 211, 145, 0.24); border-radius: 12px; color: #fff7ed; background: rgba(8, 5, 8, 0.74); font: inherit; font-size: 16px; line-height: 1.4; resize: vertical; }
         .hoi-composer textarea::placeholder, .hoi-contribution textarea::placeholder { color: rgba(255, 247, 237, 0.42); }
         .hoi-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
-        .hoi-chip-row button { min-height: 36px; padding: 6px 10px; border: 1px solid rgba(248, 211, 145, 0.2); color: rgba(255, 247, 237, 0.78); background: rgba(255, 247, 237, 0.06); cursor: pointer; font-size: 11px; }
+        .hoi-chip-row button { padding: 6px 11px; border: 1px solid rgba(248, 211, 145, 0.2); color: rgba(255, 247, 237, 0.78); background: rgba(255, 247, 237, 0.06); cursor: pointer; font-size: 11px; }
         .hoi-submit { width: 100%; padding: 7px 16px; border: 1px solid rgba(248, 211, 145, 0.38); color: #27130c; background: #f8d391; cursor: pointer; }
         .hoi-submit:disabled, .hoi-submit-secondary:disabled { cursor: default; opacity: 0.55; }
-        .hoi-private-note, .hoi-notice, .hoi-empty { margin: 0; color: rgba(255, 247, 237, 0.58); font-size: 11px; line-height: 1.4; }
-        .hoi-notice { color: #f8d391; }
-        .hoi-question { margin-top: 10px; padding: 14px; border: 1px solid rgba(248, 211, 145, 0.16); border-radius: 12px; background: rgba(255, 247, 237, 0.045); }
-        .hoi-question-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
-        .hoi-question-meta span { color: #f8d391; font-size: 11px; font-weight: 600; }
-        .hoi-question-meta small { color: rgba(255, 247, 237, 0.42); font-size: 10px; text-transform: none; }
-        .hoi-question h2 { margin: 8px 0 0; color: #fff7ed; font-size: 17px; font-weight: 500; line-height: 1.3; }
-        .hoi-answer { margin-top: 12px; padding: 12px; border-left: 2px solid #f8d391; border-radius: 0 10px 10px 0; background: rgba(248, 211, 145, 0.08); }
-        .hoi-answer strong { color: #f8d391; font-size: 12px; font-weight: 600; }
-        .hoi-answer p { margin: 6px 0 0; color: rgba(255, 247, 237, 0.88); font-size: 14px; line-height: 1.45; }
-        .hoi-answer > small { display: block; margin-top: 8px; color: rgba(255, 247, 237, 0.54); font-size: 10px; line-height: 1.35; }
+        .hoi-notice, .hoi-empty { margin: 0; color: #f8d391; font-size: 12px; line-height: 1.45; }
+        .hoi-active { margin-top: 22px; padding: 20px; border: 1px solid rgba(248, 211, 145, 0.3); border-radius: 16px; background: rgba(248, 211, 145, 0.09); }
+        .hoi-active-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+        .hoi-active-heading strong { color: #f8d391; font-size: 14px; font-weight: 500; }
+        .hoi-active-heading small { color: rgba(255, 247, 237, 0.52); font-size: 11px; }
+        .hoi-active-question { margin: 16px 0 0; color: #fff7ed; font-size: 18px; font-weight: 500; line-height: 1.4; }
+        .hoi-active-answer { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 247, 237, 0.14); }
+        .hoi-active-answer > p { margin: 0; color: rgba(255, 247, 237, 0.9); font-size: 15px; line-height: 1.55; }
+        .hoi-active-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+        .hoi-active-actions button, .hoi-submit-secondary, .hoi-feedback-actions button { padding: 7px 14px; border: 1px solid rgba(248, 211, 145, 0.3); color: #fff7ed; background: rgba(255, 247, 237, 0.07); cursor: pointer; }
+        .hoi-active-actions button:hover, .hoi-feedback-actions button:hover, .hoi-feedback-trigger:hover { border-color: rgba(248, 211, 145, 0.65); }
+        .hoi-active-note { margin: 16px 0 0; color: rgba(255, 247, 237, 0.58); font-size: 11px; line-height: 1.45; }
+        .hoi-recent { margin-top: 28px; border-top: 1px solid rgba(255, 247, 237, 0.14); }
+        .hoi-recent > summary { min-height: 48px; padding: 14px 0; color: #f8d391; cursor: pointer; font-size: 14px; font-weight: 500; list-style-position: inside; }
+        .hoi-recent-list { padding-bottom: 2px; }
+        .hoi-recent-item { border-top: 1px solid rgba(255, 247, 237, 0.1); }
+        .hoi-recent-item > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 0; color: rgba(255, 247, 237, 0.82); cursor: pointer; list-style-position: inside; }
+        .hoi-recent-item > summary span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hoi-recent-item > summary small { flex: 0 0 auto; color: rgba(255, 247, 237, 0.42); font-size: 10px; }
+        .hoi-recent-content { padding: 0 0 16px 22px; }
+        .hoi-recent-answer { padding: 12px 0; border-top: 1px solid rgba(255, 247, 237, 0.08); }
+        .hoi-recent-answer strong { color: #f8d391; font-size: 12px; font-weight: 500; }
+        .hoi-recent-answer p { margin: 5px 0 0; color: rgba(255, 247, 237, 0.78); font-size: 13px; line-height: 1.5; }
+        .hoi-feedback-trigger { min-height: 36px; margin-top: 8px; padding: 5px 10px; border: 1px solid rgba(248, 211, 145, 0.22); border-radius: 10px; color: rgba(255, 247, 237, 0.78); background: transparent; cursor: pointer; font: inherit; font-size: 11px; }
+        .hoi-continuation { display: inline-block; margin-top: 12px; color: #f8d391; font-size: 12px; font-weight: 500; text-decoration: none; }
         .hoi-feedback { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255, 247, 237, 0.12); }
         .hoi-feedback-prompt { margin: 0 !important; color: rgba(255, 247, 237, 0.62) !important; font-size: 11px !important; }
         .hoi-feedback-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-        .hoi-feedback-actions button, .hoi-submit-secondary { padding: 7px 12px; border: 1px solid rgba(248, 211, 145, 0.24); color: #fff7ed; background: rgba(255, 247, 237, 0.06); cursor: pointer; font-size: 11px; }
         .hoi-feedback-actions button.is-selected { border-color: rgba(248, 211, 145, 0.62); background: rgba(248, 211, 145, 0.18); }
         .hoi-contribution { display: grid; gap: 8px; margin-top: 10px; }
         .hoi-contribution label { color: rgba(255, 247, 237, 0.7); font-size: 11px; font-weight: 500; }
         .hoi-contribution textarea { min-height: 84px; font-size: 14px; }
         .hoi-contribution small { color: #f8d391; font-size: 10px; }
-
-        @media (min-width: 720px) {
-          .hoi-destinations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-          .hoi-destinations .hoi-section-heading { grid-column: 1 / -1; }
-          .hoi-destination { margin-top: 0; }
-        }
 
         @media (max-width: 640px) {
           .hoi-gi-day-page { padding: 4px 0 32px; }
@@ -393,7 +432,9 @@ export default function HoiChoNeoPage() {
           .hoi-back { flex: 1 1 auto; }
           .hoi-login { max-width: 116px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .hoi-feedback-actions button { flex: 1 1 0; min-width: 0; }
-          .hoi-destination strong { font-size: 15px; }
+          .hoi-composer, .hoi-active { padding: 16px; }
+          .hoi-active-question { font-size: 16px; }
+          .hoi-recent-item > summary small { display: none; }
         }
       `}</style>
     </>

@@ -37,18 +37,25 @@ test("canonical room renders publicly and legacy route redirects safely", () => 
 
 test("the first screen uses one shared composer and the approved product language", () => {
   assert.match(page, /Hỏi Chợ Neo/);
-  assert.match(page, /Ask Chợ Neo/);
-  assert.match(page, /NeoPao trả lời trước\. Người trong nghề góp chuyện thật\./);
-  assert.match(page, /Bạn đang vướng chuyện gì trong nghề hoặc trong tiệm\?/);
+  assert.match(page, /Hỏi một chuyện nghề\. NeoPao trả lời trước\./);
+  assert.match(page, /Bạn đang vướng chuyện gì\?/);
   assert.match(page, /Hỏi Chợ Neo một chuyện\.\.\./);
+  assert.match(page, /Lifting/);
+  assert.match(page, /Khách trễ/);
+  assert.match(page, /Khách khó/);
+  assert.match(page, /const \[activeQuestion, setActiveQuestion\] = useState<HoiGiDayQuestion \| null>\(null\)/);
+  assert.match(page, /<details className="hoi-recent">/);
+  assert.match(page, /Câu hỏi gần đây · \{recentQuestions\.length\}/);
+  assert.doesNotMatch(page, /Chợ Neo · Day One|Ask Chợ Neo|Một câu hỏi, một gợi ý đầu tiên|Ask once|hoi-destination|hoi-scope|Người trong Chợ nói gì\?|Published experience/);
   assert.doesNotMatch(page, /destination-community|Two ways to ask|setDestination/);
 });
 
 test("the server always owns the first NeoPao answer", () => {
   assert.match(route, /const destination: HoiGiDayDestination = "neopao"/);
   assert.match(route, /answerWithHoiGiDayAi\([\s\S]*userId[\s\S]*supabase[\s\S]*question\.id/);
-  assert.match(page, /Gợi ý đầu tiên từ NeoPao/);
-  assert.match(page, /Đây là gợi ý đầu tiên\. Kiểm tra thêm với kinh nghiệm thực tế trước khi áp dụng\./);
+  assert.match(page, /<strong id="hoi-active-heading">NeoPao<\/strong>/);
+  assert.match(page, /Gợi ý đầu tiên để tham khảo cùng kinh nghiệm thực tế của bạn\./);
+  assert.match(page, /setActiveQuestion\(submittedQuestion\)/);
 });
 
 test("protected writes use verified membership and server-derived identity", () => {
@@ -80,14 +87,17 @@ test("disabled AI persists and visibly returns the graceful fallback", () => {
 });
 
 test("feedback is explicit, review-gated and cannot replace an answer", () => {
-  assert.match(page, /Đúng với kinh nghiệm của tôi/);
-  assert.match(page, /Tôi muốn bổ sung/);
-  assert.match(page, /Có điểm cần sửa/);
-  assert.match(page, /Người trong Chợ nói gì\?/);
+  assert.match(page, /Đúng/);
+  assert.match(page, /Bổ sung/);
+  assert.match(page, /Cần sửa/);
+  assert.match(page, /openFeedbackAnswerId/);
+  assert.match(page, /if \(openFeedbackAnswerId !== answer\.answerId\) return null/);
+  assert.match(page, /aria-expanded=\{openFeedbackAnswerId ===/);
+  assert.match(page, /Góp ý/);
   assert.match(page, /Kinh nghiệm cộng đồng — đang chờ duyệt/);
   assert.match(route, /review_status: "pending_review"/);
   assert.doesNotMatch(route, /\.from\("cho_neo_answers"\)\s*\.update\(/);
-  assert.match(page, /không tự huấn luyện hay thay đổi NeoPao/);
+  assert.doesNotMatch(page, /hoi-private-note/);
 });
 
 test("topic continuation uses only allowlisted local rooms", () => {
@@ -127,7 +137,7 @@ test("shared usage migration locks, caps, finalizes and releases reservations", 
 });
 
 test("mobile layout keeps the canonical room usable at narrow widths", () => {
-  assert.match(page, /width: min\(820px, 100%\)/);
+  assert.match(page, /width: min\(760px, 100%\)/);
   assert.match(page, /@media \(max-width: 640px\)/);
   assert.match(page, /min-height: 44px/);
 });
