@@ -349,7 +349,7 @@ const LOCAL_TABLE_CONFIG = {
       { vi: "Không spam supplier.", en: "No supplier spam." },
       { vi: "Giữ tên khách và thợ riêng tư.", en: "Keep clients and techs private." },
     ],
-    composerPlaceholder: "Góp chuyện nghề...",
+    composerPlaceholder: "Nói một câu...",
     helper: {
       vi: "Nói rõ bối cảnh: khách, giá, lịch, dịch vụ, hay cách tiệm chạy.",
       en: "Share context: clients, pricing, schedule, services, or shop flow.",
@@ -2246,7 +2246,7 @@ export default function ChoNeoGossipPage() {
                         }}
                         onSubmit={handleTableNoteSubmit}
                       >
-                        {renderAvatarPassportChip()}
+                        {renderAvatarPassportChip({ showAction: false })}
                         <div className="front-counter-stage-message-row">
                           <button
                             aria-label="Use your Chợ Neo avatar"
@@ -7549,6 +7549,14 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-focused-stage:not(.shop-talk-focused-stage) .front-counter-stage-message-row {
           grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .shop-talk-focused-stage .shop-talk-stage-form .front-counter-stage-message-row {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .shop-talk-focused-stage .shop-talk-stage-form .front-counter-input-avatar {
+          display: none;
         }
 
         .front-counter-focused-stage .front-counter-input-avatar {

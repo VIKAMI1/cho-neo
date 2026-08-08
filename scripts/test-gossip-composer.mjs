@@ -277,9 +277,18 @@ test("Bàn Chuyện Nghề uses the shared front-counter room structure", () => 
     'className="front-counter-stage-bubbles shop-talk-stage-feed"',
     "front-counter-stage-bubble",
     'className="front-counter-stage-form shop-talk-stage-form"',
+    "renderAvatarPassportChip({ showAction: false })",
     'className="front-counter-stage-message-row"',
     'className="front-counter-stage-safety"',
   ]);
+  assert.doesNotMatch(
+    extractSnippetBetween(
+      shopTalkBranch,
+      'className="front-counter-stage-form shop-talk-stage-form"',
+      'className="front-counter-stage-form shop-talk-prompt-strip"'
+    ),
+    /composer-avatar-action|Đổi dáng|renderAvatarPassportChip\(\)/
+  );
 });
 
 test("Bàn Chuyện Nghề keeps five prompts below the shared composer and no duplicate rules", () => {
@@ -323,6 +332,9 @@ test("Bàn Chuyện Nghề keeps shared two-column post grid and readable surfac
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-form \{[\s\S]*background:[\s\S]*linear-gradient\(180deg, #fffefc, #fbf2ec\);/);
   assert.match(page, /\.shop-talk-focused-stage \.front-counter-artwork-surface \{[\s\S]*aspect-ratio: 1671 \/ 941;/);
   assert.match(page, /\.shop-talk-focused-stage \.front-counter-focused-image \{[\s\S]*object-fit: contain;/);
+  assert.match(page, /"shop-talk": \{[\s\S]*composerPlaceholder: "Nói một câu\.\.\."/);
+  assert.match(page, /\.shop-talk-focused-stage \.shop-talk-stage-form \.front-counter-stage-message-row \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto;/);
+  assert.match(page, /\.shop-talk-focused-stage \.shop-talk-stage-form \.front-counter-input-avatar \{[\s\S]*display: none;/);
 });
 
 test("Bàn Chuyện Nghề header controls use the same compact front-counter controls", () => {
