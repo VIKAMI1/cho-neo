@@ -377,7 +377,7 @@ export default function HoiChoNeoPage() {
         .hoi-hero, .hoi-composer, .hoi-active, .hoi-recent { min-width: 0; }
         .hoi-hero { padding: 4px 0 0; }
         .hoi-submit, .hoi-active-actions button, .hoi-submit-secondary, .hoi-feedback-actions button, .hoi-chip-row button { min-height: 44px; border-radius: 12px; font: inherit; font-weight: 500; }
-        .hoi-hero h1 { margin: 0; color: #fff7ed; font-family: var(--cho-neo-font-display); font-size: clamp(38px, 6vw, 54px); font-weight: 500; line-height: 1; }
+        .hoi-hero h1 { margin: 0; color: #fff7ed; font-family: var(--cho-neo-font-display); font-size: clamp(30px, 4.5vw, 40px); font-weight: 500; line-height: 1; }
         .hoi-subtitle { max-width: 560px; margin: 12px 0 0; color: #f8d391; font-size: 16px; font-weight: 400; line-height: 1.45; }
         .hoi-composer { display: grid; gap: 12px; margin-top: 22px; padding: 18px; border: 1px solid rgba(248, 211, 145, 0.2); border-radius: 16px; background: rgba(255, 247, 237, 0.055); }
         .hoi-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }

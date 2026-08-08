@@ -1,6 +1,4 @@
 import type { ReactNode } from "react";
-import { ChoNeoMobileVillageNav } from "./ChoNeoMobileVillageNav";
-import { ChoNeoVillageRail } from "./ChoNeoVillageRail";
 
 type ChoNeoRoomShellProps = {
   children: ReactNode;
@@ -19,9 +17,7 @@ export function ChoNeoRoomShell({
 
   return (
     <main className={classes}>
-      <ChoNeoMobileVillageNav currentId={currentNavId} />
       <div className="cho-neo-room-shell__layout">
-        <ChoNeoVillageRail currentId={currentNavId} />
         <div className="cho-neo-room-shell__content">{children}</div>
         {rightPanel ? (
           <aside className="cho-neo-room-shell__right-panel">{rightPanel}</aside>
@@ -39,7 +35,7 @@ export function ChoNeoRoomShell({
           box-sizing: border-box;
           width: min(1400px, 100%);
           display: grid;
-          grid-template-columns: minmax(136px, 148px) minmax(0, 1fr);
+          grid-template-columns: minmax(0, 1fr);
           gap: clamp(1rem, 2.2vw, 1.5rem);
           margin: 0 auto;
           padding: clamp(0.8rem, 2vw, 1.3rem) clamp(1rem, 2.4vw, 1.6rem);
@@ -56,18 +52,17 @@ export function ChoNeoRoomShell({
 
         .cho-neo-room-shell__layout:has(.cho-neo-room-shell__right-panel) {
           grid-template-columns:
-            minmax(136px, 148px)
             minmax(0, 1fr)
             minmax(230px, 300px);
         }
 
         @media (max-width: 1100px) {
           .cho-neo-room-shell__layout:has(.cho-neo-room-shell__right-panel) {
-            grid-template-columns: minmax(136px, 148px) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr);
           }
 
           .cho-neo-room-shell__right-panel {
-            grid-column: 2;
+            grid-column: 1;
           }
         }
 
@@ -77,10 +72,6 @@ export function ChoNeoRoomShell({
             display: block;
             width: 100%;
             padding: 0;
-          }
-
-          .cho-neo-room-shell__layout :global(.cho-neo-village-rail) {
-            display: none;
           }
         }
       `}</style>
