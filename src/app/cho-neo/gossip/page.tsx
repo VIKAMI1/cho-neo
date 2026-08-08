@@ -525,7 +525,7 @@ const tables = [
     topicChips: [],
     emptyState: {
       viTitle: "Quầy đang yên lúc này.",
-      enTitle: "The counter is quiet right now.",
+      enTitle: "",
     },
     rules: [],
     composerPlaceholder: "Nói một câu...",
@@ -2361,13 +2361,8 @@ export default function ChoNeoGossipPage() {
                       </div>
                       <section
                         className="front-counter-conversation-panel"
-                        aria-labelledby="front-counter-conversation-title"
+                        aria-label="Đang trò chuyện"
                       >
-                        <header className="front-counter-conversation-heading">
-                          <h3 id="front-counter-conversation-title">
-                            Đang trò chuyện
-                          </h3>
-                        </header>
                         <div
                           className="front-counter-conversation-stream"
                           role="list"
@@ -2480,7 +2475,7 @@ export default function ChoNeoGossipPage() {
                             })
                           ) : (
                             <p className="front-counter-conversation-empty">
-                              Quầy đang yên lúc này. / The counter is quiet right now.
+                              Quầy đang yên lúc này.
                             </p>
                           )}
                         </div>
@@ -2848,7 +2843,7 @@ export default function ChoNeoGossipPage() {
                               })
                             ) : (
                               <p className="front-counter-stage-drawer-notice">
-                                Quầy đang yên lúc này. / The counter is quiet right now.
+                                Quầy đang yên lúc này.
                               </p>
                             )}
                           </div>
@@ -3099,22 +3094,9 @@ export default function ChoNeoGossipPage() {
                       );
                     })
                   ) : isFrontCounter ? (
-                    <div className="front-counter-empty-state">
-                      <strong>
-                        Quầy đang yên lúc này.
-                        <span>The counter is quiet right now.</span>
-                      </strong>
-                      <p>
-                        Bắt đầu bằng một ghi chú tiệm nhỏ: màu nào đang chạy,
-                        món supply nào cứu buổi sáng, hoặc walk-in hôm nay có
-                        nhẹ không.
-                        <span>
-                          Start with a small shop note: what color is moving,
-                          which supply saved the morning, or whether walk-ins
-                          are light today.
-                        </span>
-                      </p>
-                    </div>
+                    <p className="front-counter-conversation-empty">
+                      Quầy đang yên lúc này.
+                    </p>
                   ) : isTrendTable ? (
                     <div className="trend-table-starter-list">
                       <div className="trend-table-empty-copy">
@@ -4946,7 +4928,7 @@ export default function ChoNeoGossipPage() {
           height: 44px;
           min-height: 44px;
           border: 1px solid var(--room-pass2-border-soft);
-          border-radius: 12px;
+          border-radius: 10px;
           color: var(--room-pass2-text-primary);
           background: rgba(255, 247, 237, 0.055);
           font: inherit;
@@ -5000,9 +4982,11 @@ export default function ChoNeoGossipPage() {
         }
 
         .front-counter-count-control {
-          color: var(--room-pass2-text-secondary);
+          border-color: rgba(255, 247, 237, 0.12);
+          color: var(--room-pass2-text-muted);
+          background: rgba(255, 247, 237, 0.035);
           font-size: 11px;
-          font-weight: 500;
+          font-weight: 400;
           box-shadow: none;
         }
 
@@ -5018,6 +5002,7 @@ export default function ChoNeoGossipPage() {
           gap: 6px !important;
           width: auto !important;
           min-width: 78px !important;
+          border-radius: 10px !important;
           box-shadow: none !important;
           font-size: 11px !important;
           font-weight: 500 !important;
@@ -5051,7 +5036,7 @@ export default function ChoNeoGossipPage() {
           height: 44px !important;
           min-height: 44px !important;
           border: 0 !important;
-          border-radius: 12px !important;
+          border-radius: 10px !important;
           padding: 0 !important;
           background: transparent !important;
           box-shadow: none !important;
@@ -5073,6 +5058,7 @@ export default function ChoNeoGossipPage() {
           gap: 6px !important;
           width: auto !important;
           min-width: 78px !important;
+          border-radius: 10px !important;
           box-shadow: none !important;
           line-height: 1 !important;
           text-shadow: none !important;
@@ -6551,17 +6537,13 @@ export default function ChoNeoGossipPage() {
 
         .front-counter-conversation-panel {
           display: grid;
-          gap: 8px;
-          padding: 12px 14px;
-          border: 1px solid #c7bab1;
-          border-radius: 18px;
-          background:
-            linear-gradient(180deg, rgba(255, 254, 252, 0.92), rgba(251, 242, 236, 0.9));
+          gap: 0;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
           color: #2f2926;
-          box-shadow:
-            0 16px 34px rgba(27, 18, 14, 0.18),
-            0 0 0 1px rgba(255, 254, 252, 0.62),
-            inset 0 1px 0 rgba(255, 255, 255, 0.74);
+          box-shadow: none;
         }
 
         .front-counter-conversation-heading {
@@ -6588,7 +6570,7 @@ export default function ChoNeoGossipPage() {
           gap: 10px;
           max-height: min(52vh, 520px);
           overflow-y: auto;
-          padding: 2px 4px 4px;
+          padding: 0 4px 4px;
           scrollbar-color: rgba(115, 55, 49, 0.35) transparent;
         }
 
@@ -6683,6 +6665,13 @@ export default function ChoNeoGossipPage() {
           font-weight: 400;
           line-height: 1.45;
           overflow-wrap: anywhere;
+        }
+
+        .front-counter-conversation-empty {
+          padding: 4px 2px;
+          color: #7f746e;
+          font-size: 13px;
+          font-weight: 400;
         }
 
         .front-counter-conversation-actions {
@@ -8129,8 +8118,7 @@ export default function ChoNeoGossipPage() {
             rgba(255, 247, 237, 0.07);
         }
 
-        .front-counter-atmosphere strong,
-        .front-counter-empty-state strong {
+        .front-counter-atmosphere strong {
           color: var(--cho-neo-text-accent);
           font-size: 13px;
           font-weight: 600;
@@ -8160,22 +8148,11 @@ export default function ChoNeoGossipPage() {
           font-weight: 600;
         }
 
-        .front-counter-atmosphere p,
-        .front-counter-empty-state p {
+        .front-counter-atmosphere p {
           margin: 0;
           color: rgba(255, 247, 237, 0.68);
           font-size: 11px;
           line-height: 1.45;
-        }
-
-        .front-counter-empty-state {
-          display: grid;
-          gap: 7px;
-          justify-self: stretch;
-          padding: 14px;
-          border: 1px dashed rgba(253, 230, 138, 0.2);
-          border-radius: 18px;
-          background: rgba(255, 247, 237, 0.07);
         }
 
         .host-tools-panel,
