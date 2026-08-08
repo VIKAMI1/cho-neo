@@ -1790,11 +1790,9 @@ export default function ChoNeoGossipPage() {
           <nav className="cafe-control-row" aria-label="Quán Tám controls">
             <Link className={cafeControlPillClassName} href="/cho-neo">
               <span>← Về Sân Làng</span>
-              <small>Village</small>
             </Link>
             <Link className={cafeControlPillClassName} href="/cho-neo/avatar">
               <span>Chọn avatar</span>
-              <small>Choose village face</small>
             </Link>
           </nav>
           <div className="cafe-hero-actions" aria-label="Quán Tám quick actions">
@@ -3481,11 +3479,14 @@ export default function ChoNeoGossipPage() {
         .cafe-control-pill {
           display: inline-flex;
           flex: 0 1 auto;
-          flex-direction: column;
+          flex-direction: row;
+          align-items: center;
           justify-content: center;
+          gap: 6px;
+          height: 44px;
           min-height: 44px;
           min-width: 0;
-          padding: 7px 12px;
+          padding: 0 12px;
           border: 1px solid var(--room-pass2-border-soft);
           border-radius: 12px;
           background: rgba(255, 247, 237, 0.055);
@@ -3494,7 +3495,7 @@ export default function ChoNeoGossipPage() {
           font: inherit;
           font-size: 11px;
           font-weight: 500;
-          line-height: 1.05;
+          line-height: 1;
           text-align: left;
           text-decoration: none;
           box-shadow: none;
@@ -3542,81 +3543,94 @@ export default function ChoNeoGossipPage() {
           box-sizing: border-box;
           display: inline-flex;
           flex: 0 0 auto;
-          flex-direction: row;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          width: auto;
-          min-height: 44px;
-          height: 44px;
-          min-width: 0;
-          border: 1px solid var(--room-pass2-border-soft);
-          border-radius: 12px;
-          padding: 0 12px;
-          color: var(--room-pass2-text-secondary);
-          background: rgba(255, 247, 237, 0.055);
-          box-shadow: none;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 6px !important;
+          width: auto !important;
+          min-width: 78px !important;
+          min-height: 44px !important;
+          height: 44px !important;
+          border: 1px solid var(--room-pass2-border-soft) !important;
+          border-radius: 12px !important;
+          padding: 0 12px !important;
+          color: var(--room-pass2-text-secondary) !important;
+          background: rgba(255, 247, 237, 0.055) !important;
+          box-shadow: none !important;
           cursor: pointer;
           font: inherit;
-          font-size: 11px;
-          font-weight: 500;
-          line-height: 1;
-          text-shadow: none;
+          font-size: 11px !important;
+          font-weight: 500 !important;
+          line-height: 1 !important;
+          text-shadow: none !important;
         }
 
         .cafe-hero-actions :global(.cho-neo-feedback-button)::before {
-          content: "♡";
-          color: #efb8aa;
-          font-size: 13px;
-          line-height: 1;
+          content: "♡" !important;
+          color: #efb8aa !important;
+          font-size: 13px !important;
+          line-height: 1 !important;
+          text-shadow: none !important;
         }
 
         .cafe-hero-actions :global(.cho-neo-feedback-button span) {
-          display: inline;
-          font-size: 11px;
-          font-weight: 500;
-          line-height: 1;
+          display: inline !important;
+          font-size: 11px !important;
+          font-weight: 500 !important;
+          line-height: 1 !important;
         }
 
         .cafe-hero-actions :global(.cho-neo-feedback-button small) {
-          display: none;
+          display: none !important;
         }
 
         .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio) {
-          flex: 0 0 auto;
-          width: auto;
-          min-width: 0;
-          height: 44px;
-          min-height: 44px;
-          border-radius: 12px;
-          padding: 0;
-          background: rgba(255, 247, 237, 0.055);
-          box-shadow: none;
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 0 !important;
+          height: 44px !important;
+          min-height: 44px !important;
+          border: 0 !important;
+          border-radius: 12px !important;
+          padding: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          backdrop-filter: none !important;
         }
 
         .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-audio-controls) {
-          width: auto;
-          height: 100%;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: auto !important;
+          height: 100% !important;
         }
 
         .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle) {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          width: auto;
-          min-width: 78px;
-          height: 44px;
-          border: 1px solid var(--room-pass2-border-soft);
-          border-radius: 12px;
-          padding: 0 12px;
-          color: var(--room-pass2-text-secondary);
-          background: transparent;
-          box-shadow: none;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 6px !important;
+          width: auto !important;
+          min-width: 78px !important;
+          height: 44px !important;
+          border: 1px solid var(--room-pass2-border-soft) !important;
+          border-radius: 12px !important;
+          padding: 0 12px !important;
+          color: var(--room-pass2-text-secondary) !important;
+          background: rgba(255, 247, 237, 0.055) !important;
+          box-shadow: none !important;
+          font-size: 11px !important;
+          font-weight: 500 !important;
+          line-height: 1 !important;
+          text-shadow: none !important;
+        }
+
+        .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::before {
+          content: "♪";
           font-size: 14px;
           font-weight: 500;
           line-height: 1;
-          text-shadow: none;
         }
 
         .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle)::after {
@@ -3627,12 +3641,12 @@ export default function ChoNeoGossipPage() {
         }
 
         .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle span) {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 12px;
-          font-size: 14px;
-          line-height: 1;
+          position: absolute !important;
+          width: 1px !important;
+          height: 1px !important;
+          overflow: hidden !important;
+          clip: rect(0 0 0 0) !important;
+          clip-path: inset(50%) !important;
         }
 
         .cafe-theme-audio :global(.cho-neo-theme-audio.cho-neo-layout-theme-audio .theme-music-toggle[aria-pressed="true"]) {
