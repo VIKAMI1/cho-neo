@@ -267,7 +267,7 @@ export default function HoiChoNeoPage() {
             <ChoNeoRoomTopBar
               ariaLabel="Hỏi Chợ Neo controls"
               feedback={<ChoNeoBetaFeedback />}
-              memberLabel={profile ? profile.displayName : "Vào Chợ"}
+              memberProfile={profile}
               onMemberClick={() => {
                 void ensureChoNeoMember(async () => undefined);
               }}

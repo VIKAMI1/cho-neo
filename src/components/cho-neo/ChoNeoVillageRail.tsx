@@ -29,12 +29,6 @@ export const choNeoVillageNavItems: ChoNeoVillageNavItem[] = [
     label: "Xin Xăm",
     symbol: "xin-xam",
   },
-  {
-    href: "/cho-neo/show-off",
-    id: "show-off",
-    label: "Phòng Trưng Bày",
-    symbol: "gallery",
-  },
 ];
 
 type ChoNeoVillageRailProps = {
