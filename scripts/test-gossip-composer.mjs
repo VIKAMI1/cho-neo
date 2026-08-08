@@ -107,8 +107,14 @@ test("front counter composer is not gated by identity or seating state while typ
   );
 });
 
-test("front counter post button uses the corrected visible copy", () => {
-  assert.match(page, /Đăng Post/);
+test("front counter composer uses conversation language", () => {
+  includesAll(page, [
+    'composerPlaceholder: "Nói một câu..."',
+    'placeholder="Nói một câu..."',
+    '{frontCounterPosting ? "Đang gửi..." : "Gửi"}',
+  ]);
+  assert.doesNotMatch(page, /Góp một câu\.\.\./);
+  assert.doesNotMatch(page, /Đăng Post/);
   assert.doesNotMatch(page, /Đăng"\}\s*<small>/);
 });
 
@@ -210,12 +216,24 @@ test("Quán Tám day/night artwork keeps the existing hero frame and hotspots", 
   assert.match(page, /\.gossip-hotspot-layer \{[\s\S]*position: absolute;[\s\S]*inset: 0;/);
 });
 
-test("front counter composer and bubbles use clearer readable surfaces", () => {
-  assert.match(page, /\.front-counter-stage-bubble \{[\s\S]*background:[\s\S]*linear-gradient\(180deg, #fffefc, #fff8f1\);[\s\S]*color: #2f2926;/);
-  assert.match(page, /\.front-counter-stage-bubble p \{[\s\S]*font-size: 15px;[\s\S]*line-height: 1\.48;/);
-  assert.match(page, /\.front-counter-focused-stage \.front-counter-bubble-header strong \{[\s\S]*color: #2f2926;[\s\S]*font-size: 15px;[\s\S]*font-weight: 600;/);
-  assert.match(page, /\.front-counter-focused-stage \.front-counter-bubble-header strong span,[\s\S]*color: #6b625d;[\s\S]*font-size: 13px;[\s\S]*font-weight: 600;/);
-  assert.match(page, /\.front-counter-focused-stage \.front-counter-bubble-controls button \{[\s\S]*border-radius: 10px;[\s\S]*color: #4f4641;[\s\S]*font-weight: 600;/);
+test("front counter conversation stream uses person-first public messages", () => {
+  includesAll(page, [
+    'className="front-counter-conversation-panel"',
+    'id="front-counter-conversation-title"',
+    "Đang trò chuyện",
+    'className="front-counter-conversation-stream"',
+    "selectedMessages.map((message) =>",
+    "front-counter-conversation-message",
+    "formatFrontCounterMessageTime(",
+    "replyToFrontCounterMessage(displayName)",
+    "Trả lời",
+  ]);
+  assert.doesNotMatch(page, /selectedMessages\.slice\(-2\)/);
+  assert.match(page, /\.front-counter-conversation-panel \{[\s\S]*border: 1px solid #c7bab1;[\s\S]*background:[\s\S]*linear-gradient\(180deg, rgba\(255, 254, 252, 0\.92\), rgba\(251, 242, 236, 0\.9\)\);/);
+  assert.match(page, /\.front-counter-conversation-message \{[\s\S]*grid-template-columns: 36px minmax\(0, 1fr\);[\s\S]*border-bottom: 1px solid rgba\(199, 186, 177, 0\.38\);/);
+  assert.match(page, /\.front-counter-conversation-meta strong \{[\s\S]*font-size: 14px;[\s\S]*font-weight: 600;/);
+  assert.match(page, /\.front-counter-conversation-copy p,[\s\S]*\.front-counter-conversation-empty \{[\s\S]*font-weight: 400;[\s\S]*line-height: 1\.45;/);
+  assert.match(page, /\.front-counter-conversation-actions button \{[\s\S]*font-weight: 500;/);
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-form \{[\s\S]*background:[\s\S]*linear-gradient\(180deg, #fffefc, #fbf2ec\);/);
   assert.match(page, /\.front-counter-focused-stage \.front-counter-stage-message-row input \{[\s\S]*min-height: 48px;[\s\S]*background: #fffefc;[\s\S]*font-size: 16px;/);
   assert.match(page, /\.front-counter-stage-message-row input::placeholder \{[\s\S]*opacity: 1;/);

@@ -528,7 +528,7 @@ const tables = [
       enTitle: "The counter is quiet right now.",
     },
     rules: [],
-    composerPlaceholder: "Góp một câu...",
+    composerPlaceholder: "Nói một câu...",
     reactionStyle: "front-counter",
     mode: "shared-front-counter",
     messages: [
@@ -769,6 +769,21 @@ function getNextQuanTamArtworkBoundaryMs(date = new Date()) {
   }
 
   return Math.max(1000, nextBoundary.getTime() - date.getTime());
+}
+
+function formatFrontCounterMessageTime(createdAt?: string) {
+  if (!createdAt) {
+    return "";
+  }
+
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(
+    date.getUTCMinutes()
+  ).padStart(2, "0")}`;
 }
 
 function useQuanTamArtworkSources() {
@@ -1048,6 +1063,25 @@ export default function ChoNeoGossipPage() {
     event.preventDefault();
 
     await submitFrontCounterDraft();
+  }
+
+  function replyToFrontCounterMessage(displayName: string) {
+    const trimmedDisplayName = displayName.trim();
+    if (!trimmedDisplayName) {
+      return;
+    }
+
+    ensureFrontCounterComposerReady();
+    const mention = `@${trimmedDisplayName} `;
+    const currentDraft = frontCounterDraftRef.current;
+    const nextDraft = currentDraft.startsWith(mention)
+      ? currentDraft
+      : `${mention}${currentDraft}`.slice(0, FRONT_COUNTER_MESSAGE_LIMIT);
+
+    frontCounterDraftRef.current = nextDraft;
+    setFrontCounterDraft(nextDraft);
+    setFrontCounterPostNotice(null);
+    window.setTimeout(() => frontCounterInputRef.current?.focus(), 0);
   }
 
   async function submitFrontCounterDraft() {
@@ -1714,7 +1748,11 @@ export default function ChoNeoGossipPage() {
         aria-label="Đổi dáng vào chợ"
       >
         <span className="composer-avatar-identity">
-          <img alt="" src={avatarProfile.avatarSrc} />
+          {currentAvatar ? (
+            <img alt="" src={currentAvatar.src} />
+          ) : (
+            <img alt="" src={avatarProfile.avatarSrc} />
+          )}
           <strong>
             {avatarProfile.nickname || "Người Ghé Chợ"}
             <small>{avatarProfile.mood || "Nhẹ nhàng"}</small>
@@ -2297,113 +2335,126 @@ export default function ChoNeoGossipPage() {
                           <div className="front-counter-focused-scrim" aria-hidden="true" />
                         </div>
                       </div>
-                      <div
-                        className="front-counter-stage-bubbles"
-                        aria-label="Social Counter visible notes"
+                      <section
+                        className="front-counter-conversation-panel"
+                        aria-labelledby="front-counter-conversation-title"
                       >
-                        {selectedMessages.slice(-2).map((message, index) => {
-                          const frontCounterMessage =
-                            "avatarId" in message ? message : null;
-                          const conversationMessage =
-                            "name" in message ? message : null;
-                          const isRemoved = !!frontCounterMessage?.removedAt;
-                          const displayName = frontCounterMessage
-                            ? isRemoved
-                              ? "Village host"
-                              : frontCounterMessage.nickname
-                            : conversationMessage?.name ?? "";
-                          const messageAvatar = frontCounterMessage
-                            ? getAvatarById(frontCounterMessage.avatarId)
-                            : null;
-                          const messageAvatarCopy = frontCounterMessage
-                            ? getGossipAvatarCopy(frontCounterMessage.avatarId)
-                            : null;
-                          const messageAuthor =
-                            frontCounterMessage?.author ?? conversationMessage?.author;
-                          const displayInitials = getNicknameInitials(displayName);
-                          const shouldShowDisplayName =
-                            displayName.trim().toUpperCase() !== displayInitials;
-                          const shouldShowMore = message.text.length > 80;
+                        <header className="front-counter-conversation-heading">
+                          <h3 id="front-counter-conversation-title">
+                            Đang trò chuyện
+                          </h3>
+                        </header>
+                        <div
+                          className="front-counter-conversation-stream"
+                          role="list"
+                          aria-label="Quầy Xã Giao public conversation"
+                        >
+                          {selectedMessages.length ? (
+                            selectedMessages.map((message) => {
+                              const frontCounterMessage =
+                                "avatarId" in message ? message : null;
+                              const conversationMessage =
+                                "name" in message ? message : null;
+                              const isRemoved = !!frontCounterMessage?.removedAt;
+                              const reportedByThisBrowser =
+                                !!frontCounterMessage &&
+                                reportedMessageIds.includes(frontCounterMessage.id);
+                              const isBusy =
+                                !!frontCounterMessage &&
+                                moderationBusyMessageId === frontCounterMessage.id;
+                              const hasSharedDatabaseId =
+                                !!frontCounterMessage &&
+                                isSharedFrontCounterMessageId(frontCounterMessage.id);
+                              const canModeratePersistedMessage =
+                                frontCounterMemoryMode !== "shared" ||
+                                (hasSharedDatabaseId &&
+                                  sharedFetchedMessageIds.includes(frontCounterMessage.id));
+                              const displayName = frontCounterMessage
+                                ? isRemoved
+                                  ? "Village host"
+                                  : frontCounterMessage.author?.nickname ??
+                                    frontCounterMessage.nickname
+                                : conversationMessage?.author?.nickname ??
+                                  conversationMessage?.name ??
+                                  "";
+                              const messageAvatar = frontCounterMessage
+                                ? getAvatarById(frontCounterMessage.avatarId)
+                                : null;
+                              const messageAuthor =
+                                frontCounterMessage?.author ?? conversationMessage?.author;
+                              const fallbackInitials = getNicknameInitials(displayName);
+                              const messageTime = formatFrontCounterMessageTime(
+                                frontCounterMessage?.createdAt
+                              );
 
-                          return (
-                            <div
-                              className={`front-counter-stage-bubble ${
-                                index % 2
-                                  ? "front-counter-stage-bubble-right"
-                                  : "front-counter-stage-bubble-left"
-                              } ${isRemoved ? "front-counter-stage-bubble-muted" : ""}`}
-                              key={
-                                "id" in message
-                                  ? `stage-${message.id}`
-                                  : `stage-${message.name}-${message.text}`
-                              }
-                            >
-                              <div className="front-counter-bubble-header">
-                                {messageAuthor?.avatarSrc ? (
-                                  <img
-                                    alt=""
-                                    className="front-counter-bubble-avatar-image"
-                                    src={messageAuthor.avatarSrc}
-                                  />
-                                ) : messageAvatar ? (
-                                  <img
-                                    alt=""
-                                    className="front-counter-bubble-avatar-image"
-                                    src={messageAvatar.src}
-                                  />
-                                ) : null}
-                                <div>
-                                  <strong>
-                                    {messageAuthor?.nickname ?? displayInitials}
-                                    {messageAuthor?.nickname ? null : shouldShowDisplayName ? (
-                                      <span>{displayName}</span>
+                              return (
+                                <article
+                                  className={`front-counter-conversation-message ${
+                                    isRemoved ? "front-counter-conversation-message-muted" : ""
+                                  }`}
+                                  key={
+                                    "id" in message
+                                      ? `conversation-${message.id}`
+                                      : `conversation-${message.name}-${message.text}`
+                                  }
+                                  role="listitem"
+                                >
+                                  <div className="front-counter-conversation-avatar">
+                                    {messageAuthor?.avatarSrc ? (
+                                      <img alt="" src={messageAuthor.avatarSrc} />
+                                    ) : messageAvatar ? (
+                                      <img alt="" src={messageAvatar.src} />
+                                    ) : (
+                                      <span aria-hidden="true">{fallbackInitials}</span>
+                                    )}
+                                  </div>
+                                  <div className="front-counter-conversation-copy">
+                                    <div className="front-counter-conversation-meta">
+                                      <strong>{displayName}</strong>
+                                      {messageTime ? (
+                                        <time dateTime={frontCounterMessage?.createdAt}>
+                                          {messageTime}
+                                        </time>
+                                      ) : null}
+                                    </div>
+                                    <p>{message.text}</p>
+                                    {frontCounterMessage && !isRemoved ? (
+                                      <div className="front-counter-conversation-actions">
+                                        <button
+                                          onClick={() =>
+                                            replyToFrontCounterMessage(displayName)
+                                          }
+                                          type="button"
+                                        >
+                                          Trả lời
+                                        </button>
+                                        <button
+                                          disabled={
+                                            isBusy ||
+                                            reportedByThisBrowser ||
+                                            !identity ||
+                                            !canModeratePersistedMessage
+                                          }
+                                          onClick={() =>
+                                            reportFrontCounterMessage(frontCounterMessage)
+                                          }
+                                          type="button"
+                                        >
+                                          {reportedByThisBrowser ? "Đã báo cáo" : "Báo cáo"}
+                                        </button>
+                                      </div>
                                     ) : null}
-                                  </strong>
-                                  {messageAuthor?.mood ? (
-                                    <small>{messageAuthor.mood}</small>
-                                  ) : messageAvatar && messageAvatarCopy ? (
-                                    <small>{messageAvatarCopy.name}</small>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <p>{message.text}</p>
-                              {(frontCounterMessage && !isRemoved) ||
-                              shouldShowMore ? (
-                                <div className="front-counter-bubble-controls">
-                                  {frontCounterMessage && !isRemoved ? (
-                                    <button
-                                      disabled={
-                                        moderationBusyMessageId === frontCounterMessage.id ||
-                                        reportedMessageIds.includes(frontCounterMessage.id) ||
-                                        !identity ||
-                                        (frontCounterMemoryMode === "shared" &&
-                                          (!isSharedFrontCounterMessageId(frontCounterMessage.id) ||
-                                            !sharedFetchedMessageIds.includes(frontCounterMessage.id)))
-                                      }
-                                      onClick={() =>
-                                        reportFrontCounterMessage(frontCounterMessage)
-                                      }
-                                      type="button"
-                                    >
-                                      Báo cáo
-                                      <span>Report</span>
-                                    </button>
-                                  ) : null}
-                                  {shouldShowMore ? (
-                                    <button
-                                      onClick={() => setFrontCounterDrawerOpen(true)}
-                                      type="button"
-                                    >
-                                      Xem thêm
-                                      <span>More</span>
-                                    </button>
-                                  ) : null}
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
+                                  </div>
+                                </article>
+                              );
+                            })
+                          ) : (
+                            <p className="front-counter-conversation-empty">
+                              Quầy đang yên lúc này. / The counter is quiet right now.
+                            </p>
+                          )}
+                        </div>
+                      </section>
                       <form
                         className="front-counter-stage-form"
                         onClick={(event) => {
@@ -2419,31 +2470,6 @@ export default function ChoNeoGossipPage() {
                       >
                         {renderAvatarPassportChip()}
                         <div className="front-counter-stage-message-row">
-                          {identity && currentAvatar ? (
-                            <button
-                              aria-label={`Posting as ${identity.nickname}`}
-                              className="front-counter-input-avatar"
-                              onClick={() => {
-                                if (!isCurrentIdentitySeated) {
-                                  takeFrontCounterSeat();
-                                }
-                              }}
-                              type="button"
-                            >
-                              <img alt="" src={currentAvatar.src} />
-                              <strong>{getNicknameInitials(identity.nickname)}</strong>
-                            </button>
-                          ) : (
-                            <button
-                              aria-label="Use default village face"
-                              className="front-counter-input-avatar"
-                              onClick={takeFrontCounterSeat}
-                              type="button"
-                            >
-                              <img alt="" src={CHO_NEO_AVATARS[0].src} />
-                              <strong>?</strong>
-                            </button>
-                          )}
                           <input
                             disabled={frontCounterPosting}
                             id="front-counter-stage-message"
@@ -2455,9 +2481,7 @@ export default function ChoNeoGossipPage() {
                               setFrontCounterPostNotice(null);
                             }}
                             onFocus={ensureFrontCounterComposerReady}
-                            placeholder={
-                              "Góp một câu..."
-                            }
+                            placeholder="Nói một câu..."
                             ref={frontCounterInputRef}
                             type="text"
                             value={frontCounterDraft}
@@ -2476,7 +2500,7 @@ export default function ChoNeoGossipPage() {
                               ↗
                             </span>
                             <span className="front-counter-send-copy">
-                              {frontCounterPosting ? "Đang đăng..." : "Đăng Post"}
+                              {frontCounterPosting ? "Đang gửi..." : "Gửi"}
                             </span>
                           </button>
                         </div>
@@ -6467,6 +6491,165 @@ export default function ChoNeoGossipPage() {
             radial-gradient(ellipse at 50% 100%, rgba(37, 22, 18, 0.38), transparent 72%);
         }
 
+        .front-counter-conversation-panel {
+          display: grid;
+          gap: 8px;
+          padding: 12px 14px;
+          border: 1px solid #c7bab1;
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(255, 254, 252, 0.92), rgba(251, 242, 236, 0.9));
+          color: #2f2926;
+          box-shadow:
+            0 16px 34px rgba(27, 18, 14, 0.18),
+            0 0 0 1px rgba(255, 254, 252, 0.62),
+            inset 0 1px 0 rgba(255, 255, 255, 0.74);
+        }
+
+        .front-counter-conversation-heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 0 2px 6px;
+          border-bottom: 1px solid rgba(199, 186, 177, 0.7);
+        }
+
+        .front-counter-conversation-heading h3 {
+          margin: 0;
+          color: #4f2924;
+          font-family: var(--cho-neo-font-display);
+          font-size: clamp(18px, 2.2vw, 24px);
+          font-weight: 600;
+          line-height: 1.1;
+          letter-spacing: 0;
+        }
+
+        .front-counter-conversation-stream {
+          display: grid;
+          gap: 10px;
+          max-height: min(52vh, 520px);
+          overflow-y: auto;
+          padding: 2px 4px 4px;
+          scrollbar-color: rgba(115, 55, 49, 0.35) transparent;
+        }
+
+        .front-counter-conversation-message {
+          display: grid;
+          grid-template-columns: 36px minmax(0, 1fr);
+          gap: 9px;
+          align-items: start;
+          padding: 7px 2px;
+          border-bottom: 1px solid rgba(199, 186, 177, 0.38);
+        }
+
+        .front-counter-conversation-message:last-child {
+          border-bottom: 0;
+        }
+
+        .front-counter-conversation-message-muted {
+          opacity: 0.62;
+        }
+
+        .front-counter-conversation-avatar {
+          display: grid;
+          place-items: center;
+          width: 34px;
+          height: 34px;
+          overflow: hidden;
+          border: 1px solid rgba(146, 64, 14, 0.24);
+          border-radius: 999px;
+          background: rgba(255, 248, 241, 0.84);
+          color: #6f2b21;
+          font-size: 11px;
+          font-weight: 600;
+        }
+
+        .front-counter-conversation-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .front-counter-conversation-copy {
+          display: grid;
+          gap: 4px;
+          min-width: 0;
+        }
+
+        .front-counter-conversation-meta {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 7px;
+          min-width: 0;
+        }
+
+        .front-counter-conversation-meta strong {
+          min-width: 0;
+          overflow: hidden;
+          color: #2f2926;
+          font-size: 14px;
+          font-weight: 600;
+          line-height: 1.18;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .front-counter-conversation-meta time {
+          flex: 0 0 auto;
+          color: #7f746e;
+          font-size: 11px;
+          font-weight: 400;
+          line-height: 1.1;
+        }
+
+        .front-counter-conversation-copy p,
+        .front-counter-conversation-empty {
+          margin: 0;
+          color: #3c342f;
+          font-size: 15px;
+          font-weight: 400;
+          line-height: 1.45;
+          overflow-wrap: anywhere;
+        }
+
+        .front-counter-conversation-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          align-items: center;
+          margin-top: 2px;
+        }
+
+        .front-counter-conversation-actions button {
+          min-height: 30px;
+          padding: 0 9px;
+          border: 1px solid rgba(199, 186, 177, 0.86);
+          border-radius: 10px;
+          color: #6f2b21;
+          background: rgba(255, 254, 252, 0.64);
+          font: inherit;
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1;
+          cursor: pointer;
+        }
+
+        .front-counter-conversation-actions button:hover:not(:disabled),
+        .front-counter-conversation-actions button:focus-visible {
+          border-color: rgba(115, 55, 49, 0.34);
+          background: rgba(255, 248, 241, 0.9);
+          outline: none;
+        }
+
+        .front-counter-conversation-actions button:disabled {
+          cursor: not-allowed;
+          color: #9a8f88;
+          background: rgba(244, 239, 235, 0.72);
+          opacity: 1;
+        }
+
         .front-counter-stage-bubbles {
           position: relative;
           z-index: 0;
@@ -7275,6 +7458,10 @@ export default function ChoNeoGossipPage() {
         .front-counter-focused-stage .front-counter-stage-message-row {
           grid-template-columns: 40px minmax(0, 1fr) auto;
           gap: 10px;
+        }
+
+        .front-counter-focused-stage:not(.shop-talk-focused-stage) .front-counter-stage-message-row {
+          grid-template-columns: minmax(0, 1fr) auto;
         }
 
         .front-counter-focused-stage .front-counter-input-avatar {
@@ -8997,6 +9184,32 @@ export default function ChoNeoGossipPage() {
             white-space: normal;
           }
 
+          .front-counter-conversation-panel {
+            padding: 10px;
+            border-radius: 16px;
+          }
+
+          .front-counter-conversation-stream {
+            max-height: none;
+            padding-inline: 1px;
+          }
+
+          .front-counter-conversation-message {
+            grid-template-columns: 32px minmax(0, 1fr);
+            gap: 8px;
+          }
+
+          .front-counter-conversation-avatar {
+            width: 32px;
+            height: 32px;
+          }
+
+          .front-counter-conversation-copy p,
+          .front-counter-conversation-empty {
+            font-size: 14px;
+            line-height: 1.42;
+          }
+
           .gossip-rules-acknowledgement {
             align-items: start;
             overflow-y: auto;
@@ -9998,11 +10211,22 @@ export default function ChoNeoGossipPage() {
             grid-template-columns: 42px minmax(0, 1fr);
           }
 
+          .front-counter-focused-stage:not(.shop-talk-focused-stage) .front-counter-stage-message-row {
+            grid-template-columns: minmax(0, 1fr) auto;
+          }
+
           .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
             grid-column: 1 / -1;
             width: 100%;
             min-height: 48px;
             font-size: 17px;
+          }
+
+          .front-counter-focused-stage:not(.shop-talk-focused-stage) .front-counter-stage-message-row > button:not(.front-counter-input-avatar) {
+            grid-column: auto;
+            width: auto;
+            min-width: 72px;
+            padding-inline: 14px;
           }
 
           .front-counter-stage-message-row input {
