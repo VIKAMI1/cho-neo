@@ -19,6 +19,9 @@ const clientPath = path.join(
   repoRoot,
   "src/app/cho-neo/admin/invitations/InvitationAdminClient.tsx",
 );
+const rootLayoutPath = path.join(repoRoot, "src/app/layout.tsx");
+const browserClientPath = path.join(repoRoot, "src/lib/supabase-browser.ts");
+const sessionSyncPath = path.join(repoRoot, "src/components/SessionSync.tsx");
 const adminHelperPath = path.join(repoRoot, "src/lib/cho-neo/invitation-admin.ts");
 const invitationHelperPath = path.join(repoRoot, "src/lib/cho-neo/member-invitations.ts");
 const migrationPath = path.join(
@@ -30,6 +33,9 @@ const joinPath = path.join(repoRoot, "src/app/join/JoinClient.tsx");
 const page = fs.readFileSync(pagePath, "utf8");
 const action = fs.readFileSync(actionPath, "utf8");
 const client = fs.readFileSync(clientPath, "utf8");
+const rootLayout = fs.readFileSync(rootLayoutPath, "utf8");
+const browserClient = fs.readFileSync(browserClientPath, "utf8");
+const sessionSync = fs.readFileSync(sessionSyncPath, "utf8");
 const adminHelper = fs.readFileSync(adminHelperPath, "utf8");
 const invitationHelper = fs.readFileSync(invitationHelperPath, "utf8");
 const migration = fs.readFileSync(migrationPath, "utf8");
@@ -42,6 +48,17 @@ test("owner invitation route uses authenticated user id plus server-only allowli
   assert.match(adminHelper, /user\.id/);
   assert.doesNotMatch(adminHelper, /user_metadata|app_metadata|email/);
   assert.doesNotMatch(client, /CHO_NEO_INVITE_ADMIN_USER_IDS|SUPABASE_SERVICE_ROLE_KEY/);
+});
+
+test("owner invitation admin sees the returning-member browser session through SSR cookies", () => {
+  assert.match(browserClient, /from "@supabase\/ssr"/);
+  assert.match(browserClient, /createBrowserClient\(/);
+  assert.match(rootLayout, /import SessionSync from "@\/components\/SessionSync"/);
+  assert.match(rootLayout, /<SessionSync \/>/);
+  assert.match(sessionSync, /supabase\.auth\.getSession\(\)/);
+  assert.match(sessionSync, /router\.refresh\(\)/);
+  assert.match(adminHelper, /createServerSupabase\(\)/);
+  assert.match(adminHelper, /supabase\.auth\.getUser\(\)/);
 });
 
 test("unauthenticated and non-admin users are denied before invitation listing or creation", () => {
