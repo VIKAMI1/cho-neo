@@ -312,3 +312,30 @@ test("Bàn Chuyện Nghề header controls use the same compact front-counter co
   assert.match(page, /\.front-counter-quick-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*gap: 8px;/);
   assert.match(page, /\.front-counter-quick-controls \.compact-table-back,[\s\S]*\.front-counter-seat-control,[\s\S]*\.front-counter-count-control \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 14px;/);
 });
+
+test("Quán Tám hero uses one compact utility row", () => {
+  assert.doesNotMatch(page, /Cho Neo Village/);
+  assert.match(page, /<h1 id="gossip-title">\s*Quán Tám\s*<span>Gossip Café<\/span>\s*<\/h1>/);
+  assert.match(page, /h1 \{[\s\S]*font-size: clamp\(38px, 5vw, 54px\);[\s\S]*font-weight: 600;/);
+  assert.match(page, /h1 span \{[\s\S]*font-size: 0\.3em;[\s\S]*font-weight: 400;/);
+  assert.match(page, /\.subtitle \{[\s\S]*font-weight: 400;/);
+
+  const controls = extractSnippetBetween(
+    page,
+    '<div className="cafe-stage-controls">',
+    "<>\n        <section"
+  );
+  includesAll(controls, [
+    '<Link className={cafeControlPillClassName} href="/cho-neo">',
+    "<span>Về Sân Làng</span>",
+    '<Link className={cafeControlPillClassName} href="/cho-neo/avatar">',
+    "<span>Chọn avatar</span>",
+    'className="cho-neo-shared-music-slot cafe-theme-audio"',
+    "data-cho-neo-shared-music-slot",
+    "<ChoNeoBetaFeedback />",
+  ]);
+  assert.match(page, /\.cafe-stage-controls \{[\s\S]*display: flex;[\s\S]*align-items: center;[\s\S]*justify-content: space-between;/);
+  assert.match(page, /\.cafe-control-pill \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
+  assert.match(page, /\.cafe-hero-actions :global\(\.cho-neo-feedback-button\) \{[\s\S]*min-height: 44px;[\s\S]*border-radius: 12px;[\s\S]*font-weight: 500;/);
+  assert.match(page, /\.cafe-theme-audio :global\(\.cho-neo-theme-audio\) \{[\s\S]*width: 44px;[\s\S]*height: 44px;[\s\S]*border-radius: 12px;/);
+});

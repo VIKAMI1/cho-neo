@@ -1734,7 +1734,6 @@ export default function ChoNeoGossipPage() {
       <section className="cafe-shell" aria-labelledby="gossip-title">
         <header className="cafe-hero">
           <div>
-            <p className="eyebrow">Cho Neo Village</p>
             <h1 id="gossip-title">
               Quán Tám
               <span>Gossip Café</span>
@@ -1746,7 +1745,19 @@ export default function ChoNeoGossipPage() {
               </span>
             </p>
           </div>
+        </header>
 
+        <div className="cafe-stage-controls">
+          <nav className="cafe-control-row" aria-label="Quán Tám controls">
+            <Link className={cafeControlPillClassName} href="/cho-neo">
+              <span>Về Sân Làng</span>
+              <small>Village</small>
+            </Link>
+            <Link className={cafeControlPillClassName} href="/cho-neo/avatar">
+              <span>Chọn avatar</span>
+              <small>Choose village face</small>
+            </Link>
+          </nav>
           <div className="cafe-hero-actions" aria-label="Quán Tám quick actions">
             <span
               className="cho-neo-shared-music-slot cafe-theme-audio"
@@ -1754,22 +1765,7 @@ export default function ChoNeoGossipPage() {
             />
             <ChoNeoBetaFeedback />
           </div>
-        </header>
-
-        {!selectedTable ? (
-          <div className="cafe-stage-controls">
-            <nav className="cafe-control-row" aria-label="Quán Tám controls">
-              <Link className={cafeControlPillClassName} href="/cho-neo">
-                <span>Về Sân Làng</span>
-                <small>Village</small>
-              </Link>
-              <Link className={cafeControlPillClassName} href="/cho-neo/avatar">
-                <span>Chọn avatar</span>
-                <small>Choose village face</small>
-              </Link>
-            </nav>
-          </div>
-        ) : null}
+        </div>
 
         <>
         <section
@@ -3375,10 +3371,7 @@ export default function ChoNeoGossipPage() {
         }
 
         .cafe-hero {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 18px;
+          display: block;
           padding: 0 2px;
         }
 
@@ -3387,41 +3380,25 @@ export default function ChoNeoGossipPage() {
           flex: 0 0 auto;
           align-items: center;
           justify-content: flex-end;
-          gap: 10px;
+          gap: 8px;
           min-width: 0;
         }
 
         .cafe-theme-audio {
-          display: flex;
-          flex: 0 0 auto;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .eyebrow {
-          margin: 0 0 8px;
-          color: var(--cho-neo-text-accent);
-          font-size: 12px;
-          font-weight: 600;
-          letter-spacing: 0.02em;
-          text-transform: none;
-        }
-
-        .eyebrow span {
-          display: block;
-          margin-top: 3px;
-          color: rgba(255, 247, 237, 0.62);
-          font-size: 10px;
-          letter-spacing: 0.02em;
-          text-transform: none;
+          display: grid;
+          flex: 0 0 44px;
+          place-items: center;
+          width: 44px;
+          min-width: 44px;
+          height: 44px;
         }
 
         h1 {
           margin: 0;
           font-family: var(--cho-neo-font-display);
-          font-size: clamp(34px, 5.6vw, 62px);
+          font-size: clamp(38px, 5vw, 54px);
           font-weight: 600;
-          line-height: 0.9;
+          line-height: 0.96;
           letter-spacing: 0;
           text-wrap: balance;
         }
@@ -3430,7 +3407,8 @@ export default function ChoNeoGossipPage() {
           display: block;
           margin-top: 8px;
           color: var(--room-pass2-text-secondary);
-          font-size: 0.34em;
+          font-size: 0.3em;
+          font-weight: 400;
           line-height: 1.08;
           letter-spacing: 0;
         }
@@ -3454,16 +3432,16 @@ export default function ChoNeoGossipPage() {
 
         .cafe-stage-controls {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
           gap: 10px;
-          align-items: flex-end;
+          align-items: center;
           justify-content: space-between;
-          margin: 12px 2px 10px;
+          margin: 14px 2px 10px;
         }
 
         .cafe-control-row {
           display: flex;
-          flex: 1 1 420px;
+          flex: 1 1 auto;
           flex-wrap: wrap;
           gap: 8px;
           align-items: center;
@@ -3475,17 +3453,17 @@ export default function ChoNeoGossipPage() {
           flex: 0 1 auto;
           flex-direction: column;
           justify-content: center;
-          min-height: 36px;
+          min-height: 44px;
           min-width: 0;
-          padding: 6px 12px;
+          padding: 7px 12px;
           border: 1px solid var(--room-pass2-border-soft);
-          border-radius: 999px;
-          background: var(--room-pass2-control);
-          color: var(--cho-neo-text-accent);
+          border-radius: 12px;
+          background: rgba(255, 247, 237, 0.055);
+          color: var(--room-pass2-text-secondary);
           cursor: pointer;
           font: inherit;
           font-size: 11px;
-          font-weight: 600;
+          font-weight: 500;
           line-height: 1.05;
           text-align: left;
           text-decoration: none;
@@ -3502,12 +3480,9 @@ export default function ChoNeoGossipPage() {
         }
 
         .cafe-control-pill-primary {
-          border-color: rgba(251, 191, 36, 0.62);
-          background:
-            radial-gradient(circle at 16% 0%, rgba(255, 247, 237, 0.28), transparent 34%),
-            linear-gradient(135deg, rgba(251, 191, 36, 0.24), rgba(180, 83, 9, 0.22)),
-            rgba(18, 18, 24, 0.72);
-          color: var(--cho-neo-text-primary);
+          border-color: rgba(253, 230, 138, 0.28);
+          background: rgba(255, 247, 237, 0.065);
+          color: var(--room-pass2-text-primary);
         }
 
         .cafe-control-pill-secondary {
@@ -3530,7 +3505,69 @@ export default function ChoNeoGossipPage() {
           margin-top: 2px;
           color: var(--room-pass2-text-muted);
           font-size: 0.78em;
-          font-weight: 600;
+          font-weight: 400;
+        }
+
+        .cafe-hero-actions :global(.cho-neo-feedback-button) {
+          box-sizing: border-box;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          min-height: 44px;
+          border: 1px solid var(--room-pass2-border-soft);
+          border-radius: 12px;
+          padding: 7px 12px;
+          color: var(--room-pass2-text-secondary);
+          background: rgba(255, 247, 237, 0.055);
+          box-shadow: none;
+          cursor: pointer;
+          font: inherit;
+          font-size: 11px;
+          font-weight: 500;
+        }
+
+        .cafe-hero-actions :global(.cho-neo-feedback-button)::before {
+          content: "♥";
+          color: #efb8aa;
+          font-size: 13px;
+          line-height: 1;
+        }
+
+        .cafe-hero-actions :global(.cho-neo-feedback-button small) {
+          display: none;
+        }
+
+        .cafe-theme-audio :global(.cho-neo-theme-audio) {
+          width: 44px;
+          min-width: 44px;
+          height: 44px;
+          min-height: 44px;
+          border-radius: 12px;
+          padding: 0;
+          background: rgba(255, 247, 237, 0.055);
+          box-shadow: none;
+        }
+
+        .cafe-theme-audio :global(.cho-neo-theme-audio .theme-audio-controls) {
+          width: 100%;
+          height: 100%;
+        }
+
+        .cafe-theme-audio :global(.cho-neo-theme-audio .theme-music-toggle) {
+          width: 100%;
+          height: 100%;
+          border: 1px solid var(--room-pass2-border-soft);
+          border-radius: 12px;
+          background: transparent;
+          box-shadow: none;
+          font-size: 21px;
+          text-shadow: none;
+        }
+
+        .cafe-theme-audio :global(.cho-neo-theme-audio .theme-music-toggle[aria-pressed="true"]) {
+          color: var(--cho-neo-text-accent);
+          text-shadow: none;
         }
 
         .front-counter-topic-note {
@@ -8632,7 +8669,7 @@ export default function ChoNeoGossipPage() {
           }
 
           .cafe-stage-controls {
-            align-items: stretch;
+            align-items: center;
           }
 
           .front-counter-topic-note {
@@ -8676,14 +8713,30 @@ export default function ChoNeoGossipPage() {
             line-height: 1.3;
           }
 
+          .cafe-stage-controls {
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+          }
+
+          .cafe-stage-controls::-webkit-scrollbar {
+            display: none;
+          }
+
           .cafe-control-row {
+            flex: 0 0 auto;
             gap: 6px;
-            margin: 10px 0 8px;
+            margin: 0;
+          }
+
+          .cafe-hero-actions {
+            flex: 0 0 auto;
+            gap: 6px;
           }
 
           .cafe-control-pill {
-            min-height: 34px;
-            padding: 5px 10px;
+            min-height: 44px;
+            padding: 6px 10px;
             font-size: 10px;
           }
 
