@@ -421,7 +421,7 @@ function ChoNeoMemberProfileSheet({
         <fieldset className="cho-neo-member-avatars">
           <legend>Avatar</legend>
           <div>
-            {CHO_NEO_AVATARS.slice(0, 8).map((avatar) => (
+            {CHO_NEO_AVATARS.map((avatar) => (
               <button
                 aria-pressed={avatarKey === avatar.id}
                 className={avatarKey === avatar.id ? "selected" : ""}

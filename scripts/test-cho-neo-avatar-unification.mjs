@@ -24,6 +24,61 @@ const gossipIdentity = readFileSync(
   "utf8",
 );
 
+const canonicalAvatars = [
+  {
+    id: "nail-tech-female",
+    nameEn: "Female Nail Tech",
+    nameVi: "Thợ Nail Nữ",
+    src: "/images/cho-neo/avatars/nail-tech-girl.png",
+  },
+  {
+    id: "nail-tech-male",
+    nameEn: "Male Nail Tech",
+    nameVi: "Thợ Nail Nam",
+    src: "/images/cho-neo/avatars/nail-tech-guy.png",
+  },
+  {
+    id: "salon-owner-female",
+    nameEn: "Female Salon Owner",
+    nameVi: "Chủ Tiệm Nữ",
+    src: "/images/cho-neo/avatars/salon-owner-female.png",
+  },
+  {
+    id: "salon-owner-male",
+    nameEn: "Male Salon Owner",
+    nameVi: "Chủ Tiệm Nam",
+    src: "/images/cho-neo/avatars/salon-owner-male.png",
+  },
+  {
+    id: "gossip-cafe-regular",
+    nameEn: "Gossip Café Regular",
+    nameVi: "Khách Quen Quán Tám",
+    src: "/images/cho-neo/avatars/gossip-cafe-regular.png",
+  },
+  {
+    id: "style-lover",
+    nameEn: "Style Lover",
+    nameVi: "Người Có Gu",
+    src: "/images/cho-neo/avatars/show-off-guy.png",
+  },
+  {
+    id: "bling-bling-girl",
+    nameEn: "Bling-Bling Girl",
+    nameVi: "Cô Lấp Lánh",
+    src: "/images/cho-neo/avatars/bling-bling-girl.png",
+  },
+  {
+    id: "color-queen",
+    nameEn: "Color Queen",
+    nameVi: "Nữ Hoàng Màu",
+    src: "/images/cho-neo/avatars/creative-soul.png",
+  },
+];
+
+function sourceBlock(source, startNeedle, endNeedle) {
+  return source.slice(source.indexOf(startNeedle), source.indexOf(endNeedle));
+}
+
 test("the canonical catalogue carries portrait and bilingual identity metadata", () => {
   assert.match(avatarIdentity, /export type ChoNeoAvatar = \{/);
   assert.match(avatarIdentity, /nameEn: string;/);
@@ -32,19 +87,73 @@ test("the canonical catalogue carries portrait and bilingual identity metadata",
   assert.match(avatarIdentity, /emoji\?: string;/);
   assert.match(avatarIdentity, /tone: string;/);
 
-  const catalogue = avatarIdentity.slice(
-    avatarIdentity.indexOf("export const CHO_NEO_AVATARS"),
-    avatarIdentity.indexOf("const nicknameSuggestions"),
+  const catalogue = sourceBlock(
+    avatarIdentity,
+    "export const CHO_NEO_AVATARS",
+    "const nicknameSuggestions",
   );
-  assert.equal((catalogue.match(/\n    id: /g) ?? []).length, 15);
-  assert.equal((catalogue.match(/\n    nameVi: /g) ?? []).length, 15);
-  assert.equal((catalogue.match(/\n    nameEn: /g) ?? []).length, 15);
-  assert.equal((catalogue.match(/\n    src: /g) ?? []).length, 15);
+  assert.equal((catalogue.match(/\n    id: /g) ?? []).length, 8);
+  assert.equal((catalogue.match(/\n    nameVi: /g) ?? []).length, 8);
+  assert.equal((catalogue.match(/\n    nameEn: /g) ?? []).length, 8);
+  assert.equal((catalogue.match(/\n    src: /g) ?? []).length, 8);
+
+  const ids = [...catalogue.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(ids, canonicalAvatars.map((avatar) => avatar.id));
+
+  for (const avatar of canonicalAvatars) {
+    assert.match(catalogue, new RegExp(`id: "${avatar.id}"[\\s\\S]*nameEn: "${avatar.nameEn}"[\\s\\S]*nameVi: "${avatar.nameVi}"[\\s\\S]*src: "${avatar.src}"`));
+  }
+
+  for (const removedName of [
+    "Quiet Listener",
+    "Lucky Seeker",
+    "Waterfront Thinker",
+    "Radio Listener",
+    "Tool Hunter",
+    "Night Owl",
+    "Tea Table Friend",
+    "Young Apprentice",
+    "Problem Solver",
+  ]) {
+    assert.doesNotMatch(catalogue, new RegExp(removedName));
+  }
+
   assert.match(avatarIdentity, /LEGACY_CHO_NEO_AVATAR_ID_MAP/);
   assert.match(avatarIdentity, /export function resolveChoNeoAvatarId/);
 });
 
 test("legacy avatar ids normalize before profile persistence and local reads", () => {
+  const legacyMap = sourceBlock(
+    avatarIdentity,
+    "export const LEGACY_CHO_NEO_AVATAR_ID_MAP",
+    "export const CHO_NEO_AVATARS",
+  );
+  for (const [legacyId, canonicalId] of Object.entries({
+    "young-nail-tech": "nail-tech-female",
+    "nail-tech": "nail-tech-female",
+    "nail-tech-guy": "nail-tech-male",
+    "new-village-guest": "nail-tech-male",
+    "auntie-owner": "salon-owner-female",
+    "female-salon-owner": "salon-owner-female",
+    "male-salon-owner": "salon-owner-male",
+    "front-counter-pro": "salon-owner-male",
+    "gossip-auntie": "gossip-cafe-regular",
+    "quiet-listener": "gossip-cafe-regular",
+    "uncle-coffee": "gossip-cafe-regular",
+    "lucky-cat-friend": "gossip-cafe-regular",
+    "weekend-warrior": "style-lover",
+    "show-off-gay": "style-lover",
+    "market-runner": "style-lover",
+    "salon-queen": "bling-bling-girl",
+    "golden-scissors": "color-queen",
+    "creative-soul": "color-queen",
+    "ong-dia-buddy": "color-queen",
+    "product-hunter": "color-queen",
+    "bubble-tea-tech": "nail-tech-male",
+  })) {
+    assert.match(legacyMap, new RegExp(`"${legacyId}": "${canonicalId}"`));
+  }
+
   assert.match(memberIdentity, /LEGACY_CHO_NEO_AVATAR_ID_MAP/);
   assert.match(memberIdentity, /resolveChoNeoAvatarId\(value\)/);
   assert.match(avatarPage, /resolveChoNeoAvatarId\(parsedProfile\.avatarId\)/);
@@ -55,8 +164,12 @@ test("legacy avatar ids normalize before profile persistence and local reads", (
 test("member profile and onboarding use canonical portrait choices", () => {
   assert.match(memberProvider, /saveMemberProfile: \(input:/);
   assert.match(memberProvider, /avatar_key: resolveChoNeoMemberAvatarKey\(input\.avatarKey\)/);
+  assert.match(memberProvider, /CHO_NEO_AVATARS\.map\(\(avatar\) =>/);
+  assert.doesNotMatch(memberProvider, /CHO_NEO_AVATARS\.slice\(0, 8\)/);
   assert.match(memberProvider, /src=\{avatar\.src\}/);
   assert.doesNotMatch(memberProvider, /\{avatar\.emoji\}/);
+  assert.match(joinPage, /CHO_NEO_AVATARS\.map\(\(avatar\) =>/);
+  assert.doesNotMatch(joinPage, /CHO_NEO_AVATARS\.slice\(0, 8\)/);
   assert.match(joinPage, /src=\{avatar\.src\}/);
   assert.doesNotMatch(joinPage, /\{avatar\.emoji\}/);
   assert.match(memberHeader, /src=\{profile\.avatar\.src\}/);
@@ -82,6 +195,40 @@ test("Quán Tám gives a verified member profile precedence over local avatar st
   assert.match(gossipPage, /src=\{currentAvatar\.src\}/);
   assert.match(gossipPage, /src=\{messageAvatar\.src\}/);
   assert.doesNotMatch(gossipPage, /\{messageAvatar\.emoji\}/);
+
+  const seededMessages = sourceBlock(
+    gossipPage,
+    "const seededFrontCounterMessages",
+    "const tables",
+  );
+  const avatarCopy = sourceBlock(
+    gossipPage,
+    "const GOSSIP_AVATAR_COPY",
+    "function isChoNeoDaytime",
+  );
+  for (const avatar of canonicalAvatars) {
+    assert.match(avatarCopy, new RegExp(`"${avatar.id}"`));
+  }
+  for (const oldId of [
+    "young-nail-tech",
+    "auntie-owner",
+    "quiet-listener",
+    "gossip-auntie",
+    "weekend-warrior",
+    "salon-queen",
+    "ong-dia-buddy",
+    "new-village-guest",
+    "uncle-coffee",
+    "bubble-tea-tech",
+    "product-hunter",
+    "market-runner",
+    "golden-scissors",
+    "lucky-cat-friend",
+    "front-counter-pro",
+  ]) {
+    assert.doesNotMatch(seededMessages, new RegExp(`avatarId: "${oldId}"`));
+    assert.doesNotMatch(avatarCopy, new RegExp(`"${oldId}":`));
+  }
 });
 
 test("Google return preserves the server-backed Chợ Neo portrait identity", () => {
@@ -90,5 +237,7 @@ test("Google return preserves the server-backed Chợ Neo portrait identity", ()
   assert.match(authCallback, /mapChoNeoMemberProfileRow\(data\)/);
   assert.match(authCallback, /profile\.userId !== session\.user\.id/);
   assert.match(authCallback, /profile\.avatarKey/);
+  assert.match(memberIdentity, /const avatarKey = row\.avatar_key[\s\S]*resolveChoNeoMemberAvatarKey\(row\.avatar_key\)/);
+  assert.match(memberIdentity, /avatar: getAvatarById\(avatarKey \?\? CHO_NEO_AVATARS\[0\]\.id\)/);
   assert.doesNotMatch(authCallback, /user_metadata|avatar_url|picture|updateUser/);
 });

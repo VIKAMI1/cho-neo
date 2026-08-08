@@ -332,7 +332,7 @@ export default function JoinClient() {
                 <fieldset className="cho-neo-join-avatars">
                   <legend>Avatar (tuỳ chọn)</legend>
                   <div>
-                    {CHO_NEO_AVATARS.slice(0, 8).map((avatar) => (
+                    {CHO_NEO_AVATARS.map((avatar) => (
                       <button
                         aria-label={`Chọn avatar ${avatar.name}`}
                         aria-pressed={avatarKey === avatar.id}

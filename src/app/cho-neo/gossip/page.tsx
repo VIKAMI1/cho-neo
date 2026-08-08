@@ -469,7 +469,7 @@ const LOCAL_TABLE_CONFIG = {
 
 const seededFrontCounterMessages: FrontCounterMessage[] = [
   {
-    avatarId: "auntie-owner",
+    avatarId: "salon-owner-female",
     createdAt: "2026-06-01T17:00:00.000Z",
     id: "seed-front-counter-1",
     nickname: "Mai",
@@ -477,7 +477,7 @@ const seededFrontCounterMessages: FrontCounterMessage[] = [
     text: "Chrome still sells, but clients ask price first now.",
   },
   {
-    avatarId: "uncle-coffee",
+    avatarId: "gossip-cafe-regular",
     createdAt: "2026-06-01T17:03:00.000Z",
     id: "seed-front-counter-2",
     nickname: "Bao",
@@ -485,7 +485,7 @@ const seededFrontCounterMessages: FrontCounterMessage[] = [
     text: "Supply cost is not the only issue. Time is the killer.",
   },
   {
-    avatarId: "young-nail-tech",
+    avatarId: "nail-tech-female",
     createdAt: "2026-06-01T17:05:00.000Z",
     id: "seed-front-counter-3",
     nickname: "Vy",
@@ -493,7 +493,7 @@ const seededFrontCounterMessages: FrontCounterMessage[] = [
     text: "In my shop, chrome is still strong for short sets.",
   },
   {
-    avatarId: "front-counter-pro",
+    avatarId: "salon-owner-male",
     createdAt: "2026-06-01T17:08:00.000Z",
     id: "seed-front-counter-4",
     nickname: "TN",
@@ -699,65 +699,37 @@ const GOSSIP_AVATAR_COPY: Record<
   string,
   { name: string; description: string }
 > = {
-  "young-nail-tech": {
-    name: "Thợ nail",
+  "nail-tech-female": {
+    name: "Thợ Nail Nữ",
     description: "Tay nghề chắc. Biết chuyện dưới sàn tiệm.",
   },
-  "auntie-owner": {
-    name: "Chủ tiệm",
-    description: "Quán xuyến mọi thứ. Gánh nhiều việc.",
+  "nail-tech-male": {
+    name: "Thợ Nail Nam",
+    description: "Vững tay nghề. Nhìn nhanh chuyện trong tiệm.",
   },
-  "quiet-listener": {
-    name: "Người lắng nghe",
-    description: "Điềm tĩnh. Nhìn thấy nhiều chuyện.",
+  "salon-owner-female": {
+    name: "Chủ Tiệm Nữ",
+    description: "Dẫn dắt bằng tình. Quán xuyến cả tiệm.",
   },
-  "gossip-auntie": {
-    name: "Khách quen Gossip Café",
+  "salon-owner-male": {
+    name: "Chủ Tiệm Nam",
+    description: "Đầu óc kinh doanh. Góp ý thực tế. Tìm được đường ra.",
+  },
+  "gossip-cafe-regular": {
+    name: "Khách Quen Quán Tám",
     description: "Ấm áp. Hay trò chuyện. Luôn quanh bàn.",
   },
-  "weekend-warrior": {
-    name: "Anh khoe thành tích",
+  "style-lover": {
+    name: "Người Có Gu",
     description: "Tự tin. Thích thắng. Khoe hành trình.",
   },
-  "salon-queen": {
-    name: "Cô gái bling-bling",
+  "bling-bling-girl": {
+    name: "Cô Lấp Lánh",
     description: "Lấp lánh. Đẹp. Thích nổi bật.",
   },
-  "ong-dia-buddy": {
-    name: "Người tìm may",
-    description: "Tin xin xăm, Ông Địa. Lòng còn hy vọng.",
-  },
-  "new-village-guest": {
-    name: "Học việc trẻ",
-    description: "Mới vào nghề. Tò mò. Đang học.",
-  },
-  "uncle-coffee": {
-    name: "Người suy nghĩ bên nước",
-    description: "Hay nghĩ. Thức khuya. Cần yên tĩnh.",
-  },
-  "bubble-tea-tech": {
-    name: "Người nghe radio",
-    description: "Bắt sóng nhanh. Biết nghe. Biết phản ứng.",
-  },
-  "product-hunter": {
-    name: "Người săn đồ nghề",
-    description: "Mê sản phẩm. Luôn tìm món tốt hơn.",
-  },
-  "market-runner": {
-    name: "Cú đêm",
-    description: "Hay nói chuyện sau giờ. Đóng quán muộn.",
-  },
-  "golden-scissors": {
-    name: "Nữ hoàng màu",
+  "color-queen": {
+    name: "Nữ Hoàng Màu",
     description: "Mê màu. Biết phối. Để ý từng chi tiết.",
-  },
-  "lucky-cat-friend": {
-    name: "Bạn bàn trà",
-    description: "Mang bình tĩnh. Năng lượng tốt. Trà chữa lành.",
-  },
-  "front-counter-pro": {
-    name: "Người gỡ rối",
-    description: "Đầu óc kinh doanh. Hay góp ý. Tìm cách giải quyết.",
   },
 };
 
