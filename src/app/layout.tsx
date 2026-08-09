@@ -23,6 +23,15 @@ export const metadata = {
   description: "Chợ Neo",
   manifest: "/manifest.webmanifest",
   applicationName: "Chợ Neo",
+  icons: {
+    icon: [
+      { url: "/icon.png", sizes: "1254x1254", type: "image/png" },
+      { url: "/icons/cho-neo/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/cho-neo/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/favicon.ico"],
+  },
   appleWebApp: {
     capable: true,
     title: "Chợ Neo",
