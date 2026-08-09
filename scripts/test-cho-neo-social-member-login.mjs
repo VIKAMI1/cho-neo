@@ -124,6 +124,8 @@ test("return destinations are local and callback exchanges the PKCE code", () =>
   assert.doesNotMatch(authCallback, /exchangeCodeForSession\(url\.href\)/);
   assert.match(authCallback, /const \{ data, error \} =\s+await supabase\.auth\.exchangeCodeForSession\(code\)/);
   assert.match(authCallback, /oauth-session-missing/);
+  assert.match(authCallback, /authenticatedUserId = data\.session\?\.user\.id \?\? null/);
+  assert.doesNotMatch(authCallback, /const \{ data: sessionResult \} = await supabase\.auth\.getSession\(\)/);
   assert.match(authCallback, /cleanCallbackUrl\(url\)/);
   assert.match(authCallback, /window\.history\.replaceState\(\{\}, "", `\$\{url\.origin\}\$\{url\.pathname\}`\)/);
   assert.match(authCallback, /url\.hash\.includes\("access_token"\)/);
@@ -133,7 +135,7 @@ test("return destinations are local and callback exchanges the PKCE code", () =>
   assert.match(authCallback, /router\.replace\(next\)/);
   assert.match(authCallback, /search\.get\("mode"\) === "link"/);
   assert.match(authCallback, /from\("cho_neo_member_profiles"\)/);
-  assert.match(authCallback, /profile\.userId !== session\.user\.id/);
+  assert.match(authCallback, /profile\.userId !== authenticatedUserId/);
   assert.match(authCallback, /profile\.status !== "verified_nail_member"/);
   assert.match(authCallback, /profile\.avatarKey/);
   assert.match(
@@ -189,7 +191,7 @@ test("invite-selected avatar and server identity remain authoritative through Go
   assert.match(verifyRoute, /auth\.getUser\(token\)/);
   assert.doesNotMatch(verifyRoute, /body\?\.userId|body\?\.authorUserId/);
   assert.match(authCallback, /\.eq\("user_id", userId\)/);
-  assert.match(authCallback, /profile\.userId !== session\.user\.id/);
+  assert.match(authCallback, /profile\.userId !== authenticatedUserId/);
   assert.match(authCallback, /profile\.avatarKey/);
 });
 

@@ -59,11 +59,14 @@ export default function AuthCallbackClient() {
           url.searchParams.has("access_token") ||
           url.searchParams.has("refresh_token");
 
+        let authenticatedUserId: string | null = null;
+
         if (code) {
           const { data, error } =
             await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
-          if (!data.session?.user) {
+          authenticatedUserId = data.session?.user.id ?? null;
+          if (!authenticatedUserId) {
             throw new Error("oauth-session-missing");
           }
         } else if (hasVisibleToken) {
@@ -73,22 +76,19 @@ export default function AuthCallbackClient() {
           return;
         } else {
           const { data } = await supabase.auth.getSession();
-          if (!data.session?.user) {
+          authenticatedUserId = data.session?.user.id ?? null;
+          if (!authenticatedUserId) {
             setMsg("Không thấy mã đăng nhập. Thử đăng nhập lại nha.");
             setTimeout(() => router.replace(callbackFailurePath), 900);
             return;
           }
         }
 
-        const { data: sessionResult } = await supabase.auth.getSession();
-        const session = sessionResult.session;
-        if (!session?.user) throw new Error("oauth-session-missing");
-
-        const profile = await loadMemberProfile(supabase, session.user.id);
+        const profile = await loadMemberProfile(supabase, authenticatedUserId);
         if (linkMode) {
           if (
             !profile ||
-            profile.userId !== session.user.id ||
+            profile.userId !== authenticatedUserId ||
             profile.status !== "verified_nail_member" ||
             !profile.avatarKey
           ) {
