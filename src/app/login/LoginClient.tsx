@@ -1,34 +1,119 @@
 "use client";
 
 import { createClient } from "@/lib/supabase-browser";
-import { useMemo, useState } from "react";
+import {
+  isApprovedChoNeoMemberAvatarKey,
+  mapChoNeoMemberProfileRow,
+} from "@/lib/cho-neo/member-identity";
+import { useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 
 export const CHO_NEO_OAUTH_SCOPES = {
   google: "openid email profile",
 } as const;
 
+type OtpStep = "email" | "code";
+
 export default function LoginClient() {
   const supabase = useMemo(() => createClient(), []);
   const search = useSearchParams();
   const [busyProvider, setBusyProvider] = useState<"google" | null>(null);
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [otpStep, setOtpStep] = useState<OtpStep>("email");
+  const [email, setEmail] = useState("");
+  const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
 
   const googleEnabled =
     process.env.NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED === "true";
+  const googleFallbackRequested = search.get("fallback") === "google";
+  const showGoogleFallback = googleFallbackRequested && googleEnabled;
   const next = getSafeReturnTo(search.get("next"));
   const reason = search.get("reason");
   const callbackMessage =
     reason === "unlinked"
       ? [
-          "Tài khoản Google này chưa được liên kết với một thành viên Chợ Neo.",
+          "Tài khoản Google này chưa được liên kết với Thẻ Thành Viên Chợ Neo.",
           "Nếu bạn có lời mời mới, hãy mở liên kết lời mời đó trước.",
         ]
       : reason === "restricted"
-        ? ["Hồ sơ này hiện chưa thể vào Chợ Neo."]
+        ? ["Thẻ Thành Viên này hiện chưa thể vào Chợ Neo."]
         : reason === "failed"
           ? ["Google chưa đăng nhập xong. Thử lại giúp Chợ Neo nha."]
         : null;
+
+  async function sendEmailOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLocaleLowerCase("en");
+    if (!normalizedEmail) {
+      setMessage("Nhập email đã liên kết với Thẻ Thành Viên Chợ Neo của bạn nha.");
+      return;
+    }
+
+    setOtpBusy(true);
+    setMessage("");
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        shouldCreateUser: false,
+      },
+    });
+
+    setOtpBusy(false);
+
+    if (error) {
+      setMessage("Email này chưa mở được cổng Chợ Neo. Kiểm tra lại hoặc mở lời mời riêng nếu đây là lần đầu.");
+      return;
+    }
+
+    setEmail(normalizedEmail);
+    setToken("");
+    setOtpStep("code");
+    setMessage("Chợ Neo đã gửi mã 6 số đến email của bạn.");
+  }
+
+  async function verifyEmailOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLocaleLowerCase("en");
+    const normalizedToken = token.replace(/\D/g, "");
+    if (!normalizedEmail || normalizedToken.length !== 6) {
+      setMessage("Nhập đủ email và mã 6 số nha.");
+      return;
+    }
+
+    setOtpBusy(true);
+    setMessage("");
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: normalizedEmail,
+      token: normalizedToken,
+      type: "email",
+    });
+
+    if (error || !data.user) {
+      await supabase.auth.signOut();
+      setOtpBusy(false);
+      setMessage("Mã này chưa đúng hoặc đã hết hạn. Thử gửi mã mới nha.");
+      return;
+    }
+
+    const profile = await loadMemberProfile(supabase, data.user.id);
+    if (
+      !profile ||
+      profile.userId !== data.user.id ||
+      profile.status !== "verified_nail_member" ||
+      !profile.avatarKey
+    ) {
+      await supabase.auth.signOut();
+      setOtpBusy(false);
+      setMessage("Email này chưa liên kết với Thẻ Thành Viên Chợ Neo đã xác minh.");
+      return;
+    }
+
+    setOtpBusy(false);
+    window.location.assign(next);
+  }
 
   async function startGoogleOAuth() {
     setBusyProvider("google");
@@ -57,7 +142,7 @@ export default function LoginClient() {
         <p className="cho-neo-login-kicker">Chợ Neo</p>
         <h1 id="cho-neo-login-title">Trở lại Chợ Neo</h1>
         <p className="cho-neo-login-copy">
-          Đăng nhập Google để trở lại đúng hồ sơ thành viên Chợ Neo của bạn.
+          Dùng email đã liên kết với Thẻ Thành Viên Chợ Neo của bạn.
         </p>
 
         {callbackMessage ? (
@@ -68,7 +153,59 @@ export default function LoginClient() {
           </div>
         ) : null}
 
-        {googleEnabled ? (
+        {otpStep === "email" ? (
+          <form className="cho-neo-login-actions" onSubmit={sendEmailOtp}>
+            <label className="cho-neo-login-field">
+              <span>Email</span>
+              <input
+                autoComplete="email"
+                inputMode="email"
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                type="email"
+                value={email}
+              />
+            </label>
+            <button disabled={otpBusy} type="submit">
+              {otpBusy ? "Đang gửi mã..." : "Gửi mã đăng nhập"}
+            </button>
+          </form>
+        ) : (
+          <form className="cho-neo-login-actions" onSubmit={verifyEmailOtp}>
+            <p className="cho-neo-login-sent">Chợ Neo đã gửi mã 6 số đến email của bạn.</p>
+            <label className="cho-neo-login-field">
+              <span>Mã 6 số</span>
+              <input
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                maxLength={6}
+                onChange={(event) => setToken(event.target.value.replace(/\D/g, ""))}
+                pattern="[0-9]{6}"
+                placeholder="000000"
+                required
+                type="text"
+                value={token}
+              />
+            </label>
+            <button disabled={otpBusy} type="submit">
+              {otpBusy ? "Đang vào chợ..." : "Vào Chợ"}
+            </button>
+            <button
+              className="secondary"
+              disabled={otpBusy}
+              onClick={() => {
+                setOtpStep("email");
+                setToken("");
+                setMessage("");
+              }}
+              type="button"
+            >
+              Đổi email
+            </button>
+          </form>
+        )}
+
+        {showGoogleFallback ? (
           <div className="cho-neo-login-actions">
             <button
               disabled={busyProvider !== null}
@@ -78,16 +215,15 @@ export default function LoginClient() {
               {busyProvider === "google" ? "Đang mở Google..." : "Đăng nhập với Google"}
             </button>
           </div>
-        ) : (
+        ) : googleFallbackRequested ? (
           <p className="cho-neo-login-message" role="status">
             Cổng đăng nhập thành viên đang tạm đóng. Bạn vẫn có thể quay lại Chợ
             Neo để xem các khu công khai.
           </p>
-        )}
+        ) : null}
 
         <p className="cho-neo-login-privacy">
-          Chợ Neo chỉ dùng thông tin đăng nhập cơ bản để nhận ra bạn. Không đăng
-          bài hay truy cập tài khoản mạng xã hội của bạn.
+          Mã chỉ dùng một lần. Chợ Neo không cần mật khẩu của bạn.
         </p>
         {message ? (
           <p className="cho-neo-login-message" role="alert">
@@ -169,6 +305,40 @@ export default function LoginClient() {
           gap: 10px;
         }
 
+        .cho-neo-login-field {
+          display: grid;
+          gap: 7px;
+          color: var(--cho-neo-text-primary);
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .cho-neo-login-field input {
+          width: 100%;
+          min-height: 46px;
+          border: 1px solid rgba(216, 169, 93, 0.44);
+          border-radius: 12px;
+          padding: 10px 12px;
+          color: var(--cho-neo-text-primary);
+          background: rgba(255, 247, 237, 0.08);
+          font: inherit;
+          font-weight: 400;
+        }
+
+        .cho-neo-login-field input:focus-visible,
+        button:focus-visible {
+          outline: 3px solid rgba(248, 211, 145, 0.38);
+          outline-offset: 2px;
+        }
+
+        .cho-neo-login-sent {
+          margin: 0;
+          color: var(--cho-neo-text-secondary);
+          font-size: 13px;
+          font-weight: 400;
+          line-height: 1.45;
+        }
+
         button {
           min-height: 46px;
           border-radius: 14px;
@@ -233,4 +403,21 @@ export function getSafeReturnTo(value: string | null) {
   if (!value.startsWith("/") || value.startsWith("//")) return "/cho-neo";
   if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return "/cho-neo";
   return value;
+}
+
+async function loadMemberProfile(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from("cho_neo_member_profiles")
+    .select(
+      "user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status, agreement_version, agreement_accepted_at",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  if (!isApprovedChoNeoMemberAvatarKey(data.avatar_key)) return null;
+  return mapChoNeoMemberProfileRow(data);
 }

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase-browser";
 import {
   CHO_NEO_AGREEMENT_VERSION,
+  isApprovedChoNeoMemberAvatarKey,
   mapChoNeoMemberProfileRow,
   resolveChoNeoMemberAvatarKey,
   validateChoNeoMemberDisplayName,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/cho-neo/member-identity";
 import { CHO_NEO_AVATARS } from "@/lib/cho-neo/avatar-identity";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 type JoinState =
   | "capturing"
@@ -22,10 +23,10 @@ type JoinState =
   | "error"
   | "restricted";
 
-type GoogleLinkState = "idle" | "prompt" | "linking" | "error";
+type EmailLinkState = "idle" | "prompt" | "sending" | "sent" | "verifying" | "error";
 
-const GOOGLE_LINK_FAILURE_MESSAGE =
-  "Google chưa liên kết được với tài khoản Chợ Neo này. Bạn vẫn có thể thử lại nha.";
+const EMAIL_LINK_FAILURE_MESSAGE =
+  "Email này chưa liên kết được với Thẻ Thành Viên Chợ Neo. Kiểm tra mã rồi thử lại nha.";
 
 export default function JoinClient() {
   const router = useRouter();
@@ -33,7 +34,10 @@ export default function JoinClient() {
   const [invitationToken, setInvitationToken] = useState("");
   const [returnTo, setReturnTo] = useState("/cho-neo");
   const [state, setState] = useState<JoinState>("capturing");
-  const [googleLinkState, setGoogleLinkState] = useState<GoogleLinkState>("idle");
+  const [emailLinkState, setEmailLinkState] = useState<EmailLinkState>("idle");
+  const [email, setEmail] = useState("");
+  const [emailToken, setEmailToken] = useState("");
+  const [memberUserId, setMemberUserId] = useState("");
   const [message, setMessage] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [avatarKey, setAvatarKey] = useState(CHO_NEO_AVATARS[0].id);
@@ -45,7 +49,6 @@ export default function JoinClient() {
       : window.location.hash;
     const token = new URLSearchParams(hash).get("invite")?.trim() ?? "";
     const requestedReturnTo = new URLSearchParams(window.location.search).get("next");
-    const linkStatus = new URLSearchParams(window.location.search).get("link");
     const redirectTo =
       requestedReturnTo && isSafeReturnTo(requestedReturnTo)
         ? requestedReturnTo
@@ -97,7 +100,7 @@ export default function JoinClient() {
       if (profile?.status === "suspended" || profile?.status === "rejected") {
         if (token) clearInvitationToken();
         setState("restricted");
-        setMessage("Hồ sơ này hiện chưa thể vào Chợ Neo.");
+        setMessage("Thẻ Thành Viên này hiện chưa thể vào Chợ Neo.");
         return;
       }
 
@@ -107,12 +110,8 @@ export default function JoinClient() {
       ) {
         if (token) clearInvitationToken();
         if (session.user.is_anonymous) {
-          if (linkStatus === "failed") {
-            setGoogleLinkState("error");
-            setMessage(GOOGLE_LINK_FAILURE_MESSAGE);
-          } else {
-            setGoogleLinkState("prompt");
-          }
+          setMemberUserId(session.user.id);
+          setEmailLinkState("prompt");
           setState("ready");
           return;
         }
@@ -195,7 +194,8 @@ export default function JoinClient() {
       }
 
       clearInvitationToken();
-      setGoogleLinkState(session.user.is_anonymous ? "prompt" : "idle");
+      setMemberUserId(session.user.id);
+      setEmailLinkState(session.user.is_anonymous ? "prompt" : "idle");
       setState("ready");
     } catch {
       clearInvitationToken();
@@ -204,8 +204,16 @@ export default function JoinClient() {
     }
   }
 
-  async function linkGoogleIdentity() {
-    setGoogleLinkState("linking");
+  async function sendEmailVerification(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLocaleLowerCase("en");
+    if (!normalizedEmail) {
+      setEmailLinkState("error");
+      setMessage("Nhập email của bạn trước nha.");
+      return;
+    }
+
+    setEmailLinkState("sending");
     setMessage("");
 
     try {
@@ -213,19 +221,64 @@ export default function JoinClient() {
       if (!currentSession?.user?.is_anonymous) {
         throw new Error("anonymous-session-required");
       }
+      if (!memberUserId) setMemberUserId(currentSession.user.id);
 
-      const redirectTo = `${window.location.origin}/auth/callback?mode=link&next=${encodeURIComponent(
-        returnTo,
-      )}`;
-      const { data, error } = await supabase.auth.linkIdentity({
-        provider: "google",
-        options: { redirectTo, scopes: "openid email profile" },
+      const { error } = await supabase.auth.updateUser({
+        email: normalizedEmail,
       });
-      if (error || !data?.url) throw new Error("google-link-unavailable");
-      window.location.assign(data.url);
+      if (error) throw error;
+
+      setEmail(normalizedEmail);
+      setEmailToken("");
+      setEmailLinkState("sent");
+      setMessage("Nhập mã 6 số Chợ Neo vừa gửi đến email của bạn.");
     } catch {
-      setGoogleLinkState("error");
-      setMessage(GOOGLE_LINK_FAILURE_MESSAGE);
+      setEmailLinkState("error");
+      setMessage(EMAIL_LINK_FAILURE_MESSAGE);
+    }
+  }
+
+  async function verifyEmailChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLocaleLowerCase("en");
+    const normalizedToken = emailToken.replace(/\D/g, "");
+    if (!normalizedEmail || normalizedToken.length !== 6 || !memberUserId) {
+      setEmailLinkState("error");
+      setMessage("Nhập đủ email và mã 6 số nha.");
+      return;
+    }
+
+    setEmailLinkState("verifying");
+    setMessage("");
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: normalizedToken,
+        type: "email_change",
+      });
+      if (error || !data.user) throw error ?? new Error("email-change-user-missing");
+      if (data.user.is_anonymous || data.user.id !== memberUserId) {
+        await supabase.auth.signOut();
+        throw new Error("email-change-user-invariant-failed");
+      }
+
+      const profile = await loadProfile(supabase, data.user.id);
+      if (
+        !profile ||
+        profile.userId !== data.user.id ||
+        profile.status !== "verified_nail_member" ||
+        !profile.avatarKey
+      ) {
+        await supabase.auth.signOut();
+        throw new Error("email-change-profile-invariant-failed");
+      }
+
+      setEmailLinkState("idle");
+      router.replace(returnTo);
+    } catch {
+      setEmailLinkState("error");
+      setMessage(EMAIL_LINK_FAILURE_MESSAGE);
     }
   }
 
@@ -264,32 +317,63 @@ export default function JoinClient() {
             <p className="cho-neo-join-copy">
               Một góc nhỏ để người trong nghề gặp nhau, nói chuyện thật và giữ nhau tử tế.
             </p>
-            {googleLinkState !== "idle" ? (
-              <div className="cho-neo-join-link-google">
+            {emailLinkState !== "idle" ? (
+              <div className="cho-neo-join-link-email">
                 <h2>Giữ lối vào Chợ Neo</h2>
                 <p>
-                  Liên kết Google để lần sau bạn có thể trở lại Chợ Neo trên thiết bị khác.
+                  Liên kết email để lần sau bạn có thể trở lại Chợ Neo trên điện thoại hoặc máy tính khác.
                 </p>
                 {message ? (
                   <p aria-live="polite" className="cho-neo-join-message" role="alert">
                     {message}
                   </p>
                 ) : null}
-                <button
-                  className="cho-neo-join-primary"
-                  disabled={googleLinkState === "linking"}
-                  onClick={linkGoogleIdentity}
-                  type="button"
-                >
-                  {googleLinkState === "linking" ? "Đang mở Google..." : "Liên kết với Google"}
-                </button>
-                <button
-                  className="cho-neo-join-secondary"
-                  onClick={() => router.replace(returnTo)}
-                  type="button"
-                >
-                  Vào Chợ Neo trên thiết bị này
-                </button>
+                {emailLinkState === "sent" || emailLinkState === "verifying" ? (
+                  <form onSubmit={verifyEmailChange}>
+                    <label className="cho-neo-join-field">
+                      <span>Mã xác nhận</span>
+                      <input
+                        autoComplete="one-time-code"
+                        inputMode="numeric"
+                        maxLength={6}
+                        onChange={(event) => setEmailToken(event.target.value.replace(/\D/g, ""))}
+                        pattern="[0-9]{6}"
+                        placeholder="000000"
+                        required
+                        type="text"
+                        value={emailToken}
+                      />
+                    </label>
+                    <button
+                      className="cho-neo-join-primary"
+                      disabled={emailLinkState === "verifying"}
+                      type="submit"
+                    >
+                      {emailLinkState === "verifying" ? "Đang xác nhận..." : "Xác nhận và vào Chợ"}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={sendEmailVerification}>
+                    <label className="cho-neo-join-field">
+                      <span>Email của bạn</span>
+                      <input
+                        autoComplete="email"
+                        inputMode="email"
+                        onChange={(event) => setEmail(event.target.value)}
+                        required
+                        type="email"
+                        value={email}
+                      />
+                    </label>
+                    <button
+                      className="cho-neo-join-primary"
+                      disabled={emailLinkState === "sending"}
+                      type="submit"
+                    >
+                      {emailLinkState === "sending" ? "Đang gửi mã..." : "Gửi mã xác nhận"}
+                    </button>
+                  </form>
+                )}
               </div>
             ) : (
               <>
@@ -432,7 +516,7 @@ export default function JoinClient() {
           background: #fbf4e9;
         }
 
-        .cho-neo-join-link-google {
+        .cho-neo-join-link-email {
           display: grid;
           gap: 10px;
           padding: 16px;
@@ -441,19 +525,24 @@ export default function JoinClient() {
           background: #fffaf0;
         }
 
-        .cho-neo-join-link-google h2,
-        .cho-neo-join-link-google p {
+        .cho-neo-join-link-email h2,
+        .cho-neo-join-link-email p {
           margin: 0;
         }
 
-        .cho-neo-join-link-google h2 {
+        .cho-neo-join-link-email h2 {
           color: #3b1d2a;
           font-size: 1.1rem;
         }
 
-        .cho-neo-join-link-google p {
+        .cho-neo-join-link-email p {
           color: #654d54;
           line-height: 1.5;
+        }
+
+        .cho-neo-join-link-email form {
+          display: grid;
+          gap: 10px;
         }
 
         .cho-neo-join-agreement h2 {
@@ -513,7 +602,7 @@ export default function JoinClient() {
         .cho-neo-join-avatars button:focus-visible,
         .cho-neo-join-primary:focus-visible,
         .cho-neo-join-secondary:focus-visible,
-        .cho-neo-join-link-google button:focus-visible {
+        .cho-neo-join-link-email button:focus-visible {
           outline: 3px solid #e0a45d;
           outline-offset: 2px;
         }
@@ -629,6 +718,7 @@ async function loadProfile(supabase: ReturnType<typeof createClient>, userId: st
     .maybeSingle();
 
   if (error || !data) return null;
+  if (!isApprovedChoNeoMemberAvatarKey(data.avatar_key)) return null;
   return mapChoNeoMemberProfileRow(data) as ChoNeoMemberProfile;
 }
 
