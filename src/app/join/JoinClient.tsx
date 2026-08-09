@@ -26,7 +26,7 @@ type JoinState =
 type EmailLinkState = "idle" | "prompt" | "sending" | "sent" | "verifying" | "error";
 
 const EMAIL_LINK_FAILURE_MESSAGE =
-  "Email này chưa gắn được với hồ sơ Chợ Neo. Kiểm tra mã rồi thử lại nha.";
+  "Email này chưa liên kết được với Thẻ Thành Viên Chợ Neo. Kiểm tra mã rồi thử lại nha.";
 
 export default function JoinClient() {
   const router = useRouter();
@@ -100,7 +100,7 @@ export default function JoinClient() {
       if (profile?.status === "suspended" || profile?.status === "rejected") {
         if (token) clearInvitationToken();
         setState("restricted");
-        setMessage("Hồ sơ này hiện chưa thể vào Chợ Neo.");
+        setMessage("Thẻ Thành Viên này hiện chưa thể vào Chợ Neo.");
         return;
       }
 
@@ -321,7 +321,7 @@ export default function JoinClient() {
               <div className="cho-neo-join-link-email">
                 <h2>Giữ lối vào Chợ Neo</h2>
                 <p>
-                  Gắn email với hồ sơ để lần sau bạn có thể trở lại Chợ Neo trên điện thoại hoặc máy tính khác.
+                  Liên kết email để lần sau bạn có thể trở lại Chợ Neo trên điện thoại hoặc máy tính khác.
                 </p>
                 {message ? (
                   <p aria-live="polite" className="cho-neo-join-message" role="alert">

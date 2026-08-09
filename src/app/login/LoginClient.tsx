@@ -33,11 +33,11 @@ export default function LoginClient() {
   const callbackMessage =
     reason === "unlinked"
       ? [
-          "Tài khoản Google này chưa được liên kết với một thành viên Chợ Neo.",
+          "Tài khoản Google này chưa được liên kết với Thẻ Thành Viên Chợ Neo.",
           "Nếu bạn có lời mời mới, hãy mở liên kết lời mời đó trước.",
         ]
       : reason === "restricted"
-        ? ["Hồ sơ này hiện chưa thể vào Chợ Neo."]
+        ? ["Thẻ Thành Viên này hiện chưa thể vào Chợ Neo."]
         : reason === "failed"
           ? ["Google chưa đăng nhập xong. Thử lại giúp Chợ Neo nha."]
         : null;
@@ -46,7 +46,7 @@ export default function LoginClient() {
     event.preventDefault();
     const normalizedEmail = email.trim().toLocaleLowerCase("en");
     if (!normalizedEmail) {
-      setMessage("Nhập email đã gắn với hồ sơ Chợ Neo của bạn nha.");
+      setMessage("Nhập email đã liên kết với Thẻ Thành Viên Chợ Neo của bạn nha.");
       return;
     }
 
@@ -107,7 +107,7 @@ export default function LoginClient() {
     ) {
       await supabase.auth.signOut();
       setOtpBusy(false);
-      setMessage("Email này chưa gắn với một thành viên Chợ Neo đã xác minh.");
+      setMessage("Email này chưa liên kết với Thẻ Thành Viên Chợ Neo đã xác minh.");
       return;
     }
 
@@ -142,7 +142,7 @@ export default function LoginClient() {
         <p className="cho-neo-login-kicker">Chợ Neo</p>
         <h1 id="cho-neo-login-title">Trở lại Chợ Neo</h1>
         <p className="cho-neo-login-copy">
-          Dùng email đã gắn với hồ sơ thành viên Chợ Neo của bạn.
+          Dùng email đã liên kết với Thẻ Thành Viên Chợ Neo của bạn.
         </p>
 
         {callbackMessage ? (

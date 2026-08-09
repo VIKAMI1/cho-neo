@@ -69,9 +69,12 @@ test("onboarding has no public registration controls and requires email after in
   assert.match(join, /supabase\.auth\.verifyOtp\(\{/);
   assert.match(join, /type: "email_change"/);
   assert.match(join, /Giữ lối vào Chợ Neo/);
+  assert.match(join, /Liên kết email để lần sau bạn có thể trở lại Chợ Neo trên điện thoại hoặc máy tính khác\./);
+  assert.match(join, /Email này chưa liên kết được với Thẻ Thành Viên Chợ Neo\. Kiểm tra mã rồi thử lại nha\./);
   assert.match(join, /Email của bạn/);
   assert.match(join, /Gửi mã xác nhận/);
   assert.match(join, /Xác nhận và vào Chợ/);
+  assert.doesNotMatch(join, /Gắn email|gắn được với hồ sơ|hồ sơ Chợ Neo/);
   assert.doesNotMatch(join, /linkIdentity|Liên kết với Google|Vào Chợ Neo trên thiết bị này/);
   assert.doesNotMatch(join, /api\/cho-neo\/member\/bootstrap|openRegistration/);
   assert.doesNotMatch(entry, /Google|Facebook|signInWithOAuth/);

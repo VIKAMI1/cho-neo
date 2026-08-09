@@ -79,11 +79,12 @@ const memberModule = await importMemberModule();
 test("/login separates returning email OTP login from private invitations", () => {
   assert.match(loginPage, /LoginClient/);
   assert.match(loginClient, /Trở lại Chợ Neo/);
-  assert.match(loginClient, /Dùng email đã gắn với hồ sơ thành viên Chợ Neo của bạn/);
+  assert.match(loginClient, /Dùng email đã liên kết với Thẻ Thành Viên Chợ Neo của bạn/);
   assert.match(loginClient, /Gửi mã đăng nhập/);
   assert.match(loginClient, /Mã 6 số/);
   assert.match(loginClient, /Vào Chợ/);
   assert.match(loginClient, /Mã chỉ dùng một lần\. Chợ Neo không cần mật khẩu của bạn\./);
+  assert.doesNotMatch(loginClient, /Dùng email đã gắn|hồ sơ thành viên/);
   assert.match(loginClient, /Lần đầu đến Chợ Neo\?/);
   assert.match(loginClient, /Mở liên kết lời mời bạn đã nhận trong tin nhắn hoặc email\./);
   assert.doesNotMatch(loginClient, /cho-neo-login-back/);
@@ -222,10 +223,19 @@ test("invite redemption requires same-user email identity linking without bootst
   assert.match(join, /router\.replace\(returnTo\)/);
   assert.match(join, /session\.user\.is_anonymous/);
   assert.match(join, /Giữ lối vào Chợ Neo/);
+  assert.match(
+    join,
+    /Liên kết email để lần sau bạn có thể trở lại Chợ Neo trên điện thoại hoặc máy tính khác\./,
+  );
+  assert.match(
+    join,
+    /Email này chưa liên kết được với Thẻ Thành Viên Chợ Neo\. Kiểm tra mã rồi thử lại nha\./,
+  );
   assert.match(join, /Email của bạn/);
   assert.match(join, /Gửi mã xác nhận/);
   assert.match(join, /Mã xác nhận/);
   assert.match(join, /Xác nhận và vào Chợ/);
+  assert.doesNotMatch(join, /Gắn email|gắn được với hồ sơ|hồ sơ Chợ Neo/);
   assert.doesNotMatch(join, /linkIdentity|Liên kết với Google|Vào Chợ Neo trên thiết bị này/);
   assert.doesNotMatch(join, /api\/cho-neo\/member\/bootstrap|openRegistration/);
 });
@@ -245,7 +255,7 @@ test("invite-selected avatar and server identity remain authoritative through em
 test("unlinked Google sessions are signed out and never bootstrapped into members", () => {
   assert.match(authCallback, /if \(!profile\)/);
   assert.match(authCallback, /await supabase\.auth\.signOut\(\)/);
-  assert.match(loginClient, /Tài khoản Google này chưa được liên kết với một thành viên Chợ Neo/);
+  assert.match(loginClient, /Tài khoản Google này chưa được liên kết với Thẻ Thành Viên Chợ Neo/);
   assert.match(loginClient, /Nếu bạn có lời mời mới, hãy mở liên kết lời mời đó trước/);
   assert.match(loginClient, /reason === "failed"/);
   assert.doesNotMatch(loginClient, /signInAnonymously|member\/bootstrap/);
