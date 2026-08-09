@@ -16,6 +16,11 @@ import { createClient } from "@/lib/supabase-browser";
  * - Always redirect with relative paths (router.replace("/...")).
  * - Clean the URL without forcing "/" (preserve origin + path).
  * - Do not accept implicit access tokens in the visible URL.
+ * - Never call supabase.auth.exchangeCodeForSession() here: @supabase/ssr's
+ *   browser client forces detectSessionInUrl on, so it already consumes the
+ *   PKCE code during its own auto-initialization. A second manual exchange
+ *   races that and fails with AuthPKCECodeVerifierMissingError. Wait for the
+ *   client to finish initializing and read the session it already produced.
  */
 export default function AuthCallbackClient() {
   const router = useRouter();
@@ -62,9 +67,10 @@ export default function AuthCallbackClient() {
         let authenticatedUserId: string | null = null;
 
         if (code) {
-          const { data, error } =
-            await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
+          // The browser client already exchanged this code for a session
+          // during its own auto-initialization (see note above); just wait
+          // for that to finish and read the session it produced.
+          const { data } = await supabase.auth.getSession();
           authenticatedUserId = data.session?.user.id ?? null;
           if (!authenticatedUserId) {
             throw new Error("oauth-session-missing");

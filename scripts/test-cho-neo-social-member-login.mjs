@@ -124,16 +124,24 @@ test("Google login fails closed behind its feature flag", () => {
   assert.doesNotMatch(loginClient, /NEXT_PUBLIC_CHO_NEO_GOOGLE_LOGIN_ENABLED !== "false"/);
 });
 
-test("return destinations are local and callback exchanges the PKCE code", () => {
+test("return destinations are local and callback waits for the PKCE session instead of re-exchanging the code", () => {
   assert.match(loginClient, /getSafeReturnTo/);
   assert.equal(memberModule.getSafeReturnTo?.("//evil.test") ?? "/cho-neo", "/cho-neo");
   assert.match(authCallback, /const code = url\.searchParams\.get\("code"\)/);
-  assert.match(authCallback, /exchangeCodeForSession\(code\)/);
-  assert.doesNotMatch(authCallback, /exchangeCodeForSession\(url\.href\)/);
-  assert.match(authCallback, /const \{ data, error \} =\s+await supabase\.auth\.exchangeCodeForSession\(code\)/);
+  // @supabase/ssr's browser client forces detectSessionInUrl on and already
+  // exchanges the PKCE code during its own auto-initialization. Calling
+  // exchangeCodeForSession() again here races that and throws
+  // AuthPKCECodeVerifierMissingError even though the token endpoint already
+  // returned 200 — see the AuthCallbackClient.tsx file header. Assert the
+  // method is never called anywhere in this file (the file header may still
+  // reference the method name in prose explaining why it's avoided).
+  assert.doesNotMatch(authCallback, /await supabase\.auth\.exchangeCodeForSession\(/);
+  assert.match(
+    authCallback,
+    /if \(code\) \{[\s\S]*?const \{ data \} = await supabase\.auth\.getSession\(\);[\s\S]*?\} else if \(hasVisibleToken\)/,
+  );
   assert.match(authCallback, /oauth-session-missing/);
   assert.match(authCallback, /authenticatedUserId = data\.session\?\.user\.id \?\? null/);
-  assert.doesNotMatch(authCallback, /const \{ data: sessionResult \} = await supabase\.auth\.getSession\(\)/);
   assert.match(authCallback, /cleanCallbackUrl\(url\)/);
   assert.match(authCallback, /window\.history\.replaceState\(\{\}, "", `\$\{url\.origin\}\$\{url\.pathname\}`\)/);
   assert.match(authCallback, /url\.hash\.includes\("access_token"\)/);
