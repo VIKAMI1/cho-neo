@@ -21,7 +21,7 @@ const choNeoUi = Be_Vietnam_Pro({
 export const metadata = {
   title: "Chợ Neo",
   description: "Chợ Neo",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.webmanifest?v=20260808",
   applicationName: "Chợ Neo",
   icons: {
     icon: [
@@ -29,7 +29,13 @@ export const metadata = {
       { url: "/icons/cho-neo/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/cho-neo/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: [
+      {
+        url: "/icons/cho-neo/apple-touch-icon-20260808.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
     shortcut: ["/favicon.ico"],
   },
   appleWebApp: {
