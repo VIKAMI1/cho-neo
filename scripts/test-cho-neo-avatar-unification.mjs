@@ -247,7 +247,7 @@ test("Google return preserves the server-backed Chợ Neo portrait identity", ()
   assert.match(authCallback, /avatar_key/);
   assert.match(authCallback, /isApprovedChoNeoMemberAvatarKey\(data\.avatar_key\)/);
   assert.match(authCallback, /mapChoNeoMemberProfileRow\(data\)/);
-  assert.match(authCallback, /profile\.userId !== session\.user\.id/);
+  assert.match(authCallback, /profile\.userId !== authenticatedUserId/);
   assert.match(authCallback, /profile\.avatarKey/);
   assert.match(memberIdentity, /const avatarKey = row\.avatar_key[\s\S]*resolveChoNeoMemberAvatarKey\(row\.avatar_key\)/);
   assert.match(memberIdentity, /avatar: getAvatarById\(avatarKey \?\? CHO_NEO_AVATARS\[0\]\.id\)/);

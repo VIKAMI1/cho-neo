@@ -95,7 +95,8 @@ test("Xin Xam header uses compact shared controls and removes English subtitles"
   const page = fs.readFileSync(xinXamPagePath, "utf8");
 
   assert.match(page, /‹ Chợ Neo/);
-  assert.match(page, /variant="compact"/);
+  assert.match(page, /data-cho-neo-shared-music-slot/);
+  assert.match(page, /data-cho-neo-music-presentation="rect"/);
   assert.match(page, />\s*Góp ý\s*</);
   assert.match(page, /href="\/cho-neo\/ong-dia"[\s\S]*Ông Địa/);
   assert.doesNotMatch(page, /Back to Village|Ong Dia Shrine/);

@@ -61,15 +61,23 @@ test("anonymous auth is created only when the device has no session", () => {
   assert.match(join, /if \(!session && token\)/);
 });
 
-test("onboarding has no public registration controls and only links Google after invite redemption", () => {
-  assert.doesNotMatch(join, /Mã Lời Mời|Nhập mã|invitationCode|nailRole|<select|password|Facebook|signInWithOAuth/);
-  assert.match(join, /linkIdentity\(\{/);
-  assert.match(join, /mode=link/);
-  assert.match(join, /Liên kết với Google/);
+test("onboarding has no public registration controls and requires email after invite redemption", () => {
+  assert.doesNotMatch(join, /Mã Lời Mời|Nhập mã lời mời|invitationCode|body\?\.nailRole|p_nail_role|<select|type="password"|Facebook|signInWithOAuth/i);
+  assert.match(join, /supabase\.auth\.signInAnonymously\(\)/);
+  assert.match(join, /supabase\.auth\.updateUser\(\{/);
+  assert.match(join, /email: normalizedEmail/);
+  assert.match(join, /supabase\.auth\.verifyOtp\(\{/);
+  assert.match(join, /type: "email_change"/);
+  assert.match(join, /Giữ lối vào Chợ Neo/);
+  assert.match(join, /Email của bạn/);
+  assert.match(join, /Gửi mã xác nhận/);
+  assert.match(join, /Xác nhận và vào Chợ/);
+  assert.doesNotMatch(join, /linkIdentity|Liên kết với Google|Vào Chợ Neo trên thiết bị này/);
   assert.doesNotMatch(join, /api\/cho-neo\/member\/bootstrap|openRegistration/);
   assert.doesNotMatch(entry, /Google|Facebook|signInWithOAuth/);
   assert.match(loginPage, /LoginClient/);
-  assert.match(loginClient, /signInWithOAuth\(\{/);
+  assert.match(loginClient, /signInWithOtp\(\{/);
+  assert.match(loginClient, /shouldCreateUser: false/);
   assert.match(provider, /href="\/join"/);
   assert.doesNotMatch(provider, /<select|Nhập mã lời mời|Vai trò trong ngành nail/);
 });
@@ -159,11 +167,15 @@ test("plain invitation tokens are not stored or emitted by server application lo
   assert.match(join, /clearInvitationToken\(\)/);
 });
 
-test("returning Google login is active while invitation creation remains separate", () => {
+test("returning OTP login is active while dormant Google fallback remains separate", () => {
+  assert.match(loginClient, /signInWithOtp\(\{/);
+  assert.match(loginClient, /shouldCreateUser: false/);
+  assert.match(loginClient, /verifyOtp\(\{/);
+  assert.match(loginClient, /type: "email"/);
+  assert.match(loginClient, /search\.get\("fallback"\) === "google"/);
   assert.match(loginClient, /signInWithOAuth\(\{/);
-  assert.match(loginClient, /auth\/callback/);
   assert.match(loginPage, /LoginClient/);
-  assert.match(loginClient, /Đăng nhập với Google/);
+  assert.match(loginClient, /Gửi mã đăng nhập/);
   assert.match(loginClient, /Mở liên kết lời mời bạn đã nhận trong tin nhắn hoặc email\./);
   assert.match(entry, /Mở lời mời/);
   assert.doesNotMatch(loginClient, /openRegistration|member\/bootstrap/);
