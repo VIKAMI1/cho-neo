@@ -13,6 +13,7 @@ const privateEntryPath = path.join(
 );
 const loginClientPath = path.join(repoRoot, "src/app/login/LoginClient.tsx");
 const supabaseBrowserPath = path.join(repoRoot, "src/lib/supabase-browser.ts");
+const sessionSyncPath = path.join(repoRoot, "src/components/SessionSync.tsx");
 const authCallbackPath = path.join(
   repoRoot,
   "src/app/auth/callback/AuthCallbackClient.tsx",
@@ -60,6 +61,7 @@ const loginPage = fs.readFileSync(loginPagePath, "utf8");
 const privateEntry = fs.readFileSync(privateEntryPath, "utf8");
 const loginClient = fs.readFileSync(loginClientPath, "utf8");
 const supabaseBrowser = fs.readFileSync(supabaseBrowserPath, "utf8");
+const sessionSync = fs.readFileSync(sessionSyncPath, "utf8");
 const authCallback = fs.readFileSync(authCallbackPath, "utf8");
 const member = fs.readFileSync(memberPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
@@ -106,6 +108,12 @@ test("Supabase browser client uses one PKCE session-completion path", () => {
   assert.match(supabaseBrowser, /detectSessionInUrl: false/);
   assert.match(supabaseBrowser, /persistSession: true/);
   assert.match(supabaseBrowser, /autoRefreshToken: true/);
+});
+
+test("global session sync stays out of the PKCE callback", () => {
+  assert.ok(sessionSync.includes("usePathname"));
+  assert.ok(sessionSync.includes('pathname === "/auth/callback"'));
+  assert.ok(sessionSync.includes('if (pathname === "/auth/callback") return;'));
 });
 
 test("Google login fails closed behind its feature flag", () => {
