@@ -31,6 +31,7 @@ const villageMapPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoVillageMap.tsx",
 );
+const entrancePagePath = path.join(repoRoot, "src/app/cho-neo/entrance/page.tsx");
 const headerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoMemberHeaderControl.tsx",
@@ -75,6 +76,7 @@ const member = fs.readFileSync(memberPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
 const villageShell = fs.readFileSync(villageShellPath, "utf8");
 const villageMap = fs.readFileSync(villageMapPath, "utf8");
+const entrancePage = fs.readFileSync(entrancePagePath, "utf8");
 const header = fs.readFileSync(headerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
@@ -235,6 +237,23 @@ test("village leave controls route to the entrance without signing out", () => {
   assert.match(provider, /await supabase\.auth\.signOut\(\)/);
   assert.match(provider, /Đăng xuất tài khoản/);
   assert.match(provider, /window\.location\.assign\("\/cho-neo\/entrance"\)/);
+});
+
+test("entrance page fades cinematically without navigating or authenticating", () => {
+  assert.match(entrancePage, /<Link href="\/cho-neo">Vào Chợ<\/Link>/);
+  assert.match(entrancePage, /Hẹn gặp lại\./);
+  assert.match(entrancePage, /Lần sau ghé lại, Chợ có thể đã khác\./);
+  assert.match(entrancePage, /Created by Bao Nguyen &amp; VIKAMI, with GPT\./);
+  assert.match(entrancePage, /animation: entrance-foreground-fade 6s ease-in-out forwards/);
+  assert.match(entrancePage, /58\.333%[\s\S]*opacity: 1/);
+  assert.match(entrancePage, /animation: entrance-artwork-dim 8s ease-in-out forwards/);
+  assert.match(entrancePage, /animation: entrance-background-darken 8s ease-in-out forwards/);
+  assert.match(entrancePage, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(
+    entrancePage,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.cho-neo-entrance-card,[\s\S]*\.entrance-signature[\s\S]*animation: none;/,
+  );
+  assert.doesNotMatch(entrancePage, /router\.|signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase/);
 });
 
 test("invite redemption requires same-user email identity linking without bootstrap", () => {

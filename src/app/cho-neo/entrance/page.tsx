@@ -54,8 +54,10 @@ export default function ChoNeoEntrancePage() {
           inset: -18% -10%;
           z-index: -1;
           background:
-            radial-gradient(ellipse at center, transparent 0 44%, rgba(9, 1, 4, 0.28) 82%),
-            linear-gradient(to top, rgba(7, 1, 3, 0.22), transparent 56%);
+            radial-gradient(ellipse at center, rgba(40, 5, 12, 0.34) 0 42%, rgba(10, 1, 4, 0.72) 82%),
+            linear-gradient(to bottom, rgba(14, 2, 6, 0.36), rgba(34, 3, 10, 0.64) 58%, rgba(7, 1, 3, 0.78));
+          opacity: 0;
+          animation: entrance-background-darken 8s ease-in-out forwards;
           pointer-events: none;
         }
 
@@ -83,6 +85,7 @@ export default function ChoNeoEntrancePage() {
           background:
             radial-gradient(ellipse at 50% 48%, transparent 0 36%, rgba(22, 3, 7, 0.12) 74%),
             linear-gradient(to bottom, rgba(40, 4, 9, 0.08), rgba(18, 2, 6, 0.16));
+          animation: entrance-artwork-dim 8s ease-in-out forwards;
         }
 
         .cho-neo-entrance-card {
@@ -92,6 +95,7 @@ export default function ChoNeoEntrancePage() {
           gap: 14px;
           text-align: center;
           position: relative;
+          animation: entrance-foreground-fade 6s ease-in-out forwards;
         }
 
         .cho-neo-entrance-card::before {
@@ -180,6 +184,40 @@ export default function ChoNeoEntrancePage() {
           font-weight: 400;
           line-height: 1.45;
           text-align: center;
+          animation: entrance-foreground-fade 6s ease-in-out forwards;
+        }
+
+        @keyframes entrance-foreground-fade {
+          0%,
+          58.333% {
+            opacity: 1;
+          }
+
+          100% {
+            opacity: 0.06;
+          }
+        }
+
+        @keyframes entrance-artwork-dim {
+          0%,
+          75% {
+            opacity: 1;
+          }
+
+          100% {
+            opacity: 0.68;
+          }
+        }
+
+        @keyframes entrance-background-darken {
+          0%,
+          75% {
+            opacity: 0;
+          }
+
+          100% {
+            opacity: 1;
+          }
         }
 
         @media (max-width: 640px) {
@@ -189,6 +227,15 @@ export default function ChoNeoEntrancePage() {
 
           .cho-neo-entrance-card {
             gap: 13px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .cho-neo-entrance-page::after,
+          .entrance-atmosphere::after,
+          .cho-neo-entrance-card,
+          .entrance-signature {
+            animation: none;
           }
         }
       `}</style>
