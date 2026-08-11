@@ -211,6 +211,19 @@ test("member provider sends first-time users to the private join flow", () => {
   assert.match(provider, /Chưa vào khu thành viên được/);
 });
 
+test("member logout leaves membership intact and returns to the public village", () => {
+  const logoutHandler = provider.slice(
+    provider.indexOf("async function removeFromDevice()"),
+    provider.indexOf("if (!open || !profile) return null;"),
+  );
+  assert.match(provider, /Ra khỏi Chợ Neo\?/);
+  assert.match(provider, /Ra khỏi Chợ/);
+  assert.match(logoutHandler, /await supabase\.auth\.signOut\(\)/);
+  assert.match(logoutHandler, /window\.location\.assign\("\/cho-neo"\)/);
+  assert.doesNotMatch(logoutHandler, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(logoutHandler, /delete\(\)|remove\(|membership_status|linkIdentity|updateUser|update\(/);
+});
+
 test("invite redemption requires same-user email identity linking without bootstrap", () => {
   const join = fs.readFileSync(path.join(repoRoot, "src/app/join/JoinClient.tsx"), "utf8");
   assert.match(join, /supabase\.auth\.signInAnonymously\(\)/);

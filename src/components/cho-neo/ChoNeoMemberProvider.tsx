@@ -382,12 +382,12 @@ function ChoNeoMemberProfileSheet({
 
   async function removeFromDevice() {
     const confirmed = window.confirm(
-      "Đăng xuất khỏi Chợ Neo?",
+      "Ra khỏi Chợ Neo?",
     );
     if (!confirmed) return;
     await supabase.auth.signOut();
     onClose();
-    window.location.reload();
+    window.location.assign("/cho-neo");
   }
 
   if (!open || !profile) return null;
@@ -447,7 +447,7 @@ function ChoNeoMemberProfileSheet({
           Lưu thay đổi
         </button>
         <button className="cho-neo-member-danger" onClick={removeFromDevice} type="button">
-          Đăng xuất
+          Ra khỏi Chợ
         </button>
         <p className="cho-neo-member-note">
           Phiên Supabase của bạn được giữ để lần sau ghé Chợ Neo không cần xác
