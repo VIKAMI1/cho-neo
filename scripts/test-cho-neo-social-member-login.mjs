@@ -228,6 +228,7 @@ test("village Ra khỏi Chợ only leaves the market and keeps the account sessi
 test("entrance returns to Chợ Neo without starting authentication", () => {
   assert.match(entrancePage, /Chợ Neo/);
   assert.match(entrancePage, /src="\/icon\.png"/);
+  assert.doesNotMatch(entrancePage, /entrance-brand/);
   assert.match(entrancePage, /Hẹn gặp lại\./);
   assert.match(entrancePage, /Lần sau ghé lại, Chợ có thể đã khác\./);
   assert.match(entrancePage, /Created by Bao Nguyen &amp; VIKAMI, with GPT\./);

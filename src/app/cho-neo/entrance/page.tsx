@@ -18,12 +18,11 @@ export default function ChoNeoEntrancePage() {
         <Image
           alt="Chợ Neo"
           className="entrance-emblem"
-          height={74}
+          height={112}
           priority
           src="/icon.png"
-          width={74}
+          width={112}
         />
-        <p className="entrance-brand">Chợ Neo</p>
         <h1 id="cho-neo-entrance-title">Hẹn gặp lại.</h1>
         <p className="entrance-teaser">Lần sau ghé lại, Chợ có thể đã khác.</p>
         <Link href="/cho-neo">Vào Chợ</Link>
@@ -156,19 +155,17 @@ export default function ChoNeoEntrancePage() {
           height: clamp(118px, 22vh, 220px);
           transform: translateX(-50%);
           background:
-            linear-gradient(to right, transparent 0 6%, #0c0205 6% 8%, transparent 8% 18%, #0c0205 18% 20%, transparent 20% 80%, #0c0205 80% 82%, transparent 82% 92%, #0c0205 92% 94%, transparent 94%),
-            linear-gradient(to bottom, transparent 0 35%, #0c0205 35% 42%, transparent 42%),
-            linear-gradient(135deg, transparent 0 43%, #0c0205 43% 47%, transparent 47%),
-            linear-gradient(225deg, transparent 0 43%, #0c0205 43% 47%, transparent 47%),
-            linear-gradient(to top, #070103 0 34%, transparent 34%);
-          opacity: 0.76;
+            linear-gradient(to right, transparent 0 7%, rgba(7, 1, 3, 0.78) 7% 8.5%, transparent 8.5% 18%, rgba(7, 1, 3, 0.72) 18% 19.5%, transparent 19.5% 80.5%, rgba(7, 1, 3, 0.72) 80.5% 82%, transparent 82% 91.5%, rgba(7, 1, 3, 0.78) 91.5% 93%, transparent 93%),
+            linear-gradient(to bottom, transparent 0 36%, rgba(7, 1, 3, 0.72) 36% 41%, transparent 41%),
+            linear-gradient(to top, rgba(7, 1, 3, 0.82) 0 32%, transparent 32%);
+          opacity: 0.58;
         }
 
         .cho-neo-entrance-card {
           width: min(100%, 480px);
           display: grid;
           justify-items: center;
-          gap: 13px;
+          gap: 14px;
           text-align: center;
           animation: entrance-breathe 12s ease-in-out infinite;
         }
@@ -180,8 +177,8 @@ export default function ChoNeoEntrancePage() {
         }
 
         .entrance-emblem {
-          width: clamp(52px, 9vw, 74px);
-          height: clamp(52px, 9vw, 74px);
+          width: clamp(78px, 13vw, 112px);
+          height: clamp(78px, 13vw, 112px);
           margin-bottom: 2px;
           border-radius: 18px;
           box-shadow:
@@ -189,21 +186,13 @@ export default function ChoNeoEntrancePage() {
             0 0 28px rgba(248, 211, 145, 0.18);
         }
 
-        .entrance-brand {
-          color: #f8d391;
-          font-size: clamp(0.9rem, 2vw, 1.04rem);
-          font-weight: 600;
-          letter-spacing: 0;
-          text-shadow: 0 0 22px rgba(248, 211, 145, 0.26);
-        }
-
         .cho-neo-entrance-card h1 {
           color: #fff4df;
           font-family: var(--font-newsreader), Georgia, serif;
-          font-size: clamp(2.35rem, 5.8vw, 4.25rem);
+          font-size: clamp(1.9rem, 4.1vw, 2.8rem);
           font-weight: 600;
-          line-height: 1.02;
-          text-shadow: 0 16px 42px rgba(0, 0, 0, 0.34);
+          line-height: 1.08;
+          text-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
         }
 
         .entrance-teaser {
