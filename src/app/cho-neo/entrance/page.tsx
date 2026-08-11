@@ -42,10 +42,10 @@ export default function ChoNeoEntrancePage() {
           color: #fff4df;
           isolation: isolate;
           background:
-            radial-gradient(circle at 50% 22%, rgba(248, 211, 145, 0.14), transparent 28%),
-            radial-gradient(circle at 18% 74%, rgba(143, 25, 28, 0.26), transparent 35%),
-            radial-gradient(circle at 86% 70%, rgba(248, 211, 145, 0.1), transparent 34%),
-            linear-gradient(160deg, #120409 0%, #2b0610 34%, #5b1119 66%, #090205 100%);
+            radial-gradient(circle at 50% 18%, rgba(248, 211, 145, 0.16), transparent 28%),
+            radial-gradient(circle at 18% 78%, rgba(143, 25, 28, 0.26), transparent 35%),
+            radial-gradient(circle at 86% 72%, rgba(248, 211, 145, 0.11), transparent 34%),
+            linear-gradient(160deg, #100307 0%, #2a0610 36%, #5b1119 66%, #080204 100%);
         }
 
         .cho-neo-entrance-page::before {
@@ -54,9 +54,9 @@ export default function ChoNeoEntrancePage() {
           inset: 0;
           z-index: -3;
           background:
-            radial-gradient(ellipse at 50% 78%, rgba(248, 211, 145, 0.12), transparent 38%),
-            linear-gradient(to top, rgba(10, 2, 5, 0.72), transparent 46%);
-          opacity: 0.86;
+            radial-gradient(ellipse at 50% 76%, rgba(248, 211, 145, 0.12), transparent 38%),
+            linear-gradient(to top, rgba(10, 2, 5, 0.66), transparent 46%);
+          opacity: 0.8;
         }
 
         .cho-neo-entrance-page::after {
@@ -65,8 +65,9 @@ export default function ChoNeoEntrancePage() {
           inset: -18% -10%;
           z-index: -2;
           background:
-            radial-gradient(ellipse at center, transparent 0 42%, rgba(8, 1, 4, 0.42) 76%),
-            linear-gradient(to top, rgba(8, 1, 4, 0.72), transparent 42%);
+            radial-gradient(ellipse at center, transparent 0 34%, rgba(8, 1, 4, 0.5) 78%),
+            linear-gradient(to top, rgba(8, 1, 4, 0.78), transparent 48%),
+            linear-gradient(to bottom, rgba(8, 1, 4, 0.28), transparent 24%);
           pointer-events: none;
         }
 
@@ -76,6 +77,27 @@ export default function ChoNeoEntrancePage() {
           z-index: -1;
           overflow: hidden;
           pointer-events: none;
+        }
+
+        .entrance-atmosphere::before {
+          content: "";
+          position: absolute;
+          inset: -3%;
+          background-image: url("/images/cho-neo/village-map-summer-night.png");
+          background-size: cover;
+          background-position: center bottom;
+          filter: saturate(0.9) contrast(0.96);
+          opacity: 0.64;
+          transform: scale(1.02);
+        }
+
+        .entrance-atmosphere::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(ellipse at 50% 45%, rgba(58, 7, 17, 0.18), rgba(10, 2, 5, 0.64) 68%),
+            linear-gradient(to bottom, rgba(8, 1, 4, 0.64), rgba(38, 5, 12, 0.44) 42%, rgba(7, 1, 4, 0.86));
         }
 
         .lantern {
@@ -128,8 +150,8 @@ export default function ChoNeoEntrancePage() {
             linear-gradient(215deg, transparent 0 43%, rgba(10, 2, 5, 0.62) 43% 56%, transparent 56%),
             linear-gradient(to top, rgba(10, 2, 5, 0.78) 0 26%, transparent 26%);
           clip-path: polygon(0 100%, 8% 72%, 17% 88%, 27% 58%, 38% 84%, 50% 50%, 62% 84%, 73% 58%, 83% 88%, 92% 72%, 100% 100%);
-          opacity: 0.64;
-          filter: blur(0.3px);
+          opacity: 0.2;
+          filter: blur(0.6px);
         }
 
         .market-path {
@@ -140,11 +162,11 @@ export default function ChoNeoEntrancePage() {
           height: 42vh;
           transform: translateX(-50%);
           background:
-            radial-gradient(ellipse at center top, rgba(248, 211, 145, 0.16), transparent 42%),
-            linear-gradient(to bottom, rgba(248, 211, 145, 0.1), rgba(78, 12, 18, 0.04) 58%, transparent);
-          clip-path: polygon(43% 0, 57% 0, 88% 100%, 12% 100%);
-          opacity: 0.6;
-          filter: blur(0.5px);
+            radial-gradient(ellipse at center top, rgba(248, 211, 145, 0.18), transparent 40%),
+            linear-gradient(to bottom, rgba(248, 211, 145, 0.12), rgba(78, 12, 18, 0.04) 58%, transparent);
+          clip-path: polygon(45% 0, 55% 0, 78% 100%, 22% 100%);
+          opacity: 0.36;
+          filter: blur(0.8px);
         }
 
         .gate-silhouette {
@@ -158,7 +180,8 @@ export default function ChoNeoEntrancePage() {
             linear-gradient(to right, transparent 0 7%, rgba(7, 1, 3, 0.78) 7% 8.5%, transparent 8.5% 18%, rgba(7, 1, 3, 0.72) 18% 19.5%, transparent 19.5% 80.5%, rgba(7, 1, 3, 0.72) 80.5% 82%, transparent 82% 91.5%, rgba(7, 1, 3, 0.78) 91.5% 93%, transparent 93%),
             linear-gradient(to bottom, transparent 0 36%, rgba(7, 1, 3, 0.72) 36% 41%, transparent 41%),
             linear-gradient(to top, rgba(7, 1, 3, 0.82) 0 32%, transparent 32%);
-          opacity: 0.58;
+          opacity: 0.28;
+          filter: blur(0.5px);
         }
 
         .cho-neo-entrance-card {
@@ -167,7 +190,18 @@ export default function ChoNeoEntrancePage() {
           justify-items: center;
           gap: 14px;
           text-align: center;
+          position: relative;
           animation: entrance-breathe 12s ease-in-out infinite;
+        }
+
+        .cho-neo-entrance-card::before {
+          content: "";
+          position: absolute;
+          z-index: -1;
+          inset: -34px -42px;
+          border-radius: 999px;
+          background: radial-gradient(ellipse at center, rgba(28, 5, 10, 0.62), rgba(28, 5, 10, 0.24) 52%, transparent 72%);
+          filter: blur(8px);
         }
 
         .cho-neo-entrance-card p,
