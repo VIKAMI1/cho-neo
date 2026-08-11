@@ -246,12 +246,15 @@ test("entrance page fades cinematically without navigating or authenticating", (
   assert.match(entrancePage, /Created by Bao Nguyen &amp; VIKAMI, with GPT\./);
   assert.match(entrancePage, /animation: entrance-foreground-fade 6s ease-in-out forwards/);
   assert.match(entrancePage, /58\.333%[\s\S]*opacity: 1/);
-  assert.match(entrancePage, /animation: entrance-artwork-dim 8s ease-in-out forwards/);
+  assert.match(entrancePage, /@keyframes entrance-foreground-fade[\s\S]*100%[\s\S]*opacity: 0;/);
+  assert.match(entrancePage, /animation: entrance-artwork-fade 8s ease-in-out forwards/);
+  assert.match(entrancePage, /@keyframes entrance-artwork-fade[\s\S]*75%[\s\S]*opacity: 1;[\s\S]*100%[\s\S]*opacity: 0;/);
   assert.match(entrancePage, /animation: entrance-background-darken 8s ease-in-out forwards/);
+  assert.match(entrancePage, /@keyframes entrance-link-hit-area[\s\S]*100%[\s\S]*pointer-events: none;[\s\S]*visibility: hidden;/);
   assert.match(entrancePage, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(
     entrancePage,
-    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.cho-neo-entrance-card,[\s\S]*\.entrance-signature[\s\S]*animation: none;/,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.entrance-atmosphere::before,[\s\S]*\.cho-neo-entrance-card a,[\s\S]*\.entrance-signature[\s\S]*animation: none;/,
   );
   assert.doesNotMatch(entrancePage, /router\.|signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase/);
 });

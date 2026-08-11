@@ -76,6 +76,7 @@ export default function ChoNeoEntrancePage() {
           background-image: url("/images/cho-neo/cho-neo-farewell-market.png");
           background-size: cover;
           background-position: center;
+          animation: entrance-artwork-fade 8s ease-in-out forwards;
         }
 
         .entrance-atmosphere::after {
@@ -85,7 +86,7 @@ export default function ChoNeoEntrancePage() {
           background:
             radial-gradient(ellipse at 50% 48%, transparent 0 36%, rgba(22, 3, 7, 0.12) 74%),
             linear-gradient(to bottom, rgba(40, 4, 9, 0.08), rgba(18, 2, 6, 0.16));
-          animation: entrance-artwork-dim 8s ease-in-out forwards;
+          animation: entrance-artwork-fade 8s ease-in-out forwards;
         }
 
         .cho-neo-entrance-card {
@@ -158,6 +159,7 @@ export default function ChoNeoEntrancePage() {
           box-shadow:
             0 16px 34px rgba(0, 0, 0, 0.28),
             0 0 28px rgba(248, 211, 145, 0.16);
+          animation: entrance-link-hit-area 6s steps(1, end) forwards;
         }
 
         .cho-neo-entrance-card a:hover,
@@ -194,18 +196,31 @@ export default function ChoNeoEntrancePage() {
           }
 
           100% {
-            opacity: 0.06;
+            opacity: 0;
           }
         }
 
-        @keyframes entrance-artwork-dim {
+        @keyframes entrance-artwork-fade {
           0%,
           75% {
             opacity: 1;
           }
 
           100% {
-            opacity: 0.68;
+            opacity: 0;
+          }
+        }
+
+        @keyframes entrance-link-hit-area {
+          0%,
+          99.9% {
+            pointer-events: auto;
+            visibility: visible;
+          }
+
+          100% {
+            pointer-events: none;
+            visibility: hidden;
           }
         }
 
@@ -232,8 +247,10 @@ export default function ChoNeoEntrancePage() {
 
         @media (prefers-reduced-motion: reduce) {
           .cho-neo-entrance-page::after,
+          .entrance-atmosphere::before,
           .entrance-atmosphere::after,
           .cho-neo-entrance-card,
+          .cho-neo-entrance-card a,
           .entrance-signature {
             animation: none;
           }
