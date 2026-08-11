@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { ChoNeoEnterMarketLink } from "@/components/cho-neo/ChoNeoSoftExit";
 
 export default function ChoNeoEntrancePage() {
   return (
@@ -17,7 +17,7 @@ export default function ChoNeoEntrancePage() {
         />
         <h1 id="cho-neo-entrance-title">Hẹn gặp lại.</h1>
         <p className="entrance-teaser">Lần sau ghé lại, Chợ có thể đã khác.</p>
-        <Link href="/cho-neo">Vào Chợ</Link>
+        <ChoNeoEnterMarketLink>Vào Chợ</ChoNeoEnterMarketLink>
       </section>
 
       <p className="entrance-signature">Created by Bao Nguyen &amp; VIKAMI, with GPT.</p>

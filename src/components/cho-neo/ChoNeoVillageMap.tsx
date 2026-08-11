@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { choNeoRooms, openChoNeoRooms, soonChoNeoRooms } from "@/lib/cho-neo/rooms";
 import { ChoNeoRoomHotspot } from "./ChoNeoRoomHotspot";
+import { ChoNeoSoftExitLink } from "./ChoNeoSoftExit";
 import { trackChoNeoBetaEvent } from "@/lib/cho-neo/beta-analytics";
 
 const villageMapCanvases = {
@@ -131,10 +132,10 @@ export function ChoNeoVillageMap() {
         </details>
 
         <div className="mobile-village-exit">
-          <Link href="/cho-neo/entrance">
+          <ChoNeoSoftExitLink>
             <strong>Ra khỏi Chợ</strong>
             <small>Tạm rời Chợ Neo. Thiết bị này vẫn nhớ bạn.</small>
-          </Link>
+          </ChoNeoSoftExitLink>
         </div>
       </div>
     </section>

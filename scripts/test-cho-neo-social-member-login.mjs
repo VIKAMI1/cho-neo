@@ -32,6 +32,8 @@ const villageMapPath = path.join(
   "src/components/cho-neo/ChoNeoVillageMap.tsx",
 );
 const entrancePagePath = path.join(repoRoot, "src/app/cho-neo/entrance/page.tsx");
+const choNeoPagePath = path.join(repoRoot, "src/app/cho-neo/page.tsx");
+const softExitPath = path.join(repoRoot, "src/components/cho-neo/ChoNeoSoftExit.tsx");
 const headerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoMemberHeaderControl.tsx",
@@ -77,6 +79,8 @@ const provider = fs.readFileSync(providerPath, "utf8");
 const villageShell = fs.readFileSync(villageShellPath, "utf8");
 const villageMap = fs.readFileSync(villageMapPath, "utf8");
 const entrancePage = fs.readFileSync(entrancePagePath, "utf8");
+const choNeoPage = fs.readFileSync(choNeoPagePath, "utf8");
+const softExit = fs.readFileSync(softExitPath, "utf8");
 const header = fs.readFileSync(headerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
@@ -225,11 +229,11 @@ test("member provider sends first-time users to the private join flow", () => {
 
 test("village leave controls route to the entrance without signing out", () => {
   assert.match(villageShell, /className="guide-preview guide-exit"/);
-  assert.match(villageShell, /<Link href="\/cho-neo\/entrance">Ra khỏi Chợ<\/Link>/);
+  assert.match(villageShell, /<ChoNeoSoftExitLink>Ra khỏi Chợ<\/ChoNeoSoftExitLink>/);
   assert.match(villageShell, /\.village-guide\s*\{[\s\S]*?display: none;/);
 
   assert.match(villageMap, /className="mobile-village-exit"/);
-  assert.match(villageMap, /<Link href="\/cho-neo\/entrance">/);
+  assert.match(villageMap, /<ChoNeoSoftExitLink>/);
   assert.match(villageMap, /<strong>Ra khỏi Chợ<\/strong>/);
   assert.match(villageMap, /Tạm rời Chợ Neo\. Thiết bị này vẫn nhớ bạn\./);
   assert.doesNotMatch(villageMap, /signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase/);
@@ -239,8 +243,19 @@ test("village leave controls route to the entrance without signing out", () => {
   assert.match(provider, /window\.location\.assign\("\/cho-neo\/entrance"\)/);
 });
 
+test("soft exit state keeps membership auth separate from market re-entry", () => {
+  assert.match(choNeoPage, /<ChoNeoSoftExitGate>/);
+  assert.match(softExit, /CHO_NEO_SOFT_EXIT_STORAGE_KEY = "choNeoSoftExited"/);
+  assert.match(softExit, /window\.localStorage\.setItem\(CHO_NEO_SOFT_EXIT_STORAGE_KEY, "true"\)/);
+  assert.match(softExit, /window\.location\.replace\("\/cho-neo\/entrance"\)/);
+  assert.match(softExit, /window\.localStorage\.removeItem\(CHO_NEO_SOFT_EXIT_STORAGE_KEY\)/);
+  assert.match(softExit, /<Link className=\{className\} href="\/cho-neo\/entrance" onClick=\{rememberSoftExit\}>/);
+  assert.match(softExit, /<Link href="\/cho-neo" onClick=\{clearSoftExit\}>/);
+  assert.doesNotMatch(softExit, /signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase|document\.cookie/);
+});
+
 test("entrance page fades cinematically without navigating or authenticating", () => {
-  assert.match(entrancePage, /<Link href="\/cho-neo">Vào Chợ<\/Link>/);
+  assert.match(entrancePage, /<ChoNeoEnterMarketLink>Vào Chợ<\/ChoNeoEnterMarketLink>/);
   assert.match(entrancePage, /Hẹn gặp lại\./);
   assert.match(entrancePage, /Lần sau ghé lại, Chợ có thể đã khác\./);
   assert.match(entrancePage, /Created by Bao Nguyen &amp; VIKAMI, with GPT\./);
