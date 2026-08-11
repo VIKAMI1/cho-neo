@@ -228,8 +228,11 @@ test("village Ra khỏi Chợ only leaves the market and keeps the account sessi
 test("entrance returns to Chợ Neo without starting authentication", () => {
   assert.match(entrancePage, /Chợ Neo/);
   assert.match(entrancePage, /Hẹn gặp lại\./);
+  assert.match(entrancePage, /Lần sau ghé lại, Chợ có thể đã khác\./);
+  assert.match(entrancePage, /Created by Bao Nguyen &amp; VIKAMI, with GPT\./);
   assert.match(entrancePage, /href="\/cho-neo"/);
   assert.match(entrancePage, /Vào Chợ/);
+  assert.doesNotMatch(entrancePage, /data-cho-neo-shared-music-slot|ChoNeoThemeParkAudio|audio|music|Nhạc/);
   assert.doesNotMatch(entrancePage, /signIn|signInWithOtp|signInAnonymously|verifyOtp|updateUser|createClient|supabase|\/login|\/join/);
 });
 

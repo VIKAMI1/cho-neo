@@ -148,7 +148,8 @@ test("Danh sách nhạc Chợ Neo lives in the shared circular button panel", ()
 
 test("Chợ Neo keeps one root-level player across Chợ Neo and Xin Xăm with no autoplay", () => {
   assert.match(rootLayout, /<ChoNeoPersistentMusic \/>/);
-  assert.match(persistentMusic, /pathname === "\/xin-xam" \|\| pathname\?\.startsWith\("\/cho-neo"\)/);
+  assert.match(persistentMusic, /if \(pathname === "\/cho-neo\/entrance"\) return false/);
+  assert.match(persistentMusic, /pathname === "\/xin-xam" \|\| pathname\?\.startsWith\("\/cho-neo"\) === true/);
   assert.match(persistentMusic, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
   assert.doesNotMatch(layout, /ChoNeoThemeParkAudio/);
   assert.match(layout, /ChoNeoMemberProvider/);

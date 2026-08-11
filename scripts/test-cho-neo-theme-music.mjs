@@ -83,7 +83,8 @@ test("Root layout keeps one shared theme player through Chợ Neo and Xin Xăm n
     persistentMusic,
     /import ChoNeoThemeParkAudio from "\.\/ChoNeoThemeParkAudio";/,
   );
-  assert.match(persistentMusic, /pathname === "\/xin-xam" \|\| pathname\?\.startsWith\("\/cho-neo"\)/);
+  assert.match(persistentMusic, /if \(pathname === "\/cho-neo\/entrance"\) return false/);
+  assert.match(persistentMusic, /pathname === "\/xin-xam" \|\| pathname\?\.startsWith\("\/cho-neo"\) === true/);
   assert.match(persistentMusic, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
   assert.doesNotMatch(layout, /ChoNeoThemeParkAudio/);
   assert.match(layout, /<ChoNeoMemberProvider>\{children\}<\/ChoNeoMemberProvider>/);
@@ -101,6 +102,14 @@ test("Root layout keeps one shared theme player through Chợ Neo and Xin Xăm n
   assert.doesNotMatch(ongDiaPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(xinXamPage, /ChoNeoThemeParkAudio/);
   assert.doesNotMatch(mainPage, /cho-neo-main-theme-vietnamese-style-1\.mp3/);
+});
+
+test("Chợ Neo entrance does not mount the persistent music player", () => {
+  assert.match(persistentMusic, /function isChoNeoMusicPath\(pathname: string \| null\)/);
+  assert.match(persistentMusic, /pathname === "\/cho-neo\/entrance"/);
+  assert.match(persistentMusic, /return false/);
+  assert.match(persistentMusic, /pathname === "\/xin-xam"/);
+  assert.match(persistentMusic, /pathname\?\.startsWith\("\/cho-neo"\) === true/);
 });
 
 test("Chợ Neo shared music control opens the canonical 17-song panel", () => {
