@@ -23,6 +23,11 @@ const providerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoMemberProvider.tsx",
 );
+const villageShellPath = path.join(
+  repoRoot,
+  "src/components/cho-neo/ChoNeoVillageShell.tsx",
+);
+const entrancePagePath = path.join(repoRoot, "src/app/cho-neo/entrance/page.tsx");
 const headerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoMemberHeaderControl.tsx",
@@ -65,6 +70,8 @@ const sessionSync = fs.readFileSync(sessionSyncPath, "utf8");
 const authCallback = fs.readFileSync(authCallbackPath, "utf8");
 const member = fs.readFileSync(memberPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
+const villageShell = fs.readFileSync(villageShellPath, "utf8");
+const entrancePage = fs.readFileSync(entrancePagePath, "utf8");
 const header = fs.readFileSync(headerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
@@ -211,15 +218,32 @@ test("member provider sends first-time users to the private join flow", () => {
   assert.match(provider, /Chưa vào khu thành viên được/);
 });
 
-test("member logout leaves membership intact and returns to the public village", () => {
+test("village Ra khỏi Chợ only leaves the market and keeps the account session", () => {
+  assert.match(villageShell, /Ra khỏi Chợ/);
+  assert.match(villageShell, /Tạm rời Chợ Neo\. Thiết bị này vẫn nhớ bạn\./);
+  assert.match(villageShell, /href="\/cho-neo\/entrance"/);
+  assert.doesNotMatch(villageShell, /signOut|createClient|supabase|localStorage|removeItem|clear\(/);
+});
+
+test("entrance returns to Chợ Neo without starting authentication", () => {
+  assert.match(entrancePage, /Chợ Neo/);
+  assert.match(entrancePage, /Hẹn gặp lại\./);
+  assert.match(entrancePage, /href="\/cho-neo"/);
+  assert.match(entrancePage, /Vào Chợ/);
+  assert.doesNotMatch(entrancePage, /signIn|signInWithOtp|signInAnonymously|verifyOtp|updateUser|createClient|supabase|\/login|\/join/);
+});
+
+test("account logout leaves membership intact and returns to the entrance", () => {
   const logoutHandler = provider.slice(
     provider.indexOf("async function removeFromDevice()"),
     provider.indexOf("if (!open || !profile) return null;"),
   );
-  assert.match(provider, /Ra khỏi Chợ Neo\?/);
-  assert.match(provider, /Ra khỏi Chợ/);
+  assert.match(provider, /Đăng xuất tài khoản khỏi Chợ Neo\? Lần sau bạn có thể cần nhận mã đăng nhập mới\./);
+  assert.match(provider, /Đăng xuất tài khoản/);
+  assert.match(provider, /Ra khỏi Chợ chỉ tạm rời chợ và vẫn giữ đăng nhập\./);
+  assert.match(provider, /Đăng xuất tài khoản\s*[\s\S]*?dùng khi đổi tài khoản hoặc dùng máy chung\./);
   assert.match(logoutHandler, /await supabase\.auth\.signOut\(\)/);
-  assert.match(logoutHandler, /window\.location\.assign\("\/cho-neo"\)/);
+  assert.match(logoutHandler, /window\.location\.assign\("\/cho-neo\/entrance"\)/);
   assert.doesNotMatch(logoutHandler, /window\.location\.reload\(\)/);
   assert.doesNotMatch(logoutHandler, /delete\(\)|remove\(|membership_status|linkIdentity|updateUser|update\(/);
 });
