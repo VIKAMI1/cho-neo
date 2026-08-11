@@ -31,6 +31,10 @@ const villageMapPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoVillageMap.tsx",
 );
+const entrancePagePath = path.join(repoRoot, "src/app/cho-neo/entrance/page.tsx");
+const choNeoPagePath = path.join(repoRoot, "src/app/cho-neo/page.tsx");
+const softExitPath = path.join(repoRoot, "src/components/cho-neo/ChoNeoSoftExit.tsx");
+const exitCuePath = path.join(repoRoot, "src/components/cho-neo/ChoNeoExitCue.tsx");
 const headerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoMemberHeaderControl.tsx",
@@ -75,6 +79,10 @@ const member = fs.readFileSync(memberPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
 const villageShell = fs.readFileSync(villageShellPath, "utf8");
 const villageMap = fs.readFileSync(villageMapPath, "utf8");
+const entrancePage = fs.readFileSync(entrancePagePath, "utf8");
+const choNeoPage = fs.readFileSync(choNeoPagePath, "utf8");
+const softExit = fs.readFileSync(softExitPath, "utf8");
+const exitCue = fs.readFileSync(exitCuePath, "utf8");
 const header = fs.readFileSync(headerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
@@ -223,11 +231,11 @@ test("member provider sends first-time users to the private join flow", () => {
 
 test("village leave controls route to the entrance without signing out", () => {
   assert.match(villageShell, /className="guide-preview guide-exit"/);
-  assert.match(villageShell, /<Link href="\/cho-neo\/entrance">Ra khỏi Chợ<\/Link>/);
+  assert.match(villageShell, /<ChoNeoSoftExitLink>Ra khỏi Chợ<\/ChoNeoSoftExitLink>/);
   assert.match(villageShell, /\.village-guide\s*\{[\s\S]*?display: none;/);
 
   assert.match(villageMap, /className="mobile-village-exit"/);
-  assert.match(villageMap, /<Link href="\/cho-neo\/entrance">/);
+  assert.match(villageMap, /<ChoNeoSoftExitLink>/);
   assert.match(villageMap, /<strong>Ra khỏi Chợ<\/strong>/);
   assert.match(villageMap, /Tạm rời Chợ Neo\. Thiết bị này vẫn nhớ bạn\./);
   assert.doesNotMatch(villageMap, /signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase/);
@@ -235,6 +243,65 @@ test("village leave controls route to the entrance without signing out", () => {
   assert.match(provider, /await supabase\.auth\.signOut\(\)/);
   assert.match(provider, /Đăng xuất tài khoản/);
   assert.match(provider, /window\.location\.assign\("\/cho-neo\/entrance"\)/);
+});
+
+test("soft exit state keeps membership auth separate from market re-entry", () => {
+  assert.match(choNeoPage, /<ChoNeoSoftExitGate>/);
+  assert.match(softExit, /CHO_NEO_SOFT_EXIT_STORAGE_KEY = "choNeoSoftExited"/);
+  assert.match(softExit, /window\.localStorage\.setItem\(CHO_NEO_SOFT_EXIT_STORAGE_KEY, "true"\)/);
+  assert.match(softExit, /router\.replace\("\/cho-neo\/entrance"\)/);
+  assert.match(softExit, /window\.localStorage\.removeItem\(CHO_NEO_SOFT_EXIT_STORAGE_KEY\)/);
+  assert.match(softExit, /if \(!ready\) return <ChoNeoSoftExitFallback \/>;/);
+  assert.match(softExit, /className="cho-neo-soft-exit-fallback"/);
+  assert.match(softExit, /min-height: 100svh/);
+  assert.match(softExit, /linear-gradient\(180deg, #21060c, #090104\)/);
+  assert.match(softExit, /<Link className=\{className\} href="\/cho-neo\/entrance" onClick=\{rememberSoftExit\}>/);
+  assert.match(softExit, /<Link href="\/cho-neo" onClick=\{clearSoftExit\}>/);
+  assert.doesNotMatch(softExit, /if \(!ready\) return null/);
+  assert.doesNotMatch(softExit, /signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase|document\.cookie/);
+});
+
+test("entrance page fades cinematically without navigating or authenticating", () => {
+  assert.match(entrancePage, /<ChoNeoExitCue \/>/);
+  assert.match(entrancePage, /<ChoNeoEnterMarketLink>Vào Chợ<\/ChoNeoEnterMarketLink>/);
+  assert.match(entrancePage, /Hẹn gặp lại\./);
+  assert.match(entrancePage, /Lần sau ghé lại, Chợ có thể đã khác\./);
+  assert.match(entrancePage, /Created by Bao Nguyen &amp; VIKAMI, with GPT\./);
+  assert.match(entrancePage, /animation: entrance-foreground-fade 6s ease-in-out forwards/);
+  assert.match(entrancePage, /58\.333%[\s\S]*opacity: 1/);
+  assert.match(entrancePage, /@keyframes entrance-foreground-fade[\s\S]*100%[\s\S]*opacity: 0;/);
+  assert.match(entrancePage, /animation: entrance-artwork-fade 8s ease-in-out forwards/);
+  assert.match(entrancePage, /@keyframes entrance-artwork-fade[\s\S]*75%[\s\S]*opacity: 1;[\s\S]*100%[\s\S]*opacity: 0;/);
+  assert.match(entrancePage, /animation: entrance-background-darken 8s ease-in-out forwards/);
+  assert.match(entrancePage, /@keyframes entrance-link-hit-area[\s\S]*100%[\s\S]*pointer-events: none;[\s\S]*visibility: hidden;/);
+  assert.match(entrancePage, /animation: entrance-exit-cue-appear 0\.9s ease 8\.3s forwards/);
+  assert.match(entrancePage, /animation: entrance-gesture-swipe 3\.2s ease 8\.3s 2 forwards/);
+  assert.match(entrancePage, /animation: entrance-gesture-pulse 3\.2s ease 8\.3s 2 forwards/);
+  assert.match(entrancePage, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(
+    entrancePage,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.entrance-atmosphere::before,[\s\S]*\.cho-neo-entrance-card a,[\s\S]*\.entrance-signature[\s\S]*animation: none;/,
+  );
+  assert.match(
+    entrancePage,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.entrance-exit-cue[\s\S]*opacity: 1;[\s\S]*animation: none;/,
+  );
+  assert.doesNotMatch(entrancePage, /router\.|signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase/);
+});
+
+test("entrance exit cue shows swipe-home guidance for mobile or standalone mode", () => {
+  assert.match(exitCue, /window\.matchMedia\("\(display-mode: standalone\)"\)\.matches/);
+  assert.match(exitCue, /window\.matchMedia\("\(display-mode: fullscreen\)"\)\.matches/);
+  assert.match(exitCue, /navigator as Navigator & \{ standalone\?: boolean \}/);
+  assert.match(exitCue, /window\.matchMedia\("\(pointer: coarse\)"\)\.matches/);
+  assert.match(exitCue, /window\.matchMedia\("\(max-width: 760px\)"\)\.matches/);
+  assert.match(exitCue, /setMode\(mobileLike \|\| standalone \? "mobile" : "browser"\)/);
+  assert.doesNotMatch(exitCue, /standalone && mobileLike/);
+  assert.match(exitCue, /Vuốt lên để về Màn hình chính/);
+  assert.match(exitCue, /Swipe up to return Home/);
+  assert.match(exitCue, /Bạn có thể đóng trang này để rời Chợ Neo\./);
+  assert.match(exitCue, /You can close this page to leave Chợ Neo\./);
+  assert.doesNotMatch(exitCue, /window\.close|location\.|router\.|signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase/);
 });
 
 test("invite redemption requires same-user email identity linking without bootstrap", () => {

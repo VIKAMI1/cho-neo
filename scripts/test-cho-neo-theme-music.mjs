@@ -83,7 +83,14 @@ test("Root layout keeps one shared theme player through Chợ Neo and Xin Xăm n
     persistentMusic,
     /import ChoNeoThemeParkAudio from "\.\/ChoNeoThemeParkAudio";/,
   );
+  assert.match(
+    persistentMusic,
+    /import \{ CHO_NEO_SOFT_EXIT_STORAGE_KEY \} from "\.\/ChoNeoSoftExit";/,
+  );
   assert.match(persistentMusic, /pathname === "\/xin-xam" \|\| pathname\?\.startsWith\("\/cho-neo"\)/);
+  assert.match(persistentMusic, /useState\(pathname !== "\/cho-neo"\)/);
+  assert.match(persistentMusic, /window\.localStorage\.getItem\(CHO_NEO_SOFT_EXIT_STORAGE_KEY\) === "true"/);
+  assert.match(persistentMusic, /if \(!shouldMountMusic \|\| !softExitChecked \|\| softExitActive\) \{/);
   assert.match(persistentMusic, /<ChoNeoThemeParkAudio className="cho-neo-layout-theme-audio" \/>/);
   assert.doesNotMatch(layout, /ChoNeoThemeParkAudio/);
   assert.match(layout, /<ChoNeoMemberProvider>\{children\}<\/ChoNeoMemberProvider>/);

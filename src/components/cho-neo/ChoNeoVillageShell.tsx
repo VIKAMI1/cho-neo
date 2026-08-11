@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChoNeoBetaFeedback } from "./ChoNeoBetaFeedback";
 import { ChoNeoMemberHeaderControl } from "./ChoNeoMemberHeaderControl";
+import { ChoNeoSoftExitLink } from "./ChoNeoSoftExit";
 import { ChoNeoTimeAmbience, ChoNeoTimeMoodLabel } from "./ChoNeoTimeAmbience";
 import { ChoNeoVillageMap } from "./ChoNeoVillageMap";
 import { choNeoRooms } from "@/lib/cho-neo/rooms";
@@ -125,7 +126,7 @@ export function ChoNeoVillageShell() {
               <span>
                 Tạm rời Chợ Neo. Thiết bị này vẫn nhớ bạn.
               </span>
-              <Link href="/cho-neo/entrance">Ra khỏi Chợ</Link>
+              <ChoNeoSoftExitLink>Ra khỏi Chợ</ChoNeoSoftExitLink>
             </div>
           </aside>
 
