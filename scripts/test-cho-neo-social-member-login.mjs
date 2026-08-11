@@ -249,10 +249,15 @@ test("soft exit state keeps membership auth separate from market re-entry", () =
   assert.match(choNeoPage, /<ChoNeoSoftExitGate>/);
   assert.match(softExit, /CHO_NEO_SOFT_EXIT_STORAGE_KEY = "choNeoSoftExited"/);
   assert.match(softExit, /window\.localStorage\.setItem\(CHO_NEO_SOFT_EXIT_STORAGE_KEY, "true"\)/);
-  assert.match(softExit, /window\.location\.replace\("\/cho-neo\/entrance"\)/);
+  assert.match(softExit, /router\.replace\("\/cho-neo\/entrance"\)/);
   assert.match(softExit, /window\.localStorage\.removeItem\(CHO_NEO_SOFT_EXIT_STORAGE_KEY\)/);
+  assert.match(softExit, /if \(!ready\) return <ChoNeoSoftExitFallback \/>;/);
+  assert.match(softExit, /className="cho-neo-soft-exit-fallback"/);
+  assert.match(softExit, /min-height: 100svh/);
+  assert.match(softExit, /linear-gradient\(180deg, #21060c, #090104\)/);
   assert.match(softExit, /<Link className=\{className\} href="\/cho-neo\/entrance" onClick=\{rememberSoftExit\}>/);
   assert.match(softExit, /<Link href="\/cho-neo" onClick=\{clearSoftExit\}>/);
+  assert.doesNotMatch(softExit, /if \(!ready\) return null/);
   assert.doesNotMatch(softExit, /signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase|document\.cookie/);
 });
 
