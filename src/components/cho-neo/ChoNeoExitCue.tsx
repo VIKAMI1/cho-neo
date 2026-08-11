@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type ExitCueMode = "standalone-mobile" | "browser";
+type ExitCueMode = "mobile" | "browser";
 
 export function ChoNeoExitCue() {
   const [mode, setMode] = useState<ExitCueMode | null>(null);
@@ -16,19 +16,19 @@ export function ChoNeoExitCue() {
       window.matchMedia("(pointer: coarse)").matches ||
       window.matchMedia("(max-width: 760px)").matches;
 
-    setMode(standalone && mobileLike ? "standalone-mobile" : "browser");
+    setMode(mobileLike || standalone ? "mobile" : "browser");
   }, []);
 
   if (mode === null) return null;
 
-  const isStandaloneMobile = mode === "standalone-mobile";
+  const isMobile = mode === "mobile";
 
   return (
     <aside
       aria-live="polite"
-      className={`entrance-exit-cue ${isStandaloneMobile ? "entrance-exit-cue-gesture" : "entrance-exit-cue-browser"}`}
+      className={`entrance-exit-cue ${isMobile ? "entrance-exit-cue-gesture" : "entrance-exit-cue-browser"}`}
     >
-      {isStandaloneMobile ? (
+      {isMobile ? (
         <div aria-hidden="true" className="exit-gesture">
           <span className="exit-gesture-pulse" />
           <svg
@@ -49,8 +49,8 @@ export function ChoNeoExitCue() {
           </svg>
         </div>
       ) : null}
-      <p>{isStandaloneMobile ? "Vuốt lên để về Màn hình chính" : "Bạn có thể đóng trang này để rời Chợ Neo."}</p>
-      <span>{isStandaloneMobile ? "Swipe up to return Home" : "You can close this page to leave Chợ Neo."}</span>
+      <p>{isMobile ? "Vuốt lên để về Màn hình chính" : "Bạn có thể đóng trang này để rời Chợ Neo."}</p>
+      <span>{isMobile ? "Swipe up to return Home" : "You can close this page to leave Chợ Neo."}</span>
     </aside>
   );
 }

@@ -284,12 +284,14 @@ test("entrance page fades cinematically without navigating or authenticating", (
   assert.doesNotMatch(entrancePage, /router\.|signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase/);
 });
 
-test("entrance exit cue distinguishes standalone mobile from browser mode", () => {
+test("entrance exit cue shows swipe-home guidance for mobile or standalone mode", () => {
   assert.match(exitCue, /window\.matchMedia\("\(display-mode: standalone\)"\)\.matches/);
   assert.match(exitCue, /window\.matchMedia\("\(display-mode: fullscreen\)"\)\.matches/);
   assert.match(exitCue, /navigator as Navigator & \{ standalone\?: boolean \}/);
   assert.match(exitCue, /window\.matchMedia\("\(pointer: coarse\)"\)\.matches/);
   assert.match(exitCue, /window\.matchMedia\("\(max-width: 760px\)"\)\.matches/);
+  assert.match(exitCue, /setMode\(mobileLike \|\| standalone \? "mobile" : "browser"\)/);
+  assert.doesNotMatch(exitCue, /standalone && mobileLike/);
   assert.match(exitCue, /Vuốt lên để về Màn hình chính/);
   assert.match(exitCue, /Swipe up to return Home/);
   assert.match(exitCue, /Bạn có thể đóng trang này để rời Chợ Neo\./);
