@@ -1823,6 +1823,33 @@ export function ChoNeoVillageShell() {
             text-transform: none;
           }
 
+          .mobile-village-exit {
+            margin-top: 2px;
+            padding-top: 7px;
+            border-top: 1px solid rgba(248, 211, 145, 0.16);
+          }
+
+          .mobile-room-drawer .mobile-village-exit a {
+            grid-template-columns: minmax(0, 1fr);
+            min-height: 44px;
+            border-color: rgba(248, 211, 145, 0.28);
+            border-radius: 12px;
+            background: rgba(61, 16, 22, 0.44);
+          }
+
+          .mobile-room-drawer .mobile-village-exit a strong {
+            display: block;
+          }
+
+          .mobile-room-drawer .mobile-village-exit a small {
+            display: block;
+            margin-top: 2px;
+            color: var(--cho-neo-text-muted);
+            font-size: 9px;
+            line-height: 1.3;
+            text-align: left;
+          }
+
           .mobile-room-link-soon {
             opacity: 0.74;
           }

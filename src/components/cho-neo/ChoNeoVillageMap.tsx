@@ -129,6 +129,13 @@ export function ChoNeoVillageMap() {
             )}
           </div>
         </details>
+
+        <div className="mobile-village-exit">
+          <Link href="/cho-neo/entrance">
+            <strong>Ra khỏi Chợ</strong>
+            <small>Tạm rời Chợ Neo. Thiết bị này vẫn nhớ bạn.</small>
+          </Link>
+        </div>
       </div>
     </section>
   );

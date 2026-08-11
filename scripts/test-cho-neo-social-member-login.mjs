@@ -23,6 +23,14 @@ const providerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoMemberProvider.tsx",
 );
+const villageShellPath = path.join(
+  repoRoot,
+  "src/components/cho-neo/ChoNeoVillageShell.tsx",
+);
+const villageMapPath = path.join(
+  repoRoot,
+  "src/components/cho-neo/ChoNeoVillageMap.tsx",
+);
 const headerPath = path.join(
   repoRoot,
   "src/components/cho-neo/ChoNeoMemberHeaderControl.tsx",
@@ -65,6 +73,8 @@ const sessionSync = fs.readFileSync(sessionSyncPath, "utf8");
 const authCallback = fs.readFileSync(authCallbackPath, "utf8");
 const member = fs.readFileSync(memberPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
+const villageShell = fs.readFileSync(villageShellPath, "utf8");
+const villageMap = fs.readFileSync(villageMapPath, "utf8");
 const header = fs.readFileSync(headerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const voteRepository = fs.readFileSync(voteRepositoryPath, "utf8");
@@ -209,6 +219,22 @@ test("member provider sends first-time users to the private join flow", () => {
   assert.match(provider, /profile\?\.status === "suspended"/);
   assert.match(provider, /profile\?\.status === "rejected"/);
   assert.match(provider, /Chưa vào khu thành viên được/);
+});
+
+test("village leave controls route to the entrance without signing out", () => {
+  assert.match(villageShell, /className="guide-preview guide-exit"/);
+  assert.match(villageShell, /<Link href="\/cho-neo\/entrance">Ra khỏi Chợ<\/Link>/);
+  assert.match(villageShell, /\.village-guide\s*\{[\s\S]*?display: none;/);
+
+  assert.match(villageMap, /className="mobile-village-exit"/);
+  assert.match(villageMap, /<Link href="\/cho-neo\/entrance">/);
+  assert.match(villageMap, /<strong>Ra khỏi Chợ<\/strong>/);
+  assert.match(villageMap, /Tạm rời Chợ Neo\. Thiết bị này vẫn nhớ bạn\./);
+  assert.doesNotMatch(villageMap, /signOut|signInWithOtp|verifyOtp|signInAnonymously|updateUser|supabase/);
+
+  assert.match(provider, /await supabase\.auth\.signOut\(\)/);
+  assert.match(provider, /Đăng xuất tài khoản/);
+  assert.match(provider, /window\.location\.assign\("\/cho-neo\/entrance"\)/);
 });
 
 test("invite redemption requires same-user email identity linking without bootstrap", () => {
