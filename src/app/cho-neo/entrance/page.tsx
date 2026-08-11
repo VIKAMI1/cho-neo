@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ChoNeoExitCue } from "@/components/cho-neo/ChoNeoExitCue";
 import { ChoNeoEnterMarketLink } from "@/components/cho-neo/ChoNeoSoftExit";
 
 export default function ChoNeoEntrancePage() {
@@ -21,6 +22,7 @@ export default function ChoNeoEntrancePage() {
       </section>
 
       <p className="entrance-signature">Created by Bao Nguyen &amp; VIKAMI, with GPT.</p>
+      <ChoNeoExitCue />
 
       <style>{`
         .cho-neo-entrance-page {
@@ -189,6 +191,70 @@ export default function ChoNeoEntrancePage() {
           animation: entrance-foreground-fade 6s ease-in-out forwards;
         }
 
+        .entrance-exit-cue {
+          position: absolute;
+          left: 50%;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(30px, 7vh, 58px));
+          z-index: 2;
+          width: min(100% - 48px, 340px);
+          transform: translateX(-50%);
+          color: rgba(255, 244, 223, 0.72);
+          text-align: center;
+          opacity: 0;
+          pointer-events: none;
+          animation: entrance-exit-cue-appear 0.9s ease 8.3s forwards;
+        }
+
+        .entrance-exit-cue p,
+        .entrance-exit-cue span {
+          display: block;
+          margin: 0;
+          text-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
+        }
+
+        .entrance-exit-cue p {
+          font-size: clamp(0.9rem, 2.8vw, 1rem);
+          font-weight: 500;
+          line-height: 1.45;
+        }
+
+        .entrance-exit-cue span {
+          margin-top: 3px;
+          color: rgba(255, 244, 223, 0.48);
+          font-size: clamp(0.76rem, 2.35vw, 0.84rem);
+          font-weight: 400;
+          line-height: 1.4;
+        }
+
+        .exit-gesture {
+          position: relative;
+          height: 72px;
+          margin-bottom: 8px;
+        }
+
+        .exit-gesture-pulse {
+          position: absolute;
+          left: 50%;
+          bottom: 6px;
+          width: 54px;
+          height: 18px;
+          border: 1px solid rgba(255, 225, 175, 0.28);
+          border-radius: 999px;
+          transform: translateX(-50%);
+          box-shadow: 0 0 22px rgba(248, 198, 111, 0.1);
+          animation: entrance-gesture-pulse 3.2s ease 8.3s 2 forwards;
+        }
+
+        .exit-gesture-hand {
+          position: absolute;
+          left: 50%;
+          bottom: 10px;
+          color: rgba(255, 244, 223, 0.58);
+          transform: translateX(-50%);
+          filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28));
+          animation: entrance-gesture-swipe 3.2s ease 8.3s 2 forwards;
+        }
+
         @keyframes entrance-foreground-fade {
           0%,
           58.333% {
@@ -235,6 +301,53 @@ export default function ChoNeoEntrancePage() {
           }
         }
 
+        @keyframes entrance-exit-cue-appear {
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes entrance-gesture-swipe {
+          0%,
+          18% {
+            opacity: 0.48;
+            transform: translateX(-50%) translateY(0);
+          }
+
+          48% {
+            opacity: 0.72;
+            transform: translateX(-50%) translateY(-34px);
+          }
+
+          72% {
+            opacity: 0.26;
+            transform: translateX(-50%) translateY(-42px);
+          }
+
+          100% {
+            opacity: 0.38;
+            transform: translateX(-50%) translateY(-22px);
+          }
+        }
+
+        @keyframes entrance-gesture-pulse {
+          0%,
+          20% {
+            opacity: 0.28;
+            transform: translateX(-50%) scale(0.84);
+          }
+
+          52% {
+            opacity: 0.48;
+            transform: translateX(-50%) scale(1.12);
+          }
+
+          100% {
+            opacity: 0.18;
+            transform: translateX(-50%) scale(1);
+          }
+        }
+
         @media (max-width: 640px) {
           .cho-neo-entrance-page {
             padding: 30px 20px 78px;
@@ -252,6 +365,16 @@ export default function ChoNeoEntrancePage() {
           .cho-neo-entrance-card,
           .cho-neo-entrance-card a,
           .entrance-signature {
+            animation: none;
+          }
+
+          .entrance-exit-cue {
+            opacity: 1;
+            animation: none;
+          }
+
+          .exit-gesture-hand,
+          .exit-gesture-pulse {
             animation: none;
           }
         }
