@@ -120,13 +120,12 @@ export function ChoNeoVillageShell() {
               ))}
             </div>
 
-            <div className="guide-preview">
-              <strong>Nhìn cửa rồi chọn chỗ ngồi.</strong>
+            <div className="guide-preview guide-exit">
+              <strong>Ra khỏi Chợ</strong>
               <span>
-                Quán Tám và Bàn Ông Địa đang mở trước. Các cửa còn lại giữ đèn
-                chờ làng đông hơn.
+                Tạm rời Chợ Neo. Thiết bị này vẫn nhớ bạn.
               </span>
-              <small>Hover or tap a door on the map for more detail.</small>
+              <Link href="/cho-neo/entrance">Ra khỏi Chợ</Link>
             </div>
           </aside>
 
@@ -730,11 +729,39 @@ export function ChoNeoVillageShell() {
         }
 
         .guide-preview small,
+        .guide-preview a,
         .quiet-card span {
           margin-top: 6px;
           color: var(--cho-neo-text-muted);
           font-size: 9.5px;
           font-weight: 400;
+        }
+
+        .guide-preview a {
+          display: inline-flex;
+          width: fit-content;
+          min-height: 34px;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(248, 211, 145, 0.28);
+          border-radius: 10px;
+          padding: 8px 11px;
+          color: var(--cho-neo-text-accent);
+          background: rgba(255, 247, 237, 0.075);
+          font-size: 10px;
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        .guide-preview a:hover,
+        .guide-preview a:focus-visible {
+          border-color: rgba(248, 211, 145, 0.5);
+          background: rgba(255, 247, 237, 0.12);
+        }
+
+        .guide-preview a:focus-visible {
+          outline: 2px solid rgba(248, 211, 145, 0.55);
+          outline-offset: 2px;
         }
 
         .village-scene {

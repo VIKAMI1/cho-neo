@@ -1,0 +1,197 @@
+import Image from "next/image";
+import Link from "next/link";
+
+export default function ChoNeoEntrancePage() {
+  return (
+    <main className="cho-neo-entrance-page">
+      <div className="entrance-atmosphere" aria-hidden="true" />
+
+      <section aria-labelledby="cho-neo-entrance-title" className="cho-neo-entrance-card">
+        <Image
+          alt="Chợ Neo"
+          className="entrance-emblem"
+          height={112}
+          priority
+          src="/icon.png"
+          width={112}
+        />
+        <h1 id="cho-neo-entrance-title">Hẹn gặp lại.</h1>
+        <p className="entrance-teaser">Lần sau ghé lại, Chợ có thể đã khác.</p>
+        <Link href="/cho-neo">Vào Chợ</Link>
+      </section>
+
+      <p className="entrance-signature">Created by Bao Nguyen &amp; VIKAMI, with GPT.</p>
+
+      <style>{`
+        .cho-neo-entrance-page {
+          min-height: 100vh;
+          min-height: 100svh;
+          position: relative;
+          display: grid;
+          place-items: center;
+          overflow: hidden;
+          padding: clamp(28px, 7vh, 72px) 24px;
+          color: #fff4df;
+          isolation: isolate;
+          background: #21060c;
+        }
+
+        .cho-neo-entrance-page::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          background:
+            radial-gradient(ellipse at 50% 43%, rgba(20, 3, 8, 0.38), rgba(20, 3, 8, 0.12) 38%, transparent 60%),
+            radial-gradient(ellipse at center, transparent 0 48%, rgba(9, 1, 4, 0.26) 100%),
+            linear-gradient(to bottom, rgba(10, 1, 4, 0.2), rgba(80, 10, 17, 0.13) 46%, rgba(8, 1, 3, 0.24));
+          pointer-events: none;
+        }
+
+        .cho-neo-entrance-page::after {
+          content: "";
+          position: absolute;
+          inset: -18% -10%;
+          z-index: -1;
+          background:
+            radial-gradient(ellipse at center, transparent 0 44%, rgba(9, 1, 4, 0.28) 82%),
+            linear-gradient(to top, rgba(7, 1, 3, 0.22), transparent 56%);
+          pointer-events: none;
+        }
+
+        .entrance-atmosphere {
+          position: absolute;
+          inset: 0;
+          z-index: -2;
+          overflow: hidden;
+          pointer-events: none;
+        }
+
+        .entrance-atmosphere::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background-image: url("/images/cho-neo/cho-neo-farewell-market.png");
+          background-size: cover;
+          background-position: center;
+        }
+
+        .entrance-atmosphere::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(ellipse at 50% 48%, transparent 0 36%, rgba(22, 3, 7, 0.12) 74%),
+            linear-gradient(to bottom, rgba(40, 4, 9, 0.08), rgba(18, 2, 6, 0.16));
+        }
+
+        .cho-neo-entrance-card {
+          width: min(100%, 480px);
+          display: grid;
+          justify-items: center;
+          gap: 14px;
+          text-align: center;
+          position: relative;
+        }
+
+        .cho-neo-entrance-card::before {
+          content: "";
+          position: absolute;
+          z-index: -1;
+          inset: -34px -42px;
+          border-radius: 999px;
+          background: radial-gradient(ellipse at center, rgba(26, 4, 9, 0.36), rgba(26, 4, 9, 0.12) 54%, transparent 74%);
+          filter: blur(10px);
+        }
+
+        .cho-neo-entrance-card p,
+        .cho-neo-entrance-card h1,
+        .entrance-signature {
+          margin: 0;
+        }
+
+        .entrance-emblem {
+          width: clamp(78px, 13vw, 112px);
+          height: clamp(78px, 13vw, 112px);
+          margin-bottom: 2px;
+          border-radius: 18px;
+          box-shadow:
+            0 14px 36px rgba(0, 0, 0, 0.32),
+            0 0 28px rgba(248, 211, 145, 0.18);
+        }
+
+        .cho-neo-entrance-card h1 {
+          color: #fff4df;
+          font-family: var(--font-newsreader), Georgia, serif;
+          font-size: clamp(1.9rem, 4.1vw, 3rem);
+          font-weight: 600;
+          line-height: 1.08;
+          text-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .entrance-teaser {
+          max-width: 31rem;
+          color: rgba(255, 244, 223, 0.78);
+          font-size: clamp(1rem, 2.5vw, 1.18rem);
+          font-weight: 400;
+          line-height: 1.55;
+        }
+
+        .cho-neo-entrance-card a {
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 8px;
+          border: 1px solid rgba(248, 211, 145, 0.5);
+          border-radius: 12px;
+          padding: 11px 20px;
+          color: #3b1d2a;
+          background: linear-gradient(180deg, #ffe3a1, #f8c66f);
+          font-size: 0.98rem;
+          font-weight: 600;
+          text-decoration: none;
+          box-shadow:
+            0 16px 34px rgba(0, 0, 0, 0.28),
+            0 0 28px rgba(248, 211, 145, 0.16);
+        }
+
+        .cho-neo-entrance-card a:hover,
+        .cho-neo-entrance-card a:focus-visible {
+          transform: translateY(-1px);
+          box-shadow:
+            0 18px 36px rgba(0, 0, 0, 0.3),
+            0 0 34px rgba(248, 211, 145, 0.22);
+        }
+
+        .cho-neo-entrance-card a:focus-visible {
+          outline: 3px solid rgba(255, 244, 223, 0.65);
+          outline-offset: 3px;
+        }
+
+        .entrance-signature {
+          position: absolute;
+          left: 50%;
+          bottom: clamp(18px, 4vh, 34px);
+          width: min(100% - 48px, 520px);
+          transform: translateX(-50%);
+          color: rgba(255, 244, 223, 0.58);
+          font-size: clamp(0.78rem, 2vw, 0.9rem);
+          font-weight: 400;
+          line-height: 1.45;
+          text-align: center;
+        }
+
+        @media (max-width: 640px) {
+          .cho-neo-entrance-page {
+            padding: 30px 20px 78px;
+          }
+
+          .cho-neo-entrance-card {
+            gap: 13px;
+          }
+        }
+      `}</style>
+    </main>
+  );
+}
