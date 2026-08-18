@@ -70,12 +70,12 @@ test("front-counter API has 24/7 posting safety controls", () => {
   assert.doesNotMatch(sharedMemoryResponse, /detail:/);
 });
 
-test("health endpoint reports only safe readiness booleans", () => {
+test("health endpoint reports only a minimal non-sensitive status", () => {
   assert.match(healthRoute, /service: "cho-neo"/);
-  assert.match(healthRoute, /openAiKeyPresent: Boolean/);
-  assert.match(healthRoute, /supabasePublicConfigPresent: Boolean/);
-  assert.match(healthRoute, /gossipPostingDisabled:/);
-  assert.doesNotMatch(healthRoute, /OPENAI_API_KEY[:}]/);
+  assert.doesNotMatch(
+    healthRoute,
+    /OPENAI_API_KEY|NEXT_PUBLIC_SUPABASE|openAiKeyPresent|supabasePublicConfigPresent|gossipPostingDisabled|isChoNeoGossipPostingDisabled/,
+  );
 });
 
 test("deployment hygiene documents emergency disable and rollback", () => {
@@ -117,6 +117,12 @@ const routeSource = fs
   .replace(
     'from "@/lib/cho-neo/env-flags";',
     `from ${JSON.stringify(pathToFileURL(envFlagsPath).href)};`,
+  )
+  .replace(
+    'import { requireChoNeoInvitationAdmin } from "@/lib/cho-neo/invitation-admin";',
+    `async function requireChoNeoInvitationAdmin() {
+  return { ok: false, message: "Host tools are locked.", reason: "unauthenticated" };
+}`,
   )
   .replace(
     `import {
@@ -226,7 +232,6 @@ test("posting disabled flag accepts normal boolean-style disabled values", async
     [undefined, false],
   ];
 
-  assert.match(healthRoute, /isChoNeoGossipPostingDisabled\(\)/);
   assert.match(frontCounterRoute, /isChoNeoGossipPostingDisabled\(\)/);
 
   for (const [value, expected] of cases) {

@@ -9,6 +9,7 @@ import {
   CHO_NEO_MEMBER_PROFILE_TABLE,
   mapChoNeoMemberProfileRow,
 } from "@/lib/cho-neo/member-identity";
+import { requireChoNeoInvitationAdmin } from "@/lib/cho-neo/invitation-admin";
 import {
   FRONT_COUNTER_MESSAGE_CAP,
   FRONT_COUNTER_MESSAGE_TEXT_LIMIT,
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
 
   if (url.searchParams.get("hostReview") === "1") {
-    return getHostReviewMessages(request.headers.get("X-Cho-Neo-Host-Key") ?? "");
+    return getHostReviewMessages();
   }
 
   const supabase = createChoNeoSupabaseClient();
@@ -117,9 +118,10 @@ export async function GET(request: Request) {
   );
 }
 
-async function getHostReviewMessages(hostKey: string) {
-  if (!isValidHostKey(hostKey)) {
-    return NextResponse.json({ error: "Host tools are locked." }, { status: 403 });
+async function getHostReviewMessages() {
+  const authorizationResponse = await requireHostAdmin();
+  if (authorizationResponse) {
+    return authorizationResponse;
   }
 
   const supabase = createChoNeoSupabaseServiceClient();
@@ -408,7 +410,6 @@ export async function PATCH(request: Request) {
   ) {
     return updateMessageAsHost({
       action: action as HostModerationAction,
-      hostKey: request.headers.get("X-Cho-Neo-Host-Key") ?? "",
       messageId,
     });
   }
@@ -419,9 +420,8 @@ export async function PATCH(request: Request) {
 function createChoNeoSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     return null;
@@ -767,13 +767,11 @@ async function lookupMessageForPatch(
 
 async function updateMessageAsHost(input: {
   action: HostModerationAction;
-  hostKey: string;
   messageId: string;
 }) {
-  // V1 scaffold: replace this shared secret with real host auth/session checks
-  // before opening broader moderation access.
-  if (!isValidHostKey(input.hostKey)) {
-    return NextResponse.json({ error: "Host tools are locked." }, { status: 403 });
+  const authorizationResponse = await requireHostAdmin();
+  if (authorizationResponse) {
+    return authorizationResponse;
   }
 
   const supabase = createChoNeoSupabaseServiceClient();
@@ -898,8 +896,19 @@ function messageNotFoundResponse() {
   );
 }
 
-function isValidHostKey(hostKey: string) {
-  return !!process.env.CHO_NEO_HOST_TOOLS_KEY && hostKey === process.env.CHO_NEO_HOST_TOOLS_KEY;
+async function requireHostAdmin() {
+  const authorization = await requireChoNeoInvitationAdmin();
+  if (authorization.ok === true) {
+    return null;
+  }
+
+  return NextResponse.json(
+    {
+      error: "Host tools are locked.",
+      reason: authorization.reason,
+    },
+    { status: authorization.reason === "unauthenticated" ? 401 : 403 },
+  );
 }
 
 function rowToMessage(row: GossipMessageRow): FrontCounterMessage {

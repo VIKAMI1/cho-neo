@@ -1,6 +1,3 @@
-import { appendFile, mkdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
@@ -46,22 +43,13 @@ export async function POST(request: Request) {
   const normalized = normalizePayload(payload, request);
 
   try {
-    const supabaseStored = await storeWithSupabase(normalized);
-    if (supabaseStored) {
-      return NextResponse.json({ ok: true, stored: "supabase" });
-    }
+    await storeWithSupabase(normalized);
+    return NextResponse.json({ ok: true, stored: "supabase" });
   } catch (error) {
-    console.warn("[cho-neo:beta-feedback] Supabase storage failed", error);
-  }
-
-  try {
-    await storeWithJsonl(normalized);
-    return NextResponse.json({ ok: true, stored: "jsonl" });
-  } catch (error) {
-    console.error("[cho-neo:beta-feedback] JSONL storage failed", error);
+    console.error("[cho-neo:beta-feedback] Durable Supabase storage failed", error);
     return NextResponse.json(
-      { ok: false, error: "Feedback could not be stored." },
-      { status: 500 }
+      { ok: false, error: "Feedback storage is unavailable." },
+      { status: 503 }
     );
   }
 }
@@ -92,11 +80,12 @@ function normalizePayload(payload: BetaPayload, request: Request) {
 }
 
 async function storeWithSupabase(record: ReturnType<typeof normalizePayload>) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
-  if (!supabaseUrl || !supabaseKey) return false;
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Missing Supabase server authority.");
+  }
 
   const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false },
@@ -108,18 +97,8 @@ async function storeWithSupabase(record: ReturnType<typeof normalizePayload>) {
       code: error.code,
       message: error.message,
     });
-    return false;
+    throw new Error("Supabase feedback insert failed.");
   }
-
-  return true;
-}
-
-async function storeWithJsonl(record: ReturnType<typeof normalizePayload>) {
-  const feedbackDir =
-    process.env.CHO_NEO_FEEDBACK_DIR ?? path.join(tmpdir(), "cho-neo-beta");
-  const feedbackPath = path.join(feedbackDir, "feedback-events.jsonl");
-  await mkdir(feedbackDir, { recursive: true });
-  await appendFile(feedbackPath, `${JSON.stringify(record)}\n`, "utf8");
 }
 
 function cleanText(value: unknown, maxLength: number) {

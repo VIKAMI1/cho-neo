@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   HOI_GI_DAY_FALLBACK,
   type HoiGiDayTopic,
