@@ -143,12 +143,9 @@ export async function fetchSharedFrontCounterMessages() {
     : [];
 }
 
-export async function fetchHostReviewFrontCounterMessages(hostKey: string) {
+export async function fetchHostReviewFrontCounterMessages() {
   const response = await fetch(`${FRONT_COUNTER_MESSAGES_API}?hostReview=1`, {
     cache: "no-store",
-    headers: {
-      "X-Cho-Neo-Host-Key": hostKey,
-    },
   });
 
   if (!response.ok) {
@@ -210,7 +207,6 @@ export async function reportSharedFrontCounterMessage(input: {
 }
 
 export async function hideSharedFrontCounterMessage(input: {
-  hostKey: string;
   messageId: string;
 }) {
   if (!isSharedFrontCounterMessageId(input.messageId)) {
@@ -219,13 +215,11 @@ export async function hideSharedFrontCounterMessage(input: {
 
   return updateSharedFrontCounterMessage({
     action: "hide",
-    hostKey: input.hostKey,
     messageId: input.messageId,
   });
 }
 
 export async function removeSharedFrontCounterMessage(input: {
-  hostKey: string;
   messageId: string;
 }) {
   if (!isSharedFrontCounterMessageId(input.messageId)) {
@@ -234,13 +228,11 @@ export async function removeSharedFrontCounterMessage(input: {
 
   return updateSharedFrontCounterMessage({
     action: "remove",
-    hostKey: input.hostKey,
     messageId: input.messageId,
   });
 }
 
 export async function unhideSharedFrontCounterMessage(input: {
-  hostKey: string;
   messageId: string;
 }) {
   if (!isSharedFrontCounterMessageId(input.messageId)) {
@@ -249,13 +241,11 @@ export async function unhideSharedFrontCounterMessage(input: {
 
   return updateSharedFrontCounterMessage({
     action: "unhide",
-    hostKey: input.hostKey,
     messageId: input.messageId,
   });
 }
 
 export async function markSharedFrontCounterMessageReviewed(input: {
-  hostKey: string;
   messageId: string;
 }) {
   if (!isSharedFrontCounterMessageId(input.messageId)) {
@@ -264,14 +254,12 @@ export async function markSharedFrontCounterMessageReviewed(input: {
 
   return updateSharedFrontCounterMessage({
     action: "markReviewed",
-    hostKey: input.hostKey,
     messageId: input.messageId,
   });
 }
 
 async function updateSharedFrontCounterMessage(input: {
   action: "hide" | "markReviewed" | "remove" | "report" | "unhide";
-  hostKey?: string;
   messageId: string;
   token?: string;
 }) {
@@ -283,7 +271,6 @@ async function updateSharedFrontCounterMessage(input: {
     headers: {
       "Content-Type": "application/json",
       ...(input.token ? { Authorization: `Bearer ${input.token}` } : {}),
-      ...(input.hostKey ? { "X-Cho-Neo-Host-Key": input.hostKey } : {}),
     },
     method: "PATCH",
   });

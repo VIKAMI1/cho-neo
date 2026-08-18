@@ -3,7 +3,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "dev-123";
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY?.trim();
+
+function requireUploadApiKey() {
+  if (!API_KEY) {
+    throw new Error("Upload API key is not configured.");
+  }
+
+  return API_KEY;
+}
 
 // Guardrails (locked)
 const MAX_FILES = 3;
@@ -93,7 +101,7 @@ export default function ShowOff() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": API_KEY,
+        "x-api-key": requireUploadApiKey(),
       },
       body: JSON.stringify({
         filename: file.name,
@@ -127,7 +135,7 @@ export default function ShowOff() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": API_KEY,
+        "x-api-key": requireUploadApiKey(),
       },
       body: JSON.stringify({ post_id: postId, raw_key: rawKey }),
     });
@@ -144,7 +152,7 @@ export default function ShowOff() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": API_KEY,
+        "x-api-key": requireUploadApiKey(),
       },
       body: JSON.stringify({ caption: captionText }),
     });
@@ -164,7 +172,7 @@ export default function ShowOff() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": API_KEY,
+        "x-api-key": requireUploadApiKey(),
       },
       body: JSON.stringify({ post_id: postId, items }),
     });

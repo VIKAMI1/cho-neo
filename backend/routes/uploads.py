@@ -1,5 +1,8 @@
 from __future__ import annotations
-import os, io, uuid
+import io
+import os
+import secrets
+import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -14,9 +17,7 @@ from dotenv import load_dotenv
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"  # backend/.env
-load_dotenv(ENV_PATH, override=True)
-print("UPLOADS.PY AFTER DOTENV: R2_ACCOUNT_ID=", bool(os.getenv("R2_ACCOUNT_ID")))
-print("UPLOADS.PY BOOT: R2_BUCKET=", os.getenv("R2_BUCKET"))
+load_dotenv(ENV_PATH, override=False)
 
 MAX_BYTES_EACH = 5 * 1024 * 1024
 ALLOWED_CT = {"image/jpeg", "image/png", "image/webp"}
@@ -27,8 +28,10 @@ def _now_utc():
     return datetime.now(timezone.utc)
 
 def require_api_key(x_api_key: Optional[str] = Header(default=None, alias="x-api-key")):
-    expected = os.getenv("API_KEY", "dev-123")
-    if not x_api_key or x_api_key != expected:
+    expected = (os.getenv("API_KEY") or "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="Upload authorization unavailable")
+    if not x_api_key or not secrets.compare_digest(x_api_key.strip(), expected):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 def _r2_client():

@@ -846,7 +846,6 @@ export default function ChoNeoGossipPage() {
   >(null);
   const [frontCounterDrawerOpen, setFrontCounterDrawerOpen] = useState(false);
   const [hostToolsOpen, setHostToolsOpen] = useState(false);
-  const [hostKey, setHostKey] = useState("");
   const [hostReviewMessages, setHostReviewMessages] = useState<
     FrontCounterMessage[]
   >([]);
@@ -1396,11 +1395,6 @@ export default function ChoNeoGossipPage() {
       return;
     }
 
-    if (frontCounterMemoryMode === "shared" && !hostKey.trim()) {
-      setModerationNotice("Enter the host key before using host tools.");
-      return;
-    }
-
     if (
       frontCounterMemoryMode === "shared" &&
       !sharedFetchedMessageIds.includes(message.id)
@@ -1422,7 +1416,6 @@ export default function ChoNeoGossipPage() {
       if (frontCounterMemoryMode === "shared") {
         const updatedMessage = await updateSharedFrontCounterMessageAsHost({
           action,
-          hostKey: hostKey.trim(),
           messageId: message.id,
         });
 
@@ -1462,7 +1455,7 @@ export default function ChoNeoGossipPage() {
         await loadHostReviewMessages();
       }
     } catch {
-      setModerationNotice("Host action failed. Check the host key and Supabase setup.");
+      setModerationNotice("Host action failed. Sign in with an owner/admin account and check Supabase setup.");
     } finally {
       setModerationBusyMessageId(null);
     }
@@ -1529,29 +1522,23 @@ export default function ChoNeoGossipPage() {
   }
 
   async function loadHostReviewMessages() {
-    if (!hostKey.trim()) {
-      setHostReviewNotice("Enter the host key.");
-      return;
-    }
-
     setHostReviewLoading(true);
     setHostReviewNotice(null);
 
     try {
-      const messages = await fetchHostReviewFrontCounterMessages(hostKey.trim());
+      const messages = await fetchHostReviewFrontCounterMessages();
       setHostReviewMessages(messages);
       setHostReviewUnlocked(true);
     } catch {
       setHostReviewMessages([]);
       setHostReviewUnlocked(false);
-      setHostReviewNotice("Host Review is locked. Check the host key.");
+      setHostReviewNotice("Host Review is locked. Sign in with an owner/admin account.");
     } finally {
       setHostReviewLoading(false);
     }
   }
 
   function closeHostReview() {
-    setHostKey("");
     setHostReviewMessages([]);
     setHostReviewNotice(null);
     setHostReviewUnlocked(false);
@@ -2600,18 +2587,9 @@ export default function ChoNeoGossipPage() {
                                 <strong>Host</strong>
                                 <p>Báo cáo / Report · Ẩn / Hide · Gỡ / Remove</p>
                               </div>
-                              <input
-                                aria-label="Cho Neo host key"
-                                onChange={(event) => {
-                                  setHostKey(event.target.value);
-                                  setHostReviewMessages([]);
-                                  setHostReviewNotice(null);
-                                  setHostReviewUnlocked(false);
-                                }}
-                                placeholder="Host key"
-                                type="password"
-                                value={hostKey}
-                              />
+                              <p>
+                                Owner/admin sign-in is required for host tools.
+                              </p>
                               <div className="front-counter-stage-host-actions">
                                 <button
                                   disabled={hostReviewLoading}
@@ -10414,7 +10392,6 @@ function getHostReviewLabels(message: FrontCounterMessage) {
 
 async function updateSharedFrontCounterMessageAsHost(input: {
   action: FrontCounterModerationAction;
-  hostKey: string;
   messageId: string;
 }) {
   switch (input.action) {

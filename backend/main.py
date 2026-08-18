@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 # Load backend/.env no matter where uvicorn is launched from
 ENV_PATH = Path(__file__).resolve().parent / ".env"
-load_dotenv(dotenv_path=ENV_PATH, override=True)
+load_dotenv(dotenv_path=ENV_PATH, override=False)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
