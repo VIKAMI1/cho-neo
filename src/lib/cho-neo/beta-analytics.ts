@@ -21,6 +21,8 @@ export type ChoNeoBetaEventName =
   | "ong_dia_v1_outbound_clicked"
   | "ong_dia_v1_next_day_returned"
   | "khoe_set_opened"
+  | "shop_gate_viewed"
+  | "shop_gate_outbound_clicked"
   | "music_button_seen"
   | "music_start_clicked"
   | "music_started"
