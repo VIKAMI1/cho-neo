@@ -42,8 +42,8 @@ export function ChoNeoMemberHeaderControl() {
         </svg>
       </span>
       <span>
-        <strong>Vào Chợ</strong>
-        <small>Lời mời riêng</small>
+        <strong>Đăng nhập</strong>
+        <small>Thành viên · Mã OTP</small>
       </span>
     </button>
   );
