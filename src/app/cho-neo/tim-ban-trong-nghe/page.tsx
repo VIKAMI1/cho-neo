@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChoNeoRoomShell } from "@/components/cho-neo/ChoNeoRoomShell";
 import { ChoNeoRoomTopBar } from "@/components/cho-neo/ChoNeoRoomTopBar";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
+import { TimBanTrongNghePanel } from "@/components/cho-neo/TimBanTrongNghePanel";
 
 const matchingSignals = [
   "Cùng thành phố",
@@ -59,6 +60,8 @@ export default function TimBanTrongNghePreviewPage() {
               </div>
             </div>
           </section>
+
+          <TimBanTrongNghePanel />
 
           <footer>
             <strong>Chuyện nghề, chuyện đời, chuyện mình.</strong>
@@ -234,6 +237,40 @@ export default function TimBanTrongNghePreviewPage() {
             font-size: 0.82rem;
             line-height: 1.5;
           }
+
+          .tim-ban-panel {
+            width: min(820px, 100%);
+            display: grid;
+            gap: 22px;
+            margin: 64px auto 0;
+            border: 1px solid rgba(112, 57, 39, 0.16);
+            border-radius: 26px;
+            padding: clamp(20px, 4vw, 38px);
+            background: rgba(255, 255, 255, 0.58);
+            box-shadow: 0 22px 60px rgba(84, 35, 29, 0.1);
+          }
+          .tim-ban-panel h2, .tim-ban-panel h3, .tim-ban-panel p { margin: 0; }
+          .tim-ban-panel h2 { font-family: var(--cho-neo-font-display); font-size: clamp(1.8rem, 4vw, 2.7rem); font-weight: 500; }
+          .tim-ban-panel-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+          .tim-ban-panel-heading > span { border-radius: 999px; padding: 7px 10px; color: #7b4b3f; background: #f6ead7; font-size: .76rem; white-space: nowrap; }
+          .tim-ban-locked { text-align: center; justify-items: center; }
+          .tim-ban-locked p { max-width: 38rem; line-height: 1.65; color: var(--tim-ban-muted); }
+          .tim-ban-panel form { display: grid; gap: 16px; }
+          .tim-ban-panel label { display: grid; gap: 7px; color: #653129; font-size: .88rem; font-weight: 600; }
+          .tim-ban-panel input, .tim-ban-panel select, .tim-ban-panel textarea { width: 100%; border: 1px solid rgba(112,57,39,.2); border-radius: 12px; padding: 12px 13px; color: #54231d; background: #fffdf8; font: inherit; }
+          .tim-ban-panel textarea { min-height: 88px; resize: vertical; }
+          .tim-ban-panel .tim-ban-consent { grid-template-columns: 20px 1fr; align-items: start; color: var(--tim-ban-muted); font-weight: 400; line-height: 1.5; }
+          .tim-ban-panel .tim-ban-consent input { width: 18px; margin-top: 2px; }
+          .tim-ban-panel button { min-height: 44px; border: 1px solid #713225; border-radius: 999px; padding: 10px 17px; color: #fff9ed; background: #713225; font-weight: 650; cursor: pointer; }
+          .tim-ban-panel button:disabled { cursor: not-allowed; opacity: .5; }
+          .tim-ban-panel button.quiet { color: #713225; background: transparent; }
+          .tim-ban-panel button.danger { color: #8b291f; border-color: #c88b7e; background: #fff7f3; }
+          .tim-ban-row { display: flex; flex-wrap: wrap; gap: 9px; }
+          .tim-ban-message { border-radius: 12px; padding: 11px 13px; color: #64362d; background: #f9ecd7; line-height: 1.5; }
+          .tim-ban-introductions { display: grid; gap: 12px; }
+          .tim-ban-introductions article { display: grid; gap: 10px; border: 1px solid rgba(112,57,39,.14); border-radius: 16px; padding: 16px; background: #fffaf0; }
+          .tim-ban-introductions small { color: #a24d31; }
+          .tim-ban-introductions blockquote { margin: 0; border-left: 3px solid #d69763; padding-left: 12px; color: var(--tim-ban-muted); }
 
           .tim-ban-preview footer strong {
             color: var(--tim-ban-ink);
