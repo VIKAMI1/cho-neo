@@ -4,11 +4,15 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase-browser";
 import {
   CHO_NEO_AGREEMENT_VERSION,
+  CHO_NEO_NAIL_ROLE_LABELS,
+  CHO_NEO_PUBLIC_NAIL_ROLES,
   isApprovedChoNeoMemberAvatarKey,
+  isChoNeoPublicNailRole,
   mapChoNeoMemberProfileRow,
   resolveChoNeoMemberAvatarKey,
   validateChoNeoMemberDisplayName,
   type ChoNeoMemberProfile,
+  type ChoNeoPublicNailRole,
 } from "@/lib/cho-neo/member-identity";
 import { CHO_NEO_AVATARS } from "@/lib/cho-neo/avatar-identity";
 import { useRouter } from "next/navigation";
@@ -16,7 +20,6 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 type JoinState =
   | "capturing"
-  | "missing-invitation"
   | "signing-in"
   | "ready"
   | "saving"
@@ -31,7 +34,6 @@ const EMAIL_LINK_FAILURE_MESSAGE =
 export default function JoinClient() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const [invitationToken, setInvitationToken] = useState("");
   const [returnTo, setReturnTo] = useState("/cho-neo");
   const [state, setState] = useState<JoinState>("capturing");
   const [emailLinkState, setEmailLinkState] = useState<EmailLinkState>("idle");
@@ -42,12 +44,10 @@ export default function JoinClient() {
   const [displayName, setDisplayName] = useState("");
   const [avatarKey, setAvatarKey] = useState(CHO_NEO_AVATARS[0].id);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [adultAttested, setAdultAttested] = useState(false);
+  const [nailRole, setNailRole] = useState<ChoNeoPublicNailRole | "">("");
 
   useEffect(() => {
-    const hash = window.location.hash.startsWith("#")
-      ? window.location.hash.slice(1)
-      : window.location.hash;
-    const token = new URLSearchParams(hash).get("invite")?.trim() ?? "";
     const requestedReturnTo = new URLSearchParams(window.location.search).get("next");
     const redirectTo =
       requestedReturnTo && isSafeReturnTo(requestedReturnTo)
@@ -55,8 +55,7 @@ export default function JoinClient() {
         : "/cho-neo";
     setReturnTo(redirectTo);
 
-    if (token) {
-      setInvitationToken(token);
+    if (window.location.hash) {
       window.history.replaceState(
         null,
         "",
@@ -73,32 +72,22 @@ export default function JoinClient() {
       const existingSessionResult = await supabase.auth.getSession();
       let session = existingSessionResult.data.session ?? null;
 
-      if (!session && token) {
+      if (!session) {
         const anonymousResult = await supabase.auth.signInAnonymously();
         if (anonymousResult.error || !anonymousResult.data.session) {
           if (!cancelled) {
-            clearInvitationToken();
             setState("error");
-            setMessage("Chợ Neo chưa mở được lời mời trên thiết bị này. Thử lại nha.");
+            setMessage("Chợ Neo chưa mở được lối vào trên thiết bị này. Thử lại nha.");
           }
           return;
         }
         session = anonymousResult.data.session;
       }
 
-      if (!session) {
-        if (!cancelled) {
-          setState("missing-invitation");
-          setMessage("Chợ Neo hiện đang mở theo lời mời riêng.");
-        }
-        return;
-      }
-
       const profile = await loadProfile(supabase, session.user.id);
       if (cancelled) return;
 
       if (profile?.status === "suspended" || profile?.status === "rejected") {
-        if (token) clearInvitationToken();
         setState("restricted");
         setMessage("Thẻ Thành Viên này hiện chưa thể vào Chợ Neo.");
         return;
@@ -106,9 +95,10 @@ export default function JoinClient() {
 
       if (
         profile?.status === "verified_nail_member" &&
-        profile.agreementVersion === CHO_NEO_AGREEMENT_VERSION
+        profile.agreementVersion === CHO_NEO_AGREEMENT_VERSION &&
+        profile.adultAttestedAt &&
+        isChoNeoPublicNailRole(profile.nailRole)
       ) {
-        if (token) clearInvitationToken();
         if (session.user.is_anonymous) {
           setMemberUserId(session.user.id);
           setEmailLinkState("prompt");
@@ -119,20 +109,16 @@ export default function JoinClient() {
         return;
       }
 
-      if (!token && profile?.status !== "verified_nail_member") {
-        setState("missing-invitation");
-        setMessage("Chợ Neo hiện đang mở theo lời mời riêng.");
-        return;
-      }
-
+      if (profile?.displayName) setDisplayName(profile.displayName);
+      if (profile?.avatarKey) setAvatarKey(profile.avatarKey);
+      if (isChoNeoPublicNailRole(profile?.nailRole)) setNailRole(profile.nailRole);
       setState("ready");
     }
 
     void prepareDeviceSession().catch(() => {
       if (!cancelled) {
-        clearInvitationToken();
         setState("error");
-        setMessage("Chợ Neo chưa mở được lời mời trên thiết bị này. Thử lại nha.");
+        setMessage("Chợ Neo chưa mở được lối vào trên thiết bị này. Thử lại nha.");
       }
     });
 
@@ -142,6 +128,18 @@ export default function JoinClient() {
   }, [router, supabase]);
 
   async function submit() {
+    if (!adultAttested) {
+      setState("error");
+      setMessage("Chợ Neo chỉ dành cho người từ 18 tuổi trở lên.");
+      return;
+    }
+
+    if (!isChoNeoPublicNailRole(nailRole)) {
+      setState("error");
+      setMessage("Chọn vai trò của bạn trong nghề nail trước nha.");
+      return;
+    }
+
     if (!agreementAccepted) {
       setState("error");
       setMessage("Bạn cần đồng ý với Thỏa thuận và Chính sách riêng tư trước nha.");
@@ -162,19 +160,19 @@ export default function JoinClient() {
       const sessionResult = await supabase.auth.getSession();
       const session = sessionResult.data.session ?? null;
       if (!session?.user) {
-        clearInvitationToken();
         setState("error");
-        setMessage("Lời mời đã hết phiên trên thiết bị này. Mở lại liên kết giúp Chợ Neo nha.");
+        setMessage("Phiên vào Chợ đã hết trên thiết bị này. Tải lại trang giúp Chợ Neo nha.");
         return;
       }
 
       const response = await fetch("/api/cho-neo/member/verify", {
         body: JSON.stringify({
+          adultAttested: true,
           agreementAccepted: true,
           agreementVersion: CHO_NEO_AGREEMENT_VERSION,
           avatarKey: resolveChoNeoMemberAvatarKey(avatarKey),
           displayName: validation.displayName,
-          invitationToken,
+          nailRole,
         }),
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -185,20 +183,15 @@ export default function JoinClient() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok || !payload?.profile) {
-        if (isTerminalInvitationFailure(payload?.reason)) {
-          clearInvitationToken();
-        }
         setState(response.status === 403 ? "restricted" : "error");
-        setMessage(payload?.error ?? "Lời mời chưa dùng được. Thử lại nha.");
+        setMessage(payload?.error ?? "Chợ Neo chưa xác nhận được hồ sơ. Thử lại nha.");
         return;
       }
 
-      clearInvitationToken();
       setMemberUserId(session.user.id);
       setEmailLinkState(session.user.is_anonymous ? "prompt" : "idle");
       setState("ready");
     } catch {
-      clearInvitationToken();
       setState("error");
       setMessage("Chợ Neo chưa xác nhận được thành viên. Thử lại một nhịp nha.");
     }
@@ -282,15 +275,6 @@ export default function JoinClient() {
     }
   }
 
-  function clearInvitationToken() {
-    setInvitationToken("");
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${window.location.search}`,
-    );
-  }
-
   const isBusy = state === "capturing" || state === "signing-in" || state === "saving";
 
   return (
@@ -299,16 +283,7 @@ export default function JoinClient() {
         <p className="cho-neo-join-kicker">Chợ Neo</p>
         <h1 id="cho-neo-join-title">Vào Chợ Neo</h1>
 
-        {state === "missing-invitation" ? (
-          <>
-            <p className="cho-neo-join-copy">
-              Chợ Neo hiện đang mở theo lời mời riêng. Liên kết mời cần được gửi trực tiếp cho bạn.
-            </p>
-            <a className="cho-neo-join-secondary" href="/cho-neo">
-              Dạo khu công khai
-            </a>
-          </>
-        ) : state === "restricted" ? (
+        {state === "restricted" ? (
           <p aria-live="polite" className="cho-neo-join-message" role="alert">
             {message}
           </p>
@@ -379,7 +354,7 @@ export default function JoinClient() {
               <>
                 <div className="cho-neo-join-agreement">
                   <h2>Trước khi vào chợ</h2>
-                  <p>Chợ Neo là không gian riêng theo lời mời. Hãy dùng tên gọi bạn muốn mọi người nhận ra.</p>
+                  <p>Chợ Neo dành cho người lớn đang sống và làm việc trong nghề nail.</p>
                   <details open>
                     <summary>Thỏa thuận người dùng</summary>
                     <p>
@@ -389,7 +364,7 @@ export default function JoinClient() {
                   <details>
                     <summary>Chính sách riêng tư</summary>
                     <p>
-                      Chợ Neo lưu tên hiển thị, avatar đã chọn, trạng thái thành viên và thời điểm đồng ý để duy trì quyền vào chợ. Lời mời chỉ được lưu dưới dạng mã băm.
+                      Chợ Neo lưu tên hiển thị, vai trò trong nghề, avatar đã chọn, trạng thái thành viên và thời điểm đồng ý để duy trì quyền vào chợ.
                     </p>
                   </details>
                   <label className="cho-neo-join-check">
@@ -400,7 +375,31 @@ export default function JoinClient() {
                     />
                     <span>Tôi đã đọc và đồng ý với cả hai nội dung trên.</span>
                   </label>
+                  <label className="cho-neo-join-check">
+                    <input
+                      checked={adultAttested}
+                      onChange={(event) => setAdultAttested(event.target.checked)}
+                      type="checkbox"
+                    />
+                    <span>Tôi xác nhận mình từ 18 tuổi trở lên.</span>
+                  </label>
                 </div>
+
+                <label className="cho-neo-join-field">
+                  <span>Vai trò của bạn trong nghề nail</span>
+                  <select
+                    onChange={(event) => setNailRole(event.target.value as ChoNeoPublicNailRole | "")}
+                    required
+                    value={nailRole}
+                  >
+                    <option value="">Chọn một vai trò</option>
+                    {CHO_NEO_PUBLIC_NAIL_ROLES.map((role) => (
+                      <option key={role} value={role}>
+                        {CHO_NEO_NAIL_ROLE_LABELS[role]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
                 <label className="cho-neo-join-field">
                   <span>Tên hiển thị</span>
@@ -450,7 +449,7 @@ export default function JoinClient() {
                   type="button"
                 >
                   {state === "signing-in"
-                    ? "Đang mở lời mời..."
+                    ? "Đang mở lối vào..."
                     : state === "saving"
                       ? "Đang đưa bạn vào chợ..."
                       : "Vào Chợ Neo"}
@@ -586,7 +585,8 @@ export default function JoinClient() {
           accent-color: #8b3a3c;
         }
 
-        .cho-neo-join-field input {
+        .cho-neo-join-field input,
+        .cho-neo-join-field select {
           min-height: 46px;
           border: 1px solid #cfae80;
           border-radius: 4px;
@@ -598,6 +598,7 @@ export default function JoinClient() {
         }
 
         .cho-neo-join-field input:focus-visible,
+        .cho-neo-join-field select:focus-visible,
         .cho-neo-join-check input:focus-visible,
         .cho-neo-join-avatars button:focus-visible,
         .cho-neo-join-primary:focus-visible,
@@ -712,7 +713,7 @@ async function loadProfile(supabase: ReturnType<typeof createClient>, userId: st
   const { data, error } = await supabase
     .from("cho_neo_member_profiles")
     .select(
-      "user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status, agreement_version, agreement_accepted_at",
+      "user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status, agreement_version, agreement_accepted_at, adult_attested_at",
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -728,14 +729,4 @@ function isSafeReturnTo(value: string) {
     !value.startsWith("//") &&
     !/^[a-z][a-z0-9+.-]*:/i.test(value)
   );
-}
-
-function isTerminalInvitationFailure(reason: unknown) {
-  return [
-    "expired-invitation",
-    "invalid-invitation",
-    "member-restricted",
-    "revoked-invitation",
-    "used-invitation",
-  ].includes(typeof reason === "string" ? reason : "");
 }
