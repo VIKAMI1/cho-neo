@@ -53,9 +53,9 @@ export default function TimBanTrongNghePreviewPage() {
               </ul>
 
               <div className="tim-ban-actions">
-                <Link href="/cho-neo/hoi-cho-neo">Hỏi một chuyện trong nghề</Link>
-                <Link className="secondary" href="/cho-neo">
-                  Trở lại sân làng
+                <Link href="#tim-ban-private-title">Mở bàn Tìm Bạn Trong Nghề</Link>
+                <Link className="secondary" href="/cho-neo/hoi-cho-neo">
+                  Hỏi một chuyện trong nghề
                 </Link>
               </div>
             </div>
