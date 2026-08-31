@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ChoNeoBetaFeedback } from "@/components/cho-neo/ChoNeoBetaFeedback";
+import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
 import { ChoNeoRoomShell } from "@/components/cho-neo/ChoNeoRoomShell";
 import { ChoNeoRoomTopBar } from "@/components/cho-neo/ChoNeoRoomTopBar";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
@@ -10,20 +12,28 @@ import {
   TimBanTrongNgheStartButton,
 } from "@/components/cho-neo/TimBanTrongNghePanel";
 
-const matchingSignals = [
-  "Cùng thành phố",
-  "Cùng nền tảng ngành nail",
-  "Sở thích ngoài công việc",
-  "Một câu chuyện nhỏ về bạn",
-];
-
 export default function TimBanTrongNghePreviewPage() {
+  const { ensureChoNeoMember, profile } = useChoNeoMember();
+
   return (
     <>
       <ChoNeoTimeAmbience />
       <ChoNeoRoomShell currentNavId="gossip" className="tim-ban-preview-shell">
         <main className="tim-ban-preview">
-          <ChoNeoRoomTopBar ariaLabel="Tìm Bạn Trong Nghề controls" />
+          <ChoNeoRoomTopBar
+            ariaLabel="Quầy Xã Giao controls"
+            feedback={<ChoNeoBetaFeedback />}
+            memberProfile={profile}
+            navigation={
+              <>
+                <span aria-current="page">Quầy Xã Giao</span>
+                <Link href="/cho-neo/hoi-cho-neo">Hỏi một chuyện nghề</Link>
+              </>
+            }
+            onMemberClick={() => {
+              void ensureChoNeoMember(async () => undefined);
+            }}
+          />
 
           <section className="tim-ban-hero" aria-labelledby="tim-ban-title">
             <div className="tim-ban-artwork">
@@ -41,25 +51,16 @@ export default function TimBanTrongNghePreviewPage() {
               <p className="tim-ban-kicker">Quầy Xã Giao · Sắp mở</p>
               <h1 id="tim-ban-title">Tìm Bạn Trong Nghề</h1>
               <p className="tim-ban-promise">
-                Khám phá con người phía sau nghề. Cùng nghề là điểm chung để
-                bắt đầu; chuyện gì xảy ra tiếp theo do hai người quyết định.
+                Bắt đầu từ nghề chung. Còn hợp nhau đến đâu, để câu chuyện
+                trả lời.
               </p>
               <p className="tim-ban-boundary">
-                Không chấm điểm. Không bán hàng. Một lời chào chỉ mở cửa khi
-                người kia cũng muốn chào lại.
+                Không chấm điểm. Không bán hàng. Hai người chỉ kết nối khi
+                cả hai cùng muốn chào.
               </p>
-
-              <ul aria-label="Những điều Chợ Neo sẽ dùng để giới thiệu">
-                {matchingSignals.map((signal) => (
-                  <li key={signal}>{signal}</li>
-                ))}
-              </ul>
 
               <div className="tim-ban-actions">
                 <TimBanTrongNgheStartButton />
-                <Link className="secondary" href="/cho-neo/hoi-cho-neo">
-                  Hỏi một chuyện trong nghề
-                </Link>
               </div>
             </div>
           </section>
@@ -144,10 +145,8 @@ export default function TimBanTrongNghePreviewPage() {
             display: grid;
             gap: 18px;
           }
-
           .tim-ban-copy p,
-          .tim-ban-copy h1,
-          .tim-ban-copy ul {
+          .tim-ban-copy h1 {
             margin: 0;
           }
 
@@ -183,25 +182,6 @@ export default function TimBanTrongNghePreviewPage() {
             line-height: 1.7;
           }
 
-          .tim-ban-copy ul {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            padding: 0;
-            list-style: none;
-          }
-
-          .tim-ban-copy li {
-            min-height: 52px;
-            display: flex;
-            align-items: center;
-            border: 1px solid rgba(122, 66, 45, 0.13);
-            border-radius: 14px;
-            padding: 12px 14px;
-            background: rgba(255, 255, 255, 0.5);
-            font-size: 0.92rem;
-          }
-
           .tim-ban-actions {
             display: flex;
             flex-wrap: wrap;
@@ -235,11 +215,6 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-actions button:disabled {
             cursor: wait;
             opacity: 0.65;
-          }
-
-          .tim-ban-actions a.secondary {
-            color: #713225;
-            background: transparent;
           }
 
           .tim-ban-preview footer {
@@ -344,10 +319,6 @@ export default function TimBanTrongNghePreviewPage() {
             .tim-ban-copy h1 {
               max-width: none;
               font-size: clamp(2rem, 9vw, 2.75rem);
-            }
-
-            .tim-ban-copy ul {
-              grid-template-columns: 1fr;
             }
 
             .tim-ban-actions {
