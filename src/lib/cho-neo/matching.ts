@@ -76,6 +76,8 @@ export function validateMatchingProfile(input: Record<string, unknown>) {
     : [];
   const lookingFor = cleanMatchingText(input.lookingFor, 240);
   const canShare = cleanMatchingText(input.canShare, 240);
+  const interests = cleanMatchingText(input.interests, 240);
+  const funLine = cleanMatchingText(input.funLine, 240);
 
   if (city.length < 2) return { error: "Cho Chợ Neo biết thành phố của bạn nha." } as const;
   if (country.length < 2) return { error: "Cho Chợ Neo biết quốc gia của bạn nha." } as const;
@@ -101,7 +103,7 @@ export function validateMatchingProfile(input: Record<string, unknown>) {
   if (lookingFor.length < 2) return { error: "Bạn đang cần một người bạn để nói chuyện gì?" } as const;
   if (canShare.length < 2) return { error: "Bạn có thể chia sẻ điều gì với người kia?" } as const;
 
-  return { ageRange: ageRange || null, canShare, city, country, discoveryScope, experienceRange, gender: gender || null, languages, lookingFor, region, situation } as const;
+  return { ageRange: ageRange || null, canShare, city, country, discoveryScope, experienceRange, funLine: funLine || null, gender: gender || null, interests: interests || null, languages, lookingFor, region, situation } as const;
 }
 
 export function isMatchingReportReason(value: unknown): value is MatchingReportReason {
