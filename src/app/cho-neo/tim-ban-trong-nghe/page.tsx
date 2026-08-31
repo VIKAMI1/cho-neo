@@ -25,10 +25,7 @@ export default function TimBanTrongNghePreviewPage() {
             feedback={<ChoNeoBetaFeedback />}
             memberProfile={profile}
             navigation={
-              <>
-                <span aria-current="page">Quầy Xã Giao</span>
-                <Link href="/cho-neo/hoi-cho-neo">Hỏi một chuyện nghề</Link>
-              </>
+              <Link href="/cho-neo/hoi-cho-neo">Hỏi Chợ Neo</Link>
             }
             onMemberClick={() => {
               void ensureChoNeoMember(async () => undefined);
