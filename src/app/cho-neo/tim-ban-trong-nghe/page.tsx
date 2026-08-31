@@ -12,9 +12,9 @@ import {
 
 const matchingSignals = [
   "Cùng thành phố",
-  "Cùng hoàn cảnh trong nghề",
-  "Điều bạn đang cần",
-  "Điều bạn có thể chia sẻ",
+  "Cùng nền tảng ngành nail",
+  "Người bạn muốn gặp",
+  "Điều hai người muốn chia sẻ",
 ];
 
 export default function TimBanTrongNghePreviewPage() {
@@ -41,12 +41,12 @@ export default function TimBanTrongNghePreviewPage() {
               <p className="tim-ban-kicker">Quán Xã Giao · Sắp mở</p>
               <h1 id="tim-ban-title">Tìm Bạn Trong Nghề</h1>
               <p className="tim-ban-promise">
-                Chợ Neo sẽ giới thiệu một người trong nghề có thể hiểu câu
-                chuyện của bạn.
+                Cùng nghề là điểm chung để bắt đầu; mối quan hệ đi đến đâu do
+                hai người quyết định.
               </p>
               <p className="tim-ban-boundary">
-                Không hẹn hò. Không lướt hồ sơ. Không bán hàng. Hai bên chỉ mở
-                cửa khi cùng muốn làm quen.
+                Không lướt hồ sơ. Không bán hàng. Hai bên chỉ mở cửa khi cùng
+                muốn làm quen.
               </p>
 
               <ul aria-label="Những điều Chợ Neo sẽ dùng để giới thiệu">
