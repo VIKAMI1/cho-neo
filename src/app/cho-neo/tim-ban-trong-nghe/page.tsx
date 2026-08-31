@@ -13,8 +13,8 @@ import {
 const matchingSignals = [
   "Cùng thành phố",
   "Cùng nền tảng ngành nail",
-  "Người bạn muốn gặp",
-  "Điều hai người muốn chia sẻ",
+  "Sở thích ngoài công việc",
+  "Một câu chuyện nhỏ về bạn",
 ];
 
 export default function TimBanTrongNghePreviewPage() {
@@ -38,15 +38,15 @@ export default function TimBanTrongNghePreviewPage() {
             </div>
 
             <div className="tim-ban-copy">
-              <p className="tim-ban-kicker">Quán Xã Giao · Sắp mở</p>
+              <p className="tim-ban-kicker">Quầy Xã Giao · Sắp mở</p>
               <h1 id="tim-ban-title">Tìm Bạn Trong Nghề</h1>
               <p className="tim-ban-promise">
-                Cùng nghề là điểm chung để bắt đầu; mối quan hệ đi đến đâu do
-                hai người quyết định.
+                Khám phá con người phía sau nghề. Cùng nghề là điểm chung để
+                bắt đầu; chuyện gì xảy ra tiếp theo do hai người quyết định.
               </p>
               <p className="tim-ban-boundary">
-                Không lướt hồ sơ. Không bán hàng. Hai bên chỉ mở cửa khi cùng
-                muốn làm quen.
+                Không chấm điểm. Không bán hàng. Một lời chào chỉ mở cửa khi
+                người kia cũng muốn chào lại.
               </p>
 
               <ul aria-label="Những điều Chợ Neo sẽ dùng để giới thiệu">
@@ -289,8 +289,18 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-guide-heading h3 { margin-top: 3px; font-family: var(--cho-neo-font-display); font-size: 1.45rem; font-weight: 500; }
           .tim-ban-guide-heading button { min-height: 36px; padding: 7px 12px; font-size: .8rem; }
           .tim-ban-guide-questions { display: grid; gap: 12px; }
+          .tim-ban-guide-question { display: grid; gap: 7px; }
           .tim-ban-guide-questions textarea { min-height: 66px; background: rgba(255, 253, 248, .9); }
           .tim-ban-guide-questions > button { justify-self: start; }
+          .tim-ban-choices { display: flex; flex-wrap: wrap; gap: 7px; }
+          .tim-ban-panel .tim-ban-choices button { min-height: 34px; border-color: rgba(113, 50, 37, .24); padding: 6px 10px; color: #713225; background: rgba(255, 253, 248, .82); font-size: .78rem; font-weight: 550; }
+          .tim-ban-profile-preview { display: grid; gap: 9px; margin: 4px 0; border-left: 3px solid #d8bda2; padding: 13px 16px; color: #40231f; background: rgba(255, 253, 248, .62); }
+          .tim-ban-profile-preview > strong { font-size: 1.05rem; }
+          .tim-ban-profile-preview > span { color: var(--tim-ban-muted); font-size: .88rem; }
+          .tim-ban-profile-preview div { display: grid; gap: 3px; margin-top: 5px; }
+          .tim-ban-profile-preview b { font-size: .88rem; }
+          .tim-ban-profile-preview p { color: #4f332d; line-height: 1.55; }
+          .tim-ban-profile-preview small { margin-top: 5px; color: var(--tim-ban-muted); line-height: 1.45; }
           .tim-ban-message { border-radius: 12px; padding: 11px 13px; color: #64362d; background: #f9ecd7; line-height: 1.5; }
           .tim-ban-introductions { display: grid; gap: 12px; }
           .tim-ban-introductions article { display: grid; gap: 10px; border: 1px solid rgba(112,57,39,.14); border-radius: 16px; padding: 16px; background: #fffaf0; }
