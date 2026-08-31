@@ -10,6 +10,7 @@ type ChoNeoRoomTopBarProps = {
   ariaLabel: string;
   feedback?: ReactNode;
   memberProfile?: ChoNeoMemberProfile | null;
+  navigation?: ReactNode;
   onMemberClick?: () => void;
 };
 
@@ -17,6 +18,7 @@ export function ChoNeoRoomTopBar({
   ariaLabel,
   feedback,
   memberProfile,
+  navigation,
   onMemberClick,
 }: ChoNeoRoomTopBarProps) {
   const verifiedMember = isVerifiedChoNeoMemberProfile(memberProfile) ? memberProfile : null;
@@ -27,6 +29,11 @@ export function ChoNeoRoomTopBar({
         <span aria-hidden="true">←</span>
         <span>Sân Làng</span>
       </Link>
+      {navigation ? (
+        <nav className="cho-neo-room-top-bar__navigation" aria-label="Đi nhanh trong Chợ Neo">
+          {navigation}
+        </nav>
+      ) : null}
       <div className="cho-neo-room-top-bar__actions">
         {onMemberClick ? (
           <button className="cho-neo-room-top-bar__member" onClick={onMemberClick} type="button">
@@ -90,6 +97,38 @@ export function ChoNeoRoomTopBar({
           font-weight: 400;
           text-decoration: none;
           text-overflow: ellipsis;
+        }
+
+        .cho-neo-room-top-bar__navigation {
+          display: flex;
+          flex: 1 1 auto;
+          align-items: center;
+          gap: 6px;
+          min-width: 0;
+        }
+
+        .cho-neo-room-top-bar__navigation :global(a),
+        .cho-neo-room-top-bar__navigation :global(span) {
+          min-height: 38px;
+          display: inline-flex;
+          align-items: center;
+          border-radius: 999px;
+          padding: 8px 12px;
+          color: rgba(255, 247, 237, 0.76);
+          font-size: 12px;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+
+        .cho-neo-room-top-bar__navigation :global([aria-current="page"]) {
+          color: #fff7ed;
+          background: rgba(255, 247, 237, 0.1);
+          font-weight: 600;
+        }
+
+        .cho-neo-room-top-bar__navigation :global(a:hover) {
+          color: #fff7ed;
+          background: rgba(255, 247, 237, 0.07);
         }
 
         .cho-neo-room-top-bar__actions {
@@ -251,6 +290,23 @@ export function ChoNeoRoomTopBar({
             flex: 1 1 auto;
             max-width: min(46vw, 190px);
             padding-inline: 8px;
+          }
+
+          .cho-neo-room-top-bar__navigation {
+            order: 3;
+            width: 100%;
+            overflow-x: auto;
+            padding-top: 4px;
+          }
+
+          .cho-neo-room-top-bar {
+            flex-wrap: wrap;
+          }
+
+          .cho-neo-room-top-bar__navigation :global(a),
+          .cho-neo-room-top-bar__navigation :global(span) {
+            min-height: 36px;
+            padding: 7px 10px;
           }
 
           .cho-neo-room-top-bar__actions {
