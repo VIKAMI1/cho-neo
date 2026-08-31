@@ -283,6 +283,14 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-panel button.quiet { color: #713225; background: transparent; }
           .tim-ban-panel button.danger { color: #8b291f; border-color: #c88b7e; background: #fff7f3; }
           .tim-ban-row { display: flex; flex-wrap: wrap; gap: 9px; }
+          .tim-ban-guide { display: grid; gap: 13px; border: 1px solid rgba(132, 71, 39, .22); border-radius: 18px; padding: 17px; background: linear-gradient(145deg, #fff8eb, #f8ead7); }
+          .tim-ban-guide > p { color: var(--tim-ban-muted); font-size: .9rem; line-height: 1.55; }
+          .tim-ban-guide-heading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+          .tim-ban-guide-heading h3 { margin-top: 3px; font-family: var(--cho-neo-font-display); font-size: 1.45rem; font-weight: 500; }
+          .tim-ban-guide-heading button { min-height: 36px; padding: 7px 12px; font-size: .8rem; }
+          .tim-ban-guide-questions { display: grid; gap: 12px; }
+          .tim-ban-guide-questions textarea { min-height: 66px; background: rgba(255, 253, 248, .9); }
+          .tim-ban-guide-questions > button { justify-self: start; }
           .tim-ban-message { border-radius: 12px; padding: 11px 13px; color: #64362d; background: #f9ecd7; line-height: 1.5; }
           .tim-ban-introductions { display: grid; gap: 12px; }
           .tim-ban-introductions article { display: grid; gap: 10px; border: 1px solid rgba(112,57,39,.14); border-radius: 16px; padding: 16px; background: #fffaf0; }
