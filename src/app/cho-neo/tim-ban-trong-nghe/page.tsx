@@ -321,6 +321,17 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-introductions article { display: grid; gap: 10px; border: 1px solid rgba(112,57,39,.14); border-radius: 16px; padding: 16px; background: #fffaf0; }
           .tim-ban-introductions small { color: #a24d31; }
           .tim-ban-introductions blockquote { margin: 0; border-left: 3px solid #d69763; padding-left: 12px; color: var(--tim-ban-muted); }
+          .tim-ban-handoff { display: grid; gap: 11px; border-top: 1px solid rgba(112,57,39,.14); padding-top: 13px; }
+          .tim-ban-handoff h4, .tim-ban-handoff p { margin: 0; }
+          .tim-ban-handoff h4 { font-family: var(--cho-neo-font-display); font-size: 1.2rem; font-weight: 500; }
+          .tim-ban-handoff > p, .tim-ban-handoff > small { color: var(--tim-ban-muted); font-size: .84rem; line-height: 1.5; }
+          .tim-ban-contact-form { display: grid; grid-template-columns: minmax(120px, .45fr) minmax(200px, 1fr) auto; gap: 8px; }
+          .tim-ban-contact-form select, .tim-ban-contact-form input { min-width: 0; border: 1px solid rgba(112,57,39,.2); border-radius: 11px; padding: 10px 11px; color: #54231d; background: #fffdf8; font: inherit; }
+          .tim-ban-contact-form button { white-space: nowrap; }
+          .tim-ban-contact-card { display: grid; gap: 4px; border: 1px solid rgba(112,57,39,.16); border-radius: 13px; padding: 12px 14px; background: #fffdf8; }
+          .tim-ban-contact-card small { color: var(--tim-ban-muted); }
+          .tim-ban-contact-card span { overflow-wrap: anywhere; }
+          .tim-ban-my-contact { align-self: center; color: var(--tim-ban-muted); font-size: .86rem; overflow-wrap: anywhere; }
 
           .tim-ban-preview footer strong {
             color: var(--tim-ban-ink);
@@ -387,6 +398,10 @@ export default function TimBanTrongNghePreviewPage() {
 
             .tim-ban-panel form > * {
               grid-column: 1 / -1;
+            }
+
+            .tim-ban-contact-form {
+              grid-template-columns: 1fr;
             }
 
             .tim-ban-preview footer {
