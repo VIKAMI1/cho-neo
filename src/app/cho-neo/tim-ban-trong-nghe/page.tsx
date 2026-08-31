@@ -68,8 +68,8 @@ export default function TimBanTrongNghePreviewPage() {
           <footer>
             <strong>Chuyện nghề, chuyện đời, chuyện mình.</strong>
             <span>
-              Chợ chưa nhận hồ sơ ghép bạn cho đến khi quyền riêng tư và chặn
-              báo cáo được kiểm tra xong.
+              Hồ sơ không công khai. Cách liên lạc chỉ mở sau khi hai người
+              cùng muốn chào.
             </span>
           </footer>
         </main>
