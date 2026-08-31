@@ -2,9 +2,9 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
-import { CHO_NEO_MATCHING_SITUATIONS } from "@/lib/cho-neo/matching";
+import { CHO_NEO_MATCHING_SITUATIONS, type ChoNeoDiscoveryScope } from "@/lib/cho-neo/matching";
 
-type MatchingProfile = { canShare: string; city: string; lookingFor: string; situation: string; status: "active" | "paused" };
+type MatchingProfile = { canShare: string; city: string; country: string; discoveryScope: ChoNeoDiscoveryScope; lookingFor: string; region: string; situation: string; status: "active" | "paused" };
 type GuidedAnswers = { connection: string; experience: string; workLife: string };
 type Introduction = {
   counterpart: { avatar_key: string | null; display_name: string; nail_role: string | null } | null;
@@ -16,7 +16,7 @@ type Introduction = {
   state: "closed" | "expired" | "mutual" | "pending" | "waiting";
 };
 
-const blankProfile: MatchingProfile = { canShare: "", city: "", lookingFor: "", situation: "", status: "active" };
+const blankProfile: MatchingProfile = { canShare: "", city: "", country: "", discoveryScope: "nearby", lookingFor: "", region: "", situation: "", status: "active" };
 const blankGuidedAnswers: GuidedAnswers = { connection: "", experience: "", workLife: "" };
 const interestChoices = ["Cà phê", "Du lịch", "Cây cối", "Âm nhạc", "Nấu ăn", "Đi bộ"];
 const connectionChoices = ["Trò chuyện", "Làm quen", "Gặp người cùng sở thích", "Tìm bạn đồng hành"];
@@ -96,6 +96,8 @@ export function TimBanTrongNghePanel() {
       const result = await callApi("POST", {
         action: "draft-profile",
         city: form.city,
+        country: form.country,
+        region: form.region,
         situation: form.situation,
         ...guidedAnswers,
         requestId: crypto.randomUUID(),
@@ -163,7 +165,16 @@ export function TimBanTrongNghePanel() {
       </div>}
 
       <form onSubmit={save}>
-        <label>📍 Bạn ở đâu?<input maxLength={60} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ví dụ: Calgary" required value={form.city} /></label>
+        <div className="tim-ban-location-grid">
+          <label>🌎 Quốc gia<input maxLength={80} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="Ví dụ: Canada" required value={form.country} /></label>
+          <label>Vùng · Tỉnh/Bang<input maxLength={80} onChange={(e) => setForm({ ...form, region: e.target.value })} placeholder="Ví dụ: Alberta" value={form.region} /></label>
+          <label>📍 Thành phố<input maxLength={60} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ví dụ: Calgary" required value={form.city} /></label>
+        </div>
+        <fieldset className="tim-ban-discovery"><legend>Bạn muốn khám phá bạn mới ở đâu?</legend>
+          <label><input checked={form.discoveryScope === "nearby"} name="discovery-scope" onChange={() => setForm({ ...form, discoveryScope: "nearby" })} type="radio" /> <span>📍 <b>Gần tôi</b><small>Cùng thành phố hoặc vùng</small></span></label>
+          <label><input checked={form.discoveryScope === "country"} name="discovery-scope" onChange={() => setForm({ ...form, discoveryScope: "country" })} type="radio" /> <span>🏳️ <b>Trong nước</b><small>Bất cứ đâu trong cùng quốc gia</small></span></label>
+          <label><input checked={form.discoveryScope === "worldwide"} name="discovery-scope" onChange={() => setForm({ ...form, discoveryScope: "worldwide" })} type="radio" /> <span>🌎 <b>Khắp nơi</b><small>Ngành nail khắp thế giới</small></span></label>
+        </fieldset>
         <label>💅 Bạn làm gì trong nghề?<select onChange={(e) => setForm({ ...form, situation: e.target.value })} required value={form.situation}><option value="">Chọn một điều</option>{CHO_NEO_MATCHING_SITUATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
         <section className="tim-ban-guide" aria-labelledby="tim-ban-guide-title">
           <div className="tim-ban-guide-heading">
@@ -182,10 +193,11 @@ export function TimBanTrongNghePanel() {
         <label>Một chút về bạn<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.canShare} /></label>
         {(form.lookingFor || form.canShare) && <section className="tim-ban-profile-preview" aria-label="Xem trước lời giới thiệu">
           <strong>🌿 {member.displayName}</strong>
-          {form.city && <span>📍 {form.city}</span>}
+          {(form.city || form.country) && <span>📍 {[form.city, form.country].filter(Boolean).join(", ")}</span>}
           {form.situation && <span>💅 {form.situation}</span>}
           {form.canShare && <div><b>Một chút về {member.displayName}</b><p>“{form.canShare}”</p></div>}
           {form.lookingFor && <div><b>Đến Chợ Neo để</b><p>{form.lookingFor}</p></div>}
+          <span>{form.discoveryScope === "worldwide" ? "🌎 Khắp nơi" : form.discoveryScope === "country" ? `🏳️ Trong ${form.country || "nước"}` : "📍 Gần tôi"}</span>
           <small>👋 Người khác chỉ có thể chào. Hai bên cùng chào nhau rồi mới mở kết nối.</small>
         </section>}
         <label className="tim-ban-consent"><input checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} type="checkbox" /> Tôi đồng ý để chủ quán dùng riêng các câu trả lời này để giới thiệu người phù hợp. Lời giới thiệu không xuất hiện trong danh bạ.</label>
