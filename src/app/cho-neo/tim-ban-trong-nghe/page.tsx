@@ -160,6 +160,7 @@ export default function TimBanTrongNghePreviewPage() {
           }
 
           .tim-ban-copy h1 {
+            /* Keep the room—not the headline—as the dominant visual. */
             max-width: 10ch;
             font-family: var(--cho-neo-font-display);
             font-size: clamp(2rem, 3.4vw, 3.25rem);
