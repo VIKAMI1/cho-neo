@@ -5,6 +5,7 @@ import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
 import { CHO_NEO_MATCHING_SITUATIONS } from "@/lib/cho-neo/matching";
 
 type MatchingProfile = { canShare: string; city: string; lookingFor: string; situation: string; status: "active" | "paused" };
+type GuidedAnswers = { connection: string; experience: string; workLife: string };
 type Introduction = {
   counterpart: { avatar_key: string | null; display_name: string; nail_role: string | null } | null;
   expiresAt: string;
@@ -16,6 +17,7 @@ type Introduction = {
 };
 
 const blankProfile: MatchingProfile = { canShare: "", city: "", lookingFor: "", situation: "", status: "active" };
+const blankGuidedAnswers: GuidedAnswers = { connection: "", experience: "", workLife: "" };
 
 export function TimBanTrongNgheStartButton() {
   const { ensureChoNeoMember, status } = useChoNeoMember();
@@ -44,6 +46,9 @@ export function TimBanTrongNghePanel() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(true);
+  const [guidedAnswers, setGuidedAnswers] = useState<GuidedAnswers>(blankGuidedAnswers);
+  const [drafting, setDrafting] = useState(false);
 
   const callApi = useCallback(async (method: "GET" | "POST", body?: Record<string, unknown>) => {
     const token = session?.access_token;
@@ -62,7 +67,10 @@ export function TimBanTrongNghePanel() {
     if (status !== "ready" || !session?.access_token) return;
     try {
       const result = await callApi("GET");
-      if (result.profile) setForm(result.profile);
+      if (result.profile) {
+        setForm(result.profile);
+        setGuideOpen(false);
+      }
       setIntroductions(result.introductions ?? []);
       setLoaded(true);
     } catch (error) {
@@ -71,6 +79,27 @@ export function TimBanTrongNghePanel() {
   }, [callApi, session?.access_token, status]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function draftProfile() {
+    setDrafting(true); setMessage("");
+    try {
+      const result = await callApi("POST", {
+        action: "draft-profile",
+        city: form.city,
+        situation: form.situation,
+        ...guidedAnswers,
+        requestId: crypto.randomUUID(),
+      });
+      if (!result.draft) throw new Error("Chợ Neo chưa viết được bản nháp.");
+      setForm({ ...form, ...result.draft });
+      setGuideOpen(false);
+      setMessage("Đây chỉ là bản nháp. Đọc lại, sửa cho đúng giọng của bạn rồi mới bật hồ sơ nha.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Chợ Neo chưa viết giúp được lúc này.");
+    } finally {
+      setDrafting(false);
+    }
+  }
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -126,8 +155,21 @@ export function TimBanTrongNghePanel() {
       <form onSubmit={save}>
         <label>Thành phố<input maxLength={60} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ví dụ: Calgary" required value={form.city} /></label>
         <label>Hoàn cảnh hiện tại<select onChange={(e) => setForm({ ...form, situation: e.target.value })} required value={form.situation}><option value="">Chọn một điều</option>{CHO_NEO_MATCHING_SITUATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label>Bạn đang cần gì ở một người bạn trong nghề?<textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} required value={form.lookingFor} /></label>
-        <label>Bạn có thể chia sẻ điều gì?<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} required value={form.canShare} /></label>
+        <section className="tim-ban-guide" aria-labelledby="tim-ban-guide-title">
+          <div className="tim-ban-guide-heading">
+            <div><p className="tim-ban-kicker">Chợ Neo giúp bạn viết</p><h3 id="tim-ban-guide-title">Kể Chợ Neo nghe một chút</h3></div>
+            <button className="quiet" onClick={() => setGuideOpen((open) => !open)} type="button">{guideOpen ? "Thu gọn" : "Kể thêm"}</button>
+          </div>
+          <p>Bạn không cần viết hay. Cứ kể thật bằng tiếng Việt, English hoặc Vietlish. Chợ Neo chỉ giúp sắp chữ—không tự bật hồ sơ.</p>
+          {guideOpen && <div className="tim-ban-guide-questions">
+            <label>Dạo này trong nghề, điều gì đang nằm trong đầu bạn?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, workLife: e.target.value })} placeholder="Ví dụ: Làm chủ tiệm nhiều khi vui nhưng cũng khá cô đơn…" value={guidedAnswers.workLife} /></label>
+            <label>Bạn mong gặp một người để cùng nói chuyện hoặc làm gì?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, connection: e.target.value })} placeholder="Ví dụ: Hiểu nhau, chia sẻ chuyện nghề và lâu lâu cười với nhau…" value={guidedAnswers.connection} /></label>
+            <label>Bạn đã trải qua điều gì và có thể chia sẻ lại?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, experience: e.target.value })} placeholder="Ví dụ: Kinh nghiệm làm thợ, mở tiệm, giữ khách hoặc chỉ đơn giản là biết lắng nghe…" value={guidedAnswers.experience} /></label>
+            <button disabled={drafting || busy} onClick={() => void draftProfile()} type="button">{drafting ? "Đang lắng nghe & viết…" : "Giúp tôi viết lời giới thiệu"}</button>
+          </div>}
+        </section>
+        <label>Bạn muốn tìm một người như thế nào?<textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.lookingFor} /></label>
+        <label>Bạn có thể mang điều gì vào tình bạn này?<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.canShare} /></label>
         <label className="tim-ban-consent"><input checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} type="checkbox" /> Tôi đồng ý để chủ quán dùng riêng bốn câu trả lời này để ghép bạn. Hồ sơ không xuất hiện trong danh bạ.</label>
         <div className="tim-ban-row"><button disabled={busy || !consentAccepted} type="submit">{busy ? "Đang lưu…" : loaded ? "Lưu & bật ghép bạn" : "Bật hồ sơ riêng"}</button>{loaded && <button className="quiet" disabled={busy} onClick={() => void callApi("POST", { action: "pause-profile" }).then(load)} type="button">Tạm dừng</button>}</div>
       </form>
