@@ -162,10 +162,10 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-copy h1 {
             max-width: 10ch;
             font-family: var(--cho-neo-font-display);
-            font-size: clamp(3rem, 6.5vw, 6rem);
+            font-size: clamp(2rem, 3.4vw, 3.25rem);
             font-weight: 500;
-            line-height: 0.9;
-            letter-spacing: -0.045em;
+            line-height: 0.96;
+            letter-spacing: -0.035em;
           }
 
           .tim-ban-promise {
@@ -317,7 +317,7 @@ export default function TimBanTrongNghePreviewPage() {
 
             .tim-ban-copy h1 {
               max-width: none;
-              font-size: clamp(3rem, 16vw, 4.8rem);
+              font-size: clamp(2rem, 9vw, 2.75rem);
             }
 
             .tim-ban-copy ul {
