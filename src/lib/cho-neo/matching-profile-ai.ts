@@ -102,8 +102,8 @@ export async function draftMatchingProfile(
               type: "object",
               additionalProperties: false,
               properties: {
-                lookingFor: { type: "string", maxLength: 240 },
-                canShare: { type: "string", maxLength: 240 },
+                lookingFor: { type: "string" },
+                canShare: { type: "string" },
               },
               required: ["lookingFor", "canShare"],
             },
@@ -113,7 +113,17 @@ export async function draftMatchingProfile(
       signal: AbortSignal.timeout(10_000),
     });
 
-    if (!response.ok) return { error: response.status === 429 ? "rate-limited" : "provider-error" } as const;
+    if (!response.ok) {
+      const providerError = await response.json().catch(() => null) as {
+        error?: { code?: unknown; type?: unknown };
+      } | null;
+      console.error("[cho-neo:matching-profile-ai]", {
+        code: typeof providerError?.error?.code === "string" ? providerError.error.code : null,
+        status: response.status,
+        type: typeof providerError?.error?.type === "string" ? providerError.error.type : null,
+      });
+      return { error: response.status === 429 ? "rate-limited" : "provider-error" } as const;
+    }
     const payload = await response.json().catch(() => null);
     const draft = safeDraft(payload);
     if (!draft) return { error: "invalid-draft" } as const;
