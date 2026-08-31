@@ -20,6 +20,9 @@ export const CHO_NEO_MATCHING_REPORT_REASONS = [
   "other",
 ] as const;
 
+export const CHO_NEO_DISCOVERY_SCOPES = ["nearby", "country", "worldwide"] as const;
+export type ChoNeoDiscoveryScope = (typeof CHO_NEO_DISCOVERY_SCOPES)[number];
+
 export type MatchingReportReason =
   (typeof CHO_NEO_MATCHING_REPORT_REASONS)[number];
 
@@ -30,18 +33,26 @@ export function cleanMatchingText(value: unknown, maxLength: number) {
 
 export function validateMatchingProfile(input: Record<string, unknown>) {
   const city = cleanMatchingText(input.city, 60);
+  const country = cleanMatchingText(input.country, 80);
+  const region = cleanMatchingText(input.region, 80);
+  const discoveryScope = cleanMatchingText(input.discoveryScope, 20);
   const situation = cleanMatchingText(input.situation, 80);
   const lookingFor = cleanMatchingText(input.lookingFor, 240);
   const canShare = cleanMatchingText(input.canShare, 240);
 
   if (city.length < 2) return { error: "Cho Chợ Neo biết thành phố của bạn nha." } as const;
+  if (country.length < 2) return { error: "Cho Chợ Neo biết quốc gia của bạn nha." } as const;
+  if (region.length === 1) return { error: "Tên tỉnh, bang hoặc vùng cần ít nhất hai ký tự nha." } as const;
+  if (!CHO_NEO_DISCOVERY_SCOPES.includes(discoveryScope as ChoNeoDiscoveryScope)) {
+    return { error: "Chọn nơi bạn muốn khám phá bạn mới nha." } as const;
+  }
   if (!CHO_NEO_MATCHING_SITUATIONS.includes(situation as never)) {
     return { error: "Chọn hoàn cảnh gần với bạn nhất nha." } as const;
   }
   if (lookingFor.length < 2) return { error: "Bạn đang cần một người bạn để nói chuyện gì?" } as const;
   if (canShare.length < 2) return { error: "Bạn có thể chia sẻ điều gì với người kia?" } as const;
 
-  return { canShare, city, lookingFor, situation } as const;
+  return { canShare, city, country, discoveryScope, lookingFor, region, situation } as const;
 }
 
 export function isMatchingReportReason(value: unknown): value is MatchingReportReason {
