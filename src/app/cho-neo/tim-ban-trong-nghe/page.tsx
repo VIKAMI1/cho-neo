@@ -69,7 +69,7 @@ export default function TimBanTrongNghePreviewPage() {
             <strong>Chuyện nghề, chuyện đời, chuyện mình.</strong>
             <span>
               Chợ chưa nhận hồ sơ ghép bạn cho đến khi quyền riêng tư và chặn
-              báo cáo được kiểm tra xong.
+              báo cáo được kiểm tra xong.
             </span>
           </footer>
         </main>
@@ -330,7 +330,7 @@ export default function TimBanTrongNghePreviewPage() {
           }
 
           .tim-ban-preview footer span {
-            max-width: 36rem;
+            max-width: 44rem;
             text-align: right;
           }
 
