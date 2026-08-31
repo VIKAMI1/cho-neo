@@ -11,6 +11,7 @@ import {
 } from "@/lib/cho-neo/matching";
 import { createMatchingServiceClient, getMatchingUser, isUuid } from "@/lib/cho-neo/matching-server";
 import { CHO_NEO_MEMBER_PROFILE_TABLE } from "@/lib/cho-neo/member-identity";
+import { draftMatchingProfile } from "@/lib/cho-neo/matching-profile-ai";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -62,6 +63,30 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body) return badRequest("Yêu cầu chưa đầy đủ.");
   const { supabase, userId } = context;
+
+  if (body.action === "draft-profile") {
+    if (!isUuid(body.requestId)) return badRequest("Yêu cầu viết hồ sơ chưa hợp lệ.");
+    const city = cleanMatchingText(body.city, 60);
+    const situation = cleanMatchingText(body.situation, 80);
+    const workLife = cleanMatchingText(body.workLife, 320);
+    const connection = cleanMatchingText(body.connection, 320);
+    const experience = cleanMatchingText(body.experience, 320);
+    if (!city || !situation) return badRequest("Chọn thành phố và hoàn cảnh hiện tại trước nha.");
+    if ([workLife, connection, experience].filter((answer) => answer.length >= 2).length < 2) {
+      return badRequest("Kể Chợ Neo nghe ít nhất hai điều để lời giới thiệu thật sự giống bạn.");
+    }
+    const result = await draftMatchingProfile(
+      { city, connection, experience, situation, workLife },
+      userId,
+      supabase,
+      String(body.requestId),
+    );
+    if ("error" in result) {
+      console.error("[cho-neo:matching-profile-draft]", { reason: result.error });
+      return NextResponse.json({ error: "Chợ Neo chưa viết giúp được lúc này. Bạn vẫn có thể tự viết hoặc thử lại sau nha." }, { status: 503 });
+    }
+    return NextResponse.json({ draft: result.draft }, { headers: { "Cache-Control": "no-store" } });
+  }
 
   if (body.action === "save-profile") {
     const profile = validateMatchingProfile(body);
