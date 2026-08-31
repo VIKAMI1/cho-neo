@@ -11,6 +11,7 @@ import { cleanMatchingText } from "./matching";
 
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/responses";
 const MODEL = "gpt-5.6-luna";
+const ROLLBACK_MODEL = "gpt-4.1-mini";
 const MAX_OUTPUT_TOKENS = 360;
 
 export type MatchingProfileDraft = {
@@ -72,15 +73,15 @@ export async function draftMatchingProfile(
     }
     reservationId = reservation.reservation_id;
 
-    const response = await fetch(OPENAI_ENDPOINT, {
+    const requestDraft = (model: string) => fetch(OPENAI_ENDPOINT, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL,
-        reasoning: { effort: "low" },
+        model,
+        ...(model === MODEL ? { reasoning: { effort: "low" } } : {}),
         max_output_tokens: MAX_OUTPUT_TOKENS,
         instructions: [
           "Bạn giúp một người Việt trong nghề nail diễn đạt hồ sơ tìm bạn đồng nghiệp.",
@@ -113,6 +114,7 @@ export async function draftMatchingProfile(
       signal: AbortSignal.timeout(10_000),
     });
 
+    let response = await requestDraft(MODEL);
     if (!response.ok) {
       const providerError = await response.json().catch(() => null) as {
         error?: { code?: unknown; type?: unknown };
@@ -122,7 +124,13 @@ export async function draftMatchingProfile(
         status: response.status,
         type: typeof providerError?.error?.type === "string" ? providerError.error.type : null,
       });
-      return { error: response.status === 429 ? "rate-limited" : "provider-error" } as const;
+      if ([400, 403, 404].includes(response.status)) {
+        response = await requestDraft(ROLLBACK_MODEL);
+      }
+      if (!response.ok) {
+        console.error("[cho-neo:matching-profile-ai-rollback]", { status: response.status });
+        return { error: response.status === 429 ? "rate-limited" : "provider-error" } as const;
+      }
     }
     const payload = await response.json().catch(() => null);
     const draft = safeDraft(payload);
