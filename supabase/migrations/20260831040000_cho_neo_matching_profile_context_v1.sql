@@ -23,7 +23,7 @@ alter table public.cho_neo_matching_profiles
     )),
   add constraint cho_neo_matching_profiles_languages
     check (
-      cardinality(languages) between 1 and 4
+      cardinality(languages) between 0 and 4
       and languages <@ array['Việt', 'English', 'Vietlish', 'Español', 'Khác']::text[]
     );
 
