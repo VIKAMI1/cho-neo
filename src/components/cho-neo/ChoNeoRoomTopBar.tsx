@@ -114,7 +114,8 @@ export function ChoNeoRoomTopBar({
           min-height: 38px;
           display: inline-flex;
           align-items: center;
-          border-radius: 999px;
+          border: 1px solid rgba(248, 211, 145, 0.24);
+          border-radius: 10px;
           padding: 8px 12px;
           color: rgba(255, 247, 237, 0.76);
           font-size: 12px;
@@ -257,6 +258,11 @@ export function ChoNeoRoomTopBar({
           color: rgba(101, 49, 41, 0.62);
         }
 
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__navigation :global(a) {
+          border-color: rgba(101, 49, 41, 0.18);
+          background: rgba(255, 255, 255, 0.52);
+        }
+
         .cho-neo-room-top-bar--light .cho-neo-room-top-bar__music :global(.cho-neo-theme-audio) {
           border: 1px solid rgba(101, 49, 41, 0.18);
           background: rgba(255, 255, 255, 0.52);
@@ -274,10 +280,12 @@ export function ChoNeoRoomTopBar({
         }
 
         .cho-neo-room-top-bar :global(.cho-neo-feedback-button) {
-          min-width: 0;
+          min-width: 64px;
+          height: 44px;
           min-height: 44px;
           margin: 0;
           cursor: pointer;
+          white-space: nowrap;
         }
 
         .cho-neo-room-top-bar :global(.cho-neo-feedback-button)::before {
