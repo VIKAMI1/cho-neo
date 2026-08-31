@@ -12,6 +12,7 @@ type ChoNeoRoomTopBarProps = {
   memberProfile?: ChoNeoMemberProfile | null;
   navigation?: ReactNode;
   onMemberClick?: () => void;
+  tone?: "dark" | "light";
 };
 
 export function ChoNeoRoomTopBar({
@@ -20,11 +21,12 @@ export function ChoNeoRoomTopBar({
   memberProfile,
   navigation,
   onMemberClick,
+  tone = "dark",
 }: ChoNeoRoomTopBarProps) {
   const verifiedMember = isVerifiedChoNeoMemberProfile(memberProfile) ? memberProfile : null;
 
   return (
-    <div className="cho-neo-room-top-bar" aria-label={ariaLabel}>
+    <div className={`cho-neo-room-top-bar cho-neo-room-top-bar--${tone}`} aria-label={ariaLabel}>
       <Link className="cho-neo-room-top-bar__back" href="/cho-neo">
         <span aria-hidden="true">←</span>
         <span>Sân Làng</span>
@@ -230,6 +232,34 @@ export function ChoNeoRoomTopBar({
         .cho-neo-room-top-bar__music :global(.theme-audio-controls) {
           width: 100%;
           height: 100%;
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__back,
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__member,
+        .cho-neo-room-top-bar--light :global(.cho-neo-feedback-button) {
+          border-color: rgba(101, 49, 41, 0.18);
+          color: #653129;
+          background: rgba(255, 255, 255, 0.52);
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__member strong,
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__navigation :global(a),
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__navigation :global(span) {
+          color: #653129;
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__navigation :global([aria-current="page"]) {
+          color: #fff8ea;
+          background: #713225;
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__member-copy small {
+          color: rgba(101, 49, 41, 0.62);
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__music :global(.cho-neo-theme-audio) {
+          border: 1px solid rgba(101, 49, 41, 0.18);
+          background: rgba(255, 255, 255, 0.52);
         }
 
         .cho-neo-room-top-bar__music :global(.theme-music-toggle) {
