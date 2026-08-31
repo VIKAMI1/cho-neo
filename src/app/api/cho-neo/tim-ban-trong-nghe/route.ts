@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import {
+  CHO_NEO_CONTACT_HANDOFF_TABLE,
+  CHO_NEO_CONTACT_METHODS,
   CHO_NEO_INTRODUCTION_TABLE,
   CHO_NEO_MATCHING_BLOCK_TABLE,
   CHO_NEO_MATCHING_CONSENT_VERSION,
@@ -34,11 +36,22 @@ export async function GET(request: Request) {
     const counterpartId = isMemberA ? intro.member_b_user_id : intro.member_a_user_id;
     const isMutual = myDecision === "accepted" && theirDecision === "accepted";
     let counterpart = null;
+    let contactHandoff = { mine: null as { method: string; value: string } | null, theirs: null as { method: string; value: string } | null };
     if (isMutual) {
       const { data } = await supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("display_name, avatar_key, nail_role").eq("user_id", counterpartId).maybeSingle();
       counterpart = data ?? null;
+      const { data: contacts } = await supabase
+        .from(CHO_NEO_CONTACT_HANDOFF_TABLE)
+        .select("user_id, method, contact_value")
+        .eq("introduction_id", intro.id);
+      for (const contact of contacts ?? []) {
+        const value = { method: contact.method, value: contact.contact_value };
+        if (contact.user_id === userId) contactHandoff.mine = value;
+        if (contact.user_id === counterpartId) contactHandoff.theirs = value;
+      }
     }
     return {
+      contactHandoff,
       counterpart,
       createdAt: intro.created_at,
       expiresAt: intro.expires_at,
@@ -117,6 +130,39 @@ export async function POST(request: Request) {
     const opened = decision === "accepted" && intro[other] === "accepted";
     const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [mine]: decision, ...(opened ? { opened_at: new Date().toISOString() } : {}), updated_at: new Date().toISOString() }).eq("id", body.introductionId).eq(mine === "member_a_decision" ? "member_a_user_id" : "member_b_user_id", userId);
     return error ? unavailable("decision-save-failed") : NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "share-contact" || body.action === "remove-contact") {
+    if (!isUuid(body.introductionId)) return badRequest("Lời giới thiệu chưa hợp lệ.");
+    const { data: intro, error: introError } = await supabase
+      .from(CHO_NEO_INTRODUCTION_TABLE)
+      .select("member_a_user_id, member_b_user_id, member_a_decision, member_b_decision, expires_at")
+      .eq("id", body.introductionId)
+      .maybeSingle();
+    if (introError || !intro || ![intro.member_a_user_id, intro.member_b_user_id].includes(userId)) {
+      return NextResponse.json({ error: "Lời giới thiệu không còn ở đây." }, { status: 404 });
+    }
+    const mutual = intro.member_a_decision === "accepted" && intro.member_b_decision === "accepted";
+    if (!mutual || new Date(intro.expires_at).getTime() <= Date.now()) {
+      return badRequest("Hai người cần cùng chào nhau trước khi chia sẻ liên lạc.");
+    }
+    if (body.action === "remove-contact") {
+      const { error } = await supabase.from(CHO_NEO_CONTACT_HANDOFF_TABLE).delete().eq("introduction_id", body.introductionId).eq("user_id", userId);
+      return error ? unavailable("contact-remove-failed") : NextResponse.json({ ok: true });
+    }
+    const method = cleanMatchingText(body.method, 20);
+    const contactValue = cleanMatchingText(body.contactValue, 180);
+    if (!CHO_NEO_CONTACT_METHODS.includes(method as never) || contactValue.length < 3) {
+      return badRequest("Chọn cách liên lạc và nhập tên hoặc đường dẫn hợp lệ nha.");
+    }
+    const { error } = await supabase.from(CHO_NEO_CONTACT_HANDOFF_TABLE).upsert({
+      contact_value: contactValue,
+      introduction_id: body.introductionId,
+      method,
+      updated_at: new Date().toISOString(),
+      user_id: userId,
+    }, { onConflict: "introduction_id,user_id" });
+    return error ? unavailable("contact-share-failed") : NextResponse.json({ ok: true });
   }
 
   if (body.action === "block" || body.action === "report") {
