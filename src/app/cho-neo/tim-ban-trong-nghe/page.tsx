@@ -33,6 +33,7 @@ export default function TimBanTrongNghePreviewPage() {
             onMemberClick={() => {
               void ensureChoNeoMember(async () => undefined);
             }}
+            tone="light"
           />
 
           <section className="tim-ban-hero" aria-labelledby="tim-ban-title">
@@ -101,19 +102,15 @@ export default function TimBanTrongNghePreviewPage() {
 
           .tim-ban-hero {
             width: min(1120px, 100%);
-            display: grid;
-            grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
-            gap: clamp(24px, 5vw, 64px);
-            align-items: center;
-            margin: clamp(24px, 5vh, 60px) auto 0;
+            margin: 18px auto 0;
           }
 
           .tim-ban-artwork {
             position: relative;
-            min-height: clamp(360px, 56vw, 620px);
+            height: clamp(300px, 36vw, 460px);
             overflow: hidden;
             border: 1px solid rgba(112, 57, 39, 0.16);
-            border-radius: 28px 28px 90px 28px;
+            border-radius: 28px 28px 0 0;
             background: #351416;
             box-shadow: 0 30px 70px rgba(84, 35, 29, 0.18);
           }
@@ -127,6 +124,7 @@ export default function TimBanTrongNghePreviewPage() {
 
           .tim-ban-artwork img {
             object-fit: cover;
+            object-position: center 48%;
           }
 
           .tim-ban-artwork span {
@@ -143,7 +141,29 @@ export default function TimBanTrongNghePreviewPage() {
 
           .tim-ban-copy {
             display: grid;
-            gap: 18px;
+            grid-template-columns: minmax(220px, 0.78fr) minmax(0, 1.22fr);
+            gap: 12px clamp(24px, 5vw, 58px);
+            border: 1px solid rgba(112, 57, 39, 0.14);
+            border-top: 0;
+            border-radius: 0 0 24px 24px;
+            padding: clamp(20px, 3vw, 30px);
+            background: rgba(255, 253, 248, 0.7);
+          }
+
+          .tim-ban-copy .tim-ban-kicker {
+            grid-column: 1;
+            grid-row: 1;
+          }
+
+          .tim-ban-copy h1 {
+            grid-column: 1;
+            grid-row: 2 / span 3;
+          }
+
+          .tim-ban-copy .tim-ban-promise,
+          .tim-ban-copy .tim-ban-boundary,
+          .tim-ban-copy .tim-ban-actions {
+            grid-column: 2;
           }
           .tim-ban-copy p,
           .tim-ban-copy h1 {
@@ -231,10 +251,10 @@ export default function TimBanTrongNghePreviewPage() {
           }
 
           .tim-ban-panel {
-            width: min(680px, 100%);
+            width: min(980px, 100%);
             display: grid;
             gap: 16px;
-            margin: 44px auto 0;
+            margin: 26px auto 0;
             border: 1px solid rgba(112, 57, 39, 0.16);
             border-radius: 22px;
             padding: clamp(18px, 3vw, 26px);
@@ -247,7 +267,14 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-panel-heading > span { border-radius: 999px; padding: 7px 10px; color: #7b4b3f; background: #f6ead7; font-size: .76rem; white-space: nowrap; }
           .tim-ban-locked { text-align: center; justify-items: center; }
           .tim-ban-locked p { max-width: 38rem; line-height: 1.65; color: var(--tim-ban-muted); }
-          .tim-ban-panel form { display: grid; gap: 13px; }
+          .tim-ban-panel form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+          .tim-ban-panel form > .tim-ban-location-grid,
+          .tim-ban-panel form > .tim-ban-discovery,
+          .tim-ban-panel form > .tim-ban-guide,
+          .tim-ban-panel form > .tim-ban-profile-preview,
+          .tim-ban-panel form > .tim-ban-consent,
+          .tim-ban-panel form > .tim-ban-row { grid-column: 1 / -1; }
+          .tim-ban-panel form > label:has(select) { grid-column: 1 / -1; }
           .tim-ban-location-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
           .tim-ban-discovery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 0; border: 0; padding: 0; }
           .tim-ban-discovery legend { grid-column: 1 / -1; margin-bottom: 2px; color: #653129; font-size: .88rem; font-weight: 650; }
@@ -307,13 +334,27 @@ export default function TimBanTrongNghePreviewPage() {
             }
 
             .tim-ban-hero {
-              grid-template-columns: 1fr;
-              margin-top: 18px;
+              margin-top: 12px;
             }
 
             .tim-ban-artwork {
-              min-height: min(112vw, 470px);
-              border-radius: 22px 22px 58px 22px;
+              height: min(82vw, 390px);
+              border-radius: 22px 22px 0 0;
+            }
+
+            .tim-ban-copy {
+              grid-template-columns: 1fr;
+              border-radius: 0 0 20px 20px;
+              padding: 18px;
+            }
+
+            .tim-ban-copy .tim-ban-kicker,
+            .tim-ban-copy h1,
+            .tim-ban-copy .tim-ban-promise,
+            .tim-ban-copy .tim-ban-boundary,
+            .tim-ban-copy .tim-ban-actions {
+              grid-column: 1;
+              grid-row: auto;
             }
 
             .tim-ban-copy h1 {
@@ -331,8 +372,14 @@ export default function TimBanTrongNghePreviewPage() {
               padding: 18px;
             }
 
-            .tim-ban-location-grid, .tim-ban-discovery {
+            .tim-ban-panel form,
+            .tim-ban-location-grid,
+            .tim-ban-discovery {
               grid-template-columns: 1fr;
+            }
+
+            .tim-ban-panel form > * {
+              grid-column: 1 / -1;
             }
 
             .tim-ban-preview footer {
