@@ -17,6 +17,25 @@ type Introduction = {
 
 const blankProfile: MatchingProfile = { canShare: "", city: "", lookingFor: "", situation: "", status: "active" };
 
+export function TimBanTrongNgheStartButton() {
+  const { ensureChoNeoMember, status } = useChoNeoMember();
+
+  async function start() {
+    await ensureChoNeoMember(() => {
+      document.getElementById("tim-ban-private-title")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  return (
+    <button disabled={status === "checking"} onClick={() => void start()} type="button">
+      {status === "checking" ? "Đang mở bàn…" : "Bắt đầu tìm bạn"}
+    </button>
+  );
+}
+
 export function TimBanTrongNghePanel() {
   const { ensureChoNeoMember, profile: member, session, status } = useChoNeoMember();
   const [form, setForm] = useState<MatchingProfile>(blankProfile);
