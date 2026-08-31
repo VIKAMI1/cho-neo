@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const { supabase, userId } = context;
 
   const [{ data: profile, error: profileError }, { data: introductions, error: introError }] = await Promise.all([
-    supabase.from(CHO_NEO_MATCHING_PROFILE_TABLE).select("city, situation, looking_for, can_share, status, consent_version, updated_at").eq("user_id", userId).maybeSingle(),
+    supabase.from(CHO_NEO_MATCHING_PROFILE_TABLE).select("city, country, region, discovery_scope, situation, looking_for, can_share, status, consent_version, updated_at").eq("user_id", userId).maybeSingle(),
     supabase.from(CHO_NEO_INTRODUCTION_TABLE).select("id, member_a_user_id, member_b_user_id, member_a_decision, member_b_decision, match_note, icebreaker, expires_at, opened_at, created_at").or(`member_a_user_id.eq.${userId},member_b_user_id.eq.${userId}`).order("created_at", { ascending: false }).limit(10),
   ]);
   if (profileError || introError) return unavailable("matching-read-failed");
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     introductions: publicIntroductions,
-    profile: profile ? { canShare: profile.can_share, city: profile.city, consentVersion: profile.consent_version, lookingFor: profile.looking_for, situation: profile.situation, status: profile.status, updatedAt: profile.updated_at } : null,
+    profile: profile ? { canShare: profile.can_share, city: profile.city, country: profile.country ?? "", discoveryScope: profile.discovery_scope ?? "nearby", consentVersion: profile.consent_version, lookingFor: profile.looking_for, region: profile.region ?? "", situation: profile.situation, status: profile.status, updatedAt: profile.updated_at } : null,
   }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -67,16 +67,18 @@ export async function POST(request: Request) {
   if (body.action === "draft-profile") {
     if (!isUuid(body.requestId)) return badRequest("Yêu cầu viết hồ sơ chưa hợp lệ.");
     const city = cleanMatchingText(body.city, 60);
+    const country = cleanMatchingText(body.country, 80);
+    const region = cleanMatchingText(body.region, 80);
     const situation = cleanMatchingText(body.situation, 80);
     const workLife = cleanMatchingText(body.workLife, 320);
     const connection = cleanMatchingText(body.connection, 320);
     const experience = cleanMatchingText(body.experience, 320);
-    if (!city || !situation) return badRequest("Chọn thành phố và hoàn cảnh hiện tại trước nha.");
+    if (!city || !country || !situation) return badRequest("Chọn thành phố, quốc gia và công việc hiện tại trước nha.");
     if ([workLife, connection, experience].filter((answer) => answer.length >= 2).length < 2) {
       return badRequest("Kể Chợ Neo nghe ít nhất hai điều để lời giới thiệu thật sự giống bạn.");
     }
     const result = await draftMatchingProfile(
-      { city, connection, experience, situation, workLife },
+      { city, connection, country, experience, region, situation, workLife },
       userId,
       supabase,
       String(body.requestId),
@@ -93,8 +95,8 @@ export async function POST(request: Request) {
     if ("error" in profile) return badRequest(profile.error);
     if (body.consentAccepted !== true) return badRequest("Bạn cần đồng ý trước khi bật ghép bạn.");
     const { error } = await supabase.from(CHO_NEO_MATCHING_PROFILE_TABLE).upsert({
-      can_share: profile.canShare, city: profile.city, consent_accepted_at: new Date().toISOString(), consent_version: CHO_NEO_MATCHING_CONSENT_VERSION,
-      looking_for: profile.lookingFor, situation: profile.situation, status: "active", updated_at: new Date().toISOString(), user_id: userId,
+      can_share: profile.canShare, city: profile.city, country: profile.country, discovery_scope: profile.discoveryScope, consent_accepted_at: new Date().toISOString(), consent_version: CHO_NEO_MATCHING_CONSENT_VERSION,
+      looking_for: profile.lookingFor, region: profile.region || null, situation: profile.situation, status: "active", updated_at: new Date().toISOString(), user_id: userId,
     }, { onConflict: "user_id" });
     return error ? unavailable("profile-save-failed") : NextResponse.json({ ok: true });
   }
