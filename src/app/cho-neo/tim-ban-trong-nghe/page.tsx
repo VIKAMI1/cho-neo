@@ -5,7 +5,10 @@ import Link from "next/link";
 import { ChoNeoRoomShell } from "@/components/cho-neo/ChoNeoRoomShell";
 import { ChoNeoRoomTopBar } from "@/components/cho-neo/ChoNeoRoomTopBar";
 import { ChoNeoTimeAmbience } from "@/components/cho-neo/ChoNeoTimeAmbience";
-import { TimBanTrongNghePanel } from "@/components/cho-neo/TimBanTrongNghePanel";
+import {
+  TimBanTrongNghePanel,
+  TimBanTrongNgheStartButton,
+} from "@/components/cho-neo/TimBanTrongNghePanel";
 
 const matchingSignals = [
   "Cùng thành phố",
@@ -53,7 +56,7 @@ export default function TimBanTrongNghePreviewPage() {
               </ul>
 
               <div className="tim-ban-actions">
-                <Link href="#tim-ban-private-title">Mở bàn Tìm Bạn Trong Nghề</Link>
+                <TimBanTrongNgheStartButton />
                 <Link className="secondary" href="/cho-neo/hoi-cho-neo">
                   Hỏi một chuyện trong nghề
                 </Link>
@@ -205,7 +208,8 @@ export default function TimBanTrongNghePreviewPage() {
             margin-top: 4px;
           }
 
-          .tim-ban-actions a {
+          .tim-ban-actions a,
+          .tim-ban-actions button {
             min-height: 46px;
             display: inline-flex;
             align-items: center;
@@ -218,6 +222,18 @@ export default function TimBanTrongNghePreviewPage() {
             font-size: 0.9rem;
             font-weight: 600;
             text-decoration: none;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+          }
+
+          .tim-ban-actions button {
+            cursor: pointer;
+          }
+
+          .tim-ban-actions button:disabled {
+            cursor: wait;
+            opacity: 0.65;
           }
 
           .tim-ban-actions a.secondary {
@@ -239,26 +255,26 @@ export default function TimBanTrongNghePreviewPage() {
           }
 
           .tim-ban-panel {
-            width: min(820px, 100%);
+            width: min(680px, 100%);
             display: grid;
-            gap: 22px;
-            margin: 64px auto 0;
+            gap: 16px;
+            margin: 44px auto 0;
             border: 1px solid rgba(112, 57, 39, 0.16);
-            border-radius: 26px;
-            padding: clamp(20px, 4vw, 38px);
+            border-radius: 22px;
+            padding: clamp(18px, 3vw, 26px);
             background: rgba(255, 255, 255, 0.58);
             box-shadow: 0 22px 60px rgba(84, 35, 29, 0.1);
           }
           .tim-ban-panel h2, .tim-ban-panel h3, .tim-ban-panel p { margin: 0; }
-          .tim-ban-panel h2 { font-family: var(--cho-neo-font-display); font-size: clamp(1.8rem, 4vw, 2.7rem); font-weight: 500; }
+          .tim-ban-panel h2 { font-family: var(--cho-neo-font-display); font-size: clamp(1.65rem, 3.2vw, 2.25rem); font-weight: 500; }
           .tim-ban-panel-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
           .tim-ban-panel-heading > span { border-radius: 999px; padding: 7px 10px; color: #7b4b3f; background: #f6ead7; font-size: .76rem; white-space: nowrap; }
           .tim-ban-locked { text-align: center; justify-items: center; }
           .tim-ban-locked p { max-width: 38rem; line-height: 1.65; color: var(--tim-ban-muted); }
-          .tim-ban-panel form { display: grid; gap: 16px; }
+          .tim-ban-panel form { display: grid; gap: 13px; }
           .tim-ban-panel label { display: grid; gap: 7px; color: #653129; font-size: .88rem; font-weight: 600; }
           .tim-ban-panel input, .tim-ban-panel select, .tim-ban-panel textarea { width: 100%; border: 1px solid rgba(112,57,39,.2); border-radius: 12px; padding: 12px 13px; color: #54231d; background: #fffdf8; font: inherit; }
-          .tim-ban-panel textarea { min-height: 88px; resize: vertical; }
+          .tim-ban-panel textarea { min-height: 72px; resize: vertical; }
           .tim-ban-panel .tim-ban-consent { grid-template-columns: 20px 1fr; align-items: start; color: var(--tim-ban-muted); font-weight: 400; line-height: 1.5; }
           .tim-ban-panel .tim-ban-consent input { width: 18px; margin-top: 2px; }
           .tim-ban-panel button { min-height: 44px; border: 1px solid #713225; border-radius: 999px; padding: 10px 17px; color: #fff9ed; background: #713225; font-weight: 650; cursor: pointer; }
@@ -310,6 +326,12 @@ export default function TimBanTrongNghePreviewPage() {
 
             .tim-ban-actions {
               display: grid;
+            }
+
+            .tim-ban-panel {
+              margin-top: 32px;
+              border-radius: 18px;
+              padding: 18px;
             }
 
             .tim-ban-preview footer {
