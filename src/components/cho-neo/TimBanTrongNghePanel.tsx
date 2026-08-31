@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useChoNeoMember } from "@/components/cho-neo/ChoNeoMemberProvider";
 import {
+  CHO_NEO_CONTACT_METHODS,
   CHO_NEO_MATCHING_AGE_RANGES,
   CHO_NEO_MATCHING_EXPERIENCE_RANGES,
   CHO_NEO_MATCHING_GENDERS,
@@ -13,7 +14,9 @@ import {
 
 type MatchingProfile = { ageRange: string; canShare: string; city: string; country: string; discoveryScope: ChoNeoDiscoveryScope; experienceRange: string; funLine: string; gender: string; interests: string; languages: string[]; lookingFor: string; region: string; situation: string; status: "active" | "paused" };
 type GuidedAnswers = { connection: string; experience: string; workLife: string };
+type ContactDraft = { contactValue: string; method: string };
 type Introduction = {
+  contactHandoff: { mine: { method: string; value: string } | null; theirs: { method: string; value: string } | null };
   counterpart: { avatar_key: string | null; display_name: string; nail_role: string | null } | null;
   expiresAt: string;
   icebreaker: string | null;
@@ -59,6 +62,7 @@ export function TimBanTrongNghePanel() {
   const [guideOpen, setGuideOpen] = useState(true);
   const [guidedAnswers, setGuidedAnswers] = useState<GuidedAnswers>(blankGuidedAnswers);
   const [drafting, setDrafting] = useState(false);
+  const [contactDrafts, setContactDrafts] = useState<Record<string, ContactDraft>>({});
 
   function toggleLanguage(language: string) {
     setForm((current) => ({
@@ -151,6 +155,22 @@ export function TimBanTrongNghePanel() {
     finally { setBusy(false); }
   }
 
+  async function handoff(action: "share-contact" | "remove-contact", introductionId: string) {
+    const draft = contactDrafts[introductionId] ?? { contactValue: "", method: "Facebook" };
+    setBusy(true); setMessage("");
+    try {
+      await callApi("POST", { action, introductionId, ...draft });
+      setMessage(action === "share-contact"
+        ? "Đã chia sẻ cách liên lạc này riêng với người bạn vừa chào."
+        : "Đã thu lại cách liên lạc của bạn.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Chưa cập nhật được cách liên lạc.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (status !== "ready" || !member) {
     return (
       <section className="tim-ban-panel tim-ban-locked" aria-labelledby="tim-ban-private-title">
@@ -176,7 +196,18 @@ export function TimBanTrongNghePanel() {
           <p>{intro.matchNote}</p>
           {intro.icebreaker && <blockquote>“{intro.icebreaker}”</blockquote>}
           {intro.state === "pending" && <div className="tim-ban-row"><button disabled={busy} onClick={() => void act("decide", intro.id, { decision: "accepted" })} type="button">👋 Chào {intro.counterpart?.display_name ?? "bạn"}</button><button className="quiet" disabled={busy} onClick={() => void act("decide", intro.id, { decision: "passed" })} type="button">Để lần khác</button></div>}
-          {intro.state === "mutual" && <div className="tim-ban-row"><button className="quiet" disabled={busy} onClick={() => void act("block", intro.id)} type="button">Chặn</button><button className="danger" disabled={busy} onClick={() => void act("report", intro.id, { reason: "other" })} type="button">Chặn & báo cáo</button></div>}
+          {intro.state === "mutual" && <section className="tim-ban-handoff" aria-label="Chuyển cuộc trò chuyện ra ngoài Chợ Neo">
+            <h4>Hai người đã muốn làm quen</h4>
+            <p>Chợ Neo chỉ mở lời giới thiệu. Chọn một cách liên lạc bạn tự nguyện chia sẻ; cuộc trò chuyện tiếp theo sẽ diễn ra bên ngoài Chợ Neo.</p>
+            {intro.contactHandoff.theirs && <div className="tim-ban-contact-card"><small>{intro.counterpart?.display_name ?? "Người kia"} đã chia sẻ</small><strong>{intro.contactHandoff.theirs.method}</strong><span>{intro.contactHandoff.theirs.value}</span></div>}
+            {intro.contactHandoff.mine ? <div className="tim-ban-row"><span className="tim-ban-my-contact">Bạn đang chia sẻ: <b>{intro.contactHandoff.mine.method}</b> · {intro.contactHandoff.mine.value}</span><button className="quiet" disabled={busy} onClick={() => void handoff("remove-contact", intro.id)} type="button">Thu lại</button></div> : <div className="tim-ban-contact-form">
+              <select aria-label="Cách liên lạc" onChange={(e) => setContactDrafts({ ...contactDrafts, [intro.id]: { ...(contactDrafts[intro.id] ?? { contactValue: "" }), method: e.target.value } })} value={contactDrafts[intro.id]?.method ?? "Facebook"}>{CHO_NEO_CONTACT_METHODS.map((method) => <option key={method}>{method}</option>)}</select>
+              <input aria-label="Tên tài khoản hoặc đường dẫn" maxLength={180} onChange={(e) => setContactDrafts({ ...contactDrafts, [intro.id]: { ...(contactDrafts[intro.id] ?? { method: "Facebook" }), contactValue: e.target.value } })} placeholder="Tên tài khoản hoặc đường dẫn hồ sơ" value={contactDrafts[intro.id]?.contactValue ?? ""} />
+              <button disabled={busy || (contactDrafts[intro.id]?.contactValue.trim().length ?? 0) < 3} onClick={() => void handoff("share-contact", intro.id)} type="button">Chia sẻ riêng</button>
+            </div>}
+            <small>Không gửi tiền, giấy tờ hoặc thông tin nhạy cảm cho người bạn chưa tin cậy.</small>
+            <div className="tim-ban-row"><button className="quiet" disabled={busy} onClick={() => void act("block", intro.id)} type="button">Chặn</button><button className="danger" disabled={busy} onClick={() => void act("report", intro.id, { reason: "other" })} type="button">Chặn & báo cáo</button></div>
+          </section>}
         </article>)}
       </div>}
 
