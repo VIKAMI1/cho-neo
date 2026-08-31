@@ -273,6 +273,13 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-locked { text-align: center; justify-items: center; }
           .tim-ban-locked p { max-width: 38rem; line-height: 1.65; color: var(--tim-ban-muted); }
           .tim-ban-panel form { display: grid; gap: 13px; }
+          .tim-ban-location-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+          .tim-ban-discovery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 0; border: 0; padding: 0; }
+          .tim-ban-discovery legend { grid-column: 1 / -1; margin-bottom: 2px; color: #653129; font-size: .88rem; font-weight: 650; }
+          .tim-ban-panel .tim-ban-discovery label { grid-template-columns: 18px 1fr; align-items: start; border: 1px solid rgba(112,57,39,.16); border-radius: 13px; padding: 10px; background: #fffaf0; cursor: pointer; }
+          .tim-ban-panel .tim-ban-discovery input { width: 16px; margin-top: 2px; }
+          .tim-ban-discovery span { display: grid; grid-template-columns: auto 1fr; gap: 0 4px; }
+          .tim-ban-discovery small { grid-column: 1 / -1; margin-top: 3px; color: var(--tim-ban-muted); font-weight: 400; line-height: 1.35; }
           .tim-ban-panel label { display: grid; gap: 7px; color: #653129; font-size: .88rem; font-weight: 600; }
           .tim-ban-panel input, .tim-ban-panel select, .tim-ban-panel textarea { width: 100%; border: 1px solid rgba(112,57,39,.2); border-radius: 12px; padding: 12px 13px; color: #54231d; background: #fffdf8; font: inherit; }
           .tim-ban-panel textarea { min-height: 72px; resize: vertical; }
@@ -351,6 +358,10 @@ export default function TimBanTrongNghePreviewPage() {
               margin-top: 32px;
               border-radius: 18px;
               padding: 18px;
+            }
+
+            .tim-ban-location-grid, .tim-ban-discovery {
+              grid-template-columns: 1fr;
             }
 
             .tim-ban-preview footer {
