@@ -22,7 +22,9 @@ export type MatchingProfileDraft = {
 type DraftInput = {
   city: string;
   connection: string;
+  country: string;
   experience: string;
+  region: string;
   situation: string;
   workLife: string;
 };
