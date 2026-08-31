@@ -3,6 +3,7 @@ export const CHO_NEO_MATCHING_PROFILE_TABLE = "cho_neo_matching_profiles";
 export const CHO_NEO_INTRODUCTION_TABLE = "cho_neo_introductions";
 export const CHO_NEO_MATCHING_BLOCK_TABLE = "cho_neo_matching_blocks";
 export const CHO_NEO_MATCHING_REPORT_TABLE = "cho_neo_matching_reports";
+export const CHO_NEO_CONTACT_HANDOFF_TABLE = "cho_neo_contact_handoffs";
 
 export const CHO_NEO_MATCHING_SITUATIONS = [
   "Mới vào nghề",
@@ -43,6 +44,14 @@ export const CHO_NEO_MATCHING_LANGUAGES = [
   "Khác",
 ] as const;
 
+export const CHO_NEO_CONTACT_METHODS = [
+  "Facebook",
+  "Messenger",
+  "Instagram",
+  "WhatsApp",
+  "Khác",
+] as const;
+
 export const CHO_NEO_MATCHING_REPORT_REASONS = [
   "sales",
   "recruiting",
@@ -53,6 +62,8 @@ export const CHO_NEO_MATCHING_REPORT_REASONS = [
 
 export const CHO_NEO_DISCOVERY_SCOPES = ["nearby", "country", "worldwide"] as const;
 export type ChoNeoDiscoveryScope = (typeof CHO_NEO_DISCOVERY_SCOPES)[number];
+
+export type ChoNeoContactMethod = (typeof CHO_NEO_CONTACT_METHODS)[number];
 
 export type MatchingReportReason =
   (typeof CHO_NEO_MATCHING_REPORT_REASONS)[number];
