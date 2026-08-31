@@ -18,6 +18,9 @@ type Introduction = {
 
 const blankProfile: MatchingProfile = { canShare: "", city: "", lookingFor: "", situation: "", status: "active" };
 const blankGuidedAnswers: GuidedAnswers = { connection: "", experience: "", workLife: "" };
+const interestChoices = ["Cà phê", "Du lịch", "Cây cối", "Âm nhạc", "Nấu ăn", "Đi bộ"];
+const connectionChoices = ["Trò chuyện", "Làm quen", "Gặp người cùng sở thích", "Tìm bạn đồng hành"];
+const escapeChoices = ["Đi du lịch", "Về Việt Nam", "Ở nhà nghỉ ngơi", "Học điều mới"];
 
 export function TimBanTrongNgheStartButton() {
   const { ensureChoNeoMember, status } = useChoNeoMember();
@@ -33,7 +36,7 @@ export function TimBanTrongNgheStartButton() {
 
   return (
     <button disabled={status === "checking"} onClick={() => void start()} type="button">
-      {status === "checking" ? "Đang mở bàn…" : "Bắt đầu tìm bạn"}
+      {status === "checking" ? "Đang mở quầy…" : "Bước vào Quầy Xã Giao"}
     </button>
   );
 }
@@ -50,9 +53,16 @@ export function TimBanTrongNghePanel() {
   const [guidedAnswers, setGuidedAnswers] = useState<GuidedAnswers>(blankGuidedAnswers);
   const [drafting, setDrafting] = useState(false);
 
+  function addChoice(field: keyof GuidedAnswers, choice: string) {
+    setGuidedAnswers((current) => {
+      if (current[field].toLocaleLowerCase("vi").includes(choice.toLocaleLowerCase("vi"))) return current;
+      return { ...current, [field]: [current[field], choice].filter(Boolean).join(", ") };
+    });
+  }
+
   const callApi = useCallback(async (method: "GET" | "POST", body?: Record<string, unknown>) => {
     const token = session?.access_token;
-    if (!token) throw new Error("Đăng nhập để mở bàn ghép bạn nha.");
+    if (!token) throw new Error("Đăng nhập để bước vào Quầy Xã Giao nha.");
     const response = await fetch("/api/cho-neo/tim-ban-trong-nghe", {
       body: body ? JSON.stringify(body) : undefined,
       headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
@@ -126,7 +136,7 @@ export function TimBanTrongNghePanel() {
   if (status !== "ready" || !member) {
     return (
       <section className="tim-ban-panel tim-ban-locked" aria-labelledby="tim-ban-private-title">
-        <p className="tim-ban-kicker">Phòng riêng</p>
+        <p className="tim-ban-kicker">Quầy Xã Giao</p>
         <h2 id="tim-ban-private-title">Không có danh bạ để lướt</h2>
         <p>Đăng nhập thành viên nghề nail. Khi bạn tự bật hồ sơ, chủ quán mới có thể giới thiệu từng người một.</p>
         <button onClick={() => void ensureChoNeoMember(() => {})} type="button">{status === "checking" ? "Đang kiểm tra…" : "Mở bằng tài khoản thành viên"}</button>
@@ -137,24 +147,24 @@ export function TimBanTrongNghePanel() {
   return (
     <section className="tim-ban-panel" aria-labelledby="tim-ban-private-title">
       <div className="tim-ban-panel-heading">
-        <div><p className="tim-ban-kicker">Bàn riêng của {member.displayName}</p><h2 id="tim-ban-private-title">Một lời giới thiệu mỗi lần</h2></div>
+        <div><p className="tim-ban-kicker">Góc nhỏ của {member.displayName}</p><h2 id="tim-ban-private-title">Kể một chút về bạn</h2></div>
         <span>{form.status === "paused" ? "Đang tạm dừng" : "Không công khai"}</span>
       </div>
 
       {introductions.length > 0 && <div className="tim-ban-introductions">
         {introductions.map((intro) => <article key={intro.id}>
-          <small>{intro.state === "mutual" ? "Cả hai đã mở cửa" : intro.state === "waiting" ? "Đang chờ người kia" : intro.state === "expired" ? "Đã hết hạn" : intro.state === "closed" ? "Đã khép lại" : `Mở đến ${new Date(intro.expiresAt).toLocaleString("vi-VN")}`}</small>
+          <small>{intro.state === "mutual" ? "👋 Hai người đã chào nhau" : intro.state === "waiting" ? "Đã chào · đang chờ người kia" : intro.state === "expired" ? "Đã hết hạn" : intro.state === "closed" ? "Đã khép lại" : `Mở đến ${new Date(intro.expiresAt).toLocaleString("vi-VN")}`}</small>
           <h3>{intro.counterpart?.display_name ?? "Một người trong nghề"}</h3>
           <p>{intro.matchNote}</p>
           {intro.icebreaker && <blockquote>“{intro.icebreaker}”</blockquote>}
-          {intro.state === "pending" && <div className="tim-ban-row"><button disabled={busy} onClick={() => void act("decide", intro.id, { decision: "accepted" })} type="button">Muốn làm quen</button><button className="quiet" disabled={busy} onClick={() => void act("decide", intro.id, { decision: "passed" })} type="button">Để lần khác</button></div>}
+          {intro.state === "pending" && <div className="tim-ban-row"><button disabled={busy} onClick={() => void act("decide", intro.id, { decision: "accepted" })} type="button">👋 Chào {intro.counterpart?.display_name ?? "bạn"}</button><button className="quiet" disabled={busy} onClick={() => void act("decide", intro.id, { decision: "passed" })} type="button">Để lần khác</button></div>}
           {intro.state === "mutual" && <div className="tim-ban-row"><button className="quiet" disabled={busy} onClick={() => void act("block", intro.id)} type="button">Chặn</button><button className="danger" disabled={busy} onClick={() => void act("report", intro.id, { reason: "other" })} type="button">Chặn & báo cáo</button></div>}
         </article>)}
       </div>}
 
       <form onSubmit={save}>
-        <label>Thành phố<input maxLength={60} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ví dụ: Calgary" required value={form.city} /></label>
-        <label>Hoàn cảnh hiện tại<select onChange={(e) => setForm({ ...form, situation: e.target.value })} required value={form.situation}><option value="">Chọn một điều</option>{CHO_NEO_MATCHING_SITUATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label>📍 Bạn ở đâu?<input maxLength={60} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ví dụ: Calgary" required value={form.city} /></label>
+        <label>💅 Bạn làm gì trong nghề?<select onChange={(e) => setForm({ ...form, situation: e.target.value })} required value={form.situation}><option value="">Chọn một điều</option>{CHO_NEO_MATCHING_SITUATIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
         <section className="tim-ban-guide" aria-labelledby="tim-ban-guide-title">
           <div className="tim-ban-guide-heading">
             <div><p className="tim-ban-kicker">Chợ Neo giúp bạn viết</p><h3 id="tim-ban-guide-title">Kể Chợ Neo nghe một chút</h3></div>
@@ -162,16 +172,24 @@ export function TimBanTrongNghePanel() {
           </div>
           <p>Bạn không cần viết hay. Cứ kể thật bằng tiếng Việt, English hoặc Vietlish. Chợ Neo chỉ giúp sắp chữ—không tự bật hồ sơ.</p>
           {guideOpen && <div className="tim-ban-guide-questions">
-            <label>Dạo này trong cuộc sống, điều gì đang nằm trong lòng bạn?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, workLife: e.target.value })} placeholder="Ví dụ: Đi làm nhiều nên ít có cơ hội gặp gỡ…" value={guidedAnswers.workLife} /></label>
-            <label>Bạn muốn gặp một người như thế nào, và hai người có thể cùng chia sẻ điều gì?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, connection: e.target.value })} placeholder="Ví dụ: Một người bạn nam biết lắng nghe, cùng trò chuyện và đi du lịch…" value={guidedAnswers.connection} /></label>
-            <label>Nếu hợp nhau, bạn mong mối quan hệ có thể đi đến đâu? Bạn mang điều gì chân thành vào mối quan hệ này?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, experience: e.target.value })} placeholder="Ví dụ: Cởi mở để tiến xa hơn; tôi biết lắng nghe và tôn trọng cảm xúc…" value={guidedAnswers.experience} /></label>
+            <div className="tim-ban-guide-question"><label htmlFor="tim-ban-interests">☕ Bạn thích gì ngoài công việc?</label><span className="tim-ban-choices">{interestChoices.map((choice) => <button key={choice} onClick={() => addChoice("workLife", choice)} type="button">{choice}</button>)}</span><textarea id="tim-ban-interests" maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, workLife: e.target.value })} placeholder="Chạm vài lựa chọn hoặc kể thêm…" value={guidedAnswers.workLife} /></div>
+            <div className="tim-ban-guide-question"><label htmlFor="tim-ban-purpose">💬 Bạn đến Chợ Neo để làm gì?</label><span className="tim-ban-choices">{connectionChoices.map((choice) => <button key={choice} onClick={() => addChoice("connection", choice)} type="button">{choice}</button>)}</span><textarea id="tim-ban-purpose" maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, connection: e.target.value })} placeholder="Chạm vài lựa chọn hoặc kể thêm…" value={guidedAnswers.connection} /></div>
+            <div className="tim-ban-guide-question"><label htmlFor="tim-ban-month-off">✈️ Nếu được nghỉ một tháng, bạn muốn đi đâu hoặc làm gì?</label><span className="tim-ban-choices">{escapeChoices.map((choice) => <button key={choice} onClick={() => addChoice("experience", choice)} type="button">{choice}</button>)}</span><textarea id="tim-ban-month-off" maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, experience: e.target.value })} placeholder="Ví dụ: Tôi sẽ biến mất ở Nhật!" value={guidedAnswers.experience} /></div>
             <button disabled={drafting || busy} onClick={() => void draftProfile()} type="button">{drafting ? "Đang lắng nghe & viết…" : "Giúp tôi viết lời giới thiệu"}</button>
           </div>}
         </section>
-        <label>Bạn muốn tìm một người như thế nào?<textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.lookingFor} /></label>
-        <label>Bạn có thể mang điều gì vào mối quan hệ này?<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.canShare} /></label>
-        <label className="tim-ban-consent"><input checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} type="checkbox" /> Tôi đồng ý để chủ quán dùng riêng bốn câu trả lời này để ghép bạn. Hồ sơ không xuất hiện trong danh bạ.</label>
-        <div className="tim-ban-row"><button disabled={busy || !consentAccepted} type="submit">{busy ? "Đang lưu…" : loaded ? "Lưu & bật ghép bạn" : "Bật hồ sơ riêng"}</button>{loaded && <button className="quiet" disabled={busy} onClick={() => void callApi("POST", { action: "pause-profile" }).then(load)} type="button">Tạm dừng</button>}</div>
+        <label>Bạn đến Chợ Neo để…<textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.lookingFor} /></label>
+        <label>Một chút về bạn<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.canShare} /></label>
+        {(form.lookingFor || form.canShare) && <section className="tim-ban-profile-preview" aria-label="Xem trước lời giới thiệu">
+          <strong>🌿 {member.displayName}</strong>
+          {form.city && <span>📍 {form.city}</span>}
+          {form.situation && <span>💅 {form.situation}</span>}
+          {form.canShare && <div><b>Một chút về {member.displayName}</b><p>“{form.canShare}”</p></div>}
+          {form.lookingFor && <div><b>Đến Chợ Neo để</b><p>{form.lookingFor}</p></div>}
+          <small>👋 Người khác chỉ có thể chào. Hai bên cùng chào nhau rồi mới mở kết nối.</small>
+        </section>}
+        <label className="tim-ban-consent"><input checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} type="checkbox" /> Tôi đồng ý để chủ quán dùng riêng các câu trả lời này để giới thiệu người phù hợp. Lời giới thiệu không xuất hiện trong danh bạ.</label>
+        <div className="tim-ban-row"><button disabled={busy || !consentAccepted} type="submit">{busy ? "Đang lưu…" : loaded ? "Lưu lời giới thiệu" : "Đúng là tôi · bật lời giới thiệu"}</button>{loaded && <button className="quiet" disabled={busy} onClick={() => void callApi("POST", { action: "pause-profile" }).then(load)} type="button">Tạm dừng</button>}</div>
       </form>
       {message && <p className="tim-ban-message" role="status">{message}</p>}
     </section>
