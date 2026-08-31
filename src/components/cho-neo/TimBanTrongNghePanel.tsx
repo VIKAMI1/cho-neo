@@ -162,14 +162,14 @@ export function TimBanTrongNghePanel() {
           </div>
           <p>Bạn không cần viết hay. Cứ kể thật bằng tiếng Việt, English hoặc Vietlish. Chợ Neo chỉ giúp sắp chữ—không tự bật hồ sơ.</p>
           {guideOpen && <div className="tim-ban-guide-questions">
-            <label>Dạo này trong nghề, điều gì đang nằm trong đầu bạn?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, workLife: e.target.value })} placeholder="Ví dụ: Làm chủ tiệm nhiều khi vui nhưng cũng khá cô đơn…" value={guidedAnswers.workLife} /></label>
-            <label>Bạn mong gặp một người để cùng nói chuyện hoặc làm gì?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, connection: e.target.value })} placeholder="Ví dụ: Hiểu nhau, chia sẻ chuyện nghề và lâu lâu cười với nhau…" value={guidedAnswers.connection} /></label>
-            <label>Bạn đã trải qua điều gì và có thể chia sẻ lại?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, experience: e.target.value })} placeholder="Ví dụ: Kinh nghiệm làm thợ, mở tiệm, giữ khách hoặc chỉ đơn giản là biết lắng nghe…" value={guidedAnswers.experience} /></label>
+            <label>Dạo này trong cuộc sống, điều gì đang nằm trong lòng bạn?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, workLife: e.target.value })} placeholder="Ví dụ: Đi làm nhiều nên ít có cơ hội gặp gỡ…" value={guidedAnswers.workLife} /></label>
+            <label>Bạn muốn gặp một người như thế nào, và hai người có thể cùng chia sẻ điều gì?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, connection: e.target.value })} placeholder="Ví dụ: Một người bạn nam biết lắng nghe, cùng trò chuyện và đi du lịch…" value={guidedAnswers.connection} /></label>
+            <label>Nếu hợp nhau, bạn mong mối quan hệ có thể đi đến đâu? Bạn mang điều gì chân thành vào mối quan hệ này?<textarea maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, experience: e.target.value })} placeholder="Ví dụ: Cởi mở để tiến xa hơn; tôi biết lắng nghe và tôn trọng cảm xúc…" value={guidedAnswers.experience} /></label>
             <button disabled={drafting || busy} onClick={() => void draftProfile()} type="button">{drafting ? "Đang lắng nghe & viết…" : "Giúp tôi viết lời giới thiệu"}</button>
           </div>}
         </section>
         <label>Bạn muốn tìm một người như thế nào?<textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.lookingFor} /></label>
-        <label>Bạn có thể mang điều gì vào tình bạn này?<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.canShare} /></label>
+        <label>Bạn có thể mang điều gì vào mối quan hệ này?<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.canShare} /></label>
         <label className="tim-ban-consent"><input checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} type="checkbox" /> Tôi đồng ý để chủ quán dùng riêng bốn câu trả lời này để ghép bạn. Hồ sơ không xuất hiện trong danh bạ.</label>
         <div className="tim-ban-row"><button disabled={busy || !consentAccepted} type="submit">{busy ? "Đang lưu…" : loaded ? "Lưu & bật ghép bạn" : "Bật hồ sơ riêng"}</button>{loaded && <button className="quiet" disabled={busy} onClick={() => void callApi("POST", { action: "pause-profile" }).then(load)} type="button">Tạm dừng</button>}</div>
       </form>
