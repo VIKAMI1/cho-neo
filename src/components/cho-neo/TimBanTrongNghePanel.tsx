@@ -67,6 +67,10 @@ export function TimBanTrongNghePanel() {
   const [contactDrafts, setContactDrafts] = useState<Record<string, ContactDraft>>({});
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
   const [contactOpen, setContactOpen] = useState<Record<string, boolean>>({});
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const activeIntroduction = introductions.find((intro) => intro.state === "mutual" || intro.state === "quiet");
+  const hasActiveTable = Boolean(activeIntroduction);
 
   function toggleLanguage(language: string) {
     setForm((current) => ({
@@ -210,12 +214,12 @@ export function TimBanTrongNghePanel() {
   return (
     <section className="tim-ban-panel" aria-labelledby="tim-ban-private-title">
       <div className="tim-ban-panel-heading">
-        <div><p className="tim-ban-kicker">Góc nhỏ của {member.displayName}</p><h2 id="tim-ban-private-title">Kể một chút về bạn</h2></div>
+        <div><p className="tim-ban-kicker">{hasActiveTable ? `Bàn nhỏ của ${member.displayName}` : `Góc nhỏ của ${member.displayName}`}</p><h2 id="tim-ban-private-title">{hasActiveTable ? `Ngồi lại với ${activeIntroduction?.counterpart?.display_name ?? "một người bạn"}` : "Kể một chút về bạn"}</h2></div>
         <span>{form.status === "paused" ? "Đang tạm dừng" : "Không công khai"}</span>
       </div>
 
       {introductions.length > 0 && <div className="tim-ban-introductions">
-        {introductions.map((intro) => <article key={intro.id}>
+        {introductions.map((intro) => <article className={intro.state === "mutual" || intro.state === "quiet" ? "has-private-table" : undefined} key={intro.id}>
           <small>{intro.state === "mutual" ? "👋 Hai người đã chào nhau" : intro.state === "quiet" ? "Bàn đã yên một tuần" : intro.state === "waiting" ? "Đã chào · đang chờ người kia" : intro.state === "expired" ? "Lời chào đã hết hạn" : intro.state === "closed" ? "Bàn đã khép lại" : `Lời chào mở đến ${new Date(intro.expiresAt).toLocaleString("vi-VN")}`}</small>
           <h3>{intro.counterpart?.display_name ?? "Một người trong nghề"}</h3>
           <p>{intro.matchNote}</p>
@@ -245,7 +249,9 @@ export function TimBanTrongNghePanel() {
         </article>)}
       </div>}
 
-      <form onSubmit={save}>
+      {hasActiveTable && <div className="tim-ban-profile-toggle"><span>Hồ sơ ghép bạn của bạn vẫn được giữ riêng.</span><button aria-expanded={profileOpen} className="quiet" onClick={() => setProfileOpen((open) => !open)} type="button">{profileOpen ? "Đóng hồ sơ" : "Chỉnh hồ sơ"}</button></div>}
+
+      {(!hasActiveTable || profileOpen) && <form className={hasActiveTable ? "tim-ban-profile-form-open" : undefined} onSubmit={save}>
         <div className="tim-ban-location-grid">
           <label>🌎 Quốc gia<input maxLength={80} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="Ví dụ: Canada" required value={form.country} /></label>
           <label>Vùng · Tỉnh/Bang<input maxLength={80} onChange={(e) => setForm({ ...form, region: e.target.value })} placeholder="Ví dụ: Alberta" value={form.region} /></label>
@@ -293,7 +299,7 @@ export function TimBanTrongNghePanel() {
         </section>}
         <label className="tim-ban-consent"><input checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} type="checkbox" /> Tôi đồng ý để chủ quán dùng riêng các câu trả lời này để giới thiệu người phù hợp. Lời giới thiệu không xuất hiện trong danh bạ.</label>
         <div className="tim-ban-row"><button disabled={busy || !consentAccepted} type="submit">{busy ? "Đang lưu…" : loaded ? "Lưu lời giới thiệu" : "Đúng là tôi · bật lời giới thiệu"}</button>{loaded && <button className="quiet" disabled={busy} onClick={() => void callApi("POST", { action: "pause-profile" }).then(load)} type="button">Tạm dừng</button>}</div>
-      </form>
+      </form>}
       {message && <p className="tim-ban-message" role="status">{message}</p>}
     </section>
   );
