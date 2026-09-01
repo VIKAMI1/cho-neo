@@ -319,6 +319,7 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-message { border-radius: 12px; padding: 11px 13px; color: #64362d; background: #f9ecd7; line-height: 1.5; }
           .tim-ban-introductions { display: grid; gap: 12px; }
           .tim-ban-introductions article { display: grid; gap: 10px; border: 1px solid rgba(112,57,39,.14); border-radius: 16px; padding: 16px; background: #fffaf0; }
+          .tim-ban-introductions article.has-private-table { width: min(720px, 100%); justify-self: center; gap: 8px; border-color: rgba(112,57,39,.2); border-radius: 22px; padding: clamp(16px, 2.4vw, 22px); background: linear-gradient(155deg, #fffaf0 0%, #f9ead7 100%); box-shadow: 0 16px 36px rgba(84,35,29,.09); }
           .tim-ban-introductions small { color: #a24d31; }
           .tim-ban-introductions blockquote { margin: 0; border-left: 3px solid #d69763; padding-left: 12px; color: var(--tim-ban-muted); }
           .tim-ban-handoff { display: grid; gap: 11px; border-top: 1px solid rgba(112,57,39,.14); padding-top: 13px; }
@@ -332,23 +333,27 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-contact-card small { color: var(--tim-ban-muted); }
           .tim-ban-contact-card span { overflow-wrap: anywhere; }
           .tim-ban-my-contact { align-self: center; color: var(--tim-ban-muted); font-size: .86rem; overflow-wrap: anywhere; }
-          .tim-ban-private-table { display: grid; gap: 12px; border-top: 1px solid rgba(112,57,39,.14); padding-top: 14px; }
+          .tim-ban-private-table { display: grid; gap: 10px; border-top: 1px solid rgba(112,57,39,.14); padding-top: 13px; }
           .tim-ban-private-table h4, .tim-ban-private-table p { margin: 0; }
           .tim-ban-private-table h4 { font-family: var(--cho-neo-font-display); font-size: 1.28rem; font-weight: 500; }
           .tim-ban-table-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
           .tim-ban-table-heading p { margin-top: 4px; color: var(--tim-ban-muted); font-size: .85rem; line-height: 1.5; }
           .tim-ban-panel .tim-ban-table-close { min-height: 36px; padding: 7px 12px; font-size: .78rem; white-space: nowrap; }
-          .tim-ban-chat-log { display: grid; gap: 8px; min-height: 120px; max-height: 420px; overflow-y: auto; border: 1px solid rgba(112,57,39,.12); border-radius: 16px; padding: 14px; background: rgba(255,253,248,.88); }
-          .tim-ban-chat-message { max-width: min(78%, 34rem); display: grid; justify-self: start; gap: 4px; border-radius: 16px 16px 16px 5px; padding: 10px 12px; color: #4c302a; background: #f2e5d3; line-height: 1.45; overflow-wrap: anywhere; }
+          .tim-ban-chat-log { display: grid; align-content: end; gap: 8px; min-height: 104px; max-height: 360px; overflow-y: auto; border: 1px solid rgba(112,57,39,.13); border-radius: 18px; padding: 12px; background: rgba(255,253,248,.76); }
+          .tim-ban-chat-message { max-width: min(72%, 28rem); display: grid; justify-self: start; gap: 4px; border-radius: 16px 16px 16px 5px; padding: 9px 12px; color: #4c302a; background: #f0dfc9; line-height: 1.4; overflow-wrap: anywhere; }
           .tim-ban-chat-message.mine { justify-self: end; border-radius: 16px 16px 5px 16px; color: #fff9ed; background: #713225; }
           .tim-ban-chat-message small { color: inherit; font-size: .68rem; opacity: .7; }
           .tim-ban-chat-welcome { align-self: center; max-width: 34rem; margin: auto !important; border-left: 3px solid #d69763; padding-left: 12px; color: var(--tim-ban-muted); font-family: var(--cho-neo-font-display); font-size: 1.08rem; line-height: 1.5; }
           .tim-ban-chat-compose { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
-          .tim-ban-panel .tim-ban-chat-compose textarea { min-height: 58px; max-height: 150px; resize: vertical; }
-          .tim-ban-chat-compose button { min-width: 72px; }
+          .tim-ban-panel .tim-ban-chat-compose textarea { min-height: 48px; max-height: 120px; padding-block: 11px; resize: vertical; }
+          .tim-ban-chat-compose button { min-width: 68px; min-height: 48px; }
           .tim-ban-table-note { color: var(--tim-ban-muted) !important; font-size: .76rem; line-height: 1.45; }
           .tim-ban-panel .tim-ban-contact-open { justify-self: start; }
-          .tim-ban-safety-actions { margin-top: 2px; }
+          .tim-ban-safety-actions { margin-top: 1px; padding-top: 2px; }
+          .tim-ban-panel .tim-ban-safety-actions button { min-height: 34px; padding: 6px 11px; font-size: .76rem; opacity: .82; }
+          .tim-ban-profile-toggle { width: min(720px, 100%); display: flex; justify-self: center; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid rgba(112,57,39,.12); padding: 13px 4px 0; color: var(--tim-ban-muted); font-size: .82rem; }
+          .tim-ban-panel .tim-ban-profile-toggle button { min-height: 36px; padding: 7px 13px; font-size: .78rem; white-space: nowrap; }
+          .tim-ban-profile-form-open { border-top: 1px solid rgba(112,57,39,.12); padding-top: 16px; }
 
           .tim-ban-preview footer strong {
             color: var(--tim-ban-ink);
@@ -430,6 +435,14 @@ export default function TimBanTrongNghePreviewPage() {
             .tim-ban-table-close,
             .tim-ban-chat-compose button {
               justify-self: start;
+            }
+
+            .tim-ban-chat-message {
+              max-width: 86%;
+            }
+
+            .tim-ban-profile-toggle {
+              align-items: flex-start;
             }
 
             .tim-ban-preview footer {
