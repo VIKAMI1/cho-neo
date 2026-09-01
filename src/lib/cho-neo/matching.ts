@@ -4,6 +4,9 @@ export const CHO_NEO_INTRODUCTION_TABLE = "cho_neo_introductions";
 export const CHO_NEO_MATCHING_BLOCK_TABLE = "cho_neo_matching_blocks";
 export const CHO_NEO_MATCHING_REPORT_TABLE = "cho_neo_matching_reports";
 export const CHO_NEO_CONTACT_HANDOFF_TABLE = "cho_neo_contact_handoffs";
+export const CHO_NEO_PRIVATE_MESSAGE_TABLE = "cho_neo_private_messages";
+export const CHO_NEO_TABLE_QUIET_DAYS = 7;
+export const CHO_NEO_MESSAGE_MAX_LENGTH = 500;
 
 export const CHO_NEO_MATCHING_SITUATIONS = [
   "Mới vào nghề",
@@ -119,4 +122,10 @@ export function validateMatchingProfile(input: Record<string, unknown>) {
 
 export function isMatchingReportReason(value: unknown): value is MatchingReportReason {
   return typeof value === "string" && CHO_NEO_MATCHING_REPORT_REASONS.includes(value as MatchingReportReason);
+}
+
+export function validatePrivateMessage(value: unknown) {
+  const body = cleanMatchingText(value, CHO_NEO_MESSAGE_MAX_LENGTH);
+  if (!body) return { error: "Viết một lời nhắn trước nha." } as const;
+  return { body } as const;
 }

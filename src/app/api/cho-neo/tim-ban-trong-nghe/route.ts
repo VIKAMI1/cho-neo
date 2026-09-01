@@ -7,8 +7,11 @@ import {
   CHO_NEO_MATCHING_CONSENT_VERSION,
   CHO_NEO_MATCHING_PROFILE_TABLE,
   CHO_NEO_MATCHING_REPORT_TABLE,
+  CHO_NEO_PRIVATE_MESSAGE_TABLE,
+  CHO_NEO_TABLE_QUIET_DAYS,
   cleanMatchingText,
   isMatchingReportReason,
+  validatePrivateMessage,
   validateMatchingProfile,
 } from "@/lib/cho-neo/matching";
 import { createMatchingServiceClient, getMatchingUser, isUuid } from "@/lib/cho-neo/matching-server";
@@ -25,7 +28,7 @@ export async function GET(request: Request) {
 
   const [{ data: profile, error: profileError }, { data: introductions, error: introError }] = await Promise.all([
     supabase.from(CHO_NEO_MATCHING_PROFILE_TABLE).select("city, country, region, discovery_scope, situation, experience_range, age_range, gender, languages, interests, fun_line, looking_for, can_share, status, consent_version, updated_at").eq("user_id", userId).maybeSingle(),
-    supabase.from(CHO_NEO_INTRODUCTION_TABLE).select("id, member_a_user_id, member_b_user_id, member_a_decision, member_b_decision, match_note, icebreaker, expires_at, opened_at, created_at").or(`member_a_user_id.eq.${userId},member_b_user_id.eq.${userId}`).order("created_at", { ascending: false }).limit(10),
+    supabase.from(CHO_NEO_INTRODUCTION_TABLE).select("id, member_a_user_id, member_b_user_id, member_a_decision, member_b_decision, match_note, icebreaker, expires_at, opened_at, table_last_active_at, table_closed_at, created_at").or(`member_a_user_id.eq.${userId},member_b_user_id.eq.${userId}`).order("created_at", { ascending: false }).limit(10),
   ]);
   if (profileError || introError) return unavailable("matching-read-failed");
 
@@ -37,19 +40,31 @@ export async function GET(request: Request) {
     const isMutual = myDecision === "accepted" && theirDecision === "accepted";
     let counterpart = null;
     let contactHandoff = { mine: null as { method: string; value: string } | null, theirs: null as { method: string; value: string } | null };
+    let privateTable = null as null | {
+      lastActiveAt: string;
+      messages: Array<{ body: string; id: string; mine: boolean; sentAt: string }>;
+      quietAt: string;
+    };
     if (isMutual) {
-      const { data } = await supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("display_name, avatar_key, nail_role").eq("user_id", counterpartId).maybeSingle();
+      const [{ data }, { data: contacts }, { data: messages }] = await Promise.all([
+        supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("display_name, avatar_key, nail_role").eq("user_id", counterpartId).maybeSingle(),
+        supabase.from(CHO_NEO_CONTACT_HANDOFF_TABLE).select("user_id, method, contact_value").eq("introduction_id", intro.id),
+        supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("id, sender_user_id, body, created_at").eq("introduction_id", intro.id).order("created_at", { ascending: true }).limit(100),
+      ]);
       counterpart = data ?? null;
-      const { data: contacts } = await supabase
-        .from(CHO_NEO_CONTACT_HANDOFF_TABLE)
-        .select("user_id, method, contact_value")
-        .eq("introduction_id", intro.id);
       for (const contact of contacts ?? []) {
         const value = { method: contact.method, value: contact.contact_value };
         if (contact.user_id === userId) contactHandoff.mine = value;
         if (contact.user_id === counterpartId) contactHandoff.theirs = value;
       }
+      const lastActiveAt = intro.table_last_active_at ?? intro.opened_at ?? intro.created_at;
+      privateTable = {
+        lastActiveAt,
+        messages: (messages ?? []).map((message) => ({ body: message.body, id: message.id, mine: message.sender_user_id === userId, sentAt: message.created_at })),
+        quietAt: new Date(new Date(lastActiveAt).getTime() + CHO_NEO_TABLE_QUIET_DAYS * 86_400_000).toISOString(),
+      };
     }
+    const tableIsQuiet = privateTable ? new Date(privateTable.quietAt).getTime() <= Date.now() : false;
     return {
       contactHandoff,
       counterpart,
@@ -60,7 +75,8 @@ export async function GET(request: Request) {
       matchNote: intro.match_note,
       myDecision,
       openedAt: intro.opened_at,
-      state: new Date(intro.expires_at).getTime() <= Date.now() ? "expired" : myDecision === "passed" || theirDecision === "passed" ? "closed" : isMutual ? "mutual" : myDecision === "accepted" ? "waiting" : "pending",
+      privateTable,
+      state: myDecision === "passed" || theirDecision === "passed" || intro.table_closed_at ? "closed" : isMutual ? tableIsQuiet ? "quiet" : "mutual" : new Date(intro.expires_at).getTime() <= Date.now() ? "expired" : myDecision === "accepted" ? "waiting" : "pending",
     };
   }));
 
@@ -128,22 +144,61 @@ export async function POST(request: Request) {
     const other = mine === "member_a_decision" ? "member_b_decision" : "member_a_decision";
     const decision = String(body.decision);
     const opened = decision === "accepted" && intro[other] === "accepted";
-    const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [mine]: decision, ...(opened ? { opened_at: new Date().toISOString() } : {}), updated_at: new Date().toISOString() }).eq("id", body.introductionId).eq(mine === "member_a_decision" ? "member_a_user_id" : "member_b_user_id", userId);
+    const now = new Date().toISOString();
+    const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [mine]: decision, ...(opened ? { opened_at: now, table_last_active_at: now } : {}), updated_at: now }).eq("id", body.introductionId).eq(mine === "member_a_decision" ? "member_a_user_id" : "member_b_user_id", userId);
     return error ? unavailable("decision-save-failed") : NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "send-message" || body.action === "keep-table" || body.action === "close-table") {
+    if (!isUuid(body.introductionId)) return badRequest("Bàn trò chuyện chưa hợp lệ.");
+    const { data: intro, error: introError } = await supabase
+      .from(CHO_NEO_INTRODUCTION_TABLE)
+      .select("member_a_user_id, member_b_user_id, member_a_decision, member_b_decision, opened_at, table_last_active_at, table_closed_at")
+      .eq("id", body.introductionId)
+      .maybeSingle();
+    if (introError || !intro || ![intro.member_a_user_id, intro.member_b_user_id].includes(userId)) {
+      return NextResponse.json({ error: "Bàn trò chuyện không còn ở đây." }, { status: 404 });
+    }
+    if (intro.member_a_decision !== "accepted" || intro.member_b_decision !== "accepted") {
+      return badRequest("Hai người cần cùng chào nhau trước nha.");
+    }
+    if (intro.table_closed_at) return badRequest("Bàn trò chuyện này đã khép lại.");
+    const now = new Date();
+    const lastActiveAt = new Date(intro.table_last_active_at ?? intro.opened_at ?? 0);
+    const quietAt = new Date(lastActiveAt.getTime() + CHO_NEO_TABLE_QUIET_DAYS * 86_400_000);
+    if (body.action === "close-table") {
+      const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ table_closed_at: now.toISOString(), table_closed_by: userId, updated_at: now.toISOString() }).eq("id", body.introductionId);
+      return error ? unavailable("table-close-failed") : NextResponse.json({ ok: true });
+    }
+    if (body.action === "keep-table") {
+      if (now.getTime() < quietAt.getTime()) return badRequest("Bàn vẫn đang mở nha.");
+      const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ table_last_active_at: now.toISOString(), updated_at: now.toISOString() }).eq("id", body.introductionId);
+      return error ? unavailable("table-keep-failed") : NextResponse.json({ ok: true });
+    }
+    if (now.getTime() >= quietAt.getTime()) return badRequest("Bàn đã yên một tuần. Chọn giữ bàn thêm trước khi nhắn tiếp nha.");
+    const message = validatePrivateMessage(body.message);
+    if ("error" in message) return badRequest(message.error);
+    const minuteAgo = new Date(now.getTime() - 60_000).toISOString();
+    const { count } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("id", { count: "exact", head: true }).eq("introduction_id", body.introductionId).eq("sender_user_id", userId).gte("created_at", minuteAgo);
+    if ((count ?? 0) >= 10) return NextResponse.json({ error: "Chậm một chút nha—bạn vừa gửi khá nhiều lời nhắn." }, { status: 429 });
+    const { error } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).insert({ body: message.body, introduction_id: body.introductionId, sender_user_id: userId });
+    if (error) return unavailable("message-send-failed");
+    await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ table_last_active_at: now.toISOString(), updated_at: now.toISOString() }).eq("id", body.introductionId);
+    return NextResponse.json({ ok: true });
   }
 
   if (body.action === "share-contact" || body.action === "remove-contact") {
     if (!isUuid(body.introductionId)) return badRequest("Lời giới thiệu chưa hợp lệ.");
     const { data: intro, error: introError } = await supabase
       .from(CHO_NEO_INTRODUCTION_TABLE)
-      .select("member_a_user_id, member_b_user_id, member_a_decision, member_b_decision, expires_at")
+      .select("member_a_user_id, member_b_user_id, member_a_decision, member_b_decision, table_closed_at")
       .eq("id", body.introductionId)
       .maybeSingle();
     if (introError || !intro || ![intro.member_a_user_id, intro.member_b_user_id].includes(userId)) {
       return NextResponse.json({ error: "Lời giới thiệu không còn ở đây." }, { status: 404 });
     }
     const mutual = intro.member_a_decision === "accepted" && intro.member_b_decision === "accepted";
-    if (!mutual || new Date(intro.expires_at).getTime() <= Date.now()) {
+    if (!mutual || intro.table_closed_at) {
       return badRequest("Hai người cần cùng chào nhau trước khi chia sẻ liên lạc.");
     }
     if (body.action === "remove-contact") {
@@ -176,7 +231,16 @@ export async function POST(request: Request) {
     if (body.action === "report") {
       if (!isMatchingReportReason(body.reason)) return badRequest("Chọn lý do báo cáo nha.");
       const details = cleanMatchingText(body.details, 500) || null;
-      const { error } = await supabase.from(CHO_NEO_MATCHING_REPORT_TABLE).insert({ details, introduction_id: body.introductionId, reason: body.reason, reported_user_id: otherUserId, reporter_user_id: userId });
+      const { data: messages } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("sender_user_id, body, created_at").eq("introduction_id", body.introductionId).order("created_at", { ascending: true }).limit(100);
+      const { error } = await supabase.from(CHO_NEO_MATCHING_REPORT_TABLE).insert({
+        details,
+        evidence_expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+        introduction_id: body.introductionId,
+        message_evidence: messages ?? [],
+        reason: body.reason,
+        reported_user_id: otherUserId,
+        reporter_user_id: userId,
+      });
       if (error) return unavailable("report-save-failed");
     }
     return NextResponse.json({ ok: true });

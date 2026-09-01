@@ -68,8 +68,8 @@ export default function TimBanTrongNghePreviewPage() {
           <footer>
             <strong>Chuyện nghề, chuyện đời, chuyện mình.</strong>
             <span>
-              Hồ sơ không công khai. Cách liên lạc chỉ mở sau khi hai người
-              cùng muốn chào.
+              Hồ sơ không công khai. Hai người cùng chào nhau mới mở một bàn
+              trò chuyện riêng.
             </span>
           </footer>
         </main>
@@ -332,6 +332,23 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-contact-card small { color: var(--tim-ban-muted); }
           .tim-ban-contact-card span { overflow-wrap: anywhere; }
           .tim-ban-my-contact { align-self: center; color: var(--tim-ban-muted); font-size: .86rem; overflow-wrap: anywhere; }
+          .tim-ban-private-table { display: grid; gap: 12px; border-top: 1px solid rgba(112,57,39,.14); padding-top: 14px; }
+          .tim-ban-private-table h4, .tim-ban-private-table p { margin: 0; }
+          .tim-ban-private-table h4 { font-family: var(--cho-neo-font-display); font-size: 1.28rem; font-weight: 500; }
+          .tim-ban-table-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+          .tim-ban-table-heading p { margin-top: 4px; color: var(--tim-ban-muted); font-size: .85rem; line-height: 1.5; }
+          .tim-ban-panel .tim-ban-table-close { min-height: 36px; padding: 7px 12px; font-size: .78rem; white-space: nowrap; }
+          .tim-ban-chat-log { display: grid; gap: 8px; min-height: 120px; max-height: 420px; overflow-y: auto; border: 1px solid rgba(112,57,39,.12); border-radius: 16px; padding: 14px; background: rgba(255,253,248,.88); }
+          .tim-ban-chat-message { max-width: min(78%, 34rem); display: grid; justify-self: start; gap: 4px; border-radius: 16px 16px 16px 5px; padding: 10px 12px; color: #4c302a; background: #f2e5d3; line-height: 1.45; overflow-wrap: anywhere; }
+          .tim-ban-chat-message.mine { justify-self: end; border-radius: 16px 16px 5px 16px; color: #fff9ed; background: #713225; }
+          .tim-ban-chat-message small { color: inherit; font-size: .68rem; opacity: .7; }
+          .tim-ban-chat-welcome { align-self: center; max-width: 34rem; margin: auto !important; border-left: 3px solid #d69763; padding-left: 12px; color: var(--tim-ban-muted); font-family: var(--cho-neo-font-display); font-size: 1.08rem; line-height: 1.5; }
+          .tim-ban-chat-compose { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+          .tim-ban-panel .tim-ban-chat-compose textarea { min-height: 58px; max-height: 150px; resize: vertical; }
+          .tim-ban-chat-compose button { min-width: 72px; }
+          .tim-ban-table-note { color: var(--tim-ban-muted) !important; font-size: .76rem; line-height: 1.45; }
+          .tim-ban-panel .tim-ban-contact-open { justify-self: start; }
+          .tim-ban-safety-actions { margin-top: 2px; }
 
           .tim-ban-preview footer strong {
             color: var(--tim-ban-ink);
@@ -402,6 +419,17 @@ export default function TimBanTrongNghePreviewPage() {
 
             .tim-ban-contact-form {
               grid-template-columns: 1fr;
+            }
+
+            .tim-ban-table-heading,
+            .tim-ban-chat-compose {
+              display: grid;
+              grid-template-columns: 1fr;
+            }
+
+            .tim-ban-table-close,
+            .tim-ban-chat-compose button {
+              justify-self: start;
             }
 
             .tim-ban-preview footer {

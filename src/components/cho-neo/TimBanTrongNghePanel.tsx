@@ -15,6 +15,7 @@ import {
 type MatchingProfile = { ageRange: string; canShare: string; city: string; country: string; discoveryScope: ChoNeoDiscoveryScope; experienceRange: string; funLine: string; gender: string; interests: string; languages: string[]; lookingFor: string; region: string; situation: string; status: "active" | "paused" };
 type GuidedAnswers = { connection: string; experience: string; workLife: string };
 type ContactDraft = { contactValue: string; method: string };
+type PrivateMessage = { body: string; id: string; mine: boolean; sentAt: string };
 type Introduction = {
   contactHandoff: { mine: { method: string; value: string } | null; theirs: { method: string; value: string } | null };
   counterpart: { avatar_key: string | null; display_name: string; nail_role: string | null } | null;
@@ -23,7 +24,8 @@ type Introduction = {
   id: string;
   matchNote: string;
   myDecision: "pending" | "accepted" | "passed";
-  state: "closed" | "expired" | "mutual" | "pending" | "waiting";
+  privateTable: { lastActiveAt: string; messages: PrivateMessage[]; quietAt: string } | null;
+  state: "closed" | "expired" | "mutual" | "pending" | "quiet" | "waiting";
 };
 
 const blankProfile: MatchingProfile = { ageRange: "", canShare: "", city: "", country: "", discoveryScope: "nearby", experienceRange: "", funLine: "", gender: "", interests: "", languages: [], lookingFor: "", region: "", situation: "", status: "active" };
@@ -63,6 +65,8 @@ export function TimBanTrongNghePanel() {
   const [guidedAnswers, setGuidedAnswers] = useState<GuidedAnswers>(blankGuidedAnswers);
   const [drafting, setDrafting] = useState(false);
   const [contactDrafts, setContactDrafts] = useState<Record<string, ContactDraft>>({});
+  const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
+  const [contactOpen, setContactOpen] = useState<Record<string, boolean>>({});
 
   function toggleLanguage(language: string) {
     setForm((current) => ({
@@ -109,6 +113,12 @@ export function TimBanTrongNghePanel() {
   }, [callApi, session?.access_token, status]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!introductions.some((intro) => intro.state === "mutual")) return;
+    const timer = window.setInterval(() => void load(), 15_000);
+    return () => window.clearInterval(timer);
+  }, [introductions, load]);
 
   async function draftProfile() {
     setDrafting(true); setMessage("");
@@ -171,6 +181,21 @@ export function TimBanTrongNghePanel() {
     }
   }
 
+  async function tableAction(action: "close-table" | "keep-table" | "send-message", introductionId: string) {
+    const draft = messageDrafts[introductionId] ?? "";
+    setBusy(true); setMessage("");
+    try {
+      await callApi("POST", { action, introductionId, ...(action === "send-message" ? { message: draft } : {}) });
+      if (action === "send-message") setMessageDrafts((current) => ({ ...current, [introductionId]: "" }));
+      setMessage(action === "close-table" ? "Bàn đã khép lại. Khi muốn gặp thêm người trong nghề, Quầy Xã Giao vẫn còn chỗ cho bạn." : action === "keep-table" ? "Chợ Neo đã giữ bàn thêm cho hai bạn." : "");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Bàn trò chuyện chưa trả lời.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (status !== "ready" || !member) {
     return (
       <section className="tim-ban-panel tim-ban-locked" aria-labelledby="tim-ban-private-title">
@@ -191,14 +216,22 @@ export function TimBanTrongNghePanel() {
 
       {introductions.length > 0 && <div className="tim-ban-introductions">
         {introductions.map((intro) => <article key={intro.id}>
-          <small>{intro.state === "mutual" ? "👋 Hai người đã chào nhau" : intro.state === "waiting" ? "Đã chào · đang chờ người kia" : intro.state === "expired" ? "Đã hết hạn" : intro.state === "closed" ? "Đã khép lại" : `Mở đến ${new Date(intro.expiresAt).toLocaleString("vi-VN")}`}</small>
+          <small>{intro.state === "mutual" ? "👋 Hai người đã chào nhau" : intro.state === "quiet" ? "Bàn đã yên một tuần" : intro.state === "waiting" ? "Đã chào · đang chờ người kia" : intro.state === "expired" ? "Lời chào đã hết hạn" : intro.state === "closed" ? "Bàn đã khép lại" : `Lời chào mở đến ${new Date(intro.expiresAt).toLocaleString("vi-VN")}`}</small>
           <h3>{intro.counterpart?.display_name ?? "Một người trong nghề"}</h3>
           <p>{intro.matchNote}</p>
-          {intro.icebreaker && <blockquote>“{intro.icebreaker}”</blockquote>}
-          {intro.state === "pending" && <div className="tim-ban-row"><button disabled={busy} onClick={() => void act("decide", intro.id, { decision: "accepted" })} type="button">👋 Chào {intro.counterpart?.display_name ?? "bạn"}</button><button className="quiet" disabled={busy} onClick={() => void act("decide", intro.id, { decision: "passed" })} type="button">Để lần khác</button></div>}
-          {intro.state === "mutual" && <section className="tim-ban-handoff" aria-label="Chuyển cuộc trò chuyện ra ngoài Chợ Neo">
-            <h4>Hai người đã muốn làm quen</h4>
-            <p>Chợ Neo chỉ mở lời giới thiệu. Chọn một cách liên lạc bạn tự nguyện chia sẻ; cuộc trò chuyện tiếp theo sẽ diễn ra bên ngoài Chợ Neo.</p>
+          {intro.state === "pending" && <div className="tim-ban-row"><button disabled={busy} onClick={() => void act("decide", intro.id, { decision: "accepted" })} type="button">👋 Chào bạn</button><button className="quiet" disabled={busy} onClick={() => void act("decide", intro.id, { decision: "passed" })} type="button">Để lần khác</button></div>}
+          {intro.state === "quiet" && <section className="tim-ban-private-table"><h4>Bàn đã yên một tuần</h4><p>Muốn nói chuyện tiếp, Chợ Neo vẫn giữ chỗ cho hai bạn.</p><div className="tim-ban-row"><button disabled={busy} onClick={() => void tableAction("keep-table", intro.id)} type="button">Giữ bàn thêm</button><button className="quiet" disabled={busy} onClick={() => void tableAction("close-table", intro.id)} type="button">Khép lại tại đây</button></div></section>}
+          {intro.state === "mutual" && <section className="tim-ban-private-table" aria-label="Bàn trò chuyện riêng">
+            <div className="tim-ban-table-heading"><div><h4>Bàn trò chuyện riêng</h4><p>Chợ Neo đã mời hai bạn ngồi lại. Cứ nói chuyện tự nhiên nha.</p></div><button className="quiet tim-ban-table-close" disabled={busy} onClick={() => void tableAction("close-table", intro.id)} type="button">Khép bàn</button></div>
+            <div className="tim-ban-chat-log" aria-live="polite">
+              {intro.privateTable?.messages.length ? intro.privateTable.messages.map((chat) => <div className={chat.mine ? "tim-ban-chat-message mine" : "tim-ban-chat-message"} key={chat.id}><span>{chat.body}</span><small>{new Date(chat.sentAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</small></div>) : <p className="tim-ban-chat-welcome">“{intro.icebreaker}”</p>}
+            </div>
+            <div className="tim-ban-chat-compose"><textarea aria-label="Lời nhắn" maxLength={500} onChange={(event) => setMessageDrafts((current) => ({ ...current, [intro.id]: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if ((messageDrafts[intro.id]?.trim().length ?? 0) > 0) void tableAction("send-message", intro.id); } }} placeholder="Nhắn một điều…" rows={2} value={messageDrafts[intro.id] ?? ""} /><button disabled={busy || (messageDrafts[intro.id]?.trim().length ?? 0) === 0} onClick={() => void tableAction("send-message", intro.id)} type="button">Gửi</button></div>
+            <small className="tim-ban-table-note">Bàn vẫn mở khi hai bạn còn trò chuyện. Sau 7 ngày yên lặng, Chợ Neo sẽ hỏi trước khi khép bàn.</small>
+            {(intro.privateTable?.messages.length ?? 0) > 0 && !contactOpen[intro.id] && !intro.contactHandoff.mine && !intro.contactHandoff.theirs && <button className="quiet tim-ban-contact-open" onClick={() => setContactOpen((current) => ({ ...current, [intro.id]: true }))} type="button">Muốn giữ liên lạc sau Chợ Neo?</button>}
+          {(contactOpen[intro.id] || intro.contactHandoff.mine || intro.contactHandoff.theirs) && <section className="tim-ban-handoff" aria-label="Chia sẻ liên lạc riêng">
+            <h4>Giữ liên lạc sau Chợ Neo</h4>
+            <p>Nếu thấy hợp nhau, bạn có thể tự nguyện chia sẻ một cách liên lạc riêng.</p>
             {intro.contactHandoff.theirs && <div className="tim-ban-contact-card"><small>{intro.counterpart?.display_name ?? "Người kia"} đã chia sẻ</small><strong>{intro.contactHandoff.theirs.method}</strong><span>{intro.contactHandoff.theirs.value}</span></div>}
             {intro.contactHandoff.mine ? <div className="tim-ban-row"><span className="tim-ban-my-contact">Bạn đang chia sẻ: <b>{intro.contactHandoff.mine.method}</b> · {intro.contactHandoff.mine.value}</span><button className="quiet" disabled={busy} onClick={() => void handoff("remove-contact", intro.id)} type="button">Thu lại</button></div> : <div className="tim-ban-contact-form">
               <select aria-label="Cách liên lạc" onChange={(e) => setContactDrafts({ ...contactDrafts, [intro.id]: { ...(contactDrafts[intro.id] ?? { contactValue: "" }), method: e.target.value } })} value={contactDrafts[intro.id]?.method ?? "Facebook"}>{CHO_NEO_CONTACT_METHODS.map((method) => <option key={method}>{method}</option>)}</select>
@@ -206,7 +239,8 @@ export function TimBanTrongNghePanel() {
               <button disabled={busy || (contactDrafts[intro.id]?.contactValue.trim().length ?? 0) < 3} onClick={() => void handoff("share-contact", intro.id)} type="button">Chia sẻ riêng</button>
             </div>}
             <small>Không gửi tiền, giấy tờ hoặc thông tin nhạy cảm cho người bạn chưa tin cậy.</small>
-            <div className="tim-ban-row"><button className="quiet" disabled={busy} onClick={() => void act("block", intro.id)} type="button">Chặn</button><button className="danger" disabled={busy} onClick={() => void act("report", intro.id, { reason: "other" })} type="button">Chặn & báo cáo</button></div>
+          </section>}
+            <div className="tim-ban-row tim-ban-safety-actions"><button className="quiet" disabled={busy} onClick={() => void act("block", intro.id)} type="button">Chặn</button><button className="danger" disabled={busy} onClick={() => void act("report", intro.id, { reason: "other" })} type="button">Chặn & báo cáo</button></div>
           </section>}
         </article>)}
       </div>}
