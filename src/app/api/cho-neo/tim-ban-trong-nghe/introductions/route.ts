@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const members = [body.memberAUserId, body.memberBUserId].sort();
   const [{ data: profiles }, { data: memberProfiles }, { data: blocks, error: blockError }] = await Promise.all([
     supabase.from(CHO_NEO_MATCHING_PROFILE_TABLE).select("user_id, status").in("user_id", members).eq("status", "active"),
-    supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("user_id, membership_status").in("user_id", members).eq("membership_status", "verified_nail_member"),
+    supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("user_id, membership_status, suspended_at").in("user_id", members).eq("membership_status", "verified_nail_member").is("suspended_at", null),
     supabase.from(CHO_NEO_MATCHING_BLOCK_TABLE).select("blocker_user_id").or(`and(blocker_user_id.eq.${members[0]},blocked_user_id.eq.${members[1]}),and(blocker_user_id.eq.${members[1]},blocked_user_id.eq.${members[0]})`),
   ]);
   if (blockError || blocks?.length) return NextResponse.json({ error: "Cặp này không thể được giới thiệu." }, { status: 409 });
