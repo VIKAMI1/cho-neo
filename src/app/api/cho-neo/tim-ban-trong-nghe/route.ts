@@ -32,53 +32,72 @@ export async function GET(request: Request) {
   ]);
   if (profileError || introError) return unavailable("matching-read-failed");
 
-  const publicIntroductions = await Promise.all((introductions ?? []).map(async (intro) => {
-    const isMemberA = intro.member_a_user_id === userId;
-    const myDecision = isMemberA ? intro.member_a_decision : intro.member_b_decision;
-    const theirDecision = isMemberA ? intro.member_b_decision : intro.member_a_decision;
-    const counterpartId = isMemberA ? intro.member_b_user_id : intro.member_a_user_id;
-    const isMutual = myDecision === "accepted" && theirDecision === "accepted";
-    let counterpart = null;
-    let contactHandoff = { mine: null as { method: string; value: string } | null, theirs: null as { method: string; value: string } | null };
-    let privateTable = null as null | {
-      lastActiveAt: string;
-      messages: Array<{ body: string; id: string; mine: boolean; sentAt: string }>;
-      quietAt: string;
-    };
-    if (isMutual) {
-      const [{ data }, { data: contacts }, { data: messages }] = await Promise.all([
-        supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("display_name, avatar_key, nail_role").eq("user_id", counterpartId).maybeSingle(),
-        supabase.from(CHO_NEO_CONTACT_HANDOFF_TABLE).select("user_id, method, contact_value").eq("introduction_id", intro.id),
-        supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("id, sender_user_id, body, created_at").eq("introduction_id", intro.id).order("created_at", { ascending: true }).limit(100),
-      ]);
-      counterpart = data ?? null;
-      for (const contact of contacts ?? []) {
-        const value = { method: contact.method, value: contact.contact_value };
-        if (contact.user_id === userId) contactHandoff.mine = value;
-        if (contact.user_id === counterpartId) contactHandoff.theirs = value;
-      }
-      const lastActiveAt = intro.table_last_active_at ?? intro.opened_at ?? intro.created_at;
-      privateTable = {
-        lastActiveAt,
-        messages: (messages ?? []).map((message) => ({ body: message.body, id: message.id, mine: message.sender_user_id === userId, sentAt: message.created_at })),
-        quietAt: new Date(new Date(lastActiveAt).getTime() + CHO_NEO_TABLE_QUIET_DAYS * 86_400_000).toISOString(),
+  const safetyEntries = await Promise.all((introductions ?? []).map(async (intro) => [
+    intro.id,
+    await getIntroductionSafetyState(supabase, intro.member_a_user_id, intro.member_b_user_id, intro.id),
+  ] as const));
+  if (safetyEntries.some(([, safety]) => safety === null)) return unavailable("matching-safety-read-failed");
+  const safetyByIntroduction = new Map(safetyEntries as Array<[string, { blocked: boolean; reported: boolean }]>);
+
+  let publicIntroductions;
+  try {
+    publicIntroductions = await Promise.all((introductions ?? []).map(async (intro) => {
+      const isMemberA = intro.member_a_user_id === userId;
+      const myDecision = isMemberA ? intro.member_a_decision : intro.member_b_decision;
+      const theirDecision = isMemberA ? intro.member_b_decision : intro.member_a_decision;
+      const counterpartId = isMemberA ? intro.member_b_user_id : intro.member_a_user_id;
+      const safety = safetyByIntroduction.get(intro.id)!;
+      const isMutual = myDecision === "accepted" && theirDecision === "accepted";
+      const expired = new Date(intro.expires_at).getTime() <= Date.now();
+      const canExposePrivateTable = isMutual && !safety.blocked && !safety.reported && !intro.table_closed_at && !expired;
+      let counterpart = null;
+      let contactHandoff = { mine: null as { method: string; value: string } | null, theirs: null as { method: string; value: string } | null };
+      let privateTable = null as null | {
+        lastActiveAt: string;
+        messages: Array<{ body: string; id: string; mine: boolean; sentAt: string }>;
+        quietAt: string;
       };
-    }
-    const tableIsQuiet = privateTable ? new Date(privateTable.quietAt).getTime() <= Date.now() : false;
-    return {
-      contactHandoff,
-      counterpart,
-      createdAt: intro.created_at,
-      expiresAt: intro.expires_at,
-      icebreaker: isMutual ? intro.icebreaker : null,
-      id: intro.id,
-      matchNote: intro.match_note,
-      myDecision,
-      openedAt: intro.opened_at,
-      privateTable,
-      state: myDecision === "passed" || theirDecision === "passed" || intro.table_closed_at ? "closed" : isMutual ? tableIsQuiet ? "quiet" : "mutual" : new Date(intro.expires_at).getTime() <= Date.now() ? "expired" : myDecision === "accepted" ? "waiting" : "pending",
-    };
-  }));
+      if (isMutual && !safety.blocked && !safety.reported) {
+        const { data, error: counterpartError } = await supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("display_name, avatar_key, nail_role").eq("user_id", counterpartId).maybeSingle();
+        if (counterpartError) throw new Error("counterpart-read-failed");
+        counterpart = data ?? null;
+        if (canExposePrivateTable) {
+          const [{ data: contacts, error: contactError }, { data: messages, error: messageError }] = await Promise.all([
+            supabase.from(CHO_NEO_CONTACT_HANDOFF_TABLE).select("user_id, method, contact_value").eq("introduction_id", intro.id),
+            supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("id, sender_user_id, body, created_at").eq("introduction_id", intro.id).order("created_at", { ascending: true }).limit(100),
+          ]);
+          if (contactError || messageError) throw new Error("private-data-read-failed");
+          for (const contact of contacts ?? []) {
+            const value = { method: contact.method, value: contact.contact_value };
+            if (contact.user_id === userId) contactHandoff.mine = value;
+            if (contact.user_id === counterpartId) contactHandoff.theirs = value;
+          }
+          const lastActiveAt = intro.table_last_active_at ?? intro.opened_at ?? intro.created_at;
+          privateTable = {
+            lastActiveAt,
+            messages: (messages ?? []).map((message) => ({ body: message.body, id: message.id, mine: message.sender_user_id === userId, sentAt: message.created_at })),
+            quietAt: new Date(new Date(lastActiveAt).getTime() + CHO_NEO_TABLE_QUIET_DAYS * 86_400_000).toISOString(),
+          };
+        }
+      }
+      const tableIsQuiet = privateTable ? new Date(privateTable.quietAt).getTime() <= Date.now() : false;
+      return {
+        contactHandoff,
+        counterpart,
+        createdAt: intro.created_at,
+        expiresAt: intro.expires_at,
+        icebreaker: isMutual ? intro.icebreaker : null,
+        id: intro.id,
+        matchNote: intro.match_note,
+        myDecision,
+        openedAt: intro.opened_at,
+        privateTable,
+        state: safety.blocked || safety.reported || myDecision === "passed" || theirDecision === "passed" || intro.table_closed_at ? "closed" : isMutual ? tableIsQuiet ? "quiet" : "mutual" : expired ? "expired" : myDecision === "accepted" ? "waiting" : "pending",
+      };
+    }));
+  } catch {
+    return unavailable("matching-private-read-failed");
+  }
 
   return NextResponse.json({
     introductions: publicIntroductions,
@@ -143,9 +162,13 @@ export async function POST(request: Request) {
     const mine = intro.member_a_user_id === userId ? "member_a_decision" : "member_b_decision";
     const other = mine === "member_a_decision" ? "member_b_decision" : "member_a_decision";
     const decision = String(body.decision);
+    const safety = await getIntroductionSafetyState(supabase, intro.member_a_user_id, intro.member_b_user_id, body.introductionId);
+    if (!safety) return unavailable("matching-safety-read-failed");
+    if (safety.blocked || safety.reported) return NextResponse.json({ error: "Lời giới thiệu này đã được khép lại vì an toàn." }, { status: 403 });
+    if (intro[mine] === "passed") return badRequest("Bạn đã bỏ qua lời giới thiệu này rồi.");
     const opened = decision === "accepted" && intro[other] === "accepted";
     const now = new Date().toISOString();
-    const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [mine]: decision, ...(opened ? { opened_at: now, table_last_active_at: now } : {}), updated_at: now }).eq("id", body.introductionId).eq(mine === "member_a_decision" ? "member_a_user_id" : "member_b_user_id", userId);
+    const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [mine]: decision, ...(opened ? { opened_at: now, table_last_active_at: now } : {}), updated_at: now }).eq("id", body.introductionId).eq(mine === "member_a_decision" ? "member_a_user_id" : "member_b_user_id", userId).neq(mine, "passed");
     return error ? unavailable("decision-save-failed") : NextResponse.json({ ok: true });
   }
 
@@ -159,6 +182,9 @@ export async function POST(request: Request) {
     if (introError || !intro || ![intro.member_a_user_id, intro.member_b_user_id].includes(userId)) {
       return NextResponse.json({ error: "Bàn trò chuyện không còn ở đây." }, { status: 404 });
     }
+    const safety = await getIntroductionSafetyState(supabase, intro.member_a_user_id, intro.member_b_user_id, body.introductionId);
+    if (!safety) return unavailable("matching-safety-read-failed");
+    if (safety.blocked || safety.reported) return NextResponse.json({ error: "Bàn trò chuyện này đã được khép lại vì an toàn." }, { status: 403 });
     if (intro.member_a_decision !== "accepted" || intro.member_b_decision !== "accepted") {
       return badRequest("Hai người cần cùng chào nhau trước nha.");
     }
@@ -179,8 +205,9 @@ export async function POST(request: Request) {
     const message = validatePrivateMessage(body.message);
     if ("error" in message) return badRequest(message.error);
     const minuteAgo = new Date(now.getTime() - 60_000).toISOString();
-    const { count } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("id", { count: "exact", head: true }).eq("introduction_id", body.introductionId).eq("sender_user_id", userId).gte("created_at", minuteAgo);
-    if ((count ?? 0) >= 10) return NextResponse.json({ error: "Chậm một chút nha—bạn vừa gửi khá nhiều lời nhắn." }, { status: 429 });
+    const { count, error: rateLimitError } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("id", { count: "exact", head: true }).eq("introduction_id", body.introductionId).eq("sender_user_id", userId).gte("created_at", minuteAgo);
+    if (rateLimitError || count === null || count === undefined) return unavailable("message-rate-limit-read-failed");
+    if (count >= 10) return NextResponse.json({ error: "Chậm một chút nha—bạn vừa gửi khá nhiều lời nhắn." }, { status: 429 });
     const { error } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).insert({ body: message.body, introduction_id: body.introductionId, sender_user_id: userId });
     if (error) return unavailable("message-send-failed");
     await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ table_last_active_at: now.toISOString(), updated_at: now.toISOString() }).eq("id", body.introductionId);
@@ -197,6 +224,9 @@ export async function POST(request: Request) {
     if (introError || !intro || ![intro.member_a_user_id, intro.member_b_user_id].includes(userId)) {
       return NextResponse.json({ error: "Lời giới thiệu không còn ở đây." }, { status: 404 });
     }
+    const safety = await getIntroductionSafetyState(supabase, intro.member_a_user_id, intro.member_b_user_id, body.introductionId);
+    if (!safety) return unavailable("matching-safety-read-failed");
+    if (safety.blocked || safety.reported) return NextResponse.json({ error: "Lời giới thiệu này đã được khép lại vì an toàn." }, { status: 403 });
     const mutual = intro.member_a_decision === "accepted" && intro.member_b_decision === "accepted";
     if (!mutual || intro.table_closed_at) {
       return badRequest("Hai người cần cùng chào nhau trước khi chia sẻ liên lạc.");
@@ -254,10 +284,24 @@ async function requireMember(request: Request) {
   if (!user) return NextResponse.json({ error: "Đăng nhập để mở khu ghép bạn." }, { status: 401 });
   const supabase = createMatchingServiceClient();
   if (!supabase) return unavailable("missing-service-role");
-  const { data, error } = await supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("membership_status").eq("user_id", user.id).maybeSingle();
+  const { data, error } = await supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("membership_status, suspended_at").eq("user_id", user.id).is("suspended_at", null).maybeSingle();
   if (error) return unavailable("member-read-failed");
   if (data?.membership_status !== "verified_nail_member") return NextResponse.json({ error: "Khu này chỉ mở cho thành viên nghề nail đã xác nhận." }, { status: 403 });
   return { supabase, userId: user.id };
+}
+
+async function getIntroductionSafetyState(
+  supabase: NonNullable<ReturnType<typeof createMatchingServiceClient>>,
+  memberAUserId: string,
+  memberBUserId: string,
+  introductionId: string,
+) {
+  const [{ data: blocks, error: blockError }, { data: reports, error: reportError }] = await Promise.all([
+    supabase.from(CHO_NEO_MATCHING_BLOCK_TABLE).select("blocker_user_id, blocked_user_id").or(`and(blocker_user_id.eq.${memberAUserId},blocked_user_id.eq.${memberBUserId}),and(blocker_user_id.eq.${memberBUserId},blocked_user_id.eq.${memberAUserId})`).limit(1),
+    supabase.from(CHO_NEO_MATCHING_REPORT_TABLE).select("introduction_id").eq("introduction_id", introductionId).limit(1),
+  ]);
+  if (blockError || reportError) return null;
+  return { blocked: (blocks ?? []).length > 0, reported: (reports ?? []).length > 0 };
 }
 
 function badRequest(error: string) { return NextResponse.json({ error }, { status: 400 }); }

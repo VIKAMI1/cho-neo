@@ -11,7 +11,7 @@ export async function getMatchingUser(request: Request) {
   const { data, error } = await createClient(url, anonKey, {
     auth: { persistSession: false },
   }).auth.getUser(token);
-  return error ? null : data.user ?? null;
+  return error || !data.user || data.user.is_anonymous ? null : data.user;
 }
 
 export function createMatchingServiceClient() {
