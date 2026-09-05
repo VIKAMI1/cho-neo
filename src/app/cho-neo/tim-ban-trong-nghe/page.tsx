@@ -268,6 +268,7 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-panel form > .tim-ban-location-grid,
           .tim-ban-panel form > .tim-ban-discovery,
           .tim-ban-panel form > .tim-ban-professional-grid,
+          .tim-ban-panel form > .tim-ban-intent,
           .tim-ban-panel form > .tim-ban-languages,
           .tim-ban-panel form > .tim-ban-guide,
           .tim-ban-panel form > .tim-ban-profile-preview,
@@ -278,6 +279,13 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-professional-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
           .tim-ban-professional-grid label { min-width: 0; }
           .tim-ban-professional-grid label small { color: var(--tim-ban-muted); font-size: .68rem; font-weight: 400; }
+          .tim-ban-intent { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 0; border: 0; padding: 0; }
+          .tim-ban-intent legend { grid-column: 1 / -1; margin-bottom: 2px; color: #653129; font-size: .88rem; font-weight: 650; }
+          .tim-ban-panel .tim-ban-intent label { display: grid; grid-template-columns: 18px 1fr; align-items: start; border: 1px solid rgba(112,57,39,.16); border-radius: 13px; padding: 10px; background: #fffaf0; cursor: pointer; }
+          .tim-ban-panel .tim-ban-intent input { width: 16px; margin-top: 2px; }
+          .tim-ban-intent span { display: grid; gap: 3px; }
+          .tim-ban-intent small { color: var(--tim-ban-muted); font-weight: 400; line-height: 1.35; }
+          .tim-ban-intent > p { grid-column: 1 / -1; color: var(--tim-ban-muted); font-size: .8rem; line-height: 1.45; }
           .tim-ban-languages { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; border: 0; padding: 0; }
           .tim-ban-languages legend { width: 100%; margin-bottom: 2px; color: #653129; font-size: .88rem; font-weight: 650; }
           .tim-ban-panel .tim-ban-languages label { display: inline-flex; grid-template-columns: none; align-items: center; gap: 6px; border: 1px solid rgba(112,57,39,.16); border-radius: 999px; padding: 8px 11px; background: #fffaf0; cursor: pointer; }
@@ -414,7 +422,8 @@ export default function TimBanTrongNghePreviewPage() {
             .tim-ban-panel form,
             .tim-ban-location-grid,
             .tim-ban-professional-grid,
-            .tim-ban-discovery {
+            .tim-ban-discovery,
+            .tim-ban-intent {
               grid-template-columns: 1fr;
             }
 
