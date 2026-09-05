@@ -221,20 +221,20 @@ export async function POST(request: Request) {
       { decision: languageDecision, source: "language" as const },
       { decision: behaviorDecision, source: "behavior" as const },
     ];
-    void Promise.all(
-      safetyDecisions
-        .filter(({ decision }) => decision.action !== "allow")
-        .map(({ decision, source }) => recordChoNeoSafetyEvent(supabase, {
-          action: decision.action,
-          introductionId: String(body.introductionId),
-          metadata: { degraded: decision.degraded },
-          score: decision.score,
-          severity: decision.severity,
-          signalCodes: decision.signalCodes,
-          source,
-          subjectUserId: userId,
-        })),
-    );
+    const safetyEventWrites = safetyDecisions.flatMap(({ decision, source }) => {
+      if (decision.action === "allow") return [];
+      return [recordChoNeoSafetyEvent(supabase, {
+        action: decision.action,
+        introductionId: String(body.introductionId),
+        metadata: { degraded: decision.degraded },
+        score: decision.score,
+        severity: decision.severity,
+        signalCodes: decision.signalCodes,
+        source,
+        subjectUserId: userId,
+      })];
+    });
+    void Promise.all(safetyEventWrites);
     if (languageDecision.action !== "allow") {
       return NextResponse.json({ error: languageDecision.userMessage ?? "Tin nhắn này cần được viết lại trước khi gửi nha." }, { status: 422 });
     }
