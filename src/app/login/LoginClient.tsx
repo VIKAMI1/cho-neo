@@ -34,7 +34,7 @@ export default function LoginClient() {
     reason === "unlinked"
       ? [
           "Tài khoản Google này chưa được liên kết với Thẻ Thành Viên Chợ Neo.",
-          "Nếu bạn có lời mời mới, hãy mở liên kết lời mời đó trước.",
+          "Nếu đây là lần đầu, hãy tạo Thẻ Thành Viên trước.",
         ]
       : reason === "restricted"
         ? ["Thẻ Thành Viên này hiện chưa thể vào Chợ Neo."]
@@ -63,7 +63,7 @@ export default function LoginClient() {
     setOtpBusy(false);
 
     if (error) {
-      setMessage("Email này chưa mở được cổng Chợ Neo. Kiểm tra lại hoặc mở lời mời riêng nếu đây là lần đầu.");
+      setMessage("Email này chưa có Thẻ Thành Viên. Kiểm tra lại hoặc tạo thẻ nếu đây là lần đầu.");
       return;
     }
 
@@ -232,7 +232,9 @@ export default function LoginClient() {
         ) : null}
         <div className="cho-neo-login-invitation">
           <p>Lần đầu đến Chợ Neo?</p>
-          <p>Mở liên kết lời mời bạn đã nhận trong tin nhắn hoặc email.</p>
+          <p>
+            <a href={`/join?next=${encodeURIComponent(next)}`}>Tạo Thẻ Thành Viên</a> nếu bạn từ 18 tuổi và đang trong nghề nail.
+          </p>
         </div>
       </section>
       <style jsx>{`

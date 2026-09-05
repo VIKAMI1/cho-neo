@@ -10,23 +10,32 @@ type ChoNeoRoomTopBarProps = {
   ariaLabel: string;
   feedback?: ReactNode;
   memberProfile?: ChoNeoMemberProfile | null;
+  navigation?: ReactNode;
   onMemberClick?: () => void;
+  tone?: "dark" | "light";
 };
 
 export function ChoNeoRoomTopBar({
   ariaLabel,
   feedback,
   memberProfile,
+  navigation,
   onMemberClick,
+  tone = "dark",
 }: ChoNeoRoomTopBarProps) {
   const verifiedMember = isVerifiedChoNeoMemberProfile(memberProfile) ? memberProfile : null;
 
   return (
-    <div className="cho-neo-room-top-bar" aria-label={ariaLabel}>
+    <div className={`cho-neo-room-top-bar cho-neo-room-top-bar--${tone}`} aria-label={ariaLabel}>
       <Link className="cho-neo-room-top-bar__back" href="/cho-neo">
         <span aria-hidden="true">←</span>
         <span>Sân Làng</span>
       </Link>
+      {navigation ? (
+        <nav className="cho-neo-room-top-bar__navigation" aria-label="Đi nhanh trong Chợ Neo">
+          {navigation}
+        </nav>
+      ) : null}
       <div className="cho-neo-room-top-bar__actions">
         {onMemberClick ? (
           <button className="cho-neo-room-top-bar__member" onClick={onMemberClick} type="button">
@@ -90,6 +99,39 @@ export function ChoNeoRoomTopBar({
           font-weight: 400;
           text-decoration: none;
           text-overflow: ellipsis;
+        }
+
+        .cho-neo-room-top-bar__navigation {
+          display: flex;
+          flex: 1 1 auto;
+          align-items: center;
+          gap: 6px;
+          min-width: 0;
+        }
+
+        .cho-neo-room-top-bar__navigation :global(a),
+        .cho-neo-room-top-bar__navigation :global(span) {
+          min-height: 38px;
+          display: inline-flex;
+          align-items: center;
+          border: 1px solid rgba(248, 211, 145, 0.24);
+          border-radius: 10px;
+          padding: 8px 12px;
+          color: rgba(255, 247, 237, 0.76);
+          font-size: 12px;
+          text-decoration: none;
+          white-space: nowrap;
+        }
+
+        .cho-neo-room-top-bar__navigation :global([aria-current="page"]) {
+          color: #fff7ed;
+          background: rgba(255, 247, 237, 0.1);
+          font-weight: 600;
+        }
+
+        .cho-neo-room-top-bar__navigation :global(a:hover) {
+          color: #fff7ed;
+          background: rgba(255, 247, 237, 0.07);
         }
 
         .cho-neo-room-top-bar__actions {
@@ -193,6 +235,39 @@ export function ChoNeoRoomTopBar({
           height: 100%;
         }
 
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__back,
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__member,
+        .cho-neo-room-top-bar--light :global(.cho-neo-feedback-button) {
+          border-color: rgba(101, 49, 41, 0.18);
+          color: #653129;
+          background: rgba(255, 255, 255, 0.52);
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__member strong,
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__navigation :global(a),
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__navigation :global(span) {
+          color: #653129;
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__navigation :global([aria-current="page"]) {
+          color: #fff8ea;
+          background: #713225;
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__member-copy small {
+          color: rgba(101, 49, 41, 0.62);
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__navigation :global(a) {
+          border-color: rgba(101, 49, 41, 0.18);
+          background: rgba(255, 255, 255, 0.52);
+        }
+
+        .cho-neo-room-top-bar--light .cho-neo-room-top-bar__music :global(.cho-neo-theme-audio) {
+          border: 1px solid rgba(101, 49, 41, 0.18);
+          background: rgba(255, 255, 255, 0.52);
+        }
+
         .cho-neo-room-top-bar__music :global(.theme-music-toggle) {
           width: 100%;
           height: 100%;
@@ -205,10 +280,12 @@ export function ChoNeoRoomTopBar({
         }
 
         .cho-neo-room-top-bar :global(.cho-neo-feedback-button) {
-          min-width: 0;
+          min-width: 64px;
+          height: 44px;
           min-height: 44px;
           margin: 0;
           cursor: pointer;
+          white-space: nowrap;
         }
 
         .cho-neo-room-top-bar :global(.cho-neo-feedback-button)::before {
@@ -251,6 +328,23 @@ export function ChoNeoRoomTopBar({
             flex: 1 1 auto;
             max-width: min(46vw, 190px);
             padding-inline: 8px;
+          }
+
+          .cho-neo-room-top-bar__navigation {
+            order: 3;
+            width: 100%;
+            overflow-x: auto;
+            padding-top: 4px;
+          }
+
+          .cho-neo-room-top-bar {
+            flex-wrap: wrap;
+          }
+
+          .cho-neo-room-top-bar__navigation :global(a),
+          .cho-neo-room-top-bar__navigation :global(span) {
+            min-height: 36px;
+            padding: 7px 10px;
           }
 
           .cho-neo-room-top-bar__actions {

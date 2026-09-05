@@ -13,7 +13,7 @@ export async function requireChoNeoInvitationAdmin(): Promise<InvitationAdminAut
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (!user || user.is_anonymous) {
     return {
       message: "Sign in with the owner account to manage invitations.",
       ok: false,

@@ -1,4 +1,6 @@
 {
+  "name": "cho-neo",
+  "private": true,
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.87.1",
@@ -16,6 +18,7 @@
     "lint": "next lint"
   },
   "devDependencies": {
+    "@types/node": "25.0.3",
     "@types/react": "19.2.0",
     "autoprefixer": "^10.4.22",
     "postcss": "8.5.23",

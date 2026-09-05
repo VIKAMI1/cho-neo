@@ -1,10 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { hashChoNeoInvitationCode as hashStoredChoNeoInvitationCode } from "@/lib/cho-neo/member-invitations";
 import {
   CHO_NEO_AGREEMENT_VERSION,
   CHO_NEO_MEMBER_PROFILE_TABLE,
   isApprovedChoNeoMemberAvatarKey,
+  isChoNeoPublicNailRole,
   validateChoNeoMemberDisplayName,
 } from "@/lib/cho-neo/member-identity";
 
@@ -12,11 +12,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type VerifyBody = {
+  adultAttested?: unknown;
   agreementAccepted?: unknown;
   agreementVersion?: unknown;
   avatarKey?: unknown;
   displayName?: unknown;
-  invitationToken?: unknown;
+  nailRole?: unknown;
 };
 
 type AuthenticatedChoNeoUser = {
@@ -24,16 +25,16 @@ type AuthenticatedChoNeoUser = {
   isAnonymous: boolean;
 };
 
-const INVITATION_ATTEMPT_WINDOW_MS = 60_000;
-const INVITATION_ATTEMPT_MAX = 6;
-const invitationAttemptBuckets = new Map<string, number[]>();
+const ENROLLMENT_ATTEMPT_WINDOW_MS = 60_000;
+const ENROLLMENT_ATTEMPT_MAX = 6;
+const enrollmentAttemptBuckets = new Map<string, number[]>();
 
 export async function POST(request: Request) {
   const authenticatedUser = await getAuthenticatedChoNeoUser(request);
   if (!authenticatedUser) {
     return NextResponse.json(
       {
-        error: "Mở lời mời riêng để vào Chợ Neo nha.",
+        error: "Chợ Neo chưa mở được phiên thành viên trên thiết bị này.",
         reason: "missing-session",
       },
       { status: 401 },
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     : null;
   const { data: existingProfile, error: profileReadError } = await supabase
     .from(CHO_NEO_MEMBER_PROFILE_TABLE)
-    .select("user_id, membership_status, agreement_version")
+    .select("user_id, membership_status, agreement_version, adult_attested_at, nail_role")
     .eq("user_id", authenticatedUser.id)
     .maybeSingle();
 
@@ -76,9 +77,30 @@ export async function POST(request: Request) {
     );
   }
 
+  if (body?.adultAttested !== true) {
+    return NextResponse.json(
+      {
+        error: "Chợ Neo chỉ dành cho người từ 18 tuổi trở lên.",
+        reason: "adult-attestation-required",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (!isChoNeoPublicNailRole(body?.nailRole)) {
+    return NextResponse.json(
+      {
+        error: "Chọn vai trò của bạn trong nghề nail trước nha.",
+        reason: "nail-role-required",
+      },
+      { status: 400 },
+    );
+  }
+
   if (existingProfile?.membership_status === "verified_nail_member") {
     const agreementNeedsAcceptance =
-      existingProfile.agreement_version !== CHO_NEO_AGREEMENT_VERSION;
+      existingProfile.agreement_version !== CHO_NEO_AGREEMENT_VERSION ||
+      !existingProfile.adult_attested_at;
 
     if (agreementNeedsAcceptance && body?.agreementAccepted !== true) {
       return NextResponse.json(
@@ -93,7 +115,7 @@ export async function POST(request: Request) {
     if (agreementNeedsAcceptance && body?.agreementVersion !== CHO_NEO_AGREEMENT_VERSION) {
       return NextResponse.json(
         {
-          error: "Thỏa thuận Chợ Neo đã được cập nhật. Mở lại lời mời giúp Chợ Neo nha.",
+          error: "Thỏa thuận Chợ Neo đã được cập nhật. Tải lại trang giúp Chợ Neo nha.",
           reason: "agreement-version-mismatch",
         },
         { status: 400 },
@@ -105,9 +127,11 @@ export async function POST(request: Request) {
       .from(CHO_NEO_MEMBER_PROFILE_TABLE)
       .update({
         avatar_key: avatarKey,
+        adult_attested_at: existingProfile.adult_attested_at ?? now,
         display_name: displayName.displayName,
         last_seen_at: now,
         normalized_display_name: displayName.normalizedDisplayName,
+        nail_role: body.nailRole,
         updated_at: now,
         ...(agreementNeedsAcceptance
           ? {
@@ -118,7 +142,7 @@ export async function POST(request: Request) {
       })
       .eq("user_id", authenticatedUser.id)
       .select(
-        "user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status, agreement_version, agreement_accepted_at",
+        "user_id, display_name, normalized_display_name, avatar_key, nail_role, membership_status, agreement_version, agreement_accepted_at, adult_attested_at",
       )
       .single();
 
@@ -139,55 +163,42 @@ export async function POST(request: Request) {
   if (body?.agreementVersion !== CHO_NEO_AGREEMENT_VERSION) {
     return NextResponse.json(
       {
-        error: "Thỏa thuận Chợ Neo đã được cập nhật. Mở lại lời mời giúp Chợ Neo nha.",
+        error: "Thỏa thuận Chợ Neo đã được cập nhật. Tải lại trang giúp Chợ Neo nha.",
         reason: "agreement-version-mismatch",
       },
       { status: 400 },
     );
   }
 
-  const invitationToken =
-    typeof body?.invitationToken === "string"
-      ? body.invitationToken.trim()
-      : "";
-  if (!invitationToken) {
+  const attemptKey = getEnrollmentAttemptKey(request, authenticatedUser.id);
+  if (isEnrollmentAttemptRateLimited(attemptKey)) {
     return NextResponse.json(
       {
-        error: "Lời mời riêng chưa có mặt. Mở lại liên kết được gửi cho bạn nha.",
-        reason: "missing-invitation",
-      },
-      { status: 400 },
-    );
-  }
-
-  const attemptKey = getInvitationAttemptKey(request, authenticatedUser.id);
-  if (isInvitationAttemptRateLimited(attemptKey)) {
-    return NextResponse.json(
-      {
-        error: "Bạn thử lời mời hơi nhanh. Nghỉ một nhịp rồi thử lại nha.",
-        reason: "invitation-rate-limited",
+        error: "Bạn đang thử vào Chợ hơi nhanh. Nghỉ một nhịp rồi thử lại nha.",
+        reason: "enrollment-rate-limited",
       },
       { status: 429 },
     );
   }
 
   const { data: profile, error: profileError } = await supabase.rpc(
-    "redeem_cho_neo_private_invitation",
+    "enroll_cho_neo_public_adult_trade_member",
     {
+      p_adult_attested: true,
       p_agreement_version: CHO_NEO_AGREEMENT_VERSION,
       p_avatar_key: avatarKey,
-      p_code_hash: hashChoNeoInvitationToken(invitationToken),
       p_display_name: displayName.displayName,
+      p_nail_role: body.nailRole,
       p_normalized_display_name: displayName.normalizedDisplayName,
       p_user_id: authenticatedUser.id,
     },
   );
 
   if (profileError) {
-    console.error("[cho-neo:member-verify] invitation redemption failed", {
+    console.error("[cho-neo:member-verify] public enrollment failed", {
       code: profileError.code ?? null,
     });
-    return invitationFailure(profileError.message, profileError.code);
+    return enrollmentFailure(profileError.message, profileError.code);
   }
 
   const nextProfile = Array.isArray(profile) ? profile[0] : profile;
@@ -195,12 +206,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ profile: nextProfile });
 }
-
-export function hashChoNeoInvitationToken(token: string) {
-  return hashStoredChoNeoInvitationCode(token);
-}
-
-export const hashChoNeoInvitationCode = hashChoNeoInvitationToken;
 
 async function getAuthenticatedChoNeoUser(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
@@ -232,48 +237,27 @@ function createChoNeoSupabaseServiceClient() {
   });
 }
 
-function getInvitationAttemptKey(request: Request, userId: string) {
+function getEnrollmentAttemptKey(request: Request, userId: string) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const realIp = request.headers.get("x-real-ip")?.trim();
   return `${userId}:${(forwarded || realIp || "local").slice(0, 80)}`;
 }
 
-function isInvitationAttemptRateLimited(key: string, now = Date.now()) {
-  const recent = (invitationAttemptBuckets.get(key) ?? []).filter(
-    (timestamp) => now - timestamp < INVITATION_ATTEMPT_WINDOW_MS,
+function isEnrollmentAttemptRateLimited(key: string, now = Date.now()) {
+  const recent = (enrollmentAttemptBuckets.get(key) ?? []).filter(
+    (timestamp) => now - timestamp < ENROLLMENT_ATTEMPT_WINDOW_MS,
   );
-  if (recent.length >= INVITATION_ATTEMPT_MAX) {
-    invitationAttemptBuckets.set(key, recent);
+  if (recent.length >= ENROLLMENT_ATTEMPT_MAX) {
+    enrollmentAttemptBuckets.set(key, recent);
     return true;
   }
 
   recent.push(now);
-  invitationAttemptBuckets.set(key, recent);
+  enrollmentAttemptBuckets.set(key, recent);
   return false;
 }
 
-function invitationFailure(message: string, code?: string) {
-  if (message.includes("expired-invitation")) {
-    return NextResponse.json(
-      { error: "Lời mời này đã hết hạn.", reason: "expired-invitation" },
-      { status: 400 },
-    );
-  }
-
-  if (message.includes("revoked-invitation")) {
-    return NextResponse.json(
-      { error: "Lời mời này không còn dùng được.", reason: "revoked-invitation" },
-      { status: 400 },
-    );
-  }
-
-  if (message.includes("used-invitation")) {
-    return NextResponse.json(
-      { error: "Lời mời này đã được dùng rồi.", reason: "used-invitation" },
-      { status: 400 },
-    );
-  }
-
+function enrollmentFailure(message: string, code?: string) {
   if (message.includes("member-restricted")) {
     return NextResponse.json(
       { error: "Hồ sơ này hiện chưa thể vào Chợ Neo.", reason: "member-restricted" },
@@ -281,29 +265,29 @@ function invitationFailure(message: string, code?: string) {
     );
   }
 
-  if (message.includes("invalid-invitation")) {
+  if (message.includes("adult-attestation-required")) {
     return NextResponse.json(
-      {
-        error: "Lời mời chưa đúng. Kiểm tra lại liên kết giúp Chợ Neo nha.",
-        reason: "invalid-invitation",
-      },
+      { error: "Chợ Neo chỉ dành cho người từ 18 tuổi trở lên.", reason: "adult-attestation-required" },
       { status: 400 },
     );
   }
 
-  if (code === "42702" || message.includes('column reference "user_id" is ambiguous')) {
-    return unavailable("invitation-redeem-schema-conflict");
+  if (message.includes("invalid-nail-role")) {
+    return NextResponse.json(
+      { error: "Chọn đúng vai trò của bạn trong nghề nail trước nha.", reason: "nail-role-required" },
+      { status: 400 },
+    );
   }
 
   if (code === "PGRST202" || message.includes("does not exist")) {
-    return unavailable("invitation-rpc-missing");
+    return unavailable("public-enrollment-rpc-missing");
   }
 
   if (code === "42501" || message.includes("permission denied")) {
-    return unavailable("invitation-rpc-permission");
+    return unavailable("public-enrollment-rpc-permission");
   }
 
-  return unavailable("invitation-redeem-failed");
+  return unavailable("public-enrollment-failed");
 }
 
 function unavailable(reason: string) {

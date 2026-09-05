@@ -12,9 +12,9 @@ export const choNeoVillageNavItems: ChoNeoVillageNavItem[] = [
     symbol: "village",
   },
   {
-    href: "/cho-neo/gossip",
+    href: "/cho-neo/tim-ban-trong-nghe",
     id: "gossip",
-    label: "Quán Tám",
+    label: "Quán Xã Giao",
     symbol: "gossip",
   },
   {

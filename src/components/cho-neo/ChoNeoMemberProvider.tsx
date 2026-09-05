@@ -287,7 +287,7 @@ function ChoNeoMemberVerificationModal({ onClose, open, profile }: {
   return (
     <div aria-modal="true" className="cho-neo-member-overlay" role="dialog">
       <button
-        aria-label="Đóng lời mời riêng"
+        aria-label="Đóng cửa thành viên"
         className="cho-neo-member-backdrop"
         onClick={onClose}
         type="button"
@@ -295,9 +295,9 @@ function ChoNeoMemberVerificationModal({ onClose, open, profile }: {
       <section className="cho-neo-member-card">
         <header>
           <div>
-            <h2>Chợ Neo mở theo lời mời riêng</h2>
+            <h2>Tạo Thẻ Thành Viên Chợ Neo</h2>
             <p>
-              Mở liên kết riêng bạn nhận được để tạo tên hiển thị và bước vào chợ.
+              Nếu bạn từ 18 tuổi và đang trong nghề nail, bạn có thể tự tạo thẻ để bước vào chợ.
             </p>
           </div>
           <button aria-label="Đóng" onClick={onClose} type="button">
@@ -305,7 +305,7 @@ function ChoNeoMemberVerificationModal({ onClose, open, profile }: {
           </button>
         </header>
         <Link className="cho-neo-member-primary" href="/join">
-          Mở lời mời
+          Tạo thẻ thành viên
         </Link>
       </section>
       <ChoNeoMemberStyles />

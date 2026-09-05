@@ -22,8 +22,8 @@ export type HoiGiDayFeedbackType = "correct" | "addition" | "correction";
 export type HoiGiDayReviewStatus = "pending_review" | "approved" | "rejected";
 
 export type HoiChoNeoContinuation = {
-  href: "/cho-neo/technique" | "/cho-neo/owner-corner" | "/cho-neo/gossip";
-  label: "Góc Thợ Nail" | "Góc Chủ Tiệm" | "Quán Tám";
+  href: "/cho-neo/tim-ban-trong-nghe";
+  label: "Tìm Bạn Trong Nghề";
 };
 
 export function isHoiGiDayDestination(value: unknown): value is HoiGiDayDestination {
@@ -65,14 +65,9 @@ export function isPublishedHoiGiDayStatus(value: unknown) {
 }
 
 export function getHoiChoNeoContinuation(topic: HoiGiDayTopic): HoiChoNeoContinuation | null {
-  if (topic === "nail_technique" || topic === "nail_products") {
-    return { href: "/cho-neo/technique", label: "Góc Thợ Nail" };
-  }
-  if (topic === "salon_operations" || topic === "workplace_experience") {
-    return { href: "/cho-neo/owner-corner", label: "Góc Chủ Tiệm" };
-  }
-  if (topic === "customer_service" || topic === "general") {
-    return { href: "/cho-neo/gossip", label: "Quán Tám" };
-  }
-  return null;
+  if (!HOI_GI_DAY_TOPICS.includes(topic)) return null;
+  return {
+    href: "/cho-neo/tim-ban-trong-nghe",
+    label: "Tìm Bạn Trong Nghề",
+  };
 }
