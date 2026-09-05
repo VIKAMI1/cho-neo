@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase-server";
+import { CHO_NEO_MEMBER_PROFILE_TABLE } from "@/lib/cho-neo/member-identity";
 
 export type InvitationAdminAuthorization =
   | { ok: true; userId: string }
@@ -11,9 +12,10 @@ export async function requireChoNeoInvitationAdmin(): Promise<InvitationAdminAut
   const supabase = await createServerSupabase();
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
-  if (!user || user.is_anonymous) {
+  if (authError || !user || user.is_anonymous) {
     return {
       message: "Sign in with the owner account to manage invitations.",
       ok: false,
@@ -24,6 +26,23 @@ export async function requireChoNeoInvitationAdmin(): Promise<InvitationAdminAut
   if (!getChoNeoInvitationAdminUserIds().has(user.id)) {
     return {
       message: "This signed-in account is not allowed to manage Chợ Neo invitations.",
+      ok: false,
+      reason: "forbidden",
+    };
+  }
+
+  const { data: memberProfile, error: memberProfileError } = await supabase
+    .from(CHO_NEO_MEMBER_PROFILE_TABLE)
+    .select("membership_status, suspended_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (
+    memberProfileError ||
+    memberProfile?.membership_status !== "verified_nail_member" ||
+    memberProfile.suspended_at !== null
+  ) {
+    return {
+      message: "This account is not eligible to manage Chợ Neo.",
       ok: false,
       reason: "forbidden",
     };

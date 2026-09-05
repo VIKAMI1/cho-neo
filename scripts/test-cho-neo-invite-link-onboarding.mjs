@@ -21,6 +21,14 @@ const migrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260803100000_cho_neo_private_invitation_onboarding_v1.sql",
 );
+const publicEnrollmentMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260830193753_cho_neo_public_adult_trade_onboarding_v1.sql",
+);
+const publicEnrollmentConstraintMigrationPath = path.join(
+  repoRoot,
+  "supabase/migrations/20260831003053_fix_cho_neo_public_adult_trade_enrollment_constraint.sql",
+);
 const upsertFixMigrationPath = path.join(
   repoRoot,
   "supabase/migrations/20260806110000_fix_cho_neo_private_invitation_upsert.sql",
@@ -41,13 +49,14 @@ const entry = fs.readFileSync(entryPath, "utf8");
 const provider = fs.readFileSync(providerPath, "utf8");
 const verifyRoute = fs.readFileSync(verifyRoutePath, "utf8");
 const migration = fs.readFileSync(migrationPath, "utf8");
+const publicEnrollmentMigration = fs.readFileSync(publicEnrollmentMigrationPath, "utf8");
+const publicEnrollmentConstraintMigration = fs.readFileSync(publicEnrollmentConstraintMigrationPath, "utf8");
 const upsertFixMigration = fs.readFileSync(upsertFixMigrationPath, "utf8");
 const inviteScript = fs.readFileSync(inviteScriptPath, "utf8");
 const invitationHelper = fs.readFileSync(invitationHelperPath, "utf8");
 
-test("private invite uses a URL fragment and removes it after capture", () => {
+test("member onboarding removes any URL fragment before capture", () => {
   assert.match(join, /window\.location\.hash/);
-  assert.match(join, /new URLSearchParams\(hash\)\.get\("invite"\)/);
   assert.match(join, /window\.history\.replaceState\(/);
   assert.doesNotMatch(join, /console\.(log|error|warn).*invitationToken/);
 });
@@ -58,12 +67,13 @@ test("anonymous auth is created only when the device has no session", () => {
   assert.match(join, /supabase\.auth\.signInAnonymously\(\)/);
   assert.match(verifyRoute, /auth\.getUser\(token\)/);
   assert.match(verifyRoute, /isAnonymous: data\.user\.is_anonymous === true/);
-  assert.match(join, /if \(!session && token\)/);
+  assert.match(join, /if \(!session\)/);
 });
 
-test("onboarding has no public registration controls and requires email after invite redemption", () => {
-  assert.doesNotMatch(join, /Mã Lời Mời|Nhập mã lời mời|invitationCode|body\?\.nailRole|p_nail_role|<select|type="password"|Facebook|signInWithOAuth/i);
+test("public adult onboarding records consent and offers email linking", () => {
+  assert.doesNotMatch(join, /Mã Lời Mời|Nhập mã lời mời|invitationCode|type="password"|Facebook|signInWithOAuth/i);
   assert.match(join, /supabase\.auth\.signInAnonymously\(\)/);
+  assert.match(join, /body: JSON\.stringify\([\s\S]*adultAttested: true[\s\S]*nailRole/);
   assert.match(join, /supabase\.auth\.updateUser\(\{/);
   assert.match(join, /email: normalizedEmail/);
   assert.match(join, /supabase\.auth\.verifyOtp\(\{/);
@@ -98,12 +108,12 @@ test("agreement acceptance is required and recorded with a fixed version", () =>
   assert.match(verifyRoute, /agreementNeedsAcceptance/);
 });
 
-test("anonymous redemption derives role from the invitation, never the request", () => {
-  assert.match(verifyRoute, /redeem_cho_neo_private_invitation/);
-  assert.doesNotMatch(verifyRoute, /p_nail_role|body\?\.nailRole/);
-  assert.match(migration, /role_value := coalesce\(invitation_row\.intended_role, 'other_industry'\)/);
-  assert.match(migration, /nail_role,\n    normalized_display_name/);
-  assert.match(migration, /role_value,\n    p_normalized_display_name/);
+test("public enrollment validates the requested trade role server-side", () => {
+  assert.match(verifyRoute, /isChoNeoPublicNailRole\(body\?\.nailRole\)/);
+  assert.match(verifyRoute, /p_nail_role: body\.nailRole/);
+  assert.match(publicEnrollmentMigration, /p_nail_role is null or p_nail_role not in/);
+  assert.match(publicEnrollmentMigration, /grant execute on function public\.enroll_cho_neo_public_adult_trade_member/);
+  assert.doesNotMatch(verifyRoute, /redeem_cho_neo_private_invitation/);
 });
 
 test("invalid, expired, revoked, used, suspended, and rejected paths fail safely", () => {
@@ -120,7 +130,18 @@ test("invalid, expired, revoked, used, suspended, and rejected paths fail safely
   assert.match(migration, /where member\.membership_status not in \('suspended', 'rejected'\)/);
 });
 
-test("redemption remains atomic and server-only", () => {
+test("public enrollment remains atomic and server-only", () => {
+  assert.match(publicEnrollmentMigration, /for update/);
+  assert.match(publicEnrollmentMigration, /insert into public\.cho_neo_member_profiles as member/);
+  assert.match(publicEnrollmentMigration, /on conflict \(user_id\) do update/);
+  assert.match(publicEnrollmentConstraintMigration, /rename constraint cho_neo_guest_profiles_pkey[\s\S]*to cho_neo_member_profiles_pkey/);
+  assert.match(publicEnrollmentMigration, /revoke all on function public\.enroll_cho_neo_public_adult_trade_member/);
+  assert.match(publicEnrollmentMigration, /grant execute on function public\.enroll_cho_neo_public_adult_trade_member/);
+  assert.match(publicEnrollmentMigration, /to service_role/);
+  assert.match(verifyRoute, /enroll_cho_neo_public_adult_trade_member/);
+});
+
+test("legacy private invitation redemption remains atomic and server-only", () => {
   assert.match(migration, /for update/);
   assert.match(migration, /update public\.cho_neo_member_invitations/);
   assert.match(migration, /insert into public\.cho_neo_member_profiles as member/);
@@ -128,7 +149,7 @@ test("redemption remains atomic and server-only", () => {
   assert.match(migration, /revoke all on function public\.redeem_cho_neo_private_invitation/);
   assert.match(migration, /grant execute on function public\.redeem_cho_neo_private_invitation/);
   assert.match(migration, /to service_role/);
-  assert.match(verifyRoute, /hashChoNeoInvitationToken\(invitationToken\)/);
+  assert.doesNotMatch(verifyRoute, /hashChoNeoInvitationToken\(invitationToken\)/);
   assert.doesNotMatch(verifyRoute, /from\("cho_neo_member_invitations"\)/);
 });
 
@@ -151,26 +172,25 @@ test("private invitation redemption uses the portable profile upsert fix", () =>
 });
 
 test("database redemption failures expose a safe specific reason", () => {
-  assert.match(verifyRoute, /invitation-redeem-schema-conflict/);
-  assert.match(verifyRoute, /invitation-rpc-missing/);
-  assert.match(verifyRoute, /invitation-rpc-permission/);
-  assert.match(verifyRoute, /invitationFailure\(profileError\.message, profileError\.code\)/);
+  assert.match(verifyRoute, /public-enrollment-rpc-missing/);
+  assert.match(verifyRoute, /public-enrollment-rpc-permission/);
+  assert.match(verifyRoute, /public-enrollment-failed/);
+  assert.match(verifyRoute, /enrollmentFailure\(profileError\.message, profileError\.code\)/);
 });
 
 test("plain invitation tokens are not stored or emitted by server application logs", () => {
-  assert.match(verifyRoute, /code_hash/);
-  assert.doesNotMatch(verifyRoute, /console\.(log|error|warn)\([^)]*invitationToken/);
+  assert.doesNotMatch(verifyRoute, /invitationToken|code_hash|hashChoNeoInvitationToken/);
+  assert.doesNotMatch(verifyRoute, /console\.(log|error|warn)\([^)]*token/);
   assert.match(invitationHelper, /createHash\("sha256"\)/);
   assert.match(invitationHelper, /CHO_NEO_INVITATION_HASH_PREFIX/);
   assert.match(inviteScript, /code_hash: codeHash/);
   assert.doesNotMatch(inviteScript, /console\.log\(code\)/);
   assert.match(inviteScript, /buildPrivateInvitationLink\(code/);
   assert.match(inviteScript, /Plain invitation is intentionally hidden in dry-run mode/);
-  assert.match(join, /isTerminalInvitationFailure/);
-  assert.match(join, /clearInvitationToken\(\)/);
+  assert.match(join, /window\.history\.replaceState\(/);
 });
 
-test("returning OTP login is active while dormant Google fallback remains separate", () => {
+test("returning OTP login is active while Google fallback remains explicit", () => {
   assert.match(loginClient, /signInWithOtp\(\{/);
   assert.match(loginClient, /shouldCreateUser: false/);
   assert.match(loginClient, /verifyOtp\(\{/);
@@ -179,8 +199,8 @@ test("returning OTP login is active while dormant Google fallback remains separa
   assert.match(loginClient, /signInWithOAuth\(\{/);
   assert.match(loginPage, /LoginClient/);
   assert.match(loginClient, /Gửi mã đăng nhập/);
-  assert.match(loginClient, /Mở liên kết lời mời bạn đã nhận trong tin nhắn hoặc email\./);
-  assert.match(entry, /Mở lời mời/);
+  assert.match(loginClient, /Tạo Thẻ Thành Viên/);
+  assert.doesNotMatch(entry, /Google|Facebook|signInWithOAuth/);
   assert.doesNotMatch(loginClient, /openRegistration|member\/bootstrap/);
 });
 

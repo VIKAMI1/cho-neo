@@ -144,4 +144,3 @@ grant execute on function public.enroll_cho_neo_public_adult_trade_member(
 ) to service_role;
 
 select pg_notify('pgrst', 'reload schema');
-

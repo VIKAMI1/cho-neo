@@ -67,15 +67,17 @@ test("no tracked UI, route, script, test, or documentation calls /auth/invite", 
   assert.deepEqual(callSiteFiles, []);
 });
 
-test("private invitation-link redemption remains the only approved invite path", () => {
+test("public adult trade onboarding is the approved member enrollment path", () => {
   assert.match(join, /fetch\("\/api\/cho-neo\/member\/verify"/);
-  assert.match(join, /invitationToken/);
+  assert.match(join, /adultAttested: true/);
+  assert.match(join, /nailRole/);
   assert.match(memberVerifyRoute, /auth\.getUser\(token\)/);
   assert.match(memberVerifyRoute, /data\.user\.is_anonymous/);
-  assert.match(memberVerifyRoute, /hashChoNeoInvitationToken\(invitationToken\)/);
-  assert.match(memberVerifyRoute, /redeem_cho_neo_private_invitation/);
+  assert.match(memberVerifyRoute, /enroll_cho_neo_public_adult_trade_member/);
+  assert.match(memberVerifyRoute, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(privateInvitationMigration, /redeem_cho_neo_private_invitation/);
   assert.match(memberVerifyRoute, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(memberVerifyRoute, /inviteUserByEmail|auth\.admin/);
-  assert.doesNotMatch(provider, /invitationCode|<select/);
+  assert.doesNotMatch(memberVerifyRoute, /hashChoNeoInvitationToken|invitationToken/);
+  assert.match(join, /supabase\.auth\.signInAnonymously\(\)/);
 });

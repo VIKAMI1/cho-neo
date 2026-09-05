@@ -94,7 +94,7 @@ const inviteScript = fs.readFileSync(inviteScriptPath, "utf8");
 const invitationHelper = fs.readFileSync(invitationHelperPath, "utf8");
 const memberModule = await importMemberModule();
 
-test("/login separates returning email OTP login from private invitations", () => {
+test("/login separates returning email OTP login from public member enrollment", () => {
   assert.match(loginPage, /LoginClient/);
   assert.match(loginClient, /Trở lại Chợ Neo/);
   assert.match(loginClient, /Dùng email đã liên kết với Thẻ Thành Viên Chợ Neo của bạn/);
@@ -104,9 +104,9 @@ test("/login separates returning email OTP login from private invitations", () =
   assert.match(loginClient, /Mã chỉ dùng một lần\. Chợ Neo không cần mật khẩu của bạn\./);
   assert.doesNotMatch(loginClient, /Dùng email đã gắn|hồ sơ thành viên/);
   assert.match(loginClient, /Lần đầu đến Chợ Neo\?/);
-  assert.match(loginClient, /Mở liên kết lời mời bạn đã nhận trong tin nhắn hoặc email\./);
-  assert.doesNotMatch(loginClient, /cho-neo-login-back/);
-  assert.doesNotMatch(loginClient, /Dùng lời mời|href=.*join/);
+  assert.match(loginClient, /Tạo Thẻ Thành Viên/);
+  assert.match(loginClient, /href=\{`\/join\?next=/);
+  assert.doesNotMatch(loginClient, /Dùng lời mời|cho-neo-login-back/);
   assert.match(privateEntry, /Mở cửa theo lời mời riêng/);
   assert.match(privateEntry, /href=\{joinHref\}/);
   assert.doesNotMatch(privateEntry, /Google|Facebook|signInWithOAuth/);
@@ -209,20 +209,20 @@ test("return destinations are local and callback waits for the PKCE session inst
   assert.doesNotMatch(authCallback, /getSessionFromUrl/);
 });
 
-test("ordinary public header says Vào Chợ and uses private invitations", () => {
-  assert.match(header, /Vào Chợ/);
-  assert.match(header, /Lời mời riêng/);
+test("ordinary public header offers returning member OTP login", () => {
+  assert.match(header, /Đăng nhập/);
+  assert.match(header, /Mã OTP/);
   assert.doesNotMatch(header, /Google|Facebook/);
-  assert.match(header, /Thành viên/);
-  assert.doesNotMatch(header, /Nhận Thẻ|Thẻ Chợ Neo/);
+  assert.doesNotMatch(header, /Lời mời riêng|Nhận Thẻ|Thẻ Chợ Neo/);
   assert.doesNotMatch(provider, /Nhận Thẻ Chợ Neo|Turnstile|signInAnonymously|browser-bound|thiết bị này/);
   assert.doesNotMatch(provider, /ChoNeoGuestPass|useChoNeoGuestPass|GuestPass/);
 });
 
-test("member provider sends first-time users to the private join flow", () => {
-  assert.match(provider, /Chợ Neo mở theo lời mời riêng/);
+test("member provider sends first-time users to public member enrollment", () => {
+  assert.match(provider, /Tạo Thẻ Thành Viên Chợ Neo/);
   assert.match(provider, /href="\/join"/);
-  assert.doesNotMatch(provider, /Nhập mã lời mời|Lời mời Chợ Neo|Vai trò trong ngành nail/);
+  assert.match(provider, /Tạo thẻ thành viên/);
+  assert.doesNotMatch(provider, /Nhập mã lời mời|Lời mời Chợ Neo/);
   assert.doesNotMatch(provider, /<select|signInAnonymously/);
   assert.match(provider, /profile\?\.status === "suspended"/);
   assert.match(provider, /profile\?\.status === "rejected"/);
@@ -349,7 +349,7 @@ test("unlinked Google sessions are signed out and never bootstrapped into member
   assert.match(authCallback, /if \(!profile\)/);
   assert.match(authCallback, /await supabase\.auth\.signOut\(\)/);
   assert.match(loginClient, /Tài khoản Google này chưa được liên kết với Thẻ Thành Viên Chợ Neo/);
-  assert.match(loginClient, /Nếu bạn có lời mời mới, hãy mở liên kết lời mời đó trước/);
+  assert.match(loginClient, /Nếu đây là lần đầu, hãy tạo Thẻ Thành Viên trước/);
   assert.match(loginClient, /reason === "failed"/);
   assert.doesNotMatch(loginClient, /signInAnonymously|member\/bootstrap/);
   assert.doesNotMatch(authCallback, /insert\(|bootstrap|createMember|cho_neo_member_profiles.*upsert/);
@@ -379,21 +379,19 @@ test("member model has approved roles, statuses and verified-member helper", () 
   assert.equal(memberModule.isVerifiedChoNeoMemberProfile({ status: "pending" }), false);
 });
 
-test("server verification ignores browser user ids and stores only invitation hashes", () => {
+test("server verification ignores browser user ids and derives public enrollment identity from the session", () => {
   assert.match(verifyRoute, /auth\.getUser\(token\)/);
   assert.match(verifyRoute, /data\.user\.is_anonymous/);
   assert.doesNotMatch(verifyRoute, /body\?\.userId|body\?\.authorUserId|body\?\.redeemedByUserId/);
-  assert.match(verifyRoute, /hashChoNeoInvitationToken/);
-  assert.match(verifyRoute, /invitationToken/);
-  assert.match(verifyRoute, /code_hash/);
-  assert.doesNotMatch(verifyRoute, /select\([^)]*code[^_]/);
-  assert.match(verifyRoute, /redeem_cho_neo_private_invitation/);
-  assert.doesNotMatch(verifyRoute, /anonymous-session-required/);
+  assert.match(verifyRoute, /enroll_cho_neo_public_adult_trade_member/);
+  assert.match(verifyRoute, /p_user_id: authenticatedUser\.id/);
+  assert.doesNotMatch(verifyRoute, /hashChoNeoInvitationToken|invitationToken/);
+  assert.doesNotMatch(verifyRoute, /redeem_cho_neo_private_invitation/);
+  assert.match(verifyRoute, /data\.user\.is_anonymous/);
   assert.match(verifyRoute, /existingProfile\.agreement_version/);
   assert.match(verifyRoute, /agreementAccepted/);
-  assert.doesNotMatch(verifyRoute, /p_nail_role|body\?\.nailRole/);
-  assert.match(verifyRoute, /invitation-rate-limited/);
-  assert.doesNotMatch(verifyRoute, /from\("cho_neo_member_invitations"\)[\s\S]+update\(/);
+  assert.match(verifyRoute, /p_nail_role: body\.nailRole/);
+  assert.match(verifyRoute, /public-enrollment-failed/);
 });
 
 test("migration evolves prior profile tables into permanent member and invitation tables", () => {

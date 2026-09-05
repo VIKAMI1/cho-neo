@@ -63,7 +63,8 @@ const adminSource = fs.readFileSync(path.join(root, "src/lib/cho-neo/invitation-
 const testAdminSource = adminSource
   .replace('import "server-only";', "")
   .replace('import { createClient } from "@supabase/supabase-js";', 'const createClient = () => null;')
-  .replace('import { createServerSupabase } from "@/lib/supabase-server";', 'const createServerSupabase = async () => globalThis.__choNeoAdminSafetyMock.supabase;');
+  .replace('import { createServerSupabase } from "@/lib/supabase-server";', 'const createServerSupabase = async () => globalThis.__choNeoAdminSafetyMock.supabase;')
+  .replace('import { CHO_NEO_MEMBER_PROFILE_TABLE } from "@/lib/cho-neo/member-identity";', 'const CHO_NEO_MEMBER_PROFILE_TABLE = "cho_neo_member_profiles";');
 const compiledAdmin = ts.transpileModule(testAdminSource, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
@@ -95,6 +96,17 @@ class Query {
     const error = this.db.__errorForQuery?.({ columns: null, head: false, operation: "insert", table: this.table });
     if (error) return Promise.resolve({ error });
     this.db[this.table].push(payload);
+    return Promise.resolve({ error: null });
+  }
+  upsert(payload) {
+    const error = this.db.__errorForQuery?.({ columns: null, head: false, operation: "upsert", table: this.table });
+    if (error) return Promise.resolve({ error });
+    const rows = this.db[this.table] ?? (this.db[this.table] = []);
+    const existing = this.table === "cho_neo_contact_handoffs"
+      ? rows.find((row) => row.introduction_id === payload.introduction_id && row.user_id === payload.user_id)
+      : rows.find((row) => row.blocker_user_id === payload.blocker_user_id && row.blocked_user_id === payload.blocked_user_id);
+    if (existing) Object.assign(existing, payload);
+    else rows.push(payload);
     return Promise.resolve({ error: null });
   }
   or(expression) {
@@ -142,8 +154,14 @@ globalThis.__choNeoMatchingSafetyMock = mock;
 const { GET, POST } = await import(pathToFileURL(testRoutePath).href);
 
 const adminUserId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const adminDb = {
+  cho_neo_member_profiles: [{ user_id: adminUserId, membership_status: "verified_nail_member", suspended_at: null }],
+};
 const adminMock = {
-  supabase: { auth: { getUser: async () => ({ data: { user: adminMock.user } }) } },
+  supabase: {
+    auth: { getUser: async () => ({ data: { user: adminMock.user } }) },
+    from: (table) => new Query(adminDb, table),
+  },
   user: { id: adminUserId, is_anonymous: true },
 };
 globalThis.__choNeoAdminSafetyMock = adminMock;
@@ -275,6 +293,57 @@ test("a contact-handoff database error returns 503", async () => {
   assert.equal(response.status, 503);
 });
 
+test("a report succeeds only after message evidence is loaded", async () => {
+  reset();
+  const response = await json(await POST(request({ action: "report", reason: "unsafe", introductionId: introId })));
+  assert.equal(response.status, 200);
+  assert.equal(mock.db.cho_neo_contact_handoffs.length, 0);
+  assert.deepEqual(mock.db.cho_neo_matching_reports[0].message_evidence, [
+    { introduction_id: introId, sender_user_id: userB, body: "Xin chào BN", id: "22222222-2222-4222-8222-222222222222", created_at: future },
+  ]);
+});
+
+test("closing a table removes its contact handoffs immediately", async () => {
+  reset();
+  const response = await json(await POST(request({ action: "close-table", introductionId: introId })));
+  assert.equal(response.status, 200);
+  assert.equal(mock.db.cho_neo_contact_handoffs.length, 0);
+});
+
+test("passing after contact sharing removes both participants' handoffs", async () => {
+  reset();
+  const share = await json(await POST(request({ action: "share-contact", method: "email", contactValue: "bn@example.test", introductionId: introId })));
+  assert.equal(share.status, 200);
+  assert.equal(mock.db.cho_neo_contact_handoffs.length, 2);
+  const response = await json(await POST(request({ action: "decide", decision: "passed", introductionId: introId })));
+  assert.equal(response.status, 200);
+  assert.equal(mock.db.cho_neo_introductions[0].member_a_decision, "passed");
+  assert.equal(mock.db.cho_neo_contact_handoffs.length, 0);
+});
+
+test("passing fails closed when contact deletion fails", async () => {
+  reset({
+    errorForQuery: ({ operation, table }) => operation === "delete" && table === "cho_neo_contact_handoffs" ? { message: "contact deletion unavailable" } : null,
+  });
+  mock.db.cho_neo_contact_handoffs.push({ introduction_id: introId, user_id: userA, method: "email", contact_value: "bn@example.test" });
+  const response = await json(await POST(request({ action: "decide", decision: "passed", introductionId: introId })));
+  assert.equal(response.status, 503);
+  assert.notEqual(response.body.ok, true);
+  assert.equal(mock.db.cho_neo_contact_handoffs.length, 2);
+});
+
+test("a report evidence database error returns 503 without creating a report", async () => {
+  reset({
+    errorForQuery: ({ head, operation, table }) => !head && operation === "select" && table === "cho_neo_private_messages" ? { message: "evidence unavailable" } : null,
+  });
+  const reportsBefore = mock.db.cho_neo_matching_reports.length;
+  const blocksBefore = mock.db.cho_neo_matching_blocks.length;
+  const response = await json(await POST(request({ action: "report", reason: "unsafe", introductionId: introId })));
+  assert.equal(response.status, 503);
+  assert.equal(mock.db.cho_neo_matching_reports.length, reportsBefore);
+  assert.equal(mock.db.cho_neo_matching_blocks.length, blocksBefore);
+});
+
 test("an anonymous administrator is rejected even when allowlisted", async () => {
   process.env.CHO_NEO_INVITE_ADMIN_USER_IDS = adminUserId;
   adminMock.user = { id: adminUserId, is_anonymous: true };
@@ -286,9 +355,30 @@ test("an anonymous administrator is rejected even when allowlisted", async () =>
   });
 });
 
+test("a suspended allowlisted administrator is rejected", async () => {
+  process.env.CHO_NEO_INVITE_ADMIN_USER_IDS = adminUserId;
+  adminMock.user = { id: adminUserId, is_anonymous: false };
+  adminDb.cho_neo_member_profiles[0].suspended_at = new Date().toISOString();
+  const authorization = await requireChoNeoInvitationAdmin();
+  assert.equal(authorization.ok, false);
+  assert.equal(authorization.reason, "forbidden");
+});
+
+test("an administrator eligibility database error is rejected", async () => {
+  process.env.CHO_NEO_INVITE_ADMIN_USER_IDS = adminUserId;
+  adminMock.user = { id: adminUserId, is_anonymous: false };
+  adminDb.cho_neo_member_profiles[0].suspended_at = null;
+  adminDb.__errorForQuery = () => ({ message: "admin eligibility unavailable" });
+  const authorization = await requireChoNeoInvitationAdmin();
+  assert.equal(authorization.ok, false);
+  assert.equal(authorization.reason, "forbidden");
+  delete adminDb.__errorForQuery;
+});
+
 test("a real allowlisted administrator remains authorized", async () => {
   process.env.CHO_NEO_INVITE_ADMIN_USER_IDS = adminUserId;
   adminMock.user = { id: adminUserId, is_anonymous: false };
+  adminDb.cho_neo_member_profiles[0].suspended_at = null;
   assert.deepEqual(await requireChoNeoInvitationAdmin(), { ok: true, userId: adminUserId });
 });
 
@@ -304,6 +394,19 @@ test("closed, expired, and reported introductions return no private history or c
     assert.equal(response.body.introductions[0].privateTable, null);
     assert.deepEqual(response.body.introductions[0].contactHandoff, { mine: null, theirs: null });
   }
+});
+
+test("passed introductions return no private history or contacts", async () => {
+  reset({ intro: { member_a_decision: "passed" } });
+  mock.db.cho_neo_contact_handoffs = [
+    { introduction_id: introId, user_id: userA, method: "email", contact_value: "bn@example.test" },
+    { introduction_id: introId, user_id: userB, method: "email", contact_value: "dev@example.test" },
+  ];
+  const response = await json(await GET(new Request("http://localhost/api/cho-neo/tim-ban-trong-nghe", { headers: { authorization: `Bearer test-${userA}` } })));
+  assert.equal(response.status, 200);
+  assert.equal(response.body.introductions[0].state, "closed");
+  assert.equal(response.body.introductions[0].privateTable, null);
+  assert.deepEqual(response.body.introductions[0].contactHandoff, { mine: null, theirs: null });
 });
 
 test("normal BN to Dev mutual messaging remains readable and writable", async () => {

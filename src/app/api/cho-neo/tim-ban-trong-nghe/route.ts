@@ -165,11 +165,16 @@ export async function POST(request: Request) {
     const safety = await getIntroductionSafetyState(supabase, intro.member_a_user_id, intro.member_b_user_id, body.introductionId);
     if (!safety) return unavailable("matching-safety-read-failed");
     if (safety.blocked || safety.reported) return NextResponse.json({ error: "Lời giới thiệu này đã được khép lại vì an toàn." }, { status: 403 });
+    if (intro.member_a_decision === "passed" || intro.member_b_decision === "passed") {
+      return badRequest("Lời giới thiệu này đã khép lại rồi.");
+    }
     if (intro[mine] === "passed") return badRequest("Bạn đã bỏ qua lời giới thiệu này rồi.");
     const opened = decision === "accepted" && intro[other] === "accepted";
     const now = new Date().toISOString();
     const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [mine]: decision, ...(opened ? { opened_at: now, table_last_active_at: now } : {}), updated_at: now }).eq("id", body.introductionId).eq(mine === "member_a_decision" ? "member_a_user_id" : "member_b_user_id", userId).neq(mine, "passed");
-    return error ? unavailable("decision-save-failed") : NextResponse.json({ ok: true });
+    if (error) return unavailable("decision-save-failed");
+    if (decision === "passed" && !(await clearContactHandoffs(supabase, body.introductionId))) return unavailable("contact-retention-failed");
+    return NextResponse.json({ ok: true });
   }
 
   if (body.action === "send-message" || body.action === "keep-table" || body.action === "close-table") {
@@ -194,7 +199,9 @@ export async function POST(request: Request) {
     const quietAt = new Date(lastActiveAt.getTime() + CHO_NEO_TABLE_QUIET_DAYS * 86_400_000);
     if (body.action === "close-table") {
       const { error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ table_closed_at: now.toISOString(), table_closed_by: userId, updated_at: now.toISOString() }).eq("id", body.introductionId);
-      return error ? unavailable("table-close-failed") : NextResponse.json({ ok: true });
+      if (error) return unavailable("table-close-failed");
+      if (!(await clearContactHandoffs(supabase, body.introductionId))) return unavailable("contact-retention-failed");
+      return NextResponse.json({ ok: true });
     }
     if (body.action === "keep-table") {
       if (now.getTime() < quietAt.getTime()) return badRequest("Bàn vẫn đang mở nha.");
@@ -255,18 +262,30 @@ export async function POST(request: Request) {
     const { data: intro } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).select("member_a_user_id, member_b_user_id").eq("id", body.introductionId).maybeSingle();
     if (!intro || ![intro.member_a_user_id, intro.member_b_user_id].includes(userId)) return NextResponse.json({ error: "Lời giới thiệu không còn ở đây." }, { status: 404 });
     const otherUserId = intro.member_a_user_id === userId ? intro.member_b_user_id : intro.member_a_user_id;
-    const { error: blockError } = await supabase.from(CHO_NEO_MATCHING_BLOCK_TABLE).upsert({ blocker_user_id: userId, blocked_user_id: otherUserId });
-    if (blockError) return unavailable("block-save-failed");
-    await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [intro.member_a_user_id === userId ? "member_a_decision" : "member_b_decision"]: "passed", updated_at: new Date().toISOString() }).eq("id", body.introductionId);
+    let messages: Array<{ sender_user_id: string; body: string; created_at: string }> | null = null;
     if (body.action === "report") {
       if (!isMatchingReportReason(body.reason)) return badRequest("Chọn lý do báo cáo nha.");
+      const { data, error: messageEvidenceError } = await supabase
+        .from(CHO_NEO_PRIVATE_MESSAGE_TABLE)
+        .select("sender_user_id, body, created_at")
+        .eq("introduction_id", body.introductionId)
+        .order("created_at", { ascending: true })
+        .limit(100);
+      if (messageEvidenceError || data === null) return unavailable("report-evidence-read-failed");
+      messages = data;
+    }
+    const { error: blockError } = await supabase.from(CHO_NEO_MATCHING_BLOCK_TABLE).upsert({ blocker_user_id: userId, blocked_user_id: otherUserId });
+    if (blockError) return unavailable("block-save-failed");
+    const { error: closeError } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [intro.member_a_user_id === userId ? "member_a_decision" : "member_b_decision"]: "passed", updated_at: new Date().toISOString() }).eq("id", body.introductionId);
+    if (closeError) return unavailable("block-close-failed");
+    if (!(await clearContactHandoffs(supabase, body.introductionId))) return unavailable("contact-retention-failed");
+    if (body.action === "report") {
       const details = cleanMatchingText(body.details, 500) || null;
-      const { data: messages } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("sender_user_id, body, created_at").eq("introduction_id", body.introductionId).order("created_at", { ascending: true }).limit(100);
       const { error } = await supabase.from(CHO_NEO_MATCHING_REPORT_TABLE).insert({
         details,
         evidence_expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
         introduction_id: body.introductionId,
-        message_evidence: messages ?? [],
+        message_evidence: messages,
         reason: body.reason,
         reported_user_id: otherUserId,
         reporter_user_id: userId,
@@ -302,6 +321,17 @@ async function getIntroductionSafetyState(
   ]);
   if (blockError || reportError) return null;
   return { blocked: (blocks ?? []).length > 0, reported: (reports ?? []).length > 0 };
+}
+
+async function clearContactHandoffs(
+  supabase: NonNullable<ReturnType<typeof createMatchingServiceClient>>,
+  introductionId: string,
+) {
+  const { error } = await supabase
+    .from(CHO_NEO_CONTACT_HANDOFF_TABLE)
+    .delete()
+    .eq("introduction_id", introductionId);
+  return !error;
 }
 
 function badRequest(error: string) { return NextResponse.json({ error }, { status: 400 }); }

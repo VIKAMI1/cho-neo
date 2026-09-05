@@ -155,9 +155,8 @@ test("feedback is explicit, review-gated and cannot replace an answer", () => {
 });
 
 test("topic continuation uses only allowlisted local rooms", () => {
-  assert.match(policy, /href: "\/cho-neo\/technique"/);
-  assert.match(policy, /href: "\/cho-neo\/owner-corner"/);
-  assert.match(policy, /href: "\/cho-neo\/gossip"/);
+  assert.match(policy, /href: "\/cho-neo\/tim-ban-trong-nghe"/);
+  assert.match(policy, /label: "Tìm Bạn Trong Nghề"/);
   assert.match(route, /getHoiChoNeoContinuation\(question\.question_topic\)/);
   assert.doesNotMatch(page, /window\.location|new URL\(|href=.*answer/);
 });

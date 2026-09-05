@@ -15,7 +15,6 @@ create table if not exists public.cho_neo_private_messages (
   created_at timestamptz not null default now(),
   constraint cho_neo_private_messages_body_length check (char_length(body) between 1 and 500)
 );
-
 create index if not exists cho_neo_private_messages_intro_created_idx
   on public.cho_neo_private_messages (introduction_id, created_at);
 create index if not exists cho_neo_private_messages_sender_rate_idx
@@ -60,4 +59,3 @@ select cron.schedule(
       where evidence_expires_at <= now();
   $retention$
 );
-

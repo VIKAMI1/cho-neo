@@ -32,6 +32,13 @@ const privateInvitationUpsertFix = fs.readFileSync(
   ),
   "utf8",
 );
+const publicEnrollmentMigration = fs.readFileSync(
+  path.join(
+    migrationDir,
+    "20260830193753_cho_neo_public_adult_trade_onboarding_v1.sql",
+  ),
+  "utf8",
+);
 
 const sensitiveFunctions = [
   ["redeem_cho_neo_member_invitation", "text, uuid, text, text, text, text"],
@@ -47,6 +54,11 @@ const additionalSensitiveFunctions = [
     "redeem_cho_neo_private_invitation",
     "text, uuid, text, text, text, text",
     privateInvitationMigration,
+  ],
+  [
+    "enroll_cho_neo_public_adult_trade_member",
+    "uuid, text, text, text, text, boolean, text",
+    publicEnrollmentMigration,
   ],
 ];
 
@@ -75,9 +87,9 @@ test("every sensitive SECURITY DEFINER RPC revokes PUBLIC and grants only servic
     const signaturePattern = signature.replaceAll(", ", "\\s*,\\s*");
     assert.match(
       acl,
-      new RegExp(`revoke all on function public\\.${name}\\(\\s*${signaturePattern}\\s*\\) from public;`),
+      new RegExp(`revoke all on function public\\.${name}\\(\\s*${signaturePattern}\\s*\\) from public(?:\\s*,\\s*anon\\s*,\\s*authenticated)?;`),
     );
-    assert.match(acl, /from\s+anon\s*,\s*authenticated;/);
+    assert.match(acl, /from\s+(?:anon\s*,\s*authenticated|public\s*,\s*anon\s*,\s*authenticated);/);
     assert.match(
       acl,
       new RegExp(`grant execute on function public\\.${name}[\\s\\S]*\\)\\s+to service_role;`),
@@ -198,7 +210,7 @@ test("repository SECURITY DEFINER inventory is fully covered by this hardening m
       .sort(),
   );
   for (const [name] of sensitiveFunctions) assert.match(hardening, new RegExp(`public\\.${name}`));
-  for (const [name] of additionalSensitiveFunctions) {
-    assert.match(privateInvitationMigration, new RegExp(`public\\.${name}`));
+  for (const [name, , source] of additionalSensitiveFunctions) {
+    assert.match(source, new RegExp(`public\\.${name}`));
   }
 });

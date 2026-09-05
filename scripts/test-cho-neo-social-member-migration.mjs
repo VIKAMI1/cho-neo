@@ -189,12 +189,14 @@ test("repair migration removes legacy Guest Pass profile requirements", () => {
   assert.match(repairMigration, /select pg_notify\('pgrst', 'reload schema'\)/);
 });
 
-test("controlled routes derive identity from the verified Supabase session", () => {
+test("controlled routes derive identity from the authenticated Supabase session", () => {
   assert.match(verifyRoute, /auth\.getUser\(token\)/);
   assert.match(verifyRoute, /data\.user\.is_anonymous/);
   assert.match(verifyRoute, /p_user_id: authenticatedUser\.id/);
   assert.doesNotMatch(verifyRoute, /body\?\.userId|body\?\.authorUserId/);
-  assert.match(verifyRoute, /invitation-rate-limited/);
+  assert.match(verifyRoute, /enroll_cho_neo_public_adult_trade_member/);
+  assert.match(verifyRoute, /p_nail_role: body\.nailRole/);
+  assert.doesNotMatch(verifyRoute, /hashChoNeoInvitationToken|invitationToken/);
 });
 
 test("direct browser writes remain denied for gossip", () => {
