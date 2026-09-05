@@ -277,6 +277,10 @@ export function TimBanTrongNghePanel() {
         </div>
         <fieldset className="tim-ban-intent"><legend>🌿 Bạn đang hy vọng tìm được kết nối nào?</legend>{connectionIntentChoices.map(({ detail, label, value }) => <label key={value}><input checked={form.connectionIntent === value} name="connection-intent" onChange={() => setForm({ ...form, connectionIntent: value })} required type="radio" /><span><b>{label}</b><small>{detail}</small></span></label>)}<p>Chọn “Kết nối cá nhân có ý nghĩa” chỉ khi bạn thật sự muốn mở hướng đó. Chợ Neo chỉ giới thiệu bạn với người cũng đã chọn điều tương tự.</p></fieldset>
         <fieldset className="tim-ban-languages"><legend>🗣️ Ngôn ngữ bạn thường dùng</legend>{CHO_NEO_MATCHING_LANGUAGES.map((language) => <label key={language}><input checked={form.languages.includes(language)} onChange={() => toggleLanguage(language)} type="checkbox" /><span>{language}</span></label>)}</fieldset>
+        <label className="tim-ban-looking-for">🔎 Bạn đang tìm điều gì?
+          <textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} placeholder="Ví dụ: Tôi muốn gặp một nail tech giỏi để học hỏi, hoặc một người đặc biệt để trò chuyện." required value={form.lookingFor} />
+          <small>Viết thật theo cách của bạn. Nội dung này giúp Chợ Neo hiểu bạn đang hy vọng tìm được kết nối nào.</small>
+        </label>
         <section className="tim-ban-guide" aria-labelledby="tim-ban-guide-title">
           <div className="tim-ban-guide-heading">
             <div><p className="tim-ban-kicker">Chợ Neo giúp bạn viết</p><h3 id="tim-ban-guide-title">Kể Chợ Neo nghe một chút</h3></div>
@@ -285,15 +289,11 @@ export function TimBanTrongNghePanel() {
           <p>Bạn không cần viết hay. Cứ kể thật bằng tiếng Việt, English hoặc Vietlish. Chợ Neo chỉ giúp sắp chữ—không tự bật hồ sơ.</p>
           {guideOpen && <div className="tim-ban-guide-questions">
             <div className="tim-ban-guide-question"><label htmlFor="tim-ban-interests">☕ Bạn thích gì ngoài công việc?</label><span className="tim-ban-choices">{interestChoices.map((choice) => <button key={choice} onClick={() => addChoice("workLife", choice)} type="button">{choice}</button>)}</span><textarea id="tim-ban-interests" maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, workLife: e.target.value })} placeholder="Chạm vài lựa chọn hoặc kể thêm…" value={guidedAnswers.workLife} /></div>
-            <div className="tim-ban-guide-question"><label htmlFor="tim-ban-purpose">💬 Bạn đến Chợ Neo để làm gì?</label><span className="tim-ban-choices">{connectionChoices.map((choice) => <button key={choice} onClick={() => addChoice("connection", choice)} type="button">{choice}</button>)}</span><textarea id="tim-ban-purpose" maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, connection: e.target.value })} placeholder="Chạm vài lựa chọn hoặc kể thêm…" value={guidedAnswers.connection} /></div>
+            <div className="tim-ban-guide-question"><label htmlFor="tim-ban-purpose">💬 Bạn muốn bắt đầu câu chuyện từ đâu?</label><span className="tim-ban-choices">{connectionChoices.map((choice) => <button key={choice} onClick={() => addChoice("connection", choice)} type="button">{choice}</button>)}</span><textarea id="tim-ban-purpose" maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, connection: e.target.value })} placeholder="Chạm vài lựa chọn hoặc kể thêm…" value={guidedAnswers.connection} /></div>
             <div className="tim-ban-guide-question"><label htmlFor="tim-ban-month-off">✈️ Nếu được nghỉ một tháng, bạn muốn đi đâu hoặc làm gì?</label><span className="tim-ban-choices">{escapeChoices.map((choice) => <button key={choice} onClick={() => addChoice("experience", choice)} type="button">{choice}</button>)}</span><textarea id="tim-ban-month-off" maxLength={320} onChange={(e) => setGuidedAnswers({ ...guidedAnswers, experience: e.target.value })} placeholder="Ví dụ: Tôi sẽ biến mất ở Nhật!" value={guidedAnswers.experience} /></div>
             <button disabled={drafting || busy} onClick={() => void draftProfile()} type="button">{drafting ? "Đang lắng nghe & viết…" : "Giúp tôi viết lời giới thiệu"}</button>
           </div>}
         </section>
-        <label className="tim-ban-looking-for">🔎 Bạn đang tìm điều gì?
-          <textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} placeholder="Ví dụ: Tôi muốn gặp một nail tech giỏi để học hỏi, hoặc một người đặc biệt để trò chuyện." required value={form.lookingFor} />
-          <small>Viết thật theo cách của bạn. Nội dung này giúp Chợ Neo hiểu bạn đang hy vọng tìm được kết nối nào.</small>
-        </label>
         <label>Một chút về bạn<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.canShare} /></label>
         {(form.lookingFor || form.canShare) && <section className="tim-ban-profile-preview" aria-label="Xem trước lời giới thiệu">
           <strong>🌿 {member.displayName}</strong>
