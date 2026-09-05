@@ -14,7 +14,6 @@ export type BehaviorSafetyDecision = {
 type BehaviorInput = {
   client: SupabaseClient;
   messagesThisMinute: number;
-  introductionId: string;
   subjectUserId: string;
 };
 
@@ -24,7 +23,6 @@ function countOf(value: { count: number | null; error: unknown }) {
 
 export async function runBehaviorSafetyAgent({
   client,
-  introductionId,
   messagesThisMinute,
   subjectUserId,
 }: BehaviorInput): Promise<BehaviorSafetyDecision> {
