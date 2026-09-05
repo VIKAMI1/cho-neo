@@ -95,9 +95,3 @@ export async function runBehaviorSafetyAgent({
   };
 }
 
-export function safetyEventMetadata(decision: BehaviorSafetyDecision) {
-  return {
-    degraded: decision.degraded,
-    introductionId: null,
-  };
-}
