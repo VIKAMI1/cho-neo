@@ -39,6 +39,12 @@ test("suspended members are rejected for both self-service and admin introductio
   assert.match(adminRoute, /select\("user_id, membership_status, suspended_at"\)[\s\S]*\.is\("suspended_at", null\)/);
 });
 
+test("personal introductions require both members to choose the personal intention", () => {
+  assert.match(adminRoute, /connection_intent/);
+  assert.match(adminRoute, /connectionIntents\.includes\("personal"\)/);
+  assert.match(adminRoute, /connection_intents\.some\(\(intent\) => intent !== "personal"\)/);
+});
+
 test("closed, expired, blocked, and reported introductions cannot expose private history or contacts", () => {
   assert.match(route, /const canExposePrivateTable = isMutual && !safety\.blocked && !safety\.reported && !intro\.table_closed_at && !expired/);
   assert.match(route, /state: safety\.blocked \|\| safety\.reported \|\| myDecision === "passed" \|\| theirDecision === "passed" \|\| intro\.table_closed_at/);
