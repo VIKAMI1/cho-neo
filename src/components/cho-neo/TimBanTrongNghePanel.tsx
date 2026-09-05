@@ -8,7 +8,6 @@ import {
   CHO_NEO_MATCHING_EXPERIENCE_RANGES,
   CHO_NEO_MATCHING_GENDERS,
   CHO_NEO_MATCHING_LANGUAGES,
-  CHO_NEO_MATCHING_CONNECTION_INTENTS,
   CHO_NEO_MATCHING_SITUATIONS,
   type ChoNeoDiscoveryScope,
   type ChoNeoMatchingConnectionIntent,
@@ -137,6 +136,7 @@ export function TimBanTrongNghePanel() {
       const result = await callApi("POST", {
         action: "draft-profile",
         city: form.city,
+        connectionIntent: form.connectionIntent,
         country: form.country,
         region: form.region,
         situation: form.situation,
