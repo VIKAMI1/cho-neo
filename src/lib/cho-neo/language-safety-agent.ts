@@ -5,6 +5,7 @@ type LanguageSafetyAction = "allow" | "warn" | "block";
 export type LanguageSafetyDecision = {
   action: LanguageSafetyAction;
   degraded: boolean;
+  metadata?: Record<string, boolean | number | string | null>;
   score: number;
   severity: "medium" | "high" | "critical";
   signalCodes: string[];
@@ -18,7 +19,7 @@ type ModerationResult = {
 
 const hardPatterns: Array<{ code: string; pattern: RegExp }> = [
   { code: "threat", pattern: /(?:giết|đánh chết|đâm|bắn|doạ|đe dọa|kill you|hurt you|i will find you)/iu },
-  { code: "doxxing", pattern: /(?:địa chỉ nhà|home address|số căn cước|social security|passport number|mật khẩu|password)/iu },
+  { code: "doxxing", pattern: /(?:(?:gửi|cho|send|give|share).{0,35}(?:địa chỉ nhà|home address|số căn cước|social security|passport number|mật khẩu|password))/iu },
   { code: "sexual-coercion", pattern: /(?:gửi ảnh nóng|gửi ảnh nude|send nudes|show me your body|sex video)/iu },
 ];
 
