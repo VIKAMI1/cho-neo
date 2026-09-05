@@ -8,6 +8,15 @@ export const CHO_NEO_PRIVATE_MESSAGE_TABLE = "cho_neo_private_messages";
 export const CHO_NEO_TABLE_QUIET_DAYS = 7;
 export const CHO_NEO_MESSAGE_MAX_LENGTH = 500;
 
+export const CHO_NEO_MATCHING_CONNECTION_INTENTS = [
+  "professional",
+  "friendship",
+  "personal",
+] as const;
+
+export type ChoNeoMatchingConnectionIntent =
+  (typeof CHO_NEO_MATCHING_CONNECTION_INTENTS)[number];
+
 export const CHO_NEO_MATCHING_SITUATIONS = [
   "Mới vào nghề",
   "Đang làm thợ",
@@ -88,6 +97,7 @@ export function validateMatchingProfile(input: Record<string, unknown>) {
   const languages = Array.isArray(input.languages)
     ? [...new Set(input.languages.map((value) => cleanMatchingText(value, 20)).filter(Boolean))].slice(0, 4)
     : [];
+  const connectionIntent = cleanMatchingText(input.connectionIntent, 20);
   const lookingFor = cleanMatchingText(input.lookingFor, 240);
   const canShare = cleanMatchingText(input.canShare, 240);
   const interests = cleanMatchingText(input.interests, 240);
@@ -114,10 +124,13 @@ export function validateMatchingProfile(input: Record<string, unknown>) {
   if (languages.length === 0 || languages.some((value) => !CHO_NEO_MATCHING_LANGUAGES.includes(value as never))) {
     return { error: "Chọn ít nhất một ngôn ngữ bạn thường dùng nha." } as const;
   }
+  if (!CHO_NEO_MATCHING_CONNECTION_INTENTS.includes(connectionIntent as ChoNeoMatchingConnectionIntent)) {
+    return { error: "Chọn kiểu kết nối bạn đang hy vọng tìm nha." } as const;
+  }
   if (lookingFor.length < 2) return { error: "Bạn đang cần một người bạn để nói chuyện gì?" } as const;
   if (canShare.length < 2) return { error: "Bạn có thể chia sẻ điều gì với người kia?" } as const;
 
-  return { ageRange: ageRange || null, canShare, city, country, discoveryScope, experienceRange, funLine: funLine || null, gender: gender || null, interests: interests || null, languages, lookingFor, region, situation } as const;
+  return { ageRange: ageRange || null, canShare, city, connectionIntent: connectionIntent as ChoNeoMatchingConnectionIntent, country, discoveryScope, experienceRange, funLine: funLine || null, gender: gender || null, interests: interests || null, languages, lookingFor, region, situation } as const;
 }
 
 export function isMatchingReportReason(value: unknown): value is MatchingReportReason {
