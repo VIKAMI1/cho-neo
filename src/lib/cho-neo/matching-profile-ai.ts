@@ -22,6 +22,7 @@ export type MatchingProfileDraft = {
 type DraftInput = {
   city: string;
   connection: string;
+  connectionIntent: string;
   country: string;
   experience: string;
   region: string;
@@ -90,9 +91,10 @@ export async function draftMatchingProfile(
           "Viết tự nhiên, ấm áp và chân thật bằng ngôn ngữ người dùng đang dùng: Việt, Anh hoặc Vietlish.",
           "Chỉ dùng thông tin họ đã đưa. Không bịa kinh nghiệm, tính cách, địa điểm hay lời hứa.",
           "Cùng ngành nail chỉ là điểm chung để bắt đầu. Đây là khám phá con người phía sau nghề, không phải hồ sơ hẹn hò hay hồ sơ xin việc.",
+          "Nếu người dùng chọn kết nối cá nhân có ý nghĩa, được phép giữ đúng ý định đó nhưng không biến lời giới thiệu thành lời hứa hẹn, nội dung tình dục hoặc lời dụ dỗ.",
           "Không bắt người dùng tuyên bố loại quan hệ. Nếu họ tự nói rõ ý định hoặc người muốn gặp thì giữ nguyên, không làm nhẹ đi và cũng không đẩy xa hơn.",
           "Không nhắc AI, bán hàng, tuyển dụng hoặc thông tin nhận diện riêng tư.",
-          "lookingFor viết ngôi thứ nhất về lý do họ đến Chợ Neo: trò chuyện, làm quen, gặp người cùng sở thích hoặc ý định họ đã tự nói rõ.",
+          "lookingFor viết ngôi thứ nhất về lý do họ đến Chợ Neo: trò chuyện, làm quen, gặp người cùng sở thích hoặc ý định họ đã tự nói rõ. Ý định đã chọn là: " + input.connectionIntent + ".",
           "canShare viết ngôi thứ nhất như một đoạn 'một chút về tôi', ưu tiên sở thích ngoài công việc và câu vui; có thể nhắc nghề nhưng không để nghề nuốt mất con người.",
           "Độ dài phải tương xứng với dữ liệu: dùng đủ mọi ý liên quan, nhưng không kéo dài bằng chi tiết tự đoán.",
           "Ví dụ: 'thích cà phê, cây cối; đến Chợ Neo để trò chuyện và gặp người cùng sở thích; nghỉ một tháng sẽ đi Nhật' phải trở thành lời giới thiệu tự nhiên có đủ ba ý, không bịa thêm.",
