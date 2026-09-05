@@ -269,6 +269,7 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-panel form > .tim-ban-discovery,
           .tim-ban-panel form > .tim-ban-professional-grid,
           .tim-ban-panel form > .tim-ban-intent,
+          .tim-ban-panel form > .tim-ban-looking-for,
           .tim-ban-panel form > .tim-ban-languages,
           .tim-ban-panel form > .tim-ban-guide,
           .tim-ban-panel form > .tim-ban-profile-preview,
@@ -297,6 +298,8 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-discovery span { display: grid; grid-template-columns: auto 1fr; gap: 0 4px; }
           .tim-ban-discovery small { grid-column: 1 / -1; margin-top: 3px; color: var(--tim-ban-muted); font-weight: 400; line-height: 1.35; }
           .tim-ban-panel label { display: grid; gap: 7px; color: #653129; font-size: .88rem; font-weight: 600; }
+          .tim-ban-looking-for { border: 1px solid rgba(166, 91, 48, .24); border-radius: 17px; padding: 15px; background: linear-gradient(145deg, #fffaf0, #f8ead7); }
+          .tim-ban-looking-for small { color: var(--tim-ban-muted); font-size: .78rem; font-weight: 400; line-height: 1.45; }
           .tim-ban-panel input, .tim-ban-panel select, .tim-ban-panel textarea { width: 100%; border: 1px solid rgba(112,57,39,.2); border-radius: 12px; padding: 12px 13px; color: #54231d; background: #fffdf8; font: inherit; }
           .tim-ban-panel textarea { min-height: 72px; resize: vertical; }
           .tim-ban-panel .tim-ban-consent { grid-template-columns: 20px 1fr; align-items: start; color: var(--tim-ban-muted); font-weight: 400; line-height: 1.5; }
