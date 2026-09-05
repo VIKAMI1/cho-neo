@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type BehaviorSafetyDecision = {
   action: "allow" | "throttle" | "review";
   degraded: boolean;
+  metadata?: Record<string, boolean | number | string | null>;
   score: number;
   severity: "medium" | "high" | "critical";
   signalCodes: string[];
@@ -59,6 +60,7 @@ export async function runBehaviorSafetyAgent({
   const openReportCount = countOf(openReports);
   const blockTotal = countOf(blockCount);
   const signals: string[] = [];
+  const metadata = { blockTotal, hourMessageCount, messagesThisMinute, openReportCount };
 
   if (messagesThisMinute >= 8) signals.push("rapid-messaging");
   if (hourMessageCount >= 30) signals.push("high-hour-volume");
@@ -69,6 +71,7 @@ export async function runBehaviorSafetyAgent({
     return {
       action: "throttle",
       degraded: false,
+      metadata,
       score: 88,
       severity: "high",
       signalCodes: signals,
@@ -80,6 +83,7 @@ export async function runBehaviorSafetyAgent({
     return {
       action: "review",
       degraded: false,
+      metadata,
       score: 76,
       severity: "high",
       signalCodes: signals,
@@ -89,6 +93,7 @@ export async function runBehaviorSafetyAgent({
   return {
     action: "allow",
     degraded: false,
+    metadata,
     score: signals.length > 0 ? 35 : 0,
     severity: "medium",
     signalCodes: signals,
