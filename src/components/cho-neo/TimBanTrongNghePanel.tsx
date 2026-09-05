@@ -290,7 +290,10 @@ export function TimBanTrongNghePanel() {
             <button disabled={drafting || busy} onClick={() => void draftProfile()} type="button">{drafting ? "Đang lắng nghe & viết…" : "Giúp tôi viết lời giới thiệu"}</button>
           </div>}
         </section>
-        <label>Bạn đến Chợ Neo để…<textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.lookingFor} /></label>
+        <label className="tim-ban-looking-for">🔎 Bạn đang tìm điều gì?
+          <textarea maxLength={240} onChange={(e) => setForm({ ...form, lookingFor: e.target.value })} placeholder="Ví dụ: Tôi muốn gặp một nail tech giỏi để học hỏi, hoặc một người đặc biệt để trò chuyện." required value={form.lookingFor} />
+          <small>Viết thật theo cách của bạn. Nội dung này giúp Chợ Neo hiểu bạn đang hy vọng tìm được kết nối nào.</small>
+        </label>
         <label>Một chút về bạn<textarea maxLength={240} onChange={(e) => setForm({ ...form, canShare: e.target.value })} placeholder="Bản nháp sẽ hiện ở đây để bạn sửa" required value={form.canShare} /></label>
         {(form.lookingFor || form.canShare) && <section className="tim-ban-profile-preview" aria-label="Xem trước lời giới thiệu">
           <strong>🌿 {member.displayName}</strong>
