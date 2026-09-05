@@ -8,11 +8,13 @@ import {
   CHO_NEO_MATCHING_EXPERIENCE_RANGES,
   CHO_NEO_MATCHING_GENDERS,
   CHO_NEO_MATCHING_LANGUAGES,
+  CHO_NEO_MATCHING_CONNECTION_INTENTS,
   CHO_NEO_MATCHING_SITUATIONS,
   type ChoNeoDiscoveryScope,
+  type ChoNeoMatchingConnectionIntent,
 } from "@/lib/cho-neo/matching";
 
-type MatchingProfile = { ageRange: string; canShare: string; city: string; country: string; discoveryScope: ChoNeoDiscoveryScope; experienceRange: string; funLine: string; gender: string; interests: string; languages: string[]; lookingFor: string; region: string; situation: string; status: "active" | "paused" };
+type MatchingProfile = { ageRange: string; canShare: string; city: string; connectionIntent: ChoNeoMatchingConnectionIntent | ""; country: string; discoveryScope: ChoNeoDiscoveryScope; experienceRange: string; funLine: string; gender: string; interests: string; languages: string[]; lookingFor: string; region: string; situation: string; status: "active" | "paused" };
 type GuidedAnswers = { connection: string; experience: string; workLife: string };
 type ContactDraft = { contactValue: string; method: string };
 type PrivateMessage = { body: string; id: string; mine: boolean; sentAt: string };
@@ -28,10 +30,15 @@ type Introduction = {
   state: "closed" | "expired" | "mutual" | "pending" | "quiet" | "waiting";
 };
 
-const blankProfile: MatchingProfile = { ageRange: "", canShare: "", city: "", country: "", discoveryScope: "nearby", experienceRange: "", funLine: "", gender: "", interests: "", languages: [], lookingFor: "", region: "", situation: "", status: "active" };
+const blankProfile: MatchingProfile = { ageRange: "", canShare: "", city: "", connectionIntent: "", country: "", discoveryScope: "nearby", experienceRange: "", funLine: "", gender: "", interests: "", languages: [], lookingFor: "", region: "", situation: "", status: "active" };
 const blankGuidedAnswers: GuidedAnswers = { connection: "", experience: "", workLife: "" };
 const interestChoices = ["Cà phê", "Du lịch", "Cây cối", "Âm nhạc", "Nấu ăn", "Đi bộ"];
 const connectionChoices = ["Trò chuyện", "Làm quen", "Gặp người cùng sở thích", "Tìm bạn đồng hành"];
+const connectionIntentChoices: ReadonlyArray<{ detail: string; label: string; value: ChoNeoMatchingConnectionIntent }> = [
+  { detail: "Học hỏi, hợp tác, tìm người hiểu nghề.", label: "Kết nối trong nghề", value: "professional" },
+  { detail: "Tâm sự, chia sẻ đời sống, gặp người hợp tính.", label: "Bạn bè & trò chuyện", value: "friendship" },
+  { detail: "Một người đặc biệt—chỉ khi cả hai cùng chọn.", label: "Kết nối cá nhân có ý nghĩa", value: "personal" },
+];
 const escapeChoices = ["Đi du lịch", "Về Việt Nam", "Ở nhà nghỉ ngơi", "Học điều mới"];
 
 export function TimBanTrongNgheStartButton() {
@@ -268,6 +275,7 @@ export function TimBanTrongNghePanel() {
           <label>🎂 Độ tuổi <small>không bắt buộc</small><select onChange={(e) => setForm({ ...form, ageRange: e.target.value })} value={form.ageRange}><option value="">Không hiển thị</option>{CHO_NEO_MATCHING_AGE_RANGES.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label>👤 Giới tính <small>không bắt buộc</small><select onChange={(e) => setForm({ ...form, gender: e.target.value })} value={form.gender}><option value="">Không hiển thị</option>{CHO_NEO_MATCHING_GENDERS.map((item) => <option key={item}>{item}</option>)}</select></label>
         </div>
+        <fieldset className="tim-ban-intent"><legend>🌿 Bạn đang hy vọng tìm được kết nối nào?</legend>{connectionIntentChoices.map(({ detail, label, value }) => <label key={value}><input checked={form.connectionIntent === value} name="connection-intent" onChange={() => setForm({ ...form, connectionIntent: value })} required type="radio" /><span><b>{label}</b><small>{detail}</small></span></label>)}<p>Chọn “Kết nối cá nhân có ý nghĩa” chỉ khi bạn thật sự muốn mở hướng đó. Chợ Neo chỉ giới thiệu bạn với người cũng đã chọn điều tương tự.</p></fieldset>
         <fieldset className="tim-ban-languages"><legend>🗣️ Ngôn ngữ bạn thường dùng</legend>{CHO_NEO_MATCHING_LANGUAGES.map((language) => <label key={language}><input checked={form.languages.includes(language)} onChange={() => toggleLanguage(language)} type="checkbox" /><span>{language}</span></label>)}</fieldset>
         <section className="tim-ban-guide" aria-labelledby="tim-ban-guide-title">
           <div className="tim-ban-guide-heading">
@@ -288,6 +296,7 @@ export function TimBanTrongNghePanel() {
           <strong>🌿 {member.displayName}</strong>
           {(form.city || form.country) && <span>📍 {[form.city, form.country].filter(Boolean).join(", ")}</span>}
           {form.situation && <span>💅 {form.situation}{form.experienceRange ? ` · ${form.experienceRange}` : ""}</span>}
+          {form.connectionIntent && <span>🌿 {connectionIntentChoices.find((item) => item.value === form.connectionIntent)?.label}</span>}
           {form.languages.length > 0 && <span>🗣️ {form.languages.join(" · ")}</span>}
           {(form.ageRange || form.gender) && <span>Thông tin tự chọn: {[form.ageRange, form.gender].filter(Boolean).join(" · ")}</span>}
           {form.canShare && <div><b>Một chút về {member.displayName}</b><p>“{form.canShare}”</p></div>}
