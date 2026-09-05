@@ -17,6 +17,9 @@ import {
 import { createMatchingServiceClient, getMatchingUser, isUuid } from "@/lib/cho-neo/matching-server";
 import { CHO_NEO_MEMBER_PROFILE_TABLE } from "@/lib/cho-neo/member-identity";
 import { draftMatchingProfile } from "@/lib/cho-neo/matching-profile-ai";
+import { runBehaviorSafetyAgent } from "@/lib/cho-neo/behavior-safety-agent";
+import { runLanguageSafetyAgent } from "@/lib/cho-neo/language-safety-agent";
+import { recordChoNeoSafetyEvent } from "@/lib/cho-neo/safety-events";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -209,6 +212,36 @@ export async function POST(request: Request) {
     const { count, error: rateLimitError } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).select("id", { count: "exact", head: true }).eq("introduction_id", body.introductionId).eq("sender_user_id", userId).gte("created_at", minuteAgo);
     if (rateLimitError || count === null || count === undefined) return unavailable("message-rate-limit-read-failed");
     if (count >= 10) return NextResponse.json({ error: "Chậm một chút nha—bạn vừa gửi khá nhiều lời nhắn." }, { status: 429 });
+
+    const [languageDecision, behaviorDecision] = await Promise.all([
+      runLanguageSafetyAgent(message.body),
+      runBehaviorSafetyAgent({ client: supabase, messagesThisMinute: count, subjectUserId: userId }),
+    ]);
+    const safetyDecisions = [
+      { decision: languageDecision, source: "language" as const },
+      { decision: behaviorDecision, source: "behavior" as const },
+    ];
+    void Promise.all(
+      safetyDecisions
+        .filter(({ decision }) => decision.action !== "allow")
+        .map(({ decision, source }) => recordChoNeoSafetyEvent(supabase, {
+          action: decision.action,
+          introductionId: String(body.introductionId),
+          metadata: { degraded: decision.degraded },
+          score: decision.score,
+          severity: decision.severity,
+          signalCodes: decision.signalCodes,
+          source,
+          subjectUserId: userId,
+        })),
+    );
+    if (languageDecision.action !== "allow") {
+      return NextResponse.json({ error: languageDecision.userMessage ?? "Tin nhắn này cần được viết lại trước khi gửi nha." }, { status: 422 });
+    }
+    if (behaviorDecision.action === "throttle") {
+      return NextResponse.json({ error: behaviorDecision.userMessage ?? "Chậm một chút nha—hãy thử lại sau." }, { status: 429 });
+    }
+
     const { error } = await supabase.from(CHO_NEO_PRIVATE_MESSAGE_TABLE).insert({ body: message.body, introduction_id: body.introductionId, sender_user_id: userId });
     if (error) return unavailable("message-send-failed");
     await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ table_last_active_at: now.toISOString(), updated_at: now.toISOString() }).eq("id", body.introductionId);
