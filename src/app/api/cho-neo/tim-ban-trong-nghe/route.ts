@@ -226,7 +226,7 @@ export async function POST(request: Request) {
       return [recordChoNeoSafetyEvent(supabase, {
         action: decision.action,
         introductionId: String(body.introductionId),
-        metadata: { degraded: decision.degraded },
+        metadata: { degraded: decision.degraded, ...(decision.metadata ?? {}) },
         score: decision.score,
         severity: decision.severity,
         signalCodes: decision.signalCodes,
@@ -234,7 +234,7 @@ export async function POST(request: Request) {
         subjectUserId: userId,
       })];
     });
-    void Promise.all(safetyEventWrites);
+    await Promise.all(safetyEventWrites);
     if (languageDecision.action !== "allow") {
       return NextResponse.json({ error: languageDecision.userMessage ?? "Tin nhắn này cần được viết lại trước khi gửi nha." }, { status: 422 });
     }
