@@ -31,7 +31,16 @@ export async function requireChoNeoInvitationAdmin(): Promise<InvitationAdminAut
     };
   }
 
-  const { data: memberProfile, error: memberProfileError } = await supabase
+  const serviceClient = createChoNeoInvitationServiceClient();
+  if (!serviceClient) {
+    return {
+      message: "Chợ Neo admin security is not configured.",
+      ok: false,
+      reason: "forbidden",
+    };
+  }
+
+  const { data: memberProfile, error: memberProfileError } = await serviceClient
     .from(CHO_NEO_MEMBER_PROFILE_TABLE)
     .select("membership_status, suspended_at")
     .eq("user_id", user.id)
@@ -42,7 +51,7 @@ export async function requireChoNeoInvitationAdmin(): Promise<InvitationAdminAut
     memberProfile.suspended_at !== null
   ) {
     return {
-      message: "This account is not eligible to manage Chợ Neo.",
+      message: "This account is not an active verified Chợ Neo administrator.",
       ok: false,
       reason: "forbidden",
     };
