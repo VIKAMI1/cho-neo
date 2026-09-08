@@ -62,7 +62,7 @@ fs.writeFileSync(testRoutePath, compiled);
 const adminSource = fs.readFileSync(path.join(root, "src/lib/cho-neo/invitation-admin.ts"), "utf8");
 const testAdminSource = adminSource
   .replace('import "server-only";', "")
-  .replace('import { createClient } from "@supabase/supabase-js";', 'const createClient = () => null;')
+  .replace('import { createClient } from "@supabase/supabase-js";', 'const createClient = () => globalThis.__choNeoAdminSafetyMock.supabase;')
   .replace('import { createServerSupabase } from "@/lib/supabase-server";', 'const createServerSupabase = async () => globalThis.__choNeoAdminSafetyMock.supabase;')
   .replace('import { CHO_NEO_MEMBER_PROFILE_TABLE } from "@/lib/cho-neo/member-identity";', 'const CHO_NEO_MEMBER_PROFILE_TABLE = "cho_neo_member_profiles";');
 const compiledAdmin = ts.transpileModule(testAdminSource, {
