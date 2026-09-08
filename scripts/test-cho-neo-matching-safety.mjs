@@ -56,7 +56,7 @@ test("a normal mutual member-to-member table still sends and records messages", 
 test("reporting fails closed before creating a report when evidence is unavailable", () => {
   assert.match(route, /const \{ data, error: messageEvidenceError \} = await supabase[\s\S]*CHO_NEO_PRIVATE_MESSAGE_TABLE/);
   assert.match(route, /if \(messageEvidenceError \|\| data === null\) return unavailable\("report-evidence-read-failed"\)/);
-  assert.match(route, /message_evidence: messages/);
+  assert.match(route, /message_evidence: data/);
   assert.match(route, /clearContactHandoffs\(supabase, body\.introductionId\)/);
 });
 
