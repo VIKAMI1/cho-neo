@@ -25,10 +25,6 @@ type AuthenticatedChoNeoUser = {
   isAnonymous: boolean;
 };
 
-const ENROLLMENT_ATTEMPT_WINDOW_MS = 60_000;
-const ENROLLMENT_ATTEMPT_MAX = 6;
-const enrollmentAttemptBuckets = new Map<string, number[]>();
-
 export async function POST(request: Request) {
   const authenticatedUser = await getAuthenticatedChoNeoUser(request);
   if (!authenticatedUser) {
@@ -171,7 +167,12 @@ export async function POST(request: Request) {
   }
 
   const attemptKey = getEnrollmentAttemptKey(request, authenticatedUser.id);
-  if (isEnrollmentAttemptRateLimited(attemptKey)) {
+  const { data: allowed, error: rateLimitError } = await supabase.rpc(
+    "consume_cho_neo_enrollment_attempt",
+    { p_key: attemptKey },
+  );
+  if (rateLimitError) return unavailable("enrollment-rate-limit-unavailable");
+  if (allowed !== true) {
     return NextResponse.json(
       {
         error: "Bạn đang thử vào Chợ hơi nhanh. Nghỉ một nhịp rồi thử lại nha.",
@@ -241,20 +242,6 @@ function getEnrollmentAttemptKey(request: Request, userId: string) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const realIp = request.headers.get("x-real-ip")?.trim();
   return `${userId}:${(forwarded || realIp || "local").slice(0, 80)}`;
-}
-
-function isEnrollmentAttemptRateLimited(key: string, now = Date.now()) {
-  const recent = (enrollmentAttemptBuckets.get(key) ?? []).filter(
-    (timestamp) => now - timestamp < ENROLLMENT_ATTEMPT_WINDOW_MS,
-  );
-  if (recent.length >= ENROLLMENT_ATTEMPT_MAX) {
-    enrollmentAttemptBuckets.set(key, recent);
-    return true;
-  }
-
-  recent.push(now);
-  enrollmentAttemptBuckets.set(key, recent);
-  return false;
 }
 
 function enrollmentFailure(message: string, code?: string) {
