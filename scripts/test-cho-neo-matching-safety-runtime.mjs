@@ -377,6 +377,8 @@ test("an administrator eligibility database error is rejected", async () => {
 
 test("a real allowlisted administrator remains authorized", async () => {
   process.env.CHO_NEO_INVITE_ADMIN_USER_IDS = adminUserId;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role";
   adminMock.user = { id: adminUserId, is_anonymous: false };
   adminDb.cho_neo_member_profiles[0].suspended_at = null;
   assert.deepEqual(await requireChoNeoInvitationAdmin(), { ok: true, userId: adminUserId });
