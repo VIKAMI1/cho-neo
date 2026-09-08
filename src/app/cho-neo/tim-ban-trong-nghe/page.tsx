@@ -351,6 +351,11 @@ export default function TimBanTrongNghePreviewPage() {
           .tim-ban-panel .tim-ban-contact-open { justify-self: start; }
           .tim-ban-safety-actions { margin-top: 1px; padding-top: 2px; }
           .tim-ban-panel .tim-ban-safety-actions button { min-height: 34px; padding: 6px 11px; font-size: .76rem; opacity: .82; }
+          .tim-ban-report-form { display: grid; gap: 10px; border: 1px solid rgba(143, 43, 29, .22); border-radius: 13px; padding: 12px; background: rgba(255, 246, 239, .8); }
+          .tim-ban-report-form fieldset { display: grid; gap: 8px; border: 0; margin: 0; padding: 0; }
+          .tim-ban-report-form legend { margin-bottom: 2px; font-weight: 650; }
+          .tim-ban-report-form select, .tim-ban-report-form textarea { width: 100%; border: 1px solid rgba(112,57,39,.2); border-radius: 11px; padding: 10px 11px; color: #54231d; background: #fffdf8; font: inherit; }
+          .tim-ban-report-form textarea { resize: vertical; }
           .tim-ban-profile-toggle { width: min(720px, 100%); display: flex; justify-self: center; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid rgba(112,57,39,.12); padding: 13px 4px 0; color: var(--tim-ban-muted); font-size: .82rem; }
           .tim-ban-panel .tim-ban-profile-toggle button { min-height: 36px; padding: 7px 13px; font-size: .78rem; white-space: nowrap; }
           .tim-ban-profile-form-open { border-top: 1px solid rgba(112,57,39,.12); padding-top: 16px; }
