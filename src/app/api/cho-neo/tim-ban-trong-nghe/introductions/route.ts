@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   const supabase = createMatchingServiceClient();
   if (!supabase) return NextResponse.json({ error: "Bàn chủ quán chưa sẵn sàng." }, { status: 503 });
-  const members = [body.memberAUserId, body.memberBUserId].sort();
+  const members = [String(body.memberAUserId).toLowerCase(), String(body.memberBUserId).toLowerCase()].sort();
   const [{ data: profiles }, { data: memberProfiles }, { data: blocks, error: blockError }] = await Promise.all([
     supabase.from(CHO_NEO_MATCHING_PROFILE_TABLE).select("user_id, status").in("user_id", members).eq("status", "active"),
     supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("user_id, membership_status, suspended_at").in("user_id", members).eq("membership_status", "verified_nail_member").is("suspended_at", null),
@@ -47,18 +47,19 @@ export async function POST(request: Request) {
 
   const requestedHours = typeof body.expiresInHours === "number" ? body.expiresInHours : 48;
   const expiresInHours = Math.min(168, Math.max(12, requestedHours));
-  const { data, error } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).insert({
-    created_by: authorization.userId,
-    expires_at: new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString(),
-    icebreaker,
-    match_note: matchNote,
-    member_a_user_id: members[0],
-    member_b_user_id: members[1],
-  }).select("id, expires_at").single();
+  const { data, error } = await supabase.rpc("create_cho_neo_introduction", {
+    p_created_by: authorization.userId,
+    p_expires_at: new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString(),
+    p_icebreaker: icebreaker,
+    p_match_note: matchNote,
+    p_member_a_user_id: members[0],
+    p_member_b_user_id: members[1],
+  });
 
   if (error) {
     console.error("[cho-neo:matching-admin]", { code: error.code ?? null });
-    return NextResponse.json({ error: error.code === "23505" ? "Cặp này đã có lời giới thiệu đang mở." : "Chưa tạo được lời giới thiệu." }, { status: error.code === "23505" ? 409 : 503 });
+    const isBusy = error.message.includes("member-has-active-introduction") || error.code === "23505";
+    return NextResponse.json({ error: isBusy ? "Một trong hai người đang có lời giới thiệu khác đang mở." : "Chưa tạo được lời giới thiệu." }, { status: isBusy ? 409 : 503 });
   }
-  return NextResponse.json({ introduction: data }, { status: 201 });
+  return NextResponse.json({ introduction: Array.isArray(data) ? data[0] : data }, { status: 201 });
 }
