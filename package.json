@@ -15,7 +15,9 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:cho-neo": "node --test scripts/test-cho-neo-release-readiness.mjs scripts/test-cho-neo-security-definer-rpc.mjs scripts/test-cho-neo-readiness.mjs"
   },
   "devDependencies": {
     "@types/node": "25.0.3",
