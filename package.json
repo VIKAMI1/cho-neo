@@ -17,7 +17,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:cho-neo": "node --test scripts/test-cho-neo-release-readiness.mjs scripts/test-cho-neo-security-definer-rpc.mjs scripts/test-cho-neo-readiness.mjs"
+    "test:cho-neo": "node --test scripts/test-cho-neo-release-readiness.mjs scripts/test-cho-neo-security-definer-rpc.mjs scripts/test-cho-neo-readiness.mjs scripts/test-cho-neo-matching-safety.mjs scripts/test-cho-neo-matching-safety-runtime.mjs"
   },
   "devDependencies": {
     "@types/node": "25.0.3",
