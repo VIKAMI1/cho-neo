@@ -10,6 +10,7 @@ import {
   CHO_NEO_MATCHING_LANGUAGES,
   CHO_NEO_MATCHING_SITUATIONS,
   type ChoNeoDiscoveryScope,
+  type MatchingReportReason,
 } from "@/lib/cho-neo/matching";
 
 type MatchingProfile = { ageRange: string; canShare: string; city: string; country: string; discoveryScope: ChoNeoDiscoveryScope; experienceRange: string; funLine: string; gender: string; interests: string; languages: string[]; lookingFor: string; region: string; situation: string; status: "active" | "paused" };
@@ -68,6 +69,9 @@ export function TimBanTrongNghePanel() {
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
   const [contactOpen, setContactOpen] = useState<Record<string, boolean>>({});
   const [profileOpen, setProfileOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState<MatchingReportReason>("other");
+  const [reportDetails, setReportDetails] = useState("");
 
   const activeIntroduction = introductions.find((intro) => intro.state === "mutual" || intro.state === "quiet");
   const hasActiveTable = Boolean(activeIntroduction);
@@ -119,7 +123,7 @@ export function TimBanTrongNghePanel() {
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    if (!introductions.some((intro) => intro.state === "mutual")) return;
+    if (!introductions.some((intro) => ["pending", "waiting", "mutual", "quiet"].includes(intro.state))) return;
     const timer = window.setInterval(() => void load(), 15_000);
     return () => window.clearInterval(timer);
   }, [introductions, load]);
@@ -164,9 +168,20 @@ export function TimBanTrongNghePanel() {
     try {
       await callApi("POST", { action, introductionId, ...extras });
       setMessage(action === "report" ? "Đã chặn và gửi báo cáo riêng cho Chợ Neo." : action === "block" ? "Đã chặn. Hai người sẽ không được ghép lại." : "Đã ghi nhận lựa chọn của bạn.");
+      if (action === "report") {
+        setReportOpen(null);
+        setReportReason("other");
+        setReportDetails("");
+      }
       await load();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Chưa lưu được lựa chọn."); }
     finally { setBusy(false); }
+  }
+
+  async function submitReport(event: FormEvent, introductionId: string) {
+    event.preventDefault();
+    if (!window.confirm("Chặn người này và gửi báo cáo riêng cho Chợ Neo?")) return;
+    await act("report", introductionId, { details: reportDetails, reason: reportReason });
   }
 
   async function handoff(action: "share-contact" | "remove-contact", introductionId: string) {
@@ -244,7 +259,21 @@ export function TimBanTrongNghePanel() {
             </div>}
             <small>Không gửi tiền, giấy tờ hoặc thông tin nhạy cảm cho người bạn chưa tin cậy.</small>
           </section>}
-            <div className="tim-ban-row tim-ban-safety-actions"><button className="quiet" disabled={busy} onClick={() => void act("block", intro.id)} type="button">Chặn</button><button className="danger" disabled={busy} onClick={() => void act("report", intro.id, { reason: "other" })} type="button">Chặn & báo cáo</button></div>
+            <div className="tim-ban-row tim-ban-safety-actions"><button className="quiet" disabled={busy} onClick={() => { if (window.confirm("Chặn người này? Hai người sẽ không được ghép lại.")) void act("block", intro.id); }} type="button">Chặn</button><button className="danger" disabled={busy} onClick={() => { setReportOpen(intro.id); setReportReason("other"); setReportDetails(""); }} type="button">Chặn & báo cáo</button></div>
+            {reportOpen === intro.id && <form className="tim-ban-report-form" onSubmit={(event) => void submitReport(event, intro.id)}>
+              <fieldset>
+                <legend>Bạn muốn báo cáo điều gì?</legend>
+                <select aria-label="Lý do báo cáo" onChange={(event) => setReportReason(event.target.value as MatchingReportReason)} value={reportReason}>
+                  <option value="sales">Bán hàng không mong muốn</option>
+                  <option value="recruiting">Tuyển dụng không mong muốn</option>
+                  <option value="harassment">Quấy rối</option>
+                  <option value="unsafe">Cảm thấy không an toàn</option>
+                  <option value="other">Lý do khác</option>
+                </select>
+              </fieldset>
+              <label>Chi tiết thêm <small>không bắt buộc</small><textarea aria-label="Chi tiết báo cáo" maxLength={500} onChange={(event) => setReportDetails(event.target.value)} placeholder="Điều gì đã xảy ra?" rows={3} value={reportDetails} /></label>
+              <div className="tim-ban-row"><button disabled={busy} type="submit">Gửi báo cáo</button><button className="quiet" disabled={busy} onClick={() => setReportOpen(null)} type="button">Huỷ</button></div>
+            </form>}
           </section>}
         </article>)}
       </div>}
