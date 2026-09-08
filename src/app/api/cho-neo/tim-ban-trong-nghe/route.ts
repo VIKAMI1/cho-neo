@@ -259,10 +259,11 @@ export async function POST(request: Request) {
 
   if (body.action === "block" || body.action === "report") {
     if (!isUuid(body.introductionId)) return badRequest("Lời giới thiệu chưa hợp lệ.");
-    const { data: intro } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).select("member_a_user_id, member_b_user_id").eq("id", body.introductionId).maybeSingle();
+    const { data: intro, error: introError } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).select("member_a_user_id, member_b_user_id").eq("id", body.introductionId).maybeSingle();
+    if (introError) return unavailable("block-read-failed");
     if (!intro || ![intro.member_a_user_id, intro.member_b_user_id].includes(userId)) return NextResponse.json({ error: "Lời giới thiệu không còn ở đây." }, { status: 404 });
     const otherUserId = intro.member_a_user_id === userId ? intro.member_b_user_id : intro.member_a_user_id;
-    let messages: Array<{ sender_user_id: string; body: string; created_at: string }> | null = null;
+    let reportPayload: Record<string, unknown> | null = null;
     if (body.action === "report") {
       if (!isMatchingReportReason(body.reason)) return badRequest("Chọn lý do báo cáo nha.");
       const { data, error: messageEvidenceError } = await supabase
@@ -272,26 +273,25 @@ export async function POST(request: Request) {
         .order("created_at", { ascending: true })
         .limit(100);
       if (messageEvidenceError || data === null) return unavailable("report-evidence-read-failed");
-      messages = data;
-    }
-    const { error: blockError } = await supabase.from(CHO_NEO_MATCHING_BLOCK_TABLE).upsert({ blocker_user_id: userId, blocked_user_id: otherUserId });
-    if (blockError) return unavailable("block-save-failed");
-    const { error: closeError } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [intro.member_a_user_id === userId ? "member_a_decision" : "member_b_decision"]: "passed", updated_at: new Date().toISOString() }).eq("id", body.introductionId);
-    if (closeError) return unavailable("block-close-failed");
-    if (!(await clearContactHandoffs(supabase, body.introductionId))) return unavailable("contact-retention-failed");
-    if (body.action === "report") {
-      const details = cleanMatchingText(body.details, 500) || null;
-      const { error } = await supabase.from(CHO_NEO_MATCHING_REPORT_TABLE).insert({
-        details,
+      reportPayload = {
+        details: cleanMatchingText(body.details, 500) || null,
         evidence_expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
         introduction_id: body.introductionId,
-        message_evidence: messages,
+        message_evidence: data,
         reason: body.reason,
         reported_user_id: otherUserId,
         reporter_user_id: userId,
-      });
+      };
+    }
+    if (reportPayload) {
+      const { error } = await supabase.from(CHO_NEO_MATCHING_REPORT_TABLE).insert(reportPayload);
       if (error) return unavailable("report-save-failed");
     }
+    const { error: blockError } = await supabase.from(CHO_NEO_MATCHING_BLOCK_TABLE).upsert({ blocker_user_id: userId, blocked_user_id: otherUserId });
+    if (blockError) return unavailable("block-save-failed");
+    const { error: introductionError } = await supabase.from(CHO_NEO_INTRODUCTION_TABLE).update({ [intro.member_a_user_id === userId ? "member_a_decision" : "member_b_decision"]: "passed", updated_at: new Date().toISOString() }).eq("id", body.introductionId);
+    if (introductionError) return unavailable("block-close-failed");
+    if (!(await clearContactHandoffs(supabase, body.introductionId))) return unavailable("contact-retention-failed");
     return NextResponse.json({ ok: true });
   }
 
@@ -305,7 +305,7 @@ async function requireMember(request: Request) {
   if (!supabase) return unavailable("missing-service-role");
   const { data, error } = await supabase.from(CHO_NEO_MEMBER_PROFILE_TABLE).select("membership_status, suspended_at").eq("user_id", user.id).is("suspended_at", null).maybeSingle();
   if (error) return unavailable("member-read-failed");
-  if (data?.membership_status !== "verified_nail_member") return NextResponse.json({ error: "Khu này chỉ mở cho thành viên nghề nail đã xác nhận." }, { status: 403 });
+  if (data?.membership_status !== "verified_nail_member" || data.suspended_at) return NextResponse.json({ error: "Khu này chỉ mở cho thành viên nghề nail đã xác nhận." }, { status: 403 });
   return { supabase, userId: user.id };
 }
 
