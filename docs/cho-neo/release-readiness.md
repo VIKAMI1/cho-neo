@@ -43,3 +43,12 @@ npm run build
 The build requires the deployment environment's Supabase variables. A local
 build with placeholder values only verifies compilation and page generation; it
 does not verify a live database connection.
+
+For GitHub Actions, configure these repository Actions secrets with the
+non-production Cho Neo project values:
+
+    CHO_NEO_SUPABASE_URL
+    CHO_NEO_SUPABASE_ANON_KEY
+
+Never add SUPABASE_SERVICE_ROLE_KEY to the workflow or expose it to the
+browser.
