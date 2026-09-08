@@ -18,6 +18,14 @@ const usageMigration = fs.readFileSync(
   path.join(migrationDir, "20260801100000_cho_neo_openai_usage_reservations.sql"),
   "utf8",
 );
+const releaseReadinessMigration = fs.readFileSync(
+  path.join(migrationDir, "20260905010000_cho_neo_release_readiness_v1.sql"),
+  "utf8",
+);
+const publicEnrollmentMigration = fs.readFileSync(
+  path.join(migrationDir, "20260831000529_fix_cho_neo_public_adult_trade_enrollment_conflict.sql"),
+  "utf8",
+);
 const privateInvitationMigration = fs.readFileSync(
   path.join(
     migrationDir,
@@ -32,14 +40,6 @@ const privateInvitationUpsertFix = fs.readFileSync(
   ),
   "utf8",
 );
-const publicEnrollmentMigration = fs.readFileSync(
-  path.join(
-    migrationDir,
-    "20260830193753_cho_neo_public_adult_trade_onboarding_v1.sql",
-  ),
-  "utf8",
-);
-
 const sensitiveFunctions = [
   ["redeem_cho_neo_member_invitation", "text, uuid, text, text, text, text"],
   ["reserve_cho_neo_openai_usage", "uuid, integer, integer, integer"],
@@ -61,7 +61,13 @@ const additionalSensitiveFunctions = [
     publicEnrollmentMigration,
   ],
 ];
-
+const releaseReadinessFunctions = [
+  ["consume_cho_neo_enrollment_attempt", "text"],
+  [
+    "create_cho_neo_introduction",
+    "uuid, timestamptz, text, text, uuid, uuid",
+  ],
+];
 function functionSql(name, source = hardening) {
   const start = source.indexOf(`create or replace function public.${name}`);
   assert.notEqual(start, -1, `${name} must be replaced by the hardening migration`);
@@ -82,6 +88,7 @@ test("every sensitive SECURITY DEFINER RPC revokes PUBLIC and grants only servic
   for (const [name, signature, source] of [
     ...sensitiveFunctions.map(([rpcName, rpcSignature]) => [rpcName, rpcSignature, hardening]),
     ...additionalSensitiveFunctions,
+    ...releaseReadinessFunctions.map(([rpcName, rpcSignature]) => [rpcName, rpcSignature, releaseReadinessMigration]),
   ]) {
     const acl = aclSql(name, source);
     const signaturePattern = signature.replaceAll(", ", "\\s*,\\s*");
@@ -205,12 +212,15 @@ test("repository SECURITY DEFINER inventory is fully covered by this hardening m
 
   assert.deepEqual(
     [...securityDefinerFunctions].sort(),
-    [...sensitiveFunctions, ...additionalSensitiveFunctions]
+    [...sensitiveFunctions, ...additionalSensitiveFunctions, ...releaseReadinessFunctions]
       .map(([name]) => name)
       .sort(),
   );
   for (const [name] of sensitiveFunctions) assert.match(hardening, new RegExp(`public\\.${name}`));
   for (const [name, , source] of additionalSensitiveFunctions) {
     assert.match(source, new RegExp(`public\\.${name}`));
+  }
+  for (const [name] of releaseReadinessFunctions) {
+    assert.match(releaseReadinessMigration, new RegExp(`public\\.${name}`));
   }
 });
