@@ -15,7 +15,7 @@ permissions:
 jobs:
   release-readiness:
     name: Matching safety and release checks
-runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://xqabvmiljboliyzxczkw.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxYWJ2bWlsamJvbGl5enhjemt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQzNjI1OTksImV4cCI6MjA3OTkzODU5OX0.LAZTX2bgdEpqOXOKu1lSzjnWRxvakBeOrJeUFV8M-s0
