@@ -1,0 +1,41 @@
+name: Chợ Neo Release Readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release-readiness:
+    name: Matching safety and release checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --package-lock=false --ignore-scripts --no-audit --no-fund
+
+      - name: Run Chợ Neo safety tests
+        run: npm run test:cho-neo
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
