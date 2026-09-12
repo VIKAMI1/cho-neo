@@ -16,6 +16,7 @@ const reportsApi = read("src/app/api/cho-neo/admin/reports/route.ts");
 const reportsPage = read("src/app/cho-neo/admin/reports/page.tsx");
 const reportsClient = read("src/app/cho-neo/admin/reports/ReportAdminClient.tsx");
 const releaseMigration = read("supabase/migrations/20260905010000_cho_neo_release_readiness_v1.sql");
+const triggerHardeningMigration = read("supabase/migrations/20260912150000_cho_neo_harden_trigger_search_path_v1.sql");
 const workflow = read(".github/workflows/cho-neo-release-readiness.yml");
 
 test("the release safety suite is reachable from package scripts and CI", () => {
@@ -69,4 +70,9 @@ test("public enrollment and admin introductions use shared database guards", () 
   assert.match(releaseMigration, /expires_at > now\(\)/);
   assert.match(releaseMigration, /grant execute on function public\.consume_cho_neo_enrollment_attempt/);
   assert.match(releaseMigration, /grant execute on function public\.create_cho_neo_introduction/);
+});
+
+test("Cho Neo trigger functions pin their search path", () => {
+  assert.match(triggerHardeningMigration, /alter function public\.set_cho_neo_member_profiles_updated_at\(\)[\s\S]*set search_path = pg_catalog, public/);
+  assert.match(triggerHardeningMigration, /alter function public\.set_cho_neo_room_votes_updated_at\(\)[\s\S]*set search_path = pg_catalog, public/);
 });
