@@ -19,7 +19,7 @@ const releaseMigration = read("supabase/migrations/20260905010000_cho_neo_releas
 const workflow = read(".github/workflows/cho-neo-release-readiness.yml");
 
 test("the release safety suite is reachable from package scripts and CI", () => {
-  assert.match(packageJson.scripts["test:cho-neo"], /test-cho-neo-release-readiness\.mjs/);
+  assert.match(packageJson.scripts["test:cho-neo"], /scripts\/test-cho-neo-\*\.mjs/);
   assert.match(packageJson.scripts.typecheck, /tsc --noEmit/);
   assert.match(workflow, /pull_request:[\s\S]*branches:[\s\S]*- main/);
   assert.match(workflow, /npm run test:cho-neo/);
