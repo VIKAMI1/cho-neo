@@ -33,10 +33,12 @@ test("reporting has a durable admin review path and actionable controls", () => 
   assert.match(reportsApi, /export async function GET/);
   assert.match(reportsApi, /export async function POST/);
   assert.match(reportsApi, /suspend-member/);
+  assert.match(reportsApi, /unsuspend-member/);
   assert.match(reportsApi, /update-status/);
   assert.match(reportsPage, /ReportAdminClient/);
   assert.match(reportsClient, /messageEvidence/);
   assert.match(reportsClient, /Tạm khóa thành viên/);
+  assert.match(reportsClient, /Khôi phục thành viên/);
   assert.match(reportsClient, /Đánh dấu đã xử lý/);
   assert.match(matchingPanel, /reportReason/);
   assert.match(matchingPanel, /reportDetails/);
