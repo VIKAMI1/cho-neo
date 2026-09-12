@@ -14,8 +14,9 @@ checks does not prove that the Supabase project or the live scheduler is ready.
 - [ ] Open `/cho-neo/admin/reports` with the owner account.
 - [ ] Submit a test report and verify that the report appears in the queue with
       its reason, details, and temporary message evidence.
-- [ ] Verify that marking a report resolved and suspending the reported member
-      both work, and that a suspended member cannot reopen matching.
+- [ ] Verify that marking a report resolved, suspending the reported member,
+      and restoring a suspended member all work, and that a suspended member
+      cannot reopen matching.
 - [ ] Confirm Supabase PITR/backups are enabled for the actual project, record
       the retention window, and complete one restore test before launch.
 - [ ] Keep the applied migration files immutable; use a new forward migration
@@ -25,8 +26,8 @@ checks does not prove that the Supabase project or the live scheduler is ready.
 
 - [ ] Obtain written compliance approval for self-attested adult access in the
       launch jurisdictions.
-- [ ] Review the report queue at least daily and define who can suspend an
-      account and how an appeal is handled.
+- [ ] Review the report queue at least daily and define who can suspend or
+      restore an account and how an appeal is handled.
 - [ ] Decide whether to add live pending-state updates and any additional
       abuse-alerting channel.
 
