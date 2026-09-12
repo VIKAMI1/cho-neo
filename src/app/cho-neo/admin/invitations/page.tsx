@@ -66,7 +66,10 @@ export default async function ChoNeoInvitationAdminPage() {
           <h1>Private invitations</h1>
           <p>Create one-use invitation links for the accepted onboarding flow.</p>
         </div>
-        <Link href="/cho-neo">Back to Chợ Neo</Link>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <Link href="/cho-neo/admin/reports">Safety reports</Link>
+          <Link href="/cho-neo">Back to Chợ Neo</Link>
+        </div>
       </header>
 
       <InvitationAdminClient

@@ -10,7 +10,7 @@ export const CHO_NEO_MEMBER_PROFILE_TABLE = "cho_neo_member_profiles";
 export const CHO_NEO_MEMBER_INVITATION_TABLE = "cho_neo_member_invitations";
 export const CHO_NEO_MEMBER_PROFILE_EVENT = "cho-neo:member-identity-profile";
 export const CHO_NEO_MEMBER_OPEN_EVENT = "cho-neo:member-identity-open";
-export const CHO_NEO_AGREEMENT_VERSION = "cho-neo-user-agreement-v1";
+export const CHO_NEO_AGREEMENT_VERSION = "cho-neo-community-agreement-v2";
 export const CHO_NEO_MEMBER_NICKNAME_MIN_LENGTH = 2;
 export const CHO_NEO_MEMBER_NICKNAME_MAX_LENGTH = 24;
 
@@ -25,6 +25,24 @@ export const CHO_NEO_NAIL_ROLES = [
 
 export type ChoNeoNailRole = (typeof CHO_NEO_NAIL_ROLES)[number];
 
+export const CHO_NEO_PUBLIC_NAIL_ROLES = [
+  "nail_technician",
+  "salon_owner",
+  "nail_student",
+  "supplier",
+  "educator",
+] as const satisfies readonly ChoNeoNailRole[];
+
+export type ChoNeoPublicNailRole = (typeof CHO_NEO_PUBLIC_NAIL_ROLES)[number];
+
+export const CHO_NEO_NAIL_ROLE_LABELS: Record<ChoNeoPublicNailRole, string> = {
+  educator: "Giảng viên / đào tạo nail",
+  nail_student: "Đang học nghề nail",
+  nail_technician: "Thợ nail",
+  salon_owner: "Chủ tiệm nail",
+  supplier: "Nhà cung cấp ngành nail",
+};
+
 export const CHO_NEO_MEMBERSHIP_STATUSES = [
   "pending",
   "verified_nail_member",
@@ -36,6 +54,7 @@ export type ChoNeoMembershipStatus =
   (typeof CHO_NEO_MEMBERSHIP_STATUSES)[number];
 
 export type ChoNeoMemberProfile = {
+  adultAttestedAt?: string | null;
   agreementAcceptedAt?: string | null;
   agreementVersion?: string | null;
   avatarKey: string | null;
@@ -145,6 +164,15 @@ export function isChoNeoNailRole(value: unknown): value is ChoNeoNailRole {
   );
 }
 
+export function isChoNeoPublicNailRole(
+  value: unknown,
+): value is ChoNeoPublicNailRole {
+  return (
+    typeof value === "string" &&
+    CHO_NEO_PUBLIC_NAIL_ROLES.includes(value as ChoNeoPublicNailRole)
+  );
+}
+
 export function isVerifiedChoNeoMemberProfile(
   profile: ChoNeoMemberProfile | null | undefined,
 ) {
@@ -152,6 +180,7 @@ export function isVerifiedChoNeoMemberProfile(
 }
 
 export function mapChoNeoMemberProfileRow(row: {
+  adult_attested_at?: string | null;
   agreement_accepted_at?: string | null;
   agreement_version?: string | null;
   avatar_key: string | null;
@@ -167,6 +196,7 @@ export function mapChoNeoMemberProfileRow(row: {
     : null;
 
   return {
+    adultAttestedAt: row.adult_attested_at ?? null,
     agreementAcceptedAt: row.agreement_accepted_at ?? null,
     agreementVersion: row.agreement_version ?? null,
     avatar: getAvatarById(avatarKey ?? CHO_NEO_AVATARS[0].id),

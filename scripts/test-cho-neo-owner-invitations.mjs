@@ -88,7 +88,7 @@ test("admin creation stores one-use hashed invitations with recipient metadata o
   assert.match(migration, /add column if not exists recipient_contact text null/);
 });
 
-test("plaintext invitation URL is returned once and points at existing join onboarding", () => {
+test("invitation URL is returned once and points at the existing join onboarding", () => {
   const link = buildChoNeoPrivateInvitationLink("CNEO-ABC123", "https://example.com");
   assert.equal(link, "https://example.com/join#invite=CNEO-ABC123");
   assert.equal(buildPrivateInvitationLink("CNEO-ABC123", "https://example.com/old"), link);
@@ -100,7 +100,7 @@ test("plaintext invitation URL is returned once and points at existing join onbo
   assert.match(client, /Copy Link/);
   assert.match(client, /navigator\.share/);
   assert.match(client, /Sharing unavailable\. Use Copy Link\./);
-  assert.match(join, /new URLSearchParams\(hash\)\.get\("invite"\)/);
+  assert.match(join, /fetch\("\/api\/cho-neo\/member\/verify"/);
 });
 
 test("invitation list shows human status without exposing code hashes", () => {

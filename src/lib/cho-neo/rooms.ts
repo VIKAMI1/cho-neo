@@ -28,18 +28,18 @@ export type ChoNeoRoom = {
   };
 };
 
-export const choNeoRooms: ChoNeoRoom[] = [
+export const legacyChoNeoRooms: ChoNeoRoom[] = [
   {
     id: "gossip-cafe",
-    viName: "Quán Tám",
-    enName: "Gossip Café",
-    href: "/cho-neo/gossip",
+    viName: "Quán Xã Giao",
+    enName: "Social House",
+    href: "/cho-neo/tim-ban-trong-nghe",
     icon: "☕",
-    status: "open",
-    viStatus: "Đang mở",
-    enStatus: "Open",
-    viDescription: "Bàn chuyện tiệm, hỏi nhanh, góp kinh nghiệm.",
-    enDescription: "Shop talk, quick questions, useful village notes.",
+    status: "soon",
+    viStatus: "Đang chuẩn bị",
+    enStatus: "In preparation",
+    viDescription: "Tìm một người trong nghề có thể hiểu câu chuyện của bạn.",
+    enDescription: "Meet someone in the trade who may understand your story.",
     tone: "cafe",
     hotspot: { x: "60.6%", y: "22.8%", w: "8%", h: "8%" },
   },
@@ -142,6 +142,19 @@ export const choNeoRooms: ChoNeoRoom[] = [
     hotspot: { x: "86.2%", y: "75.8%", w: "8%", h: "8%" },
   },
 ];
+
+const PUBLIC_ROOM_IDS = new Set([
+  "gossip-cafe",
+  "hoi-cho-neo",
+  "ong-dia-shrine",
+]);
+
+// V2 keeps the earlier village rooms recoverable without presenting a field
+// of locked doors to public visitors. Matching signals will reuse their best
+// ideas later instead of restoring them as separate destinations.
+export const choNeoRooms = legacyChoNeoRooms.filter((room) =>
+  PUBLIC_ROOM_IDS.has(room.id),
+);
 
 export const openChoNeoRooms = choNeoRooms.filter((room) => room.status === "open");
 export const soonChoNeoRooms = choNeoRooms.filter((room) => room.status === "soon");

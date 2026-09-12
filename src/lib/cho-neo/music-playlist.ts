@@ -153,7 +153,7 @@ export const CHO_NEO_MUSIC_PLAYLIST = [
   {
     id: "ban-chuyen-nghe-tay-nghe-tay-thuong",
     title: "Bàn Chuyện Nghề — Tay Nghề, Tay Thương",
-    src: "/Cho_Neo_music/Bàn Chuyện Nghề - Tay Nghề Tay Thương.mp3",
+    src: "/Cho_Neo_music/Bàn Chuyện Nghề - Tay Nghề Tay Thương.mp3",
     mood: "Ấm áp, yêu nghề",
     room: "Bàn Chuyện Nghề",
     duration: "2:26",
