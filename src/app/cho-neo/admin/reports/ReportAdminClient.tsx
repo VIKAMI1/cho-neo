@@ -26,8 +26,9 @@ export function ReportAdminClient({ initialReports }: { initialReports: ChoNeoMa
     setReports(result.reports ?? []);
   }
 
-  async function act(reportId: string, action: "suspend-member" | "update-status", status?: "reviewing" | "resolved") {
+  async function act(reportId: string, action: "suspend-member" | "unsuspend-member" | "update-status", status?: "reviewing" | "resolved") {
     if (action === "suspend-member" && !window.confirm("Tạm khóa thành viên bị báo cáo? Hành động này chặn họ vào Chợ Neo.")) return;
+    if (action === "unsuspend-member" && !window.confirm("Khôi phục thành viên này? Họ sẽ có thể vào lại Chợ Neo.")) return;
     setBusyId(reportId); setMessage("");
     try {
       const token = (await createClient().auth.getSession()).data.session?.access_token;
@@ -39,7 +40,7 @@ export function ReportAdminClient({ initialReports }: { initialReports: ChoNeoMa
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Chưa cập nhật được báo cáo.");
-      setMessage(action === "suspend-member" ? "Đã tạm khóa thành viên. Báo cáo vẫn nằm trong hàng đợi để ghi nhận xử lý." : "Đã cập nhật trạng thái báo cáo.");
+      setMessage(action === "suspend-member" ? "Đã tạm khóa thành viên. Báo cáo vẫn nằm trong hàng đợi để ghi nhận xử lý." : action === "unsuspend-member" ? "Đã khôi phục thành viên." : "Đã cập nhật trạng thái báo cáo.");
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Chưa cập nhật được báo cáo.");
@@ -64,7 +65,7 @@ export function ReportAdminClient({ initialReports }: { initialReports: ChoNeoMa
         </section>
         <div className="report-admin-actions">
           {report.reviewStatus === "open" ? <button disabled={busyId === report.id} onClick={() => void act(report.id, "update-status", "reviewing")} type="button">Đang xem xét</button> : null}
-          <button disabled={busyId === report.id} onClick={() => void act(report.id, "suspend-member")} type="button">Tạm khóa thành viên</button>
+          {report.reported?.membershipStatus === "suspended" ? <button disabled={busyId === report.id} onClick={() => void act(report.id, "unsuspend-member")} type="button">Khôi phục thành viên</button> : <button disabled={busyId === report.id} onClick={() => void act(report.id, "suspend-member")} type="button">Tạm khóa thành viên</button>}
           <button disabled={busyId === report.id} onClick={() => void act(report.id, "update-status", "resolved")} type="button">Đánh dấu đã xử lý</button>
         </div>
       </article>)}
