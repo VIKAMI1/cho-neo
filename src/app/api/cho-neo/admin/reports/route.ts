@@ -58,6 +58,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, suspendedUserId: report.reported_user_id });
   }
 
+  if (body?.action === "unsuspend-member") {
+    const { data: report, error: reportError } = await supabase
+      .from(CHO_NEO_MATCHING_REPORT_TABLE)
+      .select("reported_user_id")
+      .eq("id", reportId)
+      .maybeSingle();
+    if (reportError) return NextResponse.json({ error: "Chưa đọc được báo cáo." }, { status: 503 });
+    if (!report?.reported_user_id) return NextResponse.json({ error: "Báo cáo không còn tồn tại." }, { status: 404 });
+
+    const { error } = await supabase
+      .from(CHO_NEO_MEMBER_PROFILE_TABLE)
+      .update({ membership_status: "verified_nail_member", suspended_at: null })
+      .eq("user_id", report.reported_user_id)
+      .eq("membership_status", "suspended")
+      .not("suspended_at", "is", null);
+    if (error) return NextResponse.json({ error: "Chưa khôi phục được thành viên." }, { status: 503 });
+
+    return NextResponse.json({ ok: true, unsuspendedUserId: report.reported_user_id });
+  }
+
   return NextResponse.json({ error: "Hành động chưa được hỗ trợ." }, { status: 400 });
 }
 
