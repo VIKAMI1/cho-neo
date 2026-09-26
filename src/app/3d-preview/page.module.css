@@ -1,0 +1,130 @@
+.page {
+  min-height: 100vh;
+  padding: clamp(20px, 4vw, 48px);
+  color: #f8f1e8;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(226, 168, 103, 0.2), transparent 28%),
+    linear-gradient(150deg, #192d3a 0%, #203e4b 50%, #12232e 100%);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  width: min(1320px, 100%);
+  margin: 0 auto 18px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #f4c58a;
+  font-family: var(--cho-neo-font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  margin: 0;
+  font-family: var(--cho-neo-font-display);
+  font-size: clamp(34px, 5vw, 64px);
+  font-weight: 500;
+  line-height: 0.98;
+}
+
+.intro {
+  max-width: 620px;
+  margin: 12px 0 0;
+  color: rgba(248, 241, 232, 0.76);
+  font-family: var(--cho-neo-font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.backLink {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border: 1px solid rgba(248, 241, 232, 0.25);
+  border-radius: 999px;
+  color: #f8f1e8;
+  font-family: var(--cho-neo-font-ui);
+  font-size: 14px;
+  text-decoration: none;
+  background: rgba(11, 26, 34, 0.28);
+}
+
+.backLink:hover,
+.backLink:focus-visible {
+  border-color: rgba(244, 197, 138, 0.75);
+  outline: none;
+}
+
+.stage {
+  position: relative;
+  width: min(1320px, 100%);
+  height: min(70vh, 720px);
+  min-height: 440px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(248, 241, 232, 0.2);
+  border-radius: 24px;
+  background: #86a9b8;
+  box-shadow: 0 24px 80px rgba(4, 14, 20, 0.28);
+}
+
+.controlsHint {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.86);
+  font-family: var(--cho-neo-font-ui);
+  font-size: 12px;
+}
+
+.controlsHint span {
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(13, 28, 35, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+  width: min(1320px, 100%);
+  margin: 12px auto 0;
+  color: rgba(248, 241, 232, 0.62);
+  font-family: var(--cho-neo-font-ui);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .header {
+    display: block;
+  }
+
+  .backLink {
+    display: inline-block;
+    margin-top: 16px;
+  }
+
+  .stage {
+    min-height: 500px;
+    border-radius: 18px;
+  }
+
+  .controlsHint {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+  }
+}
