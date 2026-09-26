@@ -28,6 +28,11 @@ const DESTINATIONS: Destination[] = [
 
 function disposeObject(root: THREE.Object3D) {
   root.traverse((child) => {
+    if (child instanceof CSS2DObject) {
+      child.element.remove();
+      return;
+    }
+
     if (!(child instanceof THREE.Mesh)) return;
 
     child.geometry.dispose();
@@ -174,18 +179,22 @@ export default function ChoNeo3DPreview() {
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
-    scene.add(ground);
 
     const grid = new THREE.GridHelper(26, 26, 0x9bb59a, 0x7c9c84);
     grid.position.y = 0.012;
-    scene.add(grid);
 
     const worldPlaceholder = createWorldPlaceholder();
-    scene.add(worldPlaceholder);
+
+    const fallbackEnvironment = new THREE.Group();
+    fallbackEnvironment.name = "Three.js fallback environment";
+    fallbackEnvironment.add(ground, grid, worldPlaceholder);
 
     DESTINATIONS.forEach((destination) => {
-      scene.add(createDestination(destination, styles.sceneLabel));
+      fallbackEnvironment.add(createDestination(destination, styles.sceneLabel));
     });
+    scene.add(fallbackEnvironment);
+
+    let fallbackDisposed = false;
 
     const resize = () => {
       const { width, height } = mount.getBoundingClientRect();
@@ -221,7 +230,9 @@ export default function ChoNeo3DPreview() {
               child.receiveShadow = true;
             }
           });
-          scene.remove(worldPlaceholder);
+          scene.remove(fallbackEnvironment);
+          disposeObject(fallbackEnvironment);
+          fallbackDisposed = true;
           scene.add(loadedAsset);
           setAssetStatus("Đã nạp local GLB: public/3d/cho-neo.glb");
         }, undefined, () => {
@@ -246,6 +257,7 @@ export default function ChoNeo3DPreview() {
       controls.dispose();
       renderer.setAnimationLoop(null);
       disposeObject(scene);
+      if (!fallbackDisposed) disposeObject(fallbackEnvironment);
       renderer.dispose();
       renderer.domElement.remove();
       labelRenderer.domElement.remove();
