@@ -13,6 +13,7 @@ backend/.env
 .DS_Store
 __pycache__/
 *.pyc
+*.blend1
 cloudflared*
 *_backup_*/
 _ARCHIVE_*/
