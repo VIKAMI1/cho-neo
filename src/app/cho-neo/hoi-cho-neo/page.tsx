@@ -59,9 +59,11 @@ export default function HoiChoNeoPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, FeedbackDraft>>({});
   const [openFeedbackAnswerId, setOpenFeedbackAnswerId] = useState<string | null>(null);
+  const [isEmbedded, setIsEmbedded] = useState(false);
   const questionInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
+    setIsEmbedded(new URLSearchParams(window.location.search).get("embed") === "1");
     let cancelled = false;
     void fetch(API_URL, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
@@ -264,14 +266,16 @@ export default function HoiChoNeoPage() {
       <ChoNeoRoomShell currentNavId="hoi-cho-neo" className="hoi-gi-day-shell">
         <div className="hoi-gi-day-page">
           <header className="hoi-hero">
-            <ChoNeoRoomTopBar
-              ariaLabel="Hỏi Chợ Neo controls"
-              feedback={<ChoNeoBetaFeedback />}
-              memberProfile={profile}
-              onMemberClick={() => {
-                void ensureChoNeoMember(async () => undefined);
-              }}
-            />
+            {!isEmbedded ? (
+              <ChoNeoRoomTopBar
+                ariaLabel="Hỏi Chợ Neo controls"
+                feedback={<ChoNeoBetaFeedback />}
+                memberProfile={profile}
+                onMemberClick={() => {
+                  void ensureChoNeoMember(async () => undefined);
+                }}
+              />
+            ) : null}
             <h1>Hỏi Chợ Neo</h1>
             <p className="hoi-subtitle">Hỏi một chuyện nghề. NeoPao trả lời trước.</p>
           </header>

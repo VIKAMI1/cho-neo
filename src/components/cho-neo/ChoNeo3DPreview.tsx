@@ -9,6 +9,15 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import styles from "@/app/3d-preview/preview.module.css";
 
 const GLB_ASSET_PATH = "/3d/cho-neo.glb";
+const WALKING_EYE_HEIGHT = 1.65;
+const WALKING_SPEED = 3.2;
+const WALKING_ACCELERATION = 10;
+const WALKING_WORLD_BOUNDS = {
+  minX: -15.5,
+  maxX: 35.5,
+  minZ: -15.5,
+  maxZ: 35.5,
+};
 
 type Destination = {
   name: string;
@@ -26,6 +35,256 @@ const DESTINATIONS: Destination[] = [
   { name: "Mẹo Vặt", x: 3.6, z: 3.2, color: 0x6d7fb3, shape: "cylinder" },
 ];
 
+const PLAYER_COLLISION_RADIUS = 0.3;
+const DESTINATION_COLLISION_PREFIXES = ["QXG_", "OD_", "XX_", "HCN_", "MV_"] as const;
+const PROXIMITY_BUFFER = 1.5;
+
+const DESTINATION_PROXIMITY_DEFINITIONS = [
+  { prefix: "QXG_", name: "Quầy Xã Giao", cue: "Vào Quầy Xã Giao" },
+  { prefix: "OD_", name: "Ông Địa", cue: "Đến Ông Địa" },
+  { prefix: "XX_", name: "Xin Xăm", cue: "Xin Xăm" },
+  { prefix: "HCN_", name: "Hỏi Chợ Neo", cue: "Hỏi Chợ Neo" },
+  { prefix: "MV_", name: "Mẹo Vặt", cue: "Khám phá Mẹo Vặt" },
+] as const;
+
+const XIN_XAM_MESSAGES = [
+  "Hôm nay, một bước nhỏ về phía điều làm lòng mình nhẹ hơn.",
+  "Có những câu trả lời đến chậm; cứ bình tĩnh đi tiếp.",
+  "Giữ lại điều chân thành, rồi để ngày mai mở thêm một lối.",
+] as const;
+
+const DESTINATION_ENTRY_ROUTES = {
+  QXG_: { href: "/cho-neo/gossip?embed=1", label: "Quầy Xã Giao" },
+  HCN_: { href: "/cho-neo/hoi-cho-neo?embed=1", label: "Hỏi Chợ Neo" },
+  MV_: { href: "/meo-vat?embed=1", label: "Mẹo Vặt" },
+} as const;
+
+type ProximityZone = {
+  prefix: (typeof DESTINATION_PROXIMITY_DEFINITIONS)[number]["prefix"];
+  name: string;
+  cue: string;
+  x: number;
+  z: number;
+  radius: number;
+};
+
+type CollisionVolume =
+  | {
+      kind: "box";
+      label: string;
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+      minZ: number;
+      maxZ: number;
+    }
+  | {
+      kind: "cylinder";
+      label: string;
+      minY: number;
+      maxY: number;
+      x: number;
+      z: number;
+      radius: number;
+    };
+
+type OngDiaSmokeParticle = {
+  x: number;
+  y: number;
+  z: number;
+  phase: number;
+  speed: number;
+};
+
+function boxToCollisionVolume(bounds: THREE.Box3, label: string): CollisionVolume | null {
+  if (bounds.isEmpty()) return null;
+
+  return {
+    kind: "box",
+    label,
+    minX: bounds.min.x,
+    maxX: bounds.max.x,
+    minY: bounds.min.y,
+    maxY: bounds.max.y,
+    minZ: bounds.min.z,
+    maxZ: bounds.max.z,
+  };
+}
+
+function createFallbackCollisionVolumes(): CollisionVolume[] {
+  const destinationVolumes = DESTINATIONS.map((destination) => {
+    const halfWidth = destination.shape === "cylinder" ? 1.2 : 1.45;
+    const halfDepth = destination.shape === "cylinder" ? 1.2 : 1.15;
+
+    return {
+      kind: "box" as const,
+      label: `fallback ${destination.name}`,
+      minX: destination.x - halfWidth,
+      maxX: destination.x + halfWidth,
+      minY: 0,
+      maxY: 3,
+      minZ: destination.z - halfDepth,
+      maxZ: destination.z + halfDepth,
+    };
+  });
+
+  return [
+    ...destinationVolumes,
+    {
+      kind: "cylinder",
+      label: "fallback central garden",
+      minY: 0,
+      maxY: 0.7,
+      x: 0,
+      z: 0,
+      radius: 2.8,
+    },
+  ];
+}
+
+function createFallbackProximityZones(): ProximityZone[] {
+  return DESTINATION_PROXIMITY_DEFINITIONS.map((definition) => {
+    const destination = DESTINATIONS.find(({ name }) => name === definition.name);
+    return {
+      ...definition,
+      x: destination?.x ?? 0,
+      z: destination?.z ?? 0,
+      radius: 2.5,
+    };
+  });
+}
+
+function createGlbProximityZones(root: THREE.Object3D): ProximityZone[] {
+  const destinationBounds = new Map<string, THREE.Box3>();
+
+  root.updateMatrixWorld(true);
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+
+    const definition = DESTINATION_PROXIMITY_DEFINITIONS.find(({ prefix }) =>
+      child.name.startsWith(prefix),
+    );
+    if (!definition) return;
+
+    const bounds = new THREE.Box3().setFromObject(child);
+    if (bounds.isEmpty()) return;
+
+    const existingBounds = destinationBounds.get(definition.prefix);
+    if (existingBounds) {
+      existingBounds.union(bounds);
+    } else {
+      destinationBounds.set(definition.prefix, bounds);
+    }
+  });
+
+  return DESTINATION_PROXIMITY_DEFINITIONS.flatMap((definition) => {
+    const bounds = destinationBounds.get(definition.prefix);
+    if (!bounds) return [];
+
+    const center = bounds.getCenter(new THREE.Vector3());
+    const size = bounds.getSize(new THREE.Vector3());
+    return [{
+      ...definition,
+      x: center.x,
+      z: center.z,
+      radius: Math.max(size.x, size.z) / 2 + PROXIMITY_BUFFER,
+    }];
+  });
+}
+
+function createGlbCollisionVolumes(root: THREE.Object3D): CollisionVolume[] {
+  const destinationBounds = new Map<string, THREE.Box3>();
+  const treeTrunks: CollisionVolume[] = [];
+  let centralPlanterBounds: THREE.Box3 | null = null;
+
+  root.updateMatrixWorld(true);
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+
+    const bounds = new THREE.Box3().setFromObject(child);
+    if (bounds.isEmpty()) return;
+
+    const destinationPrefix = DESTINATION_COLLISION_PREFIXES.find((prefix) =>
+      child.name.startsWith(prefix),
+    );
+    if (destinationPrefix) {
+      const existingBounds = destinationBounds.get(destinationPrefix);
+      if (existingBounds) {
+        existingBounds.union(bounds);
+      } else {
+        destinationBounds.set(destinationPrefix, bounds);
+      }
+      return;
+    }
+
+    if (child.name === "ENV_CENTER_PLANTER_Edge") {
+      centralPlanterBounds = bounds;
+      return;
+    }
+
+    if (
+      child.name.startsWith("ENV_") &&
+      (child.name.includes("TREE_") || child.name.includes("PALM_")) &&
+      child.name.endsWith("_Trunk")
+    ) {
+      const center = bounds.getCenter(new THREE.Vector3());
+      treeTrunks.push({
+        kind: "cylinder",
+        label: child.name,
+        minY: bounds.min.y,
+        maxY: bounds.max.y,
+        x: center.x,
+        z: center.z,
+        radius: Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) / 2,
+      });
+    }
+  });
+
+  const destinationVolumes = Array.from(destinationBounds.entries())
+    .map(([prefix, bounds]) => boxToCollisionVolume(bounds, `${prefix} destination`))
+    .filter((volume): volume is CollisionVolume => volume !== null);
+  const centralPlanterVolume = centralPlanterBounds
+    ? (() => {
+        const center = centralPlanterBounds.getCenter(new THREE.Vector3());
+        const size = centralPlanterBounds.getSize(new THREE.Vector3());
+        return {
+          kind: "cylinder" as const,
+          label: "ENV_CENTER_PLANTER_Edge",
+          minY: centralPlanterBounds.min.y,
+          maxY: centralPlanterBounds.max.y,
+          x: center.x,
+          z: center.z,
+          radius: Math.max(size.x, size.z) / 2,
+        };
+      })()
+    : null;
+
+  return [
+    ...destinationVolumes,
+    ...(centralPlanterVolume ? [centralPlanterVolume] : []),
+    ...treeTrunks,
+  ];
+}
+
+function isCollisionAt(x: number, z: number, volumes: CollisionVolume[]) {
+  return volumes.some((volume) => {
+    if (volume.kind === "box") {
+      return (
+        x > volume.minX - PLAYER_COLLISION_RADIUS &&
+        x < volume.maxX + PLAYER_COLLISION_RADIUS &&
+        z > volume.minZ - PLAYER_COLLISION_RADIUS &&
+        z < volume.maxZ + PLAYER_COLLISION_RADIUS
+      );
+    }
+
+    const dx = x - volume.x;
+    const dz = z - volume.z;
+    const radius = volume.radius + PLAYER_COLLISION_RADIUS;
+    return dx * dx + dz * dz < radius * radius;
+  });
+}
+
 function disposeObject(root: THREE.Object3D) {
   root.traverse((child) => {
     if (child instanceof CSS2DObject) {
@@ -33,7 +292,7 @@ function disposeObject(root: THREE.Object3D) {
       return;
     }
 
-    if (!(child instanceof THREE.Mesh)) return;
+    if (!(child instanceof THREE.Mesh) && !(child instanceof THREE.Points)) return;
 
     child.geometry.dispose();
     const materials = Array.isArray(child.material) ? child.material : [child.material];
@@ -121,9 +380,109 @@ function createWorldPlaceholder() {
   return group;
 }
 
+function createRuntimeLighting() {
+  const group = new THREE.Group();
+  group.name = "Phase 5 runtime lighting";
+
+  group.add(new THREE.HemisphereLight(0xb9cbd1, 0x9a8068, 0.95));
+
+  const sun = new THREE.DirectionalLight(0xffddb8, 1.0);
+  sun.position.set(-8, 15, 8);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = -18;
+  sun.shadow.camera.right = 18;
+  sun.shadow.camera.top = 18;
+  sun.shadow.camera.bottom = -18;
+  group.add(sun);
+
+  const practicalLights = [
+    { position: [-7.4, 3.0, -5.2], intensity: 0.8, distance: 5.0 },
+    { position: [3.8, 3.0, 7.4], intensity: 0.65, distance: 4.5 },
+    { position: [8.2, 3.0, 1.1], intensity: 0.7, distance: 4.5 },
+    { position: [6.5, 3.0, -6.0], intensity: 0.65, distance: 4.5 },
+    { position: [0.4, 2.8, 0.8], intensity: 0.5, distance: 4.5 },
+  ] as const;
+
+  practicalLights.forEach(({ position, intensity, distance }) => {
+    const light = new THREE.PointLight(0xffb06a, intensity, distance, 2);
+    light.position.set(...position);
+    group.add(light);
+  });
+
+  return group;
+}
+
+function disableImportedLights(root: THREE.Object3D) {
+  let count = 0;
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Light)) return;
+
+    child.visible = false;
+    child.castShadow = false;
+    count += 1;
+  });
+  return count;
+}
+
 export default function ChoNeo3DPreview() {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [assetStatus, setAssetStatus] = useState("Chưa có GLB — đang dùng placeholder môi trường");
+  const mobileMovePadRef = useRef<HTMLDivElement>(null);
+  const mobileMoveThumbRef = useRef<HTMLDivElement>(null);
+  const mobileLookPadRef = useRef<HTMLDivElement>(null);
+  const [isWalking, setIsWalking] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [activeDestination, setActiveDestination] = useState<ProximityZone | null>(null);
+  const [interactionMessage, setInteractionMessage] = useState<string | null>(null);
+  const [isXinXamInteracting, setIsXinXamInteracting] = useState(false);
+  const [xinXamResult, setXinXamResult] = useState<string | null>(null);
+  const [destinationEntry, setDestinationEntry] = useState<ProximityZone | null>(null);
+  const xinXamStartRef = useRef(false);
+  const xinXamDismissRef = useRef(false);
+  const destinationEntryRequestRef = useRef<ProximityZone["prefix"] | null>(null);
+  const resumeDestinationEntryRef = useRef<(() => void) | null>(null);
+  const interactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const activateDestination = () => {
+    if (!activeDestination) return;
+
+    // Ông Địa is ambient-only in Milestone 1.
+    if (activeDestination.prefix === "OD_") {
+      return;
+    }
+
+    if (activeDestination.prefix === "XX_") {
+      xinXamStartRef.current = true;
+      return;
+    }
+
+    if (activeDestination.prefix in DESTINATION_ENTRY_ROUTES) {
+      destinationEntryRequestRef.current = activeDestination.prefix;
+      return;
+    }
+
+    setInteractionMessage(`${activeDestination.name} — interaction ready`);
+    if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
+    interactionTimerRef.current = setTimeout(() => {
+      setInteractionMessage(null);
+      interactionTimerRef.current = null;
+    }, 1600);
+  };
+
+  const dismissXinXam = () => {
+    xinXamDismissRef.current = true;
+    setIsXinXamInteracting(false);
+    setXinXamResult(null);
+  };
+
+  const closeDestinationEntry = () => {
+    if (resumeDestinationEntryRef.current) {
+      resumeDestinationEntryRef.current();
+      return;
+    }
+    setDestinationEntry(null);
+  };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -131,16 +490,55 @@ export default function ChoNeo3DPreview() {
 
     let disposed = false;
     let loadedAsset: THREE.Object3D | null = null;
+    let collisionVolumes = createFallbackCollisionVolumes();
+    let proximityZones = createFallbackProximityZones();
+    let activeZoneId: ProximityZone["prefix"] | null = null;
+    const touchDevice =
+      window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+    let touchWalkingActive = false;
+    const touchMovement = new THREE.Vector2();
+    let movePointerId: number | null = null;
+    let lookPointerId: number | null = null;
+    let lookTouchIdentifier: number | null = null;
+    let lastLookX = 0;
+    let lastLookY = 0;
+    let xinXamInteractionActive = false;
+    let xinXamParts: Array<{
+      object: THREE.Object3D;
+      position: THREE.Vector3;
+      rotation: THREE.Euler;
+      isHolder: boolean;
+    }> = [];
+    let xinXamAnimation: {
+      elapsed: number;
+      selectedStick: THREE.Object3D | null;
+    } | null = null;
+    let destinationEntryActive = false;
+    let destinationEntryWasPointerLocked = false;
+    let ongDiaAmbience: {
+      light: THREE.PointLight;
+      smoke: THREE.Points;
+      smokeMaterial: THREE.PointsMaterial;
+      particles: OngDiaSmokeParticle[];
+      positionAttribute: THREE.BufferAttribute;
+      zone: ProximityZone;
+      proximity: number;
+      elapsed: number;
+    } | null = null;
+    setIsTouchDevice(touchDevice);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x86a9b8);
-    scene.fog = new THREE.Fog(0x86a9b8, 18, 42);
+    scene.background = new THREE.Color(0x91a8b0);
+    scene.fog = new THREE.Fog(0x91a8b0, 28, 75);
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.set(12, 11, 15);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.02;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.className = styles.sceneCanvas;
@@ -161,17 +559,462 @@ export default function ChoNeo3DPreview() {
     controls.maxPolarAngle = Math.PI / 2.05;
     controls.target.set(0, 1.25, 0);
 
-    scene.add(new THREE.HemisphereLight(0xf5ead2, 0x3d5361, 2.1));
+    const walkingKeys = new Set<string>();
+    const walkingPosition = new THREE.Vector3(0, WALKING_EYE_HEIGHT, 11.5);
+    const walkingVelocity = new THREE.Vector2();
+    const targetVelocity = new THREE.Vector2();
+    const forward = new THREE.Vector2();
+    const right = new THREE.Vector2();
+    const cameraForward = new THREE.Vector3();
+    const cameraRight = new THREE.Vector3();
+    const timer = new THREE.Timer();
+    timer.connect(document);
+    let walkingYaw = 0;
+    let walkingPitch = 0;
 
-    const sun = new THREE.DirectionalLight(0xffe0b1, 3.4);
-    sun.position.set(-8, 15, 8);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.left = -18;
-    sun.shadow.camera.right = 18;
-    sun.shadow.camera.top = 18;
-    sun.shadow.camera.bottom = -18;
-    scene.add(sun);
+    const updateWalkingCamera = () => {
+      camera.position.copy(walkingPosition);
+      camera.rotation.order = "YXZ";
+      camera.rotation.set(walkingPitch, walkingYaw, 0);
+    };
+
+    const enterWalkingMode = () => {
+      if (xinXamInteractionActive) return;
+
+      if (!touchDevice || !touchWalkingActive) {
+        walkingPosition.set(0, WALKING_EYE_HEIGHT, 11.5);
+        walkingVelocity.set(0, 0);
+        walkingYaw = 0;
+        walkingPitch = 0;
+      }
+      controls.enabled = false;
+      updateWalkingCamera();
+
+      if (touchDevice) {
+        touchWalkingActive = true;
+        setIsWalking(true);
+        return;
+      }
+
+      if (typeof renderer.domElement.requestPointerLock !== "function") {
+        controls.enabled = true;
+        return;
+      }
+
+      void Promise.resolve(renderer.domElement.requestPointerLock()).catch(() => {
+        controls.enabled = true;
+      });
+    };
+
+    const showInteractionReady = (zone: ProximityZone | null) => {
+      if (!zone) return;
+
+      setInteractionMessage(`${zone.name} — interaction ready`);
+      if (interactionTimerRef.current) clearTimeout(interactionTimerRef.current);
+      interactionTimerRef.current = setTimeout(() => {
+        setInteractionMessage(null);
+        interactionTimerRef.current = null;
+      }, 1600);
+    };
+
+    const updateProximity = (walkingActive: boolean) => {
+      if (!walkingActive) {
+        if (activeZoneId !== null) {
+          activeZoneId = null;
+          setActiveDestination(null);
+          setInteractionMessage(null);
+        }
+        return;
+      }
+
+      let nearestZone: ProximityZone | null = null;
+      let nearestDistanceSq = Number.POSITIVE_INFINITY;
+      proximityZones.forEach((zone) => {
+        const dx = walkingPosition.x - zone.x;
+        const dz = walkingPosition.z - zone.z;
+        const distanceSq = dx * dx + dz * dz;
+        if (distanceSq <= zone.radius * zone.radius && distanceSq < nearestDistanceSq) {
+          nearestZone = zone;
+          nearestDistanceSq = distanceSq;
+        }
+      });
+
+      const nextZoneId = nearestZone?.prefix ?? null;
+      if (nextZoneId === activeZoneId) return;
+
+      activeZoneId = nextZoneId;
+      setActiveDestination(nearestZone);
+      setInteractionMessage(null);
+      if (interactionTimerRef.current) {
+        clearTimeout(interactionTimerRef.current);
+        interactionTimerRef.current = null;
+      }
+    };
+
+    const resetXinXamParts = () => {
+      xinXamParts.forEach(({ object, position, rotation }) => {
+        object.position.copy(position);
+        object.rotation.copy(rotation);
+      });
+    };
+
+    const startXinXamInteraction = () => {
+      if (xinXamInteractionActive || activeZoneId !== "XX_") return;
+
+      xinXamInteractionActive = true;
+      xinXamAnimation = {
+        elapsed: 0,
+        selectedStick: xinXamParts.find(({ object }) => object.name === "XX_STICK_03")?.object ?? null,
+      };
+      walkingKeys.clear();
+      walkingVelocity.set(0, 0);
+      touchMovement.set(0, 0);
+      controls.enabled = false;
+      setInteractionMessage(null);
+      setXinXamResult(null);
+      setIsXinXamInteracting(true);
+      setIsWalking(false);
+    };
+
+    const finishXinXamInteraction = () => {
+      const message = XIN_XAM_MESSAGES[Math.floor(Math.random() * XIN_XAM_MESSAGES.length)];
+      resetXinXamParts();
+      if (xinXamAnimation?.selectedStick) {
+        const selected = xinXamParts.find(({ object }) => object === xinXamAnimation?.selectedStick);
+        if (selected) {
+          selected.object.position.y = selected.position.y + 0.14;
+          selected.object.rotation.z = selected.rotation.z + 0.1;
+        }
+      }
+      xinXamAnimation = null;
+      setXinXamResult(message);
+    };
+
+    const startDestinationEntry = () => {
+      const requestedPrefix = destinationEntryRequestRef.current;
+      destinationEntryRequestRef.current = null;
+      if (
+        !requestedPrefix ||
+        !(requestedPrefix in DESTINATION_ENTRY_ROUTES) ||
+        destinationEntryActive ||
+        xinXamInteractionActive
+      ) {
+        return;
+      }
+
+      const zone = proximityZones.find(({ prefix }) => prefix === requestedPrefix);
+      if (!zone) return;
+
+      destinationEntryActive = true;
+      destinationEntryWasPointerLocked = document.pointerLockElement === renderer.domElement;
+      walkingKeys.clear();
+      walkingVelocity.set(0, 0);
+      touchMovement.set(0, 0);
+      controls.enabled = false;
+      setInteractionMessage(null);
+      setDestinationEntry(zone);
+      setIsWalking(false);
+
+      if (destinationEntryWasPointerLocked) {
+        document.exitPointerLock();
+      }
+    };
+
+    resumeDestinationEntryRef.current = () => {
+      if (!destinationEntryActive) {
+        setDestinationEntry(null);
+        return;
+      }
+
+      const shouldRestorePointerLock = destinationEntryWasPointerLocked;
+      destinationEntryActive = false;
+      destinationEntryWasPointerLocked = false;
+      setDestinationEntry(null);
+      walkingKeys.clear();
+      walkingVelocity.set(0, 0);
+      touchMovement.set(0, 0);
+      updateWalkingCamera();
+
+      if (
+        shouldRestorePointerLock &&
+        typeof renderer.domElement.requestPointerLock === "function"
+      ) {
+        controls.enabled = false;
+        try {
+          void Promise.resolve(renderer.domElement.requestPointerLock()).catch(() => {
+            controls.enabled = true;
+            setIsWalking(false);
+          });
+        } catch {
+          controls.enabled = true;
+          setIsWalking(false);
+        }
+        return;
+      }
+
+      controls.enabled = !touchWalkingActive;
+      setIsWalking(touchWalkingActive);
+    };
+
+    const handlePointerLockChange = () => {
+      const pointerLocked = document.pointerLockElement === renderer.domElement;
+      if (destinationEntryActive) {
+        controls.enabled = false;
+        walkingKeys.clear();
+        walkingVelocity.set(0, 0);
+        updateWalkingCamera();
+        setIsWalking(false);
+        return;
+      }
+
+      controls.enabled = !pointerLocked;
+      walkingKeys.clear();
+      if (pointerLocked) {
+        setIsWalking(true);
+      } else {
+        walkingVelocity.set(0, 0);
+        updateProximity(false);
+        setIsWalking(false);
+        const lookDirection = new THREE.Vector3(
+          Math.sin(walkingYaw),
+          0,
+          -Math.cos(walkingYaw),
+        );
+        controls.target.set(
+          walkingPosition.x + lookDirection.x * 4,
+          1.25,
+          walkingPosition.z + lookDirection.z * 4,
+        );
+        controls.update();
+      }
+    };
+
+    const handleCanvasClick = () => {
+      if (xinXamInteractionActive || destinationEntryActive) return;
+
+      if (document.pointerLockElement !== renderer.domElement) {
+        if (touchDevice) setHasInteracted(true);
+        enterWalkingMode();
+      }
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (
+        destinationEntryActive ||
+        document.pointerLockElement !== renderer.domElement
+      ) return;
+
+      walkingYaw -= event.movementX * 0.0022;
+      walkingPitch = THREE.MathUtils.clamp(
+        walkingPitch - event.movementY * 0.0022,
+        -1.2,
+        1.2,
+      );
+    };
+
+    const movementCodes = new Set([
+      "KeyW",
+      "KeyA",
+      "KeyS",
+      "KeyD",
+      "ArrowUp",
+      "ArrowLeft",
+      "ArrowDown",
+      "ArrowRight",
+    ]);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (xinXamInteractionActive || destinationEntryActive) {
+        if (movementCodes.has(event.code)) event.preventDefault();
+        return;
+      }
+
+      if ((event.code === "KeyE" || event.code === "Enter") && activeZoneId) {
+        event.preventDefault();
+        if (activeZoneId === "XX_") {
+          startXinXamInteraction();
+        } else if (activeZoneId === "OD_") {
+          return;
+        } else if (activeZoneId in DESTINATION_ENTRY_ROUTES) {
+          destinationEntryRequestRef.current = activeZoneId;
+        } else {
+          showInteractionReady(proximityZones.find(({ prefix }) => prefix === activeZoneId) ?? null);
+        }
+        return;
+      }
+      if (!movementCodes.has(event.code)) return;
+      walkingKeys.add(event.code);
+      if (document.pointerLockElement === renderer.domElement) {
+        event.preventDefault();
+      }
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      walkingKeys.delete(event.code);
+    };
+
+    const updateMobileMovement = (event: PointerEvent) => {
+      if (xinXamInteractionActive || destinationEntryActive) return;
+
+      const pad = mobileMovePadRef.current;
+      if (!pad || event.pointerId !== movePointerId) return;
+
+      const rect = pad.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const maxRadius = Math.min(rect.width, rect.height) * 0.34;
+      const rawX = event.clientX - centerX;
+      const rawY = event.clientY - centerY;
+      const length = Math.hypot(rawX, rawY);
+      const scale = length > maxRadius ? maxRadius / length : 1;
+      const x = rawX * scale;
+      const y = rawY * scale;
+
+      // Screen Y grows downward; positive forward intent is therefore -Y.
+      touchMovement.set(x / maxRadius, -y / maxRadius);
+      if (mobileMoveThumbRef.current) {
+        mobileMoveThumbRef.current.style.transform = `translate(${x}px, ${y}px)`;
+      }
+    };
+
+    const resetMobileMovement = (event?: PointerEvent) => {
+      if (event && event.pointerId !== movePointerId) return;
+      movePointerId = null;
+      touchMovement.set(0, 0);
+      if (mobileMoveThumbRef.current) {
+        mobileMoveThumbRef.current.style.transform = "translate(0, 0)";
+      }
+    };
+
+    const handleMobileMoveDown = (event: PointerEvent) => {
+      if (
+        !touchDevice ||
+        xinXamInteractionActive ||
+        destinationEntryActive ||
+        movePointerId !== null
+      ) return;
+      event.preventDefault();
+      setHasInteracted(true);
+      movePointerId = event.pointerId;
+      mobileMovePadRef.current?.setPointerCapture(event.pointerId);
+      enterWalkingMode();
+      updateMobileMovement(event);
+    };
+
+    const handleMobileMoveUp = (event: PointerEvent) => {
+      resetMobileMovement(event);
+    };
+
+    const handleMobileLookDown = (event: PointerEvent) => {
+      if (
+        touchDevice ||
+        xinXamInteractionActive ||
+        destinationEntryActive ||
+        lookPointerId !== null
+      ) return;
+      event.preventDefault();
+      setHasInteracted(true);
+      lookPointerId = event.pointerId;
+      lastLookX = event.clientX;
+      lastLookY = event.clientY;
+      mobileLookPadRef.current?.setPointerCapture(event.pointerId);
+      enterWalkingMode();
+    };
+
+    const handleMobileLookMove = (event: PointerEvent) => {
+      if (
+        touchDevice ||
+        xinXamInteractionActive ||
+        destinationEntryActive ||
+        event.pointerId !== lookPointerId
+      ) return;
+      event.preventDefault();
+      walkingYaw -= (event.clientX - lastLookX) * 0.004;
+      walkingPitch = THREE.MathUtils.clamp(walkingPitch - (event.clientY - lastLookY) * 0.004, -1.2, 1.2);
+      lastLookX = event.clientX;
+      lastLookY = event.clientY;
+    };
+
+    const handleMobileLookUp = (event: PointerEvent) => {
+      if (event.pointerId === lookPointerId) lookPointerId = null;
+    };
+
+    const findTouch = (touches: TouchList, identifier: number) => {
+      for (let index = 0; index < touches.length; index += 1) {
+        const touch = touches.item(index);
+        if (touch?.identifier === identifier) return touch;
+      }
+      return null;
+    };
+
+    const handleMobileLookTouchStart = (event: TouchEvent) => {
+      if (
+        !touchDevice ||
+        xinXamInteractionActive ||
+        destinationEntryActive ||
+        lookTouchIdentifier !== null
+      ) return;
+      const touch = event.changedTouches.item(0);
+      if (!touch) return;
+
+      event.preventDefault();
+      setHasInteracted(true);
+      lookTouchIdentifier = touch.identifier;
+      lastLookX = touch.clientX;
+      lastLookY = touch.clientY;
+      enterWalkingMode();
+    };
+
+    const handleMobileLookTouchMove = (event: TouchEvent) => {
+      if (
+        !touchDevice ||
+        xinXamInteractionActive ||
+        destinationEntryActive ||
+        lookTouchIdentifier === null
+      ) return;
+      const touch = findTouch(event.touches, lookTouchIdentifier);
+      if (!touch) return;
+
+      event.preventDefault();
+      walkingYaw -= (touch.clientX - lastLookX) * 0.004;
+      walkingPitch = THREE.MathUtils.clamp(
+        walkingPitch - (touch.clientY - lastLookY) * 0.004,
+        -1.2,
+        1.2,
+      );
+      lastLookX = touch.clientX;
+      lastLookY = touch.clientY;
+    };
+
+    const handleMobileLookTouchEnd = (event: TouchEvent) => {
+      if (lookTouchIdentifier === null) return;
+      if (!findTouch(event.changedTouches, lookTouchIdentifier)) return;
+
+      event.preventDefault();
+      lookTouchIdentifier = null;
+    };
+
+    document.addEventListener("pointerlockchange", handlePointerLockChange);
+    document.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    renderer.domElement.addEventListener("click", handleCanvasClick);
+    mobileMovePadRef.current?.addEventListener("pointerdown", handleMobileMoveDown);
+    mobileMovePadRef.current?.addEventListener("pointermove", updateMobileMovement);
+    mobileMovePadRef.current?.addEventListener("pointerup", handleMobileMoveUp);
+    mobileMovePadRef.current?.addEventListener("pointercancel", handleMobileMoveUp);
+    if (touchDevice) {
+      mobileLookPadRef.current?.addEventListener("touchstart", handleMobileLookTouchStart, { passive: false });
+      mobileLookPadRef.current?.addEventListener("touchmove", handleMobileLookTouchMove, { passive: false });
+      mobileLookPadRef.current?.addEventListener("touchend", handleMobileLookTouchEnd, { passive: false });
+      mobileLookPadRef.current?.addEventListener("touchcancel", handleMobileLookTouchEnd, { passive: false });
+    } else {
+      mobileLookPadRef.current?.addEventListener("pointerdown", handleMobileLookDown);
+      mobileLookPadRef.current?.addEventListener("pointermove", handleMobileLookMove);
+      mobileLookPadRef.current?.addEventListener("pointerup", handleMobileLookUp);
+      mobileLookPadRef.current?.addEventListener("pointercancel", handleMobileLookUp);
+    }
+
+    const runtimeLighting = createRuntimeLighting();
+    scene.add(runtimeLighting);
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(32, 26),
@@ -224,6 +1067,92 @@ export default function ChoNeo3DPreview() {
           loadedAsset = gltf.scene;
           loadedAsset.position.y = 0;
           loadedAsset.scale.setScalar(1.2);
+          scene.add(loadedAsset);
+          loadedAsset.updateMatrixWorld(true);
+          const loadedXinXamParts: Array<{
+            object: THREE.Object3D;
+            position: THREE.Vector3;
+            rotation: THREE.Euler;
+            isHolder: boolean;
+          }> = [];
+          loadedAsset.traverse((child) => {
+            if (
+              child.name === "XX_HOLDER_Cup" ||
+              child.name.startsWith("XX_STICK_")
+            ) {
+              loadedXinXamParts.push({
+                object: child,
+                position: child.position.clone(),
+                rotation: child.rotation.clone(),
+                isHolder: child.name === "XX_HOLDER_Cup",
+              });
+            }
+          });
+          xinXamParts = loadedXinXamParts;
+          collisionVolumes = createGlbCollisionVolumes(loadedAsset);
+          const loadedProximityZones = createGlbProximityZones(loadedAsset);
+          proximityZones = loadedProximityZones.length === DESTINATION_PROXIMITY_DEFINITIONS.length
+            ? loadedProximityZones
+            : createFallbackProximityZones();
+
+          const ongDiaZone = proximityZones.find(({ prefix }) => prefix === "OD_");
+          if (ongDiaZone) {
+            const smokeOrigin = new THREE.Vector3(ongDiaZone.x, 1.8, ongDiaZone.z);
+            const vase = loadedAsset.getObjectByName("OD_PROP_Vase");
+            vase?.getWorldPosition(smokeOrigin);
+            smokeOrigin.y += 0.2;
+
+            const light = new THREE.PointLight(0xffc47e, 0.12, 3.8, 2);
+            light.position.set(smokeOrigin.x, smokeOrigin.y + 0.32, smokeOrigin.z);
+            runtimeLighting.add(light);
+
+            const particles: OngDiaSmokeParticle[] = [];
+            const positions = new Float32Array(7 * 3);
+            for (let index = 0; index < 7; index += 1) {
+              const angle = index * 2.37;
+              const radius = 0.025 + (index % 3) * 0.018;
+              const particle = {
+                x: Math.cos(angle) * radius,
+                y: (index % 4) * 0.07,
+                z: Math.sin(angle) * radius,
+                phase: index * 0.63,
+                speed: 0.55 + (index % 3) * 0.08,
+              };
+              particles.push(particle);
+              positions[index * 3] = particle.x;
+              positions[index * 3 + 1] = particle.y;
+              positions[index * 3 + 2] = particle.z;
+            }
+
+            const smokeGeometry = new THREE.BufferGeometry();
+            const positionAttribute = new THREE.BufferAttribute(positions, 3);
+            smokeGeometry.setAttribute("position", positionAttribute);
+            const smokeMaterial = new THREE.PointsMaterial({
+              color: 0xd5c6aa,
+              size: 0.085,
+              transparent: true,
+              opacity: 0.045,
+              depthWrite: false,
+              sizeAttenuation: true,
+            });
+            const smoke = new THREE.Points(smokeGeometry, smokeMaterial);
+            smoke.name = "Ông Địa ambient incense smoke";
+            smoke.position.copy(smokeOrigin);
+            scene.add(smoke);
+
+            ongDiaAmbience = {
+              light,
+              smoke,
+              smokeMaterial,
+              particles,
+              positionAttribute,
+              zone: ongDiaZone,
+              proximity: 0,
+              elapsed: 0,
+            };
+          }
+
+          disableImportedLights(loadedAsset);
           loadedAsset.traverse((child) => {
             if (child instanceof THREE.Mesh) {
               child.castShadow = true;
@@ -233,18 +1162,173 @@ export default function ChoNeo3DPreview() {
           scene.remove(fallbackEnvironment);
           disposeObject(fallbackEnvironment);
           fallbackDisposed = true;
-          scene.add(loadedAsset);
-          setAssetStatus("Đã nạp local GLB: public/3d/cho-neo.glb");
         }, undefined, () => {
-          if (!disposed) setAssetStatus("GLB không tải được — đang giữ placeholder môi trường");
+          if (disposed) return;
         });
       })
       .catch(() => {
-        if (!disposed) setAssetStatus("Chưa có GLB — đang dùng placeholder môi trường");
+        if (disposed) return;
       });
 
     const render = () => {
-      controls.update();
+      timer.update();
+      const delta = Math.min(timer.getDelta(), 0.05);
+      const pointerLocked = document.pointerLockElement === renderer.domElement;
+      const movementActive = pointerLocked || touchWalkingActive;
+
+      if (xinXamStartRef.current) {
+        xinXamStartRef.current = false;
+        startXinXamInteraction();
+      }
+
+      if (destinationEntryRequestRef.current) {
+        startDestinationEntry();
+      }
+
+      if (xinXamDismissRef.current) {
+        xinXamDismissRef.current = false;
+        xinXamInteractionActive = false;
+        xinXamAnimation = null;
+        resetXinXamParts();
+        walkingVelocity.set(0, 0);
+        touchMovement.set(0, 0);
+        controls.enabled = !pointerLocked && !touchWalkingActive;
+        updateWalkingCamera();
+        setIsWalking(movementActive);
+      }
+
+      if (xinXamAnimation) {
+        xinXamAnimation.elapsed += delta;
+        const elapsed = xinXamAnimation.elapsed;
+        const progress = THREE.MathUtils.clamp(elapsed / 1.05, 0, 1);
+        const shakeEnvelope = progress < 0.82 ? 1 - progress / 0.82 : 0;
+        const shake = Math.sin(elapsed * 52) * 0.075 * shakeEnvelope;
+
+        xinXamParts.forEach(({ object, position, rotation, isHolder }) => {
+          if (isHolder) {
+            object.rotation.set(
+              rotation.x + Math.sin(elapsed * 39) * 0.025 * shakeEnvelope,
+              rotation.y + shake,
+              rotation.z + Math.cos(elapsed * 45) * 0.035 * shakeEnvelope,
+            );
+          } else {
+            object.rotation.set(
+              rotation.x + shake * 0.5,
+              rotation.y,
+              rotation.z + shake * 0.8,
+            );
+          }
+        });
+
+        const selectedStick = xinXamParts.find(
+          ({ object }) => object === xinXamAnimation?.selectedStick,
+        );
+        if (selectedStick && progress > 0.48) {
+          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.48, 1);
+          selectedStick.object.position.y = selectedStick.position.y + revealProgress * 0.14;
+        }
+
+        if (progress >= 1) finishXinXamInteraction();
+      }
+
+      if (ongDiaAmbience) {
+        ongDiaAmbience.elapsed += delta;
+        const distanceToShrine = Math.hypot(
+          walkingPosition.x - ongDiaAmbience.zone.x,
+          walkingPosition.z - ongDiaAmbience.zone.z,
+        );
+        const targetProximity = 1 - THREE.MathUtils.smoothstep(
+          distanceToShrine,
+          ongDiaAmbience.zone.radius * 0.55,
+          ongDiaAmbience.zone.radius * 2.1,
+        );
+        ongDiaAmbience.proximity +=
+          (targetProximity - ongDiaAmbience.proximity) * (1 - Math.exp(-delta * 2.5));
+
+        const flicker =
+          0.95 +
+          Math.sin(ongDiaAmbience.elapsed * 8.2) * 0.035 +
+          Math.sin(ongDiaAmbience.elapsed * 17.1) * 0.018;
+        ongDiaAmbience.light.intensity =
+          (0.1 + ongDiaAmbience.proximity * 0.15) * flicker;
+        ongDiaAmbience.smokeMaterial.opacity = 0.035 + ongDiaAmbience.proximity * 0.065;
+
+        ongDiaAmbience.particles.forEach((particle, index) => {
+          const cycle = (ongDiaAmbience.elapsed * particle.speed + particle.phase) % 1;
+          const drift = 0.35 + cycle;
+          const attributeIndex = index * 3;
+          ongDiaAmbience.positionAttribute.array[attributeIndex] =
+            particle.x + Math.sin(ongDiaAmbience.elapsed * 0.75 + particle.phase) * 0.035 * drift;
+          ongDiaAmbience.positionAttribute.array[attributeIndex + 1] = particle.y + cycle * 0.62;
+          ongDiaAmbience.positionAttribute.array[attributeIndex + 2] =
+            particle.z + Math.cos(ongDiaAmbience.elapsed * 0.68 + particle.phase) * 0.028 * drift;
+        });
+        ongDiaAmbience.positionAttribute.needsUpdate = true;
+      }
+
+      const walkingActive =
+        movementActive && !xinXamInteractionActive && !destinationEntryActive;
+
+      if (walkingActive) {
+        const forwardInput = touchWalkingActive
+          ? touchMovement.y
+          : (walkingKeys.has("KeyW") || walkingKeys.has("ArrowUp") ? 1 : 0) -
+            (walkingKeys.has("KeyS") || walkingKeys.has("ArrowDown") ? 1 : 0);
+        const strafeInput = touchWalkingActive
+          ? touchMovement.x
+          : (walkingKeys.has("KeyD") || walkingKeys.has("ArrowRight") ? 1 : 0) -
+            (walkingKeys.has("KeyA") || walkingKeys.has("ArrowLeft") ? 1 : 0);
+
+        if (touchWalkingActive) {
+          updateWalkingCamera();
+          camera.getWorldDirection(cameraForward);
+          cameraForward.y = 0;
+          cameraForward.normalize();
+          cameraRight.crossVectors(cameraForward, camera.up).normalize();
+          forward.set(cameraForward.x, cameraForward.z);
+          right.set(cameraRight.x, cameraRight.z);
+        } else {
+          forward.set(Math.sin(walkingYaw), -Math.cos(walkingYaw));
+          right.set(Math.cos(walkingYaw), Math.sin(walkingYaw));
+        }
+        targetVelocity.set(
+          forward.x * forwardInput + right.x * strafeInput,
+          forward.y * forwardInput + right.y * strafeInput,
+        );
+        if (targetVelocity.lengthSq() > 1) targetVelocity.normalize();
+        targetVelocity.multiplyScalar(WALKING_SPEED);
+        walkingVelocity.lerp(
+          targetVelocity,
+          1 - Math.exp(-WALKING_ACCELERATION * delta),
+        );
+
+        const nextX = THREE.MathUtils.clamp(
+          walkingPosition.x + walkingVelocity.x * delta,
+          WALKING_WORLD_BOUNDS.minX,
+          WALKING_WORLD_BOUNDS.maxX,
+        );
+        const nextZ = THREE.MathUtils.clamp(
+          walkingPosition.z + walkingVelocity.y * delta,
+          WALKING_WORLD_BOUNDS.minZ,
+          WALKING_WORLD_BOUNDS.maxZ,
+        );
+        const blockedX = isCollisionAt(nextX, walkingPosition.z, collisionVolumes);
+
+        // Resolve one horizontal axis at a time so the player stops at a
+        // coarse volume but can still slide naturally along its edge.
+        if (!blockedX) {
+          walkingPosition.x = nextX;
+        }
+        const blockedZ = isCollisionAt(walkingPosition.x, nextZ, collisionVolumes);
+        if (!blockedZ) {
+          walkingPosition.z = nextZ;
+        }
+        updateWalkingCamera();
+      } else if (!xinXamInteractionActive && !destinationEntryActive) {
+        controls.update();
+      }
+
+      updateProximity(movementActive || destinationEntryActive);
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
     };
@@ -253,8 +1337,40 @@ export default function ChoNeo3DPreview() {
 
     return () => {
       disposed = true;
+      resumeDestinationEntryRef.current = null;
       resizeObserver.disconnect();
+      if (document.pointerLockElement === renderer.domElement) {
+        document.exitPointerLock();
+      }
+      document.removeEventListener("pointerlockchange", handlePointerLockChange);
+      document.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      renderer.domElement.removeEventListener("click", handleCanvasClick);
+      mobileMovePadRef.current?.removeEventListener("pointerdown", handleMobileMoveDown);
+      mobileMovePadRef.current?.removeEventListener("pointermove", updateMobileMovement);
+      mobileMovePadRef.current?.removeEventListener("pointerup", handleMobileMoveUp);
+      mobileMovePadRef.current?.removeEventListener("pointercancel", handleMobileMoveUp);
+      if (touchDevice) {
+        mobileLookPadRef.current?.removeEventListener("touchstart", handleMobileLookTouchStart);
+        mobileLookPadRef.current?.removeEventListener("touchmove", handleMobileLookTouchMove);
+        mobileLookPadRef.current?.removeEventListener("touchend", handleMobileLookTouchEnd);
+        mobileLookPadRef.current?.removeEventListener("touchcancel", handleMobileLookTouchEnd);
+      } else {
+        mobileLookPadRef.current?.removeEventListener("pointerdown", handleMobileLookDown);
+        mobileLookPadRef.current?.removeEventListener("pointermove", handleMobileLookMove);
+        mobileLookPadRef.current?.removeEventListener("pointerup", handleMobileLookUp);
+        mobileLookPadRef.current?.removeEventListener("pointercancel", handleMobileLookUp);
+      }
+      resetMobileMovement();
+      lookPointerId = null;
+      lookTouchIdentifier = null;
+      if (interactionTimerRef.current) {
+        clearTimeout(interactionTimerRef.current);
+        interactionTimerRef.current = null;
+      }
       controls.dispose();
+      timer.dispose();
       renderer.setAnimationLoop(null);
       disposeObject(scene);
       if (!fallbackDisposed) disposeObject(fallbackEnvironment);
@@ -264,11 +1380,97 @@ export default function ChoNeo3DPreview() {
     };
   }, []);
 
+  const destinationEntryRoute = destinationEntry
+    ? DESTINATION_ENTRY_ROUTES[
+        destinationEntry.prefix as keyof typeof DESTINATION_ENTRY_ROUTES
+      ]
+    : null;
+
   return (
     <div ref={mountRef} className={styles.sceneRoot}>
-      <div className={styles.status} role="status" aria-live="polite">
-        {assetStatus}
-      </div>
+      {!destinationEntry && (
+        <div
+          className={`${styles.walkingHint} ${isTouchDevice && hasInteracted ? styles.walkingHintFaded : ""}`}
+          aria-live="polite"
+        >
+          {isTouchDevice
+            ? "Kéo bên trái để đi · kéo bên phải để nhìn"
+            : isWalking
+              ? "WASD / phím mũi tên để đi · rê chuột để nhìn · Esc để quay lại orbit"
+              : "Click vào thế giới để đi bộ · Drag để orbit debug"}
+        </div>
+      )}
+      {!destinationEntry && !isXinXamInteracting && activeDestination && activeDestination.prefix !== "OD_" && (
+        <div className={styles.destinationPrompt} role="status" aria-live="polite">
+          {interactionMessage ? (
+            <div className={styles.destinationPromptMessage}>{interactionMessage}</div>
+          ) : (
+            <button
+              type="button"
+              className={styles.destinationPromptButton}
+              onClick={activateDestination}
+            >
+              <span>{activeDestination.cue}</span>
+              <span className={styles.destinationPromptAction}>
+                {isTouchDevice ? "Chạm để xem" : "E / Enter"}
+              </span>
+            </button>
+          )}
+        </div>
+      )}
+      {isXinXamInteracting && (
+        <div className={styles.xinXamOverlay} role="dialog" aria-modal="true" aria-live="polite">
+          <div className={styles.xinXamCard}>
+            <p className={styles.xinXamKicker}>Xin Xăm</p>
+            {xinXamResult ? (
+              <>
+                <h2 className={styles.xinXamTitle}>Một lời nhắc nhỏ</h2>
+                <p className={styles.xinXamMessage}>{xinXamResult}</p>
+                <button
+                  type="button"
+                  className={styles.xinXamDismiss}
+                  onClick={dismissXinXam}
+                >
+                  Khép lại
+                </button>
+              </>
+            ) : (
+              <p className={styles.xinXamMessage}>Lắng nghe một nhịp rồi hãy đi tiếp.</p>
+            )}
+          </div>
+        </div>
+      )}
+      {destinationEntry && destinationEntryRoute ? (
+        <div className={styles.destinationEntryOverlay} role="dialog" aria-modal="true">
+          <section className={styles.destinationEntryPanel} aria-label={destinationEntryRoute.label}>
+            <header className={styles.destinationEntryHeader}>
+              <div>
+                <p className={styles.destinationEntryKicker}>Chợ Neo · destination</p>
+                <h2>{destinationEntryRoute.label}</h2>
+              </div>
+              <button type="button" onClick={closeDestinationEntry}>
+                ← Quay lại 3D
+              </button>
+            </header>
+            <iframe
+              className={styles.destinationEntryFrame}
+              src={destinationEntryRoute.href}
+              title={`${destinationEntryRoute.label} — Chợ Neo`}
+            />
+          </section>
+        </div>
+      ) : null}
+      {!destinationEntry && (
+        <div
+          className={isTouchDevice ? styles.mobileControls : styles.mobileControlsHidden}
+          aria-label="Điều khiển đi bộ trên màn hình cảm ứng"
+        >
+          <div ref={mobileMovePadRef} className={styles.mobileMovePad} aria-label="Khu vực di chuyển">
+            <div ref={mobileMoveThumbRef} className={styles.mobileMoveThumb} />
+          </div>
+          <div ref={mobileLookPadRef} className={styles.mobileLookPad} aria-label="Khu vực nhìn quanh" />
+        </div>
+      )}
     </div>
   );
 }

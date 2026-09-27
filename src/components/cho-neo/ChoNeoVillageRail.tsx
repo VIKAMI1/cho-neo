@@ -24,6 +24,12 @@ export const choNeoVillageNavItems: ChoNeoVillageNavItem[] = [
     symbol: "question",
   },
   {
+    href: "/meo-vat",
+    id: "meo-vat",
+    label: "Mẹo Vặt",
+    symbol: "gallery",
+  },
+  {
     href: "/xin-xam",
     id: "xin-xam",
     label: "Xin Xăm",

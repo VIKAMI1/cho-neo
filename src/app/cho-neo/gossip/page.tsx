@@ -860,10 +860,16 @@ export default function ChoNeoGossipPage() {
   const [tableNoteDraft, setTableNoteDraft] = useState("");
   const [tableNoteNotice, setTableNoteNotice] = useState<string | null>(null);
   const [tableHostNudgeVisible, setTableHostNudgeVisible] = useState(false);
+  const [isEmbedded, setIsEmbedded] = useState(false);
   const frontCounterDraftRef = useRef("");
   const frontCounterInputRef = useRef<HTMLInputElement | null>(null);
   const frontCounterPostingRef = useRef(false);
   const tableNoteInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setIsEmbedded(new URLSearchParams(window.location.search).get("embed") === "1");
+  }, []);
+
   const selectedTable = useMemo(
     () => activeTables.find((table) => table.legacyName === selectedTableName) ?? null,
     [selectedTableName]
@@ -1783,22 +1789,24 @@ export default function ChoNeoGossipPage() {
       <div className="floor-grid" />
 
       <section className="cafe-shell" aria-labelledby="gossip-title">
-        <header className="cafe-hero">
-          <div>
-            <h1 id="gossip-title">
-              Quán Tám
-              <span>Gossip Café</span>
-            </h1>
-            <p className="subtitle">
-              Vào quán, chọn một bàn, nói vừa đủ nghe.
-              <span>
-                Step in, choose a table, keep the room warm.
-              </span>
-            </p>
-          </div>
-        </header>
+        {!isEmbedded ? (
+          <header className="cafe-hero">
+            <div>
+              <h1 id="gossip-title">
+                Quán Tám
+                <span>Gossip Café</span>
+              </h1>
+              <p className="subtitle">
+                Vào quán, chọn một bàn, nói vừa đủ nghe.
+                <span>
+                  Step in, choose a table, keep the room warm.
+                </span>
+              </p>
+            </div>
+          </header>
+        ) : null}
 
-        {!(isFrontCounter || isShopTalkTable) ? (
+        {!isEmbedded && !(isFrontCounter || isShopTalkTable) ? (
         <div className="cafe-stage-controls">
           <nav className="cafe-control-row" aria-label="Quán Tám controls">
             <Link className={cafeControlButtonClassName} href="/cho-neo">
