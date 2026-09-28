@@ -46,6 +46,12 @@ EXPECTED_ENVIRONMENT_OBJECT_COUNT = 159
 MATERIAL_PALETTE = {
     "MAT_STONE_WARM": ((0.62, 0.52, 0.39, 1.0), 0.9),
     "MAT_STONE_WARM_VARIANT": ((0.55, 0.47, 0.37, 1.0), 0.92),
+    "MAT_PLAZA_PAVING": ((0.47, 0.39, 0.30, 1.0), 0.94),
+    "MAT_PROMENADE_PAVING": ((0.58, 0.49, 0.38, 1.0), 0.92),
+    "MAT_LOOP_PAVING": ((0.41, 0.34, 0.27, 1.0), 0.96),
+    "MAT_BRANCH_PAVING": ((0.51, 0.43, 0.33, 1.0), 0.94),
+    "MAT_PAVING_INLAY": ((0.38, 0.31, 0.24, 1.0), 0.9),
+    "MAT_FOUNDATION_DARK": ((0.19, 0.145, 0.11, 1.0), 0.96),
     "MAT_TIMBER_DARK": ((0.12, 0.065, 0.035, 1.0), 0.88),
     "MAT_TIMBER_MID": ((0.19, 0.10, 0.055, 1.0), 0.9),
     "MAT_TIMBER_HIGHLIGHT": ((0.25, 0.135, 0.072, 1.0), 0.86),
@@ -119,6 +125,16 @@ MATERIAL_KEY_TO_PALETTE = {
     "ENV_Light_Warm": "MAT_CLAY_TILE",
     "ENV_Horizon": "MAT_COASTAL_HORIZON",
     "ENV_Horizon_Far": "MAT_COASTAL_HORIZON_FAR",
+}
+
+MATERIAL_SURFACE_SETTINGS = {
+    "MAT_TIMBER_DARK": {"roughness": 0.9},
+    "MAT_TIMBER_MID": {"roughness": 0.86},
+    "MAT_TIMBER_HIGHLIGHT": {"roughness": 0.82},
+    "MAT_CLAY_TILE": {"roughness": 0.94},
+    "MAT_CLAY_EDGE": {"roughness": 0.92},
+    "MAT_CLAY_TILE_LIGHT": {"roughness": 0.9},
+    "MAT_METAL_DARK": {"roughness": 0.58, "metallic": 0.28},
 }
 
 
@@ -199,6 +215,17 @@ def find_existing_ground():
             return obj
 
     return None
+
+
+def snapshot_scene_anchors():
+    """Capture only stable names/coordinates before generated collections rebuild."""
+
+    courtyard = find_courtyard()
+    courtyard_name = courtyard.name
+    courtyard_center = courtyard.matrix_world.translation.copy()
+    ground = find_existing_ground()
+    ground_name = ground.name if ground is not None else None
+    return courtyard_name, courtyard_center, ground_name
 
 
 def get_or_create_blockout_collection():
@@ -337,13 +364,138 @@ def get_or_create_material(key, color):
             palette_name, (color, 0.88)
         )
         principled.inputs["Base Color"].default_value = palette_color
-        principled.inputs["Roughness"].default_value = roughness
+        surface_settings = MATERIAL_SURFACE_SETTINGS.get(palette_name, {})
+        principled.inputs["Roughness"].default_value = surface_settings.get(
+            "roughness", roughness
+        )
+        if "Metallic" in principled.inputs:
+            principled.inputs["Metallic"].default_value = surface_settings.get(
+                "metallic", 0.0
+            )
     return material
 
 
 def ensure_palette_materials():
     for material_name, (color, _roughness) in MATERIAL_PALETTE.items():
         get_or_create_material(material_name, color)
+
+
+def assign_material(obj, material):
+    """Replace an object's material slots with one shared, GLB-safe material."""
+
+    if obj.type != "MESH":
+        return
+    obj.data.materials.clear()
+    obj.data.materials.append(material)
+
+
+def apply_phase1_material_dressing(courtyard_name, ground_name):
+    """Apply a restrained shared material language without changing geometry.
+
+    This final pass deliberately works from generated object names and fresh
+    collection iteration. It keeps the Phase 4/5 spatial composition intact
+    while making the civic ground hierarchy and pavilion construction read at
+    first-person distance.
+    """
+
+    materials = {
+        name: get_or_create_material(name, MATERIAL_PALETTE[name][0])
+        for name in MATERIAL_PALETTE
+    }
+
+    def use(object_name, material_name):
+        """Resolve the current datablock immediately before touching it."""
+
+        if not object_name:
+            return
+        obj = bpy.data.objects.get(object_name)
+        if obj is None or obj.type != "MESH":
+            return
+        assign_material(obj, materials[material_name])
+
+    use(courtyard_name, "MAT_STONE_WARM")
+    use(ground_name, "MAT_PLAZA_PAVING")
+
+    generated_collection_names = (
+        QUAY_COLLECTION_NAME,
+        ONG_DIA_COLLECTION_NAME,
+        XIN_XAM_COLLECTION_NAME,
+        HOI_CHO_NEO_COLLECTION_NAME,
+        MEO_VAT_COLLECTION_NAME,
+        ENVIRONMENT_COLLECTION_NAME,
+    )
+
+    for collection_name in generated_collection_names:
+        collection = bpy.data.collections.get(collection_name)
+        if collection is None:
+            continue
+        object_names = [obj.name for obj in list(collection.objects)]
+        for object_name in object_names:
+            obj = bpy.data.objects.get(object_name)
+            if obj is None:
+                continue
+            if obj.type != "MESH":
+                continue
+
+            name = obj.name.upper()
+            material_name = None
+
+            if collection_name == ENVIRONMENT_COLLECTION_NAME:
+                if name.startswith("ENV_PATH_MAIN") or name.startswith("ENV_PHO_CHO"):
+                    material_name = "MAT_PROMENADE_PAVING"
+                elif name.startswith("ENV_PATH_LOOP"):
+                    material_name = "MAT_LOOP_PAVING"
+                elif name.startswith("ENV_PATH_BRANCH"):
+                    material_name = "MAT_BRANCH_PAVING"
+                elif "PLAZA_TILE" in name or "PAVING_DETAIL" in name:
+                    material_name = "MAT_PAVING_INLAY"
+                elif name.startswith("ENV_PLAZA"):
+                    material_name = "MAT_PLAZA_PAVING"
+                elif "SOIL" in name or "PLANTER_" in name or "PLANT_BED" in name:
+                    material_name = "MAT_SOIL"
+                elif "PLANT" in name or "SHRUB" in name or "BAMBOO" in name or "GROUNDCOVER" in name:
+                    material_name = "MAT_PLANT_GREEN_MID"
+                elif "LEAF" in name or "FOLIAGE" in name or "FROND" in name:
+                    material_name = "MAT_PLANT_GREEN_MID"
+                elif "TRUNK" in name or "STEM" in name:
+                    material_name = "MAT_TIMBER_DARK"
+                elif "LIGHT" in name or "LANTERN" in name or "BOLLARD" in name:
+                    material_name = "MAT_METAL_DARK"
+                elif "HORIZON" in name or "MOUNTAIN" in name:
+                    material_name = "MAT_COASTAL_HORIZON"
+                elif "CENTER_PLANTER" in name or "EDGE" in name:
+                    material_name = "MAT_STONE_WARM"
+
+            else:
+                # All five destinations share a family language, with their
+                # existing panels/screens retaining their quiet identity.
+                if "ROOF" in name or "EAVE" in name:
+                    material_name = "MAT_CLAY_TILE" if "EDGE" not in name and "EAVE" not in name else "MAT_CLAY_EDGE"
+                elif any(token in name for token in ("COLUMN", "POST", "BEAM", "SLAT")):
+                    material_name = "MAT_TIMBER_DARK" if any(
+                        token in name for token in ("COLUMN", "POST")
+                    ) else "MAT_TIMBER_MID"
+                elif any(token in name for token in ("BASE", "FLOOR", "PLATFORM", "PLINTH")):
+                    material_name = "MAT_FOUNDATION_DARK" if "BASE" in name or "PLINTH" in name else "MAT_STONE_WARM"
+                elif any(token in name for token in ("PANEL", "WALL", "BACKDROP", "SCREEN")):
+                    material_name = (
+                        "MAT_PLASTER_CREAM"
+                        if collection_name in (XIN_XAM_COLLECTION_NAME, ONG_DIA_COLLECTION_NAME)
+                        else "MAT_SCREEN_JADE"
+                    )
+                elif any(token in name for token in ("COUNTER", "TABLE", "SHELF", "BENCH", "CABINET", "SUPPORT")):
+                    material_name = "MAT_TIMBER_MID"
+                elif "TOOL" in name:
+                    material_name = "MAT_METAL_DARK"
+                elif "BOTTLE" in name:
+                    material_name = "MAT_SCREEN_JADE"
+                elif "TRAY" in name or "PROP" in name:
+                    material_name = "MAT_STONE_WARM"
+
+            if material_name is not None:
+                use(object_name, material_name)
+
+    print("Phase 1 material dressing applied to generated surfaces.")
 
 
 def move_to_collection(obj, collection):
@@ -477,18 +629,19 @@ def add_linked_mesh(
 
 
 def get_or_create_leaf_cluster_mesh(name, vertical_bias=1.0):
-    """Build an irregular faceted foliage volume instead of a sphere."""
+    """Build a broad, irregular faceted foliage volume instead of a sphere."""
 
     mesh = bpy.data.meshes.get(name)
     if mesh is not None:
         return mesh
 
-    segments = 8
-    radii = (1.0, 0.86, 1.08, 0.92, 1.04, 0.9, 1.1, 0.95)
+    segments = 10
+    radii = (1.0, 0.88, 1.08, 0.94, 1.04, 0.86, 1.1, 0.92, 1.03, 0.9)
     rings = (
-        (-0.42, 0.56, 0.43),
-        (-0.05, 0.98, 0.68),
-        (0.30 * vertical_bias, 0.64, 0.48),
+        (-0.45, 0.62, 0.46),
+        (-0.18, 1.02, 0.72),
+        (0.08 * vertical_bias, 1.12, 0.78),
+        (0.34 * vertical_bias, 0.78, 0.56),
     )
     vertices = [(0.0, 0.0, -0.5)]
     for z, radius_x, radius_y in rings:
@@ -509,7 +662,7 @@ def get_or_create_leaf_cluster_mesh(name, vertical_bias=1.0):
     for index in range(segments):
         next_index = (index + 1) % segments
         faces.append((0, 1 + next_index, 1 + index))
-        for ring_index in range(2):
+        for ring_index in range(len(rings) - 1):
             start = 1 + (ring_index * segments)
             next_start = start + segments
             faces.extend(
@@ -518,8 +671,72 @@ def get_or_create_leaf_cluster_mesh(name, vertical_bias=1.0):
                     (start + index, next_start + next_index, start + next_index),
                 )
             )
-        top_ring_start = 1 + (2 * segments)
+        top_ring_start = 1 + ((len(rings) - 1) * segments)
         faces.append((top_ring_start + index, top_index, top_ring_start + next_index))
+    return get_or_create_asset_mesh(name, vertices, faces)
+
+
+def get_or_create_groundcover_mesh(name):
+    """Build one reusable low-profile three-lobed planting mass."""
+
+    mesh = bpy.data.meshes.get(name)
+    if mesh is not None:
+        return mesh
+
+    segments = 6
+    lobe_specs = (
+        (-0.38, -0.02, 0.42, 0.29, 0.22),
+        (0.02, 0.12, 0.52, 0.34, 0.28),
+        (0.38, -0.10, 0.38, 0.27, 0.23),
+    )
+    vertices = []
+    faces = []
+    for center_x, center_y, radius_x, radius_y, height in lobe_specs:
+        bottom_index = len(vertices)
+        vertices.append((center_x, center_y, 0.0))
+        ring_start = len(vertices)
+        for index in range(segments):
+            angle = (2.0 * math.pi * index) / segments
+            vertices.append(
+                (
+                    center_x + math.cos(angle) * radius_x,
+                    center_y + math.sin(angle) * radius_y,
+                    0.02 + (height * (0.72 + (0.12 * math.sin(angle + 0.6)))),
+                )
+            )
+        top_index = len(vertices)
+        vertices.append((center_x + 0.04, center_y - 0.02, height))
+        for index in range(segments):
+            next_index = (index + 1) % segments
+            faces.append((bottom_index, ring_start + next_index, ring_start + index))
+            faces.append((ring_start + index, ring_start + next_index, top_index))
+
+    return get_or_create_asset_mesh(name, vertices, faces)
+
+
+def get_or_create_landscape_field_mesh(name):
+    """Build a shallow chamfered landscape field with softened corners."""
+
+    mesh = bpy.data.meshes.get(name)
+    if mesh is not None:
+        return mesh
+
+    outline = (
+        (-0.50, -0.28),
+        (-0.34, -0.50),
+        (0.34, -0.48),
+        (0.50, -0.25),
+        (0.45, 0.32),
+        (0.24, 0.50),
+        (-0.34, 0.46),
+        (-0.50, 0.24),
+    )
+    vertices = [(x, y, 0.0) for x, y in outline]
+    vertices.extend((x, y, 0.06) for x, y in outline)
+    faces = [tuple(range(7, -1, -1)), tuple(range(8, 16))]
+    for index in range(8):
+        next_index = (index + 1) % 8
+        faces.append((index, next_index, 8 + next_index, 8 + index))
     return get_or_create_asset_mesh(name, vertices, faces)
 
 
@@ -554,6 +771,22 @@ def get_or_create_material_leaf_cluster_mesh(base_name, material, vertical_bias=
 
     return get_or_create_leaf_cluster_mesh(
         "{}__{}".format(base_name, material.name), vertical_bias
+    )
+
+
+def get_or_create_material_groundcover_mesh(base_name, material):
+    """Reuse the low-profile planting mass for each shared material variant."""
+
+    return get_or_create_groundcover_mesh(
+        "{}__{}".format(base_name, material.name)
+    )
+
+
+def get_or_create_material_landscape_field_mesh(base_name, material):
+    """Reuse softened field geometry for each shared material variant."""
+
+    return get_or_create_landscape_field_mesh(
+        "{}__{}".format(base_name, material.name)
     )
 
 
@@ -733,6 +966,12 @@ def create_environment_tree(
             ((0.0, 0.0, 1.22), (0.70, 0.18, 1.90), 0.075),
             ((0.14, 0.02, 1.48), (-0.12, 0.58, 2.30), 0.06),
         )
+    elif variant == "C":
+        branch_specs = (
+            ((0.0, 0.0, 1.08), (-0.72, -0.16, 1.88), 0.08),
+            ((0.0, 0.0, 1.20), (0.42, 0.30, 2.16), 0.075),
+            ((-0.10, 0.02, 1.42), (-0.02, -0.62, 2.34), 0.06),
+        )
     for index, (start, end, radius) in enumerate(branch_specs, start=1):
         add_cylinder_between(
             "{}_Branch_{:02d}".format(name_prefix, index),
@@ -749,6 +988,13 @@ def create_environment_tree(
             ((x + 0.48 * scale, y + 0.12 * scale, base_z + (2.18 * scale)), 0.78, (1.02, 1.08, 0.76)),
             ((x - 0.04 * scale, y + 0.44 * scale, base_z + (2.42 * scale)), 0.70, (1.18, 0.78, 0.72)),
             ((x + 0.12 * scale, y - 0.38 * scale, base_z + (2.30 * scale)), 0.62, (1.16, 0.86, 0.68)),
+        )
+    elif variant == "C":
+        canopy_locations = (
+            ((x - 0.50 * scale, y - 0.14 * scale, base_z + (2.02 * scale)), 0.86, (1.34, 0.74, 0.76)),
+            ((x + 0.38 * scale, y + 0.18 * scale, base_z + (2.18 * scale)), 0.76, (1.02, 1.10, 0.72)),
+            ((x - 0.08 * scale, y + 0.50 * scale, base_z + (2.40 * scale)), 0.66, (1.24, 0.78, 0.68)),
+            ((x + 0.14 * scale, y - 0.42 * scale, base_z + (2.28 * scale)), 0.58, (1.20, 0.82, 0.62)),
         )
     else:
         canopy_locations = (
@@ -1084,7 +1330,7 @@ def create_cho_neo_environment(courtyard_center, collection):
         dark_leaf_material,
         0.5,
         (dark_leaf_material, leaf_material, bamboo_material),
-        "A",
+        "C",
     )
 
     # Three landscape zones: social shade at Quầy, quiet screening at the
@@ -1123,7 +1369,7 @@ def create_cho_neo_environment(courtyard_center, collection):
     # Outer ring context: large, reusable forms soften the inner district
     # without filling the view corridor or changing any destination approach.
     perimeter_trees = (
-        ("ENV_PERIMETER_TREE_WEST_01", -13.0, -9.5, 0.78, "A"),
+        ("ENV_PERIMETER_TREE_WEST_01", -13.0, -9.5, 0.78, "C"),
         ("ENV_PERIMETER_TREE_NORTH_01", -12.8, 10.8, 0.82, "B"),
     )
     for name, x, y, scale, variant in perimeter_trees:
@@ -1157,14 +1403,18 @@ def create_cho_neo_environment(courtyard_center, collection):
         ("ENV_PLANTER_03", 10.0, 3.7, 1.8, 0.7, math.radians(-12)),
         ("ENV_PLANTER_04", 9.8, -7.1, 1.8, 0.7, math.radians(10)),
     )
+    landscape_field_mesh = get_or_create_material_landscape_field_mesh(
+        "CHO_NEO_ASSET__LANDSCAPE_FIELD", soil_material
+    )
     for name, x, y, length, width, rotation in planter_locations:
         planter_x, planter_y = world_xy(x, y)
-        add_box(
+        add_linked_mesh(
             name,
-            (planter_x, planter_y, 0.12),
-            (length, width, 0.24),
+            landscape_field_mesh,
+            (planter_x, planter_y, 0.0),
             soil_material,
             collection,
+            (length, width, 1.0),
             (0.0, 0.0, rotation),
         )
 
@@ -1174,13 +1424,13 @@ def create_cho_neo_environment(courtyard_center, collection):
     ):
         planter_x, planter_y = world_xy(x, y)
         cover_material = shrub_materials[(index - 1) % len(shrub_materials)]
-        shrub_mesh = get_or_create_material_leaf_cluster_mesh(
-            "CHO_NEO_ASSET__BROAD_LEAF_SHRUB_CLUSTER", cover_material, vertical_bias=0.72
+        shrub_mesh = get_or_create_material_groundcover_mesh(
+            "CHO_NEO_ASSET__BROAD_LEAF_GROUNDCOVER", cover_material
         )
         add_linked_mesh(
             "ENV_PLANT_BED_COVER_{:02d}".format(index),
             shrub_mesh,
-            (planter_x, planter_y, 0.34),
+            (planter_x, planter_y, 0.07),
             cover_material,
             collection,
             (length * 0.42, width * 0.72, 0.42),
@@ -1208,13 +1458,13 @@ def create_cho_neo_environment(courtyard_center, collection):
     for index, (x, y, z, radius) in enumerate(shrub_locations, start=1):
         shrub_x, shrub_y = world_xy(x, y)
         shrub_material = dark_leaf_material if index % 3 == 1 else leaf_material
-        shrub_mesh = get_or_create_material_leaf_cluster_mesh(
-            "CHO_NEO_ASSET__BROAD_LEAF_SHRUB_CLUSTER", shrub_material, vertical_bias=0.72
+        shrub_mesh = get_or_create_material_groundcover_mesh(
+            "CHO_NEO_ASSET__BROAD_LEAF_GROUNDCOVER", shrub_material
         )
         add_linked_mesh(
             "ENV_SHRUB_{:02d}".format(index),
             shrub_mesh,
-            (shrub_x, shrub_y, z),
+            (shrub_x, shrub_y, 0.46 if index <= 5 else 0.07),
             shrub_material,
             collection,
             (radius * (1.45 if index % 2 else 1.25), radius * 1.08, radius * 0.78),
@@ -1232,22 +1482,23 @@ def create_cho_neo_environment(courtyard_center, collection):
         perimeter_bed_locations, start=1
     ):
         bed_x, bed_y = world_xy(x, y)
-        add_box(
+        add_linked_mesh(
             name,
-            (bed_x, bed_y, 0.07),
-            (length, width, 0.14),
+            landscape_field_mesh,
+            (bed_x, bed_y, 0.0),
             soil_material,
             collection,
+            (length, width, 1.0),
             (0.0, 0.0, rotation),
         )
         cover_material = shrub_materials[(index + 1) % len(shrub_materials)]
-        cover_mesh = get_or_create_material_leaf_cluster_mesh(
-            "CHO_NEO_ASSET__BROAD_LEAF_SHRUB_CLUSTER", cover_material, vertical_bias=0.72
+        cover_mesh = get_or_create_material_groundcover_mesh(
+            "CHO_NEO_ASSET__BROAD_LEAF_GROUNDCOVER", cover_material
         )
         add_linked_mesh(
             "ENV_PERIMETER_COVER_{:02d}".format(index),
             cover_mesh,
-            (bed_x, bed_y, 0.36),
+            (bed_x, bed_y, 0.07),
             cover_material,
             collection,
             (length * 0.40, width * 0.72, 0.48),
@@ -1264,22 +1515,23 @@ def create_cho_neo_environment(courtyard_center, collection):
         continuation_beds, start=1
     ):
         bed_x, bed_y = world_xy(x, y)
-        add_box(
+        add_linked_mesh(
             name,
-            (bed_x, bed_y, 0.07),
-            (length, width, 0.14),
+            landscape_field_mesh,
+            (bed_x, bed_y, 0.0),
             soil_material,
             collection,
+            (length, width, 1.0),
             (0.0, 0.0, rotation),
         )
         cover_material = leaf_material if index == 1 else dark_leaf_material
-        cover_mesh = get_or_create_material_leaf_cluster_mesh(
-            "CHO_NEO_ASSET__BROAD_LEAF_SHRUB_CLUSTER", cover_material, vertical_bias=0.72
+        cover_mesh = get_or_create_material_groundcover_mesh(
+            "CHO_NEO_ASSET__BROAD_LEAF_GROUNDCOVER", cover_material
         )
         add_linked_mesh(
             "ENV_PHO_CHO_EDGE_COVER_{:02d}".format(index),
             cover_mesh,
-            (bed_x, bed_y, 0.34),
+            (bed_x, bed_y, 0.07),
             cover_material,
             collection,
             (length * 0.40, width * 0.70, 0.40),
@@ -1402,15 +1654,22 @@ def create_cho_neo_environment(courtyard_center, collection):
     )
     for cluster_index, (x, y) in enumerate(bamboo_clusters, start=1):
         cluster_x, cluster_y = world_xy(x, y)
-        for stalk_index, (dx, dy) in enumerate(
-            ((-0.28, 0.0), (-0.14, 0.12), (0.0, -0.02), (0.16, 0.1), (0.3, -0.05)),
+        stalk_specs = (
+            (-0.28, 0.0, 1.38),
+            (-0.14, 0.12, 1.62),
+            (0.0, -0.02, 1.50),
+            (0.16, 0.1, 1.72),
+            (0.3, -0.05, 1.42),
+        )
+        for stalk_index, (dx, dy, height) in enumerate(
+            stalk_specs,
             start=1,
         ):
             add_cylinder(
                 "ENV_BAMBOO_{:02d}_{:02d}".format(cluster_index, stalk_index),
-                (cluster_x + dx, cluster_y + dy, 0.75),
+                (cluster_x + dx, cluster_y + dy, height * 0.5),
                 0.05,
-                1.5,
+                height,
                 bamboo_material,
                 collection,
             )
@@ -2340,6 +2599,21 @@ def verify_environment(environment_collection, courtyard_center):
     coastal_horizon_objects = [
         obj for obj in environment_objects if obj.name.startswith("ENV_COASTAL_HORIZON_")
     ]
+    vegetation_objects = [
+        obj
+        for obj in environment_objects
+        if obj.name.startswith(
+            (
+                "ENV_TREE_",
+                "ENV_PERIMETER_PALM_",
+                "ENV_SHRUB_",
+                "ENV_BAMBOO_",
+                "ENV_PLANT_BED_COVER_",
+                "ENV_PERIMETER_COVER_",
+                "ENV_PHO_CHO_EDGE_COVER_",
+            )
+        )
+    ]
     expected_destination_counts = (
         (QUAY_COLLECTION_NAME, QXG_PREFIX, EXPECTED_QXG_OBJECT_COUNT),
         (ONG_DIA_COLLECTION_NAME, OD_PREFIX, EXPECTED_OD_OBJECT_COUNT),
@@ -2406,6 +2680,7 @@ def verify_environment(environment_collection, courtyard_center):
     print("Verification: scenic loop segments: {}".format(len(loop_paths)))
     print("Verification: center planter objects: {}".format(len(center_planters)))
     print("Verification: center tree objects: {}".format(len(center_tree_objects)))
+    print("Verification: vegetation objects: {}".format(len(vegetation_objects)))
     print("Verification: plaza surface objects: {}".format(len(plaza_objects)))
     print("Verification: perimeter context objects: {}".format(len(perimeter_objects)))
     print(
@@ -2545,15 +2820,11 @@ def verify_material_palette():
 def main():
     ensure_expected_master_is_open()
     ensure_palette_materials()
-    courtyard = find_courtyard()
-    ground = find_existing_ground()
-    courtyard_name = courtyard.name
-    ground_name = ground.name if ground is not None else None
-    courtyard_center = courtyard.matrix_world.translation.copy()
-    if ground is None:
+    courtyard_name, courtyard_center, ground_name = snapshot_scene_anchors()
+    if ground_name is None:
         print("WARNING: no existing ground object was found; no ground was created.")
     else:
-        print("Preserving existing ground object: {}".format(ground.name))
+        print("Preserving existing ground object: {}".format(ground_name))
 
     collection = get_or_create_blockout_collection()
     quay_collection = get_or_create_quay_collection()
@@ -2579,6 +2850,7 @@ def main():
 
     create_cho_neo_environment(courtyard_center, environment_collection)
     create_cho_neo_lighting(courtyard_center, lighting_collection)
+    apply_phase1_material_dressing(courtyard_name, ground_name)
     verify_quay_xa_giao(quay_collection)
     verify_ong_dia(ong_collection)
     verify_xin_xam(xin_collection)
