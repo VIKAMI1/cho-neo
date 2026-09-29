@@ -170,20 +170,7 @@ export default function XinXamPage() {
   function completeDrawAfter3DRitual() {
     if (!drawInProgressRef.current) return;
 
-    const savedStick = getSavedStickForTopic(selectedTopic);
-    if (savedStick) {
-      setDismissedTopic(null);
-      setSelectedStick(savedStick);
-      setRitualState("revealed");
-      setIsLocSoOpen(false);
-      setDrawNotice(
-        "Quẻ này đang được giữ trong 7 ngày. Đổi qua chuyện khác nếu muốn xin thêm.",
-      );
-      drawInProgressRef.current = false;
-      return;
-    }
-
-    const nextStick = chooseStick(selectedTopic);
+    const nextStick = selectedStick ?? chooseStick(selectedTopic);
     saveWeeklyMemory(selectedTopic, nextStick);
     setDismissedTopic(null);
     setDrawNotice("");
@@ -203,11 +190,23 @@ export default function XinXamPage() {
     if (ritualState !== "ready" || drawInProgressRef.current) return;
 
     if (isEmbedded) {
+      const nextStick = chooseStick(selectedTopic);
+      const stickIndex = LOCAL_XIN_XAM_SEED_STICKS.findIndex(
+        (stick) => stick.id === nextStick.id,
+      );
+
       drawInProgressRef.current = true;
+      setDismissedTopic(null);
       setDrawNotice("");
+      setSelectedStick(nextStick);
       setRitualState("drawing");
       window.parent.postMessage(
-        { type: "cho-neo:xin-xam:draw-request", topic: selectedTopic },
+        {
+          type: "cho-neo:xin-xam:draw-request",
+          topic: selectedTopic,
+          stickId: nextStick.id,
+          visualIndex: Math.max(0, stickIndex) % 5,
+        },
         window.location.origin,
       );
       return;
@@ -569,7 +568,9 @@ export default function XinXamPage() {
             <span className="xam-holder-rim" aria-hidden="true" />
             <span className="xam-holder-symbol" aria-hidden="true">福</span>
             {ritualState === "ready" && (
-              <span className="xam-holder-label">Xin một quẻ nhẹ</span>
+              <span className="xam-holder-label">
+                {isEmbedded ? "Rút xăm" : "Xin một quẻ nhẹ"}
+              </span>
             )}
           </button>
 
