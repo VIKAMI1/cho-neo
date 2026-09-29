@@ -189,6 +189,12 @@
 }
 
 .destinationEntryOverlay {
+  --destination-accent: #b98255;
+  --destination-accent-soft: rgba(185, 130, 85, 0.18);
+  --destination-deep: #192d34;
+  --destination-deep-2: #352321;
+  --destination-paper: #f7eedb;
+  --destination-paper-2: #eadbbd;
   position: absolute;
   inset: 0;
   z-index: 9;
@@ -196,7 +202,10 @@
   place-items: center;
   padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
     max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
-  background: rgba(13, 25, 28, 0.42);
+  background:
+    radial-gradient(circle at 50% 18%, var(--destination-accent-soft), transparent 26rem),
+    rgba(9, 20, 25, 0.5);
+  backdrop-filter: blur(4px);
   pointer-events: auto;
 }
 
@@ -206,10 +215,12 @@
   width: min(1100px, 100%);
   height: min(760px, 100%);
   overflow: hidden;
-  border: 1px solid rgba(255, 247, 237, 0.3);
-  border-radius: 18px;
-  background: #fff8ee;
-  box-shadow: 0 22px 70px rgba(5, 14, 18, 0.34);
+  border: 1px solid color-mix(in srgb, var(--destination-accent) 44%, transparent);
+  border-radius: 24px;
+  background: var(--destination-paper);
+  box-shadow:
+    0 26px 84px rgba(4, 12, 16, 0.38),
+    inset 0 0 0 1px rgba(255, 248, 230, 0.42);
 }
 
 .destinationEntryHeader {
@@ -220,12 +231,14 @@
   min-height: 66px;
   padding: 10px 14px 10px 18px;
   color: #fff8ee;
-  background: linear-gradient(135deg, #3d2021, #182e34);
+  background:
+    linear-gradient(135deg, var(--destination-deep-2), var(--destination-deep));
+  border-bottom: 1px solid color-mix(in srgb, var(--destination-accent) 28%, transparent);
 }
 
 .destinationEntryKicker {
   margin: 0 0 3px;
-  color: rgba(248, 211, 145, 0.78);
+  color: color-mix(in srgb, var(--destination-accent) 76%, #fff2d4);
   font-family: var(--cho-neo-font-ui);
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -255,7 +268,8 @@
 
 .destinationEntryHeader button:hover,
 .destinationEntryHeader button:focus-visible {
-  border-color: rgba(248, 211, 145, 0.76);
+  border-color: color-mix(in srgb, var(--destination-accent) 72%, #fff0d0);
+  background: rgba(255, 247, 237, 0.13);
   outline: none;
 }
 
@@ -264,7 +278,43 @@
   width: 100%;
   min-height: 0;
   border: 0;
-  background: #fff8ee;
+  background: var(--destination-paper);
+}
+
+.socialEntryTheme {
+  --destination-accent: #c27858;
+  --destination-accent-soft: rgba(194, 120, 88, 0.2);
+  --destination-deep: #24383a;
+  --destination-deep-2: #5a2f29;
+  --destination-paper: #f4e6d2;
+  --destination-paper-2: #e7ceb1;
+}
+
+.ritualEntryTheme {
+  --destination-accent: #ae8754;
+  --destination-accent-soft: rgba(174, 135, 84, 0.18);
+  --destination-deep: #263c38;
+  --destination-deep-2: #4c3429;
+  --destination-paper: #efe3c7;
+  --destination-paper-2: #dfcda9;
+}
+
+.guideEntryTheme {
+  --destination-accent: #7f9b83;
+  --destination-accent-soft: rgba(127, 155, 131, 0.2);
+  --destination-deep: #213944;
+  --destination-deep-2: #3e3530;
+  --destination-paper: #f0e8d7;
+  --destination-paper-2: #d9d8bd;
+}
+
+.practicalEntryTheme {
+  --destination-accent: #a86f57;
+  --destination-accent-soft: rgba(168, 111, 87, 0.18);
+  --destination-deep: #2b3a3b;
+  --destination-deep-2: #493029;
+  --destination-paper: #f7ecd8;
+  --destination-paper-2: #e8d5b8;
 }
 
 .xinXamEntryOverlay {
