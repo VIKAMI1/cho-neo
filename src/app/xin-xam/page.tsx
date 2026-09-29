@@ -110,6 +110,7 @@ export default function XinXamPage() {
   const [helpFeedback, setHelpFeedback] = useState("");
   const [afterChatFeedback, setAfterChatFeedback] = useState("");
   const [finalFeedback, setFinalFeedback] = useState("");
+  const [isEmbedded, setIsEmbedded] = useState(false);
   const drawTimerRef = useRef<number | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const drawInProgressRef = useRef(false);
@@ -122,6 +123,10 @@ export default function XinXamPage() {
     () => (selectedStick ? getStickNumber(selectedStick) : "--"),
     [selectedStick],
   );
+
+  useEffect(() => {
+    setIsEmbedded(new URLSearchParams(window.location.search).get("embed") === "1");
+  }, []);
 
   useEffect(() => {
     const savedStick = getSavedStickForTopic(selectedTopic);
@@ -302,7 +307,7 @@ export default function XinXamPage() {
   }
 
   return (
-    <main className="xin-xam-page">
+    <main className={`xin-xam-page ${isEmbedded ? "is-embedded" : ""}`}>
       <section className="xin-xam-topbar" aria-label="Điều hướng Xin Xăm">
         <Link href="/cho-neo" className="xin-xam-header-control">
           ‹ Chợ Neo
@@ -584,6 +589,15 @@ export default function XinXamPage() {
           font-family: var(--cho-neo-font-ui);
           font-weight: 400;
           padding: clamp(0.75rem, 2vw, 1.2rem);
+        }
+
+        .xin-xam-page.is-embedded {
+          min-height: 100%;
+          padding: clamp(0.55rem, 1.2vw, 0.85rem);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topbar {
+          display: none;
         }
 
         .xin-xam-topbar {
