@@ -1435,19 +1435,40 @@ export default function ChoNeo3DPreview() {
         </div>
       )}
       {destinationEntry && destinationEntryRoute ? (
-        <div className={styles.destinationEntryOverlay} role="dialog" aria-modal="true">
-          <section className={styles.destinationEntryPanel} aria-label={destinationEntryRoute.label}>
-            <header className={styles.destinationEntryHeader}>
+        <div
+          className={`${styles.destinationEntryOverlay} ${
+            destinationEntry.prefix === "XX_" ? styles.xinXamEntryOverlay : ""
+          }`}
+          role="dialog"
+          aria-modal="true"
+        >
+          <section
+            className={`${styles.destinationEntryPanel} ${
+              destinationEntry.prefix === "XX_" ? styles.xinXamEntryPanel : ""
+            }`}
+            aria-label={destinationEntryRoute.label}
+          >
+            <header
+              className={`${styles.destinationEntryHeader} ${
+                destinationEntry.prefix === "XX_" ? styles.xinXamEntryHeader : ""
+              }`}
+            >
               <div>
                 <p className={styles.destinationEntryKicker}>Chợ Neo · destination</p>
                 <h2>{destinationEntryRoute.label}</h2>
               </div>
-              <button type="button" onClick={closeDestinationEntry}>
-                ← Quay lại 3D
+              <button
+                type="button"
+                onClick={closeDestinationEntry}
+                aria-label={destinationEntry.prefix === "XX_" ? "Đóng Xin Xăm và quay lại 3D" : undefined}
+              >
+                {destinationEntry.prefix === "XX_" ? "×" : "← Quay lại 3D"}
               </button>
             </header>
             <iframe
-              className={styles.destinationEntryFrame}
+              className={`${styles.destinationEntryFrame} ${
+                destinationEntry.prefix === "XX_" ? styles.xinXamEntryFrame : ""
+              }`}
               src={destinationEntryRoute.href}
               title={`${destinationEntryRoute.label} — Chợ Neo`}
             />
