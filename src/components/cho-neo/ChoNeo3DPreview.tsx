@@ -451,6 +451,7 @@ export default function ChoNeo3DPreview() {
   const mobileMovePadRef = useRef<HTMLDivElement>(null);
   const mobileMoveThumbRef = useRef<HTMLDivElement>(null);
   const mobileLookPadRef = useRef<HTMLDivElement>(null);
+  const destinationFrameRef = useRef<HTMLIFrameElement>(null);
   const [isWalking, setIsWalking] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -470,11 +471,6 @@ export default function ChoNeo3DPreview() {
 
     // Ông Địa is ambient-only in Milestone 1.
     if (activeDestination.prefix === "OD_") {
-      return;
-    }
-
-    if (activeDestination.prefix === "XX_") {
-      xinXamStartRef.current = true;
       return;
     }
 
@@ -755,8 +751,11 @@ export default function ChoNeo3DPreview() {
       });
     };
 
-    const startXinXamInteraction = () => {
-      if (xinXamInteractionActive || activeZoneId !== "XX_") return;
+    const startXinXamInteraction = (forceFromEmbedded = false) => {
+      if (
+        xinXamInteractionActive ||
+        (!forceFromEmbedded && activeZoneId !== "XX_")
+      ) return;
 
       resetXinXamParts();
       if (xinXamHeroStick && xinXamHeroStickOrigin) {
@@ -839,7 +838,10 @@ export default function ChoNeo3DPreview() {
       if (xinXamHeroStick) xinXamHeroStick.visible = false;
       setIsXinXamInteracting(false);
       setXinXamResult(null);
-      destinationEntryRequestRef.current = "XX_";
+      destinationFrameRef.current?.contentWindow?.postMessage(
+        { type: "cho-neo:xin-xam:ritual-complete" },
+        window.location.origin,
+      );
     };
 
     const startDestinationEntry = () => {
@@ -985,9 +987,7 @@ export default function ChoNeo3DPreview() {
 
       if ((event.code === "KeyE" || event.code === "Enter") && activeZoneId) {
         event.preventDefault();
-        if (activeZoneId === "XX_") {
-          startXinXamInteraction();
-        } else if (activeZoneId === "OD_") {
+        if (activeZoneId === "OD_") {
           return;
         } else if (activeZoneId in DESTINATION_ENTRY_ROUTES) {
           destinationEntryRequestRef.current = activeZoneId;
@@ -1147,6 +1147,16 @@ export default function ChoNeo3DPreview() {
       lookTouchIdentifier = null;
     };
 
+    const handleXinXamFrameMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.source !== destinationFrameRef.current?.contentWindow) return;
+      if (event.data?.type !== "cho-neo:xin-xam:draw-request") return;
+      if (!destinationEntryActive) return;
+
+      startXinXamInteraction(true);
+    };
+
+    window.addEventListener("message", handleXinXamFrameMessage);
     document.addEventListener("pointerlockchange", handlePointerLockChange);
     document.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("keydown", handleKeyDown);
@@ -1633,6 +1643,7 @@ export default function ChoNeo3DPreview() {
       if (document.pointerLockElement === renderer.domElement) {
         document.exitPointerLock();
       }
+      window.removeEventListener("message", handleXinXamFrameMessage);
       document.removeEventListener("pointerlockchange", handlePointerLockChange);
       document.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("keydown", handleKeyDown);
@@ -1731,6 +1742,10 @@ export default function ChoNeo3DPreview() {
         <div
           className={`${styles.destinationEntryOverlay} ${destinationThemeClass} ${
             destinationEntry.prefix === "XX_" ? styles.xinXamEntryOverlay : ""
+          } ${
+            destinationEntry.prefix === "XX_" && isXinXamInteracting
+              ? styles.destinationEntryOverlayCeremony
+              : ""
           }`}
           role="dialog"
           aria-modal="true"
@@ -1761,6 +1776,7 @@ export default function ChoNeo3DPreview() {
               </button>
             </header>
             <iframe
+              ref={destinationFrameRef}
               className={`${styles.destinationEntryFrame} ${destinationThemeClass} ${
                 destinationEntry.prefix === "XX_" ? styles.xinXamEntryFrame : ""
               }`}
