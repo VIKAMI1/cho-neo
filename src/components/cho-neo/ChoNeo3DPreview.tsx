@@ -629,6 +629,20 @@ export default function ChoNeo3DPreview() {
     renderer.domElement.tabIndex = 0;
     mount.appendChild(renderer.domElement);
 
+    const xinXamCinematicRenderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true,
+      powerPreference: "high-performance",
+    });
+    xinXamCinematicRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    xinXamCinematicRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    xinXamCinematicRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    xinXamCinematicRenderer.toneMappingExposure = 1.12;
+    xinXamCinematicRenderer.setClearColor(0x000000, 0);
+    xinXamCinematicRenderer.domElement.className = styles.xinXamCinematicCanvas;
+    xinXamCinematicRenderer.domElement.setAttribute("aria-hidden", "true");
+    mount.appendChild(xinXamCinematicRenderer.domElement);
+
     const labelRenderer = new CSS2DRenderer();
     labelRenderer.domElement.className = styles.labelLayer;
     mount.appendChild(labelRenderer.domElement);
@@ -1189,6 +1203,7 @@ export default function ChoNeo3DPreview() {
       xinXamCinematicCamera.aspect = width / height;
       xinXamCinematicCamera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
+      xinXamCinematicRenderer.setSize(width, height, false);
       labelRenderer.setSize(width, height);
     };
 
@@ -1598,11 +1613,12 @@ export default function ChoNeo3DPreview() {
       updateProximity(movementActive || destinationEntryActive);
       renderer.render(scene, camera);
 
+      xinXamCinematicRenderer.clear();
       if (xinXamAnimation && xinXamCinematicProgress > 0.01) {
-        renderer.autoClear = false;
-        renderer.clearDepth();
-        renderer.render(xinXamCinematicScene, xinXamCinematicCamera);
-        renderer.autoClear = true;
+        xinXamCinematicRenderer.render(
+          xinXamCinematicScene,
+          xinXamCinematicCamera,
+        );
       }
 
       labelRenderer.render(scene, camera);
@@ -1651,7 +1667,9 @@ export default function ChoNeo3DPreview() {
       disposeObject(xinXamCinematicScene);
       if (!fallbackDisposed) disposeObject(fallbackEnvironment);
       renderer.dispose();
+      xinXamCinematicRenderer.dispose();
       renderer.domElement.remove();
+      xinXamCinematicRenderer.domElement.remove();
       labelRenderer.domElement.remove();
     };
   }, []);
