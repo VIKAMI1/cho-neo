@@ -538,6 +538,8 @@ export default function ChoNeo3DPreview() {
     let destinationEntryWasPointerLocked = false;
     let xinXamRitualLight: THREE.PointLight | null = null;
     let xinXamRitualFocus: THREE.Vector3 | null = null;
+    let xinXamHeroStick: THREE.Group | null = null;
+    let xinXamHeroStickOrigin: THREE.Vector3 | null = null;
     let xinXamCameraStartPosition: THREE.Vector3 | null = null;
     let xinXamCameraStartQuaternion: THREE.Quaternion | null = null;
     let xinXamCameraTargetPosition: THREE.Vector3 | null = null;
@@ -689,6 +691,12 @@ export default function ChoNeo3DPreview() {
       if (xinXamInteractionActive || activeZoneId !== "XX_") return;
 
       resetXinXamParts();
+      if (xinXamHeroStick && xinXamHeroStickOrigin) {
+        xinXamHeroStick.visible = false;
+        xinXamHeroStick.position.copy(xinXamHeroStickOrigin);
+        xinXamHeroStick.rotation.set(0, 0, -0.08);
+        xinXamHeroStick.scale.setScalar(1);
+      }
       const sticks = xinXamParts.filter(({ isHolder }) => !isHolder);
       const selectedStick =
         sticks[Math.floor(Math.random() * sticks.length)]?.object ?? null;
@@ -721,7 +729,7 @@ export default function ChoNeo3DPreview() {
 
         const lookCamera = camera.clone();
         lookCamera.position.copy(xinXamCameraTargetPosition);
-        lookCamera.lookAt(focus.x, focus.y + 0.18, focus.z);
+        lookCamera.lookAt(focus.x, focus.y + 0.82, focus.z);
         xinXamCameraTargetQuaternion = lookCamera.quaternion.clone();
       }
       walkingKeys.clear();
@@ -753,6 +761,7 @@ export default function ChoNeo3DPreview() {
       xinXamCameraTargetPosition = null;
       xinXamCameraTargetQuaternion = null;
       if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
+      if (xinXamHeroStick) xinXamHeroStick.visible = false;
       setIsXinXamInteracting(false);
       setXinXamResult(null);
       destinationEntryRequestRef.current = "XX_";
@@ -800,6 +809,7 @@ export default function ChoNeo3DPreview() {
       setDestinationEntry(null);
       resetXinXamParts();
       if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
+      if (xinXamHeroStick) xinXamHeroStick.visible = false;
       walkingKeys.clear();
       walkingVelocity.set(0, 0);
       touchMovement.set(0, 0);
@@ -1173,6 +1183,46 @@ export default function ChoNeo3DPreview() {
             runtimeLighting.add(ritualLight);
             xinXamRitualLight = ritualLight;
             xinXamRitualFocus = ritualLightPosition.clone();
+
+            const heroStick = new THREE.Group();
+            heroStick.name = "Xin Xam selected ritual stick";
+            const shaft = new THREE.Mesh(
+              new THREE.BoxGeometry(0.075, 1.22, 0.075),
+              new THREE.MeshStandardMaterial({
+                color: 0x8a4426,
+                roughness: 0.62,
+                metalness: 0.02,
+                emissive: 0x3a1408,
+                emissiveIntensity: 0.28,
+              }),
+            );
+            shaft.position.y = 0.61;
+            shaft.castShadow = true;
+
+            const cap = new THREE.Mesh(
+              new THREE.BoxGeometry(0.105, 0.13, 0.105),
+              new THREE.MeshStandardMaterial({
+                color: 0xd3a45f,
+                roughness: 0.5,
+                metalness: 0.08,
+                emissive: 0x553011,
+                emissiveIntensity: 0.22,
+              }),
+            );
+            cap.position.y = 1.235;
+            cap.castShadow = true;
+
+            heroStick.add(shaft, cap);
+            heroStick.position.set(
+              ritualLightPosition.x,
+              ritualLightPosition.y + 0.02,
+              ritualLightPosition.z,
+            );
+            heroStick.rotation.z = -0.08;
+            heroStick.visible = false;
+            scene.add(heroStick);
+            xinXamHeroStick = heroStick;
+            xinXamHeroStickOrigin = heroStick.position.clone();
           }
 
           collisionVolumes = createGlbCollisionVolumes(loadedAsset);
@@ -1277,6 +1327,7 @@ export default function ChoNeo3DPreview() {
         xinXamAnimation = null;
         resetXinXamParts();
         if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
+        if (xinXamHeroStick) xinXamHeroStick.visible = false;
         walkingVelocity.set(0, 0);
         touchMovement.set(0, 0);
         controls.enabled = !pointerLocked && !touchWalkingActive;
@@ -1287,7 +1338,7 @@ export default function ChoNeo3DPreview() {
       if (xinXamAnimation) {
         xinXamAnimation.elapsed += delta;
         const elapsed = xinXamAnimation.elapsed;
-        const progress = THREE.MathUtils.clamp(elapsed / 3.05, 0, 1);
+        const progress = THREE.MathUtils.clamp(elapsed / 3.85, 0, 1);
         const cameraProgress = THREE.MathUtils.smoothstep(progress, 0.0, 0.22);
         const shakeEnvelope =
           progress < 0.5
@@ -1336,16 +1387,25 @@ export default function ChoNeo3DPreview() {
         const selectedStick = xinXamParts.find(
           ({ object }) => object === xinXamAnimation?.selectedStick,
         );
-        if (selectedStick && progress > 0.44) {
-          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.44, 0.72);
+        if (selectedStick && progress > 0.38) {
+          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.38, 0.62);
           selectedStick.object.position.y =
-            selectedStick.position.y + revealProgress * 0.72;
-          selectedStick.object.rotation.z =
-            selectedStick.rotation.z + revealProgress * 0.12;
+            selectedStick.position.y + revealProgress * 0.34;
+        }
 
-          const settle = THREE.MathUtils.smoothstep(progress, 0.72, 0.9);
-          selectedStick.object.rotation.x =
-            selectedStick.rotation.x + Math.sin(elapsed * 4.2) * 0.015 * (1 - settle);
+        if (xinXamHeroStick && xinXamHeroStickOrigin) {
+          if (progress >= 0.4) {
+            xinXamHeroStick.visible = true;
+            const heroRise = THREE.MathUtils.smoothstep(progress, 0.4, 0.64);
+            const heroSettle = THREE.MathUtils.smoothstep(progress, 0.64, 0.82);
+            xinXamHeroStick.position.copy(xinXamHeroStickOrigin);
+            xinXamHeroStick.position.y += heroRise * 1.34;
+            xinXamHeroStick.rotation.z =
+              -0.08 + Math.sin(elapsed * 3.4) * 0.035 * (1 - heroSettle);
+            xinXamHeroStick.scale.setScalar(0.92 + heroRise * 0.08);
+          } else {
+            xinXamHeroStick.visible = false;
+          }
         }
 
         if (progress >= 1) finishXinXamInteraction();
