@@ -40,7 +40,7 @@ EXPECTED_OD_OBJECT_COUNT = 23
 EXPECTED_XX_OBJECT_COUNT = 28
 EXPECTED_HCN_OBJECT_COUNT = 17
 EXPECTED_MV_OBJECT_COUNT = 35
-EXPECTED_ENVIRONMENT_OBJECT_COUNT = 159
+EXPECTED_ENVIRONMENT_OBJECT_COUNT = 247
 
 
 MATERIAL_PALETTE = {
@@ -454,7 +454,9 @@ def apply_phase1_material_dressing(courtyard_name, ground_name):
                 elif "SOIL" in name or "PLANTER_" in name or "PLANT_BED" in name:
                     material_name = "MAT_SOIL"
                 elif "PLANT" in name or "SHRUB" in name or "BAMBOO" in name or "GROUNDCOVER" in name:
-                    material_name = "MAT_PLANT_GREEN_MID"
+                    # Keep the deliberate dark/mid/light material variation
+                    # assigned by the environment builder.
+                    material_name = None
                 elif "LEAF" in name or "FOLIAGE" in name or "FROND" in name:
                     material_name = "MAT_PLANT_GREEN_MID"
                 elif "TRUNK" in name or "STEM" in name:
@@ -536,6 +538,20 @@ def add_cylinder(name, location, radius, depth, material, collection, rotation_z
     bpy.ops.mesh.primitive_cylinder_add(
         vertices=10,
         radius=radius,
+        depth=depth,
+        location=location,
+    )
+    obj = bpy.context.object
+    return finish_mesh(obj, name, material, collection, (0.0, 0.0, rotation_z))
+
+
+def add_tapered_cylinder(name, location, radius, depth, material, collection, rotation_z=0.0):
+    """Add a lightly tapered faceted trunk without increasing object count."""
+
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=10,
+        radius1=radius * 1.12,
+        radius2=radius * 0.76,
         depth=depth,
         location=location,
     )
@@ -628,52 +644,77 @@ def add_linked_mesh(
     return obj
 
 
-def get_or_create_leaf_cluster_mesh(name, vertical_bias=1.0):
-    """Build a broad, irregular faceted foliage volume instead of a sphere."""
+def get_or_create_leaf_cluster_mesh(name, vertical_bias=1.0, silhouette="A"):
+    """Build three separated low-poly foliage lobes in one reusable mesh.
+
+    Keeping the lobes in one mesh preserves the existing tree object count while
+    breaking the solid umbrella silhouette and leaving glimpses of branches.
+    """
 
     mesh = bpy.data.meshes.get(name)
     if mesh is not None:
         return mesh
 
-    segments = 10
-    radii = (1.0, 0.88, 1.08, 0.94, 1.04, 0.86, 1.1, 0.92, 1.03, 0.9)
-    rings = (
-        (-0.45, 0.62, 0.46),
-        (-0.18, 1.02, 0.72),
-        (0.08 * vertical_bias, 1.12, 0.78),
-        (0.34 * vertical_bias, 0.78, 0.56),
-    )
-    vertices = [(0.0, 0.0, -0.5)]
-    for z, radius_x, radius_y in rings:
-        for index in range(segments):
-            angle = (2.0 * math.pi * index) / segments
-            radius = radii[index]
-            vertices.append(
-                (
-                    math.cos(angle) * radius_x * radius,
-                    math.sin(angle) * radius_y * radius,
-                    z,
-                )
-            )
-    top_index = len(vertices)
-    vertices.append((0.08, -0.04, 0.58 * vertical_bias))
-
+    segments = 6
+    profiles = {
+        # Broad coastal form with an open lower shoulder.
+        "A": (
+            (-0.42, -0.08, -0.10, 0.62, 0.50, 0.42),
+            (0.28, 0.12, 0.08, 0.56, 0.46, 0.38),
+            (-0.04, 0.38, 0.22, 0.46, 0.38, 0.35),
+        ),
+        # Slightly taller, narrower secondary species.
+        "B": (
+            (-0.34, 0.08, -0.06, 0.54, 0.48, 0.44),
+            (0.34, -0.14, 0.12, 0.50, 0.42, 0.40),
+            (-0.10, 0.32, 0.28, 0.42, 0.36, 0.34),
+        ),
+        # Wider asymmetrical species with a raised rear lobe.
+        "C": (
+            (-0.44, -0.10, -0.08, 0.64, 0.48, 0.38),
+            (0.30, 0.16, 0.06, 0.54, 0.48, 0.36),
+            (-0.18, 0.38, 0.24, 0.44, 0.36, 0.32),
+        ),
+    }
+    lobe_specs = profiles.get(silhouette, profiles["A"])
+    ring_radii = (1.0, 0.86, 1.08, 0.92, 1.04, 0.88)
+    vertices = []
     faces = []
-    for index in range(segments):
-        next_index = (index + 1) % segments
-        faces.append((0, 1 + next_index, 1 + index))
-        for ring_index in range(len(rings) - 1):
-            start = 1 + (ring_index * segments)
-            next_start = start + segments
+    for center_x, center_y, center_z, radius_x, radius_y, radius_z in lobe_specs:
+        bottom_index = len(vertices)
+        vertices.append((center_x, center_y, center_z - (radius_z * 0.48)))
+        ring_starts = []
+        for ring_z, ring_scale_x, ring_scale_y in (
+            (-0.18, 0.82, 0.68),
+            (0.16 * vertical_bias, 1.0, 0.78),
+        ):
+            ring_starts.append(len(vertices))
+            for index in range(segments):
+                angle = (2.0 * math.pi * index) / segments
+                radius = ring_radii[index]
+                vertices.append(
+                    (
+                        center_x + (math.cos(angle) * radius_x * ring_scale_x * radius),
+                        center_y + (math.sin(angle) * radius_y * ring_scale_y * radius),
+                        center_z + (ring_z * radius_z),
+                    )
+                )
+        top_index = len(vertices)
+        vertices.append((center_x + (0.12 * radius_x), center_y - (0.05 * radius_y), center_z + (0.52 * radius_z * vertical_bias)))
+        for index in range(segments):
+            next_index = (index + 1) % segments
+            faces.append((bottom_index, ring_starts[0] + next_index, ring_starts[0] + index))
             faces.extend(
                 (
-                    (start + index, next_start + index, next_start + next_index),
-                    (start + index, next_start + next_index, start + next_index),
+                    (ring_starts[0] + index, ring_starts[1] + index, ring_starts[1] + next_index),
+                    (ring_starts[0] + index, ring_starts[1] + next_index, ring_starts[0] + next_index),
                 )
             )
-        top_ring_start = 1 + ((len(rings) - 1) * segments)
-        faces.append((top_ring_start + index, top_index, top_ring_start + next_index))
-    return get_or_create_asset_mesh(name, vertices, faces)
+            faces.append((ring_starts[1] + index, top_index, ring_starts[1] + next_index))
+    mesh = get_or_create_asset_mesh(name, vertices, faces)
+    for polygon in mesh.polygons:
+        polygon.use_smooth = True
+    return mesh
 
 
 def get_or_create_groundcover_mesh(name):
@@ -701,7 +742,7 @@ def get_or_create_groundcover_mesh(name):
                 (
                     center_x + math.cos(angle) * radius_x,
                     center_y + math.sin(angle) * radius_y,
-                    0.02 + (height * (0.72 + (0.12 * math.sin(angle + 0.6)))),
+                    0.01 + (height * (0.48 + (0.10 * math.sin(angle + 0.6)))),
                 )
             )
         top_index = len(vertices)
@@ -732,11 +773,43 @@ def get_or_create_landscape_field_mesh(name):
         (-0.50, 0.24),
     )
     vertices = [(x, y, 0.0) for x, y in outline]
-    vertices.extend((x, y, 0.06) for x, y in outline)
+    vertices.extend((x, y, 0.04) for x, y in outline)
     faces = [tuple(range(7, -1, -1)), tuple(range(8, 16))]
     for index in range(8):
         next_index = (index + 1) % 8
         faces.append((index, next_index, 8 + next_index, 8 + index))
+    return get_or_create_asset_mesh(name, vertices, faces)
+
+
+def get_or_create_site_substrate_mesh(name):
+    """Create one shallow connected ground field beneath the inner district."""
+
+    mesh = bpy.data.meshes.get(name)
+    if mesh is not None:
+        return mesh
+
+    outline = (
+        (-16.0, -12.0),
+        (-12.0, -15.0),
+        (-2.0, -15.8),
+        (8.0, -14.8),
+        (16.5, -10.0),
+        (18.0, -2.0),
+        (17.0, 6.0),
+        (13.5, 13.0),
+        (5.0, 15.5),
+        (-4.0, 15.2),
+        (-12.5, 13.8),
+        (-16.5, 7.0),
+        (-17.0, -2.0),
+    )
+    vertices = [(x, y, 0.0) for x, y in outline]
+    vertices.extend((x, y, 0.028) for x, y in outline)
+    count = len(outline)
+    faces = [tuple(range(count - 1, -1, -1)), tuple(range(count, count * 2))]
+    for index in range(count):
+        next_index = (index + 1) % count
+        faces.append((index, next_index, count + next_index, count + index))
     return get_or_create_asset_mesh(name, vertices, faces)
 
 
@@ -766,11 +839,15 @@ def get_or_create_leaf_frond_mesh(name):
     return get_or_create_asset_mesh(name, vertices, faces)
 
 
-def get_or_create_material_leaf_cluster_mesh(base_name, material, vertical_bias=1.0):
+def get_or_create_material_leaf_cluster_mesh(
+    base_name, material, vertical_bias=1.0, silhouette="A"
+):
     """Reuse a leaf shape while keeping each material variant GLB-safe."""
 
     return get_or_create_leaf_cluster_mesh(
-        "{}__{}".format(base_name, material.name), vertical_bias
+        "{}__{}__{}".format(base_name, material.name, silhouette),
+        vertical_bias,
+        silhouette,
     )
 
 
@@ -881,9 +958,10 @@ def add_cylinder_between(name, start, end, radius, material, collection):
         raise ValueError("Branch {} has zero length.".format(name))
     midpoint = (start_vector + end_vector) * 0.5
     rotation = direction.to_track_quat("Z", "Y").to_euler()
-    bpy.ops.mesh.primitive_cylinder_add(
+    bpy.ops.mesh.primitive_cone_add(
         vertices=6,
-        radius=radius,
+        radius1=radius * 1.10,
+        radius2=radius * 0.55,
         depth=length,
         location=midpoint,
     )
@@ -946,10 +1024,10 @@ def create_environment_tree(
 ):
     """Create a reusable stylized-realistic tropical shade tree."""
 
-    add_cylinder(
+    add_tapered_cylinder(
         "{}_Trunk".format(name_prefix),
         (x, y, base_z + (0.88 * scale)),
-        0.18 * scale,
+        0.20 * scale,
         1.76 * scale,
         trunk_material,
         collection,
@@ -984,30 +1062,30 @@ def create_environment_tree(
 
     if variant == "B":
         canopy_locations = (
-            ((x - 0.42 * scale, y - 0.04 * scale, base_z + (2.08 * scale)), 0.92, (1.22, 0.80, 0.80)),
-            ((x + 0.48 * scale, y + 0.12 * scale, base_z + (2.18 * scale)), 0.78, (1.02, 1.08, 0.76)),
-            ((x - 0.04 * scale, y + 0.44 * scale, base_z + (2.42 * scale)), 0.70, (1.18, 0.78, 0.72)),
-            ((x + 0.12 * scale, y - 0.38 * scale, base_z + (2.30 * scale)), 0.62, (1.16, 0.86, 0.68)),
+            ((x - 0.42 * scale, y - 0.04 * scale, base_z + (2.08 * scale)), 0.86, (1.22, 0.80, 0.80)),
+            ((x + 0.48 * scale, y + 0.12 * scale, base_z + (2.18 * scale)), 0.74, (1.02, 1.08, 0.76)),
+            ((x - 0.04 * scale, y + 0.44 * scale, base_z + (2.42 * scale)), 0.66, (1.18, 0.78, 0.72)),
+            ((x + 0.12 * scale, y - 0.38 * scale, base_z + (2.30 * scale)), 0.56, (1.16, 0.86, 0.68)),
         )
     elif variant == "C":
         canopy_locations = (
-            ((x - 0.50 * scale, y - 0.14 * scale, base_z + (2.02 * scale)), 0.86, (1.34, 0.74, 0.76)),
-            ((x + 0.38 * scale, y + 0.18 * scale, base_z + (2.18 * scale)), 0.76, (1.02, 1.10, 0.72)),
-            ((x - 0.08 * scale, y + 0.50 * scale, base_z + (2.40 * scale)), 0.66, (1.24, 0.78, 0.68)),
-            ((x + 0.14 * scale, y - 0.42 * scale, base_z + (2.28 * scale)), 0.58, (1.20, 0.82, 0.62)),
+            ((x - 0.50 * scale, y - 0.14 * scale, base_z + (2.02 * scale)), 0.80, (1.34, 0.74, 0.76)),
+            ((x + 0.38 * scale, y + 0.18 * scale, base_z + (2.18 * scale)), 0.70, (1.02, 1.10, 0.72)),
+            ((x - 0.08 * scale, y + 0.50 * scale, base_z + (2.40 * scale)), 0.61, (1.24, 0.78, 0.68)),
+            ((x + 0.14 * scale, y - 0.42 * scale, base_z + (2.28 * scale)), 0.53, (1.20, 0.82, 0.62)),
         )
     else:
         canopy_locations = (
-            ((x - 0.34 * scale, y + 0.02 * scale, base_z + (2.10 * scale)), 0.92, (1.22, 0.84, 0.78)),
-            ((x + 0.48 * scale, y - 0.08 * scale, base_z + (2.16 * scale)), 0.82, (1.08, 1.04, 0.74)),
-            ((x + 0.02 * scale, y + 0.46 * scale, base_z + (2.42 * scale)), 0.68, (1.16, 0.82, 0.70)),
-            ((x - 0.05 * scale, y - 0.34 * scale, base_z + (2.30 * scale)), 0.60, (1.10, 0.90, 0.66)),
+            ((x - 0.34 * scale, y + 0.02 * scale, base_z + (2.10 * scale)), 0.84, (1.22, 0.84, 0.78)),
+            ((x + 0.48 * scale, y - 0.08 * scale, base_z + (2.16 * scale)), 0.74, (1.08, 1.04, 0.74)),
+            ((x + 0.02 * scale, y + 0.46 * scale, base_z + (2.42 * scale)), 0.64, (1.16, 0.82, 0.70)),
+            ((x - 0.05 * scale, y - 0.34 * scale, base_z + (2.30 * scale)), 0.54, (1.10, 0.90, 0.66)),
         )
     canopy_materials = canopy_materials or (leaf_material, leaf_material, leaf_material)
     for index, (location, radius, volume_scale) in enumerate(canopy_locations, start=1):
         canopy_material = canopy_materials[(index - 1) % len(canopy_materials)]
         leaf_mesh = get_or_create_material_leaf_cluster_mesh(
-            "CHO_NEO_ASSET__TREE_LEAF_CLUSTER", canopy_material
+            "CHO_NEO_ASSET__TREE_FOLIAGE_LOBE", canopy_material, 1.0, variant
         )
         add_linked_mesh(
             "{}_Canopy_{:02d}".format(name_prefix, index),
@@ -1016,6 +1094,7 @@ def create_environment_tree(
             canopy_material,
             collection,
             tuple(radius * scale * value for value in volume_scale),
+            (0.0, 0.0, math.radians((index * 37) + (ord(variant) - ord("A")) * 19)),
         )
 
 
@@ -1057,6 +1136,137 @@ def create_environment_palm_tree(
             (0.85 * scale, 0.92 * scale, 0.85 * scale),
             (math.radians(-12.0), math.radians(8.0), angle),
         )
+
+
+def create_environment_bench(
+    collection,
+    name_prefix,
+    x,
+    y,
+    rotation,
+    seat_material,
+    support_material,
+):
+    """Create a simple public bench with a readable human-scale profile."""
+
+    add_box(
+        "{}_Seat".format(name_prefix),
+        (x, y, 0.47),
+        (1.65, 0.42, 0.14),
+        seat_material,
+        collection,
+        (0.0, 0.0, rotation),
+    )
+    for index, local_x in enumerate((-0.56, 0.56), start=1):
+        offset_x = (local_x * math.cos(rotation)) - (0.0 * math.sin(rotation))
+        offset_y = (local_x * math.sin(rotation)) + (0.0 * math.cos(rotation))
+        add_box(
+            "{}_Support_{:02d}".format(name_prefix, index),
+            (x + offset_x, y + offset_y, 0.25),
+            (0.18, 0.34, 0.40),
+            support_material,
+            collection,
+            (0.0, 0.0, rotation),
+        )
+
+
+def create_environment_pot(
+    collection,
+    name_prefix,
+    x,
+    y,
+    rotation,
+    pot_material,
+    soil_material,
+    plant_material,
+    plant_scale=0.36,
+    silhouette="A",
+):
+    """Create one grounded pot and reuse the existing low-poly plant language."""
+
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=10,
+        radius1=0.28,
+        radius2=0.38,
+        depth=0.70,
+        location=(x, y, 0.35),
+    )
+    pot = bpy.context.object
+    finish_mesh(
+        pot,
+        "{}_Body".format(name_prefix),
+        pot_material,
+        collection,
+        (0.0, 0.0, rotation),
+    )
+    add_cylinder(
+        "{}_Soil".format(name_prefix),
+        (x, y, 0.715),
+        0.31,
+        0.035,
+        soil_material,
+        collection,
+        rotation,
+    )
+    add_torus(
+        "{}_Rim".format(name_prefix),
+        (x, y, 0.73),
+        0.36,
+        0.045,
+        pot_material,
+        collection,
+    )
+    plant_mesh = get_or_create_material_leaf_cluster_mesh(
+        "CHO_NEO_ASSET__POTTED_FOLIAGE",
+        plant_material,
+        0.9,
+        silhouette,
+    )
+    add_linked_mesh(
+        "{}_Plant".format(name_prefix),
+        plant_mesh,
+        (x, y, 0.84),
+        plant_material,
+        collection,
+        (plant_scale, plant_scale, plant_scale),
+        (0.0, 0.0, rotation),
+    )
+
+
+def create_environment_fixture(
+    collection,
+    name_prefix,
+    x,
+    y,
+    body_material,
+    warm_material,
+):
+    """Create one restrained low bollard/lantern silhouette."""
+
+    add_cylinder(
+        "{}_Body".format(name_prefix),
+        (x, y, 0.42),
+        0.085,
+        0.84,
+        body_material,
+        collection,
+    )
+    add_cylinder(
+        "{}_Cap".format(name_prefix),
+        (x, y, 0.88),
+        0.14,
+        0.12,
+        body_material,
+        collection,
+    )
+    add_uv_sphere(
+        "{}_Glow".format(name_prefix),
+        (x, y, 0.98),
+        0.075,
+        warm_material,
+        collection,
+        (1.0, 1.0, 0.72),
+    )
 
 
 def finish_light(obj, name, collection):
@@ -1152,6 +1362,19 @@ def create_cho_neo_environment(courtyard_center, collection):
     light_material = get_or_create_material("ENV_Light", (0.52, 0.28, 0.10, 1.0))
     warm_light_material = get_or_create_material(
         "ENV_Light_Warm", (0.62, 0.30, 0.10, 1.0)
+    )
+
+    # A single shallow substrate removes the floating-slab read without
+    # changing any path, destination, or planting footprint above it.
+    substrate_mesh = get_or_create_site_substrate_mesh(
+        "CHO_NEO_ASSET__SITE_SUBSTRATE"
+    )
+    add_linked_mesh(
+        "ENV_SITE_SUBSTRATE",
+        substrate_mesh,
+        (courtyard_center.x, courtyard_center.y, 0.0),
+        plaza_material_alt,
+        collection,
     )
 
     # Main promenade: a broad eastbound exit toward future Phố Chợ. It opens
@@ -1272,6 +1495,41 @@ def create_cho_neo_environment(courtyard_center, collection):
         return (
             offset_x - math.sin(rotation) * distance,
             offset_y + math.cos(rotation) * distance,
+        )
+
+    def destination_local_point(key, local_x, local_y):
+        """Resolve a small furnishing point in a destination's local frame."""
+
+        destination = destinations_by_key[key]
+        offset_x, offset_y = destination["offset"]
+        rotation = destination["rotation"]
+        return world_xy(
+            offset_x + (local_x * math.cos(rotation)) - (local_y * math.sin(rotation)),
+            offset_y + (local_x * math.sin(rotation)) + (local_y * math.cos(rotation)),
+        )
+
+    def destination_rotation(key):
+        return destinations_by_key[key]["rotation"]
+
+    def add_destination_detail_box(
+        name,
+        key,
+        local_x,
+        local_y,
+        local_z,
+        dimensions,
+        material,
+        pitch=0.0,
+        roll=0.0,
+    ):
+        detail_x, detail_y = destination_local_point(key, local_x, local_y)
+        return add_box(
+            name,
+            (detail_x, detail_y, local_z),
+            dimensions,
+            material,
+            collection,
+            (pitch, roll, destination_rotation(key)),
         )
 
     # Existing branches are retained, but now terminate at each structure's
@@ -1710,19 +1968,189 @@ def create_cho_neo_environment(courtyard_center, collection):
             (math.radians(-22.0), math.radians(12.0), math.radians(150.0)),
         )
 
+    # Five quiet stopping points sit beside the loop and garden edges. None
+    # occupies the eastbound promenade or a destination's front approach.
     bench_locations = (
-        ("ENV_BENCH_01", -5.4, -6.7, math.radians(18)),
-        ("ENV_BENCH_02", 0.4, 7.8, math.radians(8)),
+        ("ENV_BENCH_01", -5.4, -6.7, math.radians(18), wood_material, stone_material),
+        ("ENV_BENCH_02", 0.4, 7.8, math.radians(8), wood_material, stone_material),
+        ("ENV_BENCH_03", 5.8, 4.4, math.radians(-18), wood_material, wood_material),
+        ("ENV_BENCH_04", -9.1, 1.5, math.radians(85), stone_material, stone_material),
+        ("ENV_BENCH_05", 7.2, -7.8, math.radians(18), wood_material, stone_material),
     )
-    for name, x, y, rotation in bench_locations:
+    for name, x, y, rotation, seat_material, support_material in bench_locations:
         bench_x, bench_y = world_xy(x, y)
-        add_box(
-            name,
-            (bench_x, bench_y, 0.28),
-            (1.6, 0.4, 0.42),
-            wood_material,
+        create_environment_bench(
             collection,
-            (0.0, 0.0, rotation),
+            name,
+            bench_x,
+            bench_y,
+            rotation,
+            seat_material,
+            support_material,
+        )
+
+    # A restrained ring of grounded pots gives selected entrances a lived-in
+    # threshold without turning the paths into a decorative obstacle course.
+    dark_pot_material = get_or_create_material(
+        "MAT_FOUNDATION_DARK", (0.19, 0.145, 0.11, 1.0)
+    )
+    terracotta_pot_material = get_or_create_material(
+        "MAT_CLAY_TILE_LIGHT", (0.42, 0.13, 0.065, 1.0)
+    )
+    pot_specs = (
+        ("ENV_POT_01", "Quay_Xa_Giao", -2.55, 1.65, math.radians(-8), terracotta_pot_material, leaf_material, "A"),
+        ("ENV_POT_02", "Quay_Xa_Giao", 2.55, 1.65, math.radians(8), dark_pot_material, dark_leaf_material, "B"),
+        ("ENV_POT_03", "Ong_Dia", 1.65, 0.95, math.radians(12), stone_material, bamboo_material, "C"),
+        ("ENV_POT_04", "Xin_Xam", -2.25, 1.50, math.radians(-10), stone_material, leaf_material, "B"),
+        ("ENV_POT_05", "Hoi_Cho_Neo", 1.85, 1.20, math.radians(10), dark_pot_material, bamboo_material, "A"),
+        ("ENV_POT_06", "Meo_Vat", -1.85, 0.20, math.radians(-12), terracotta_pot_material, dark_leaf_material, "C"),
+    )
+    for name, destination_key, local_x, local_y, rotation, pot_material, plant_material, silhouette in pot_specs:
+        pot_x, pot_y = destination_local_point(destination_key, local_x, local_y)
+        create_environment_pot(
+            collection,
+            name,
+            pot_x,
+            pot_y,
+            rotation,
+            pot_material,
+            soil_material,
+            plant_material,
+            0.34,
+            silhouette,
+        )
+
+    # Small threshold strips ground selected entrances without extending or
+    # rerouting any existing branch path. The Mẹo strip stays to the side of
+    # its pavilion so the eastbound Phố Chợ view remains open.
+    entry_grounding_specs = (
+        ("ENV_DETAIL_ENTRY_QXG", "Quay_Xa_Giao", 0.0, 2.02, 0.06, (1.80, 0.38, 0.08)),
+        ("ENV_DETAIL_ENTRY_OD", "Ong_Dia", 0.0, 1.12, 0.05, (1.10, 0.30, 0.06)),
+        ("ENV_DETAIL_ENTRY_XX", "Xin_Xam", 0.0, 1.78, 0.06, (1.55, 0.36, 0.08)),
+        ("ENV_DETAIL_ENTRY_HCN", "Hoi_Cho_Neo", 0.0, 1.42, 0.06, (1.35, 0.32, 0.08)),
+        ("ENV_DETAIL_ENTRY_MV_SIDE", "Meo_Vat", -1.85, 0.20, 0.05, (0.52, 0.68, 0.06)),
+    )
+    for name, destination_key, local_x, local_y, local_z, dimensions in entry_grounding_specs:
+        add_destination_detail_box(
+            name,
+            destination_key,
+            local_x,
+            local_y,
+            local_z,
+            dimensions,
+            stone_material,
+        )
+
+    # Four modest fixtures mark stopping points while keeping the existing
+    # ambient lighting solution and destination interactions unchanged.
+    fixture_specs = (
+        ("ENV_DETAIL_FIXTURE_01", "Quay_Xa_Giao", -2.65, 1.20),
+        ("ENV_DETAIL_FIXTURE_02", "Ong_Dia", 1.65, 0.78),
+        ("ENV_DETAIL_FIXTURE_03", "Hoi_Cho_Neo", 1.92, 0.62),
+        ("ENV_DETAIL_FIXTURE_04", "Meo_Vat", 2.05, 0.20),
+    )
+    for name, destination_key, local_x, local_y in fixture_specs:
+        fixture_x, fixture_y = destination_local_point(destination_key, local_x, local_y)
+        create_environment_fixture(
+            collection,
+            name,
+            fixture_x,
+            fixture_y,
+            light_material,
+            warm_light_material,
+        )
+
+    # Low-cost timber joinery sits just below existing pavilion beams. These
+    # are small brackets/blocks inside the accepted architecture footprint.
+    joinery_specs = (
+        ("ENV_DETAIL_JOINERY_QXG_L", "Quay_Xa_Giao", -2.05, 1.32, 2.96, (0.28, 0.20, 0.36)),
+        ("ENV_DETAIL_JOINERY_QXG_R", "Quay_Xa_Giao", 2.05, 1.32, 2.96, (0.28, 0.20, 0.36)),
+        ("ENV_DETAIL_JOINERY_OD_L", "Ong_Dia", -0.80, 0.42, 1.78, (0.18, 0.16, 0.28)),
+        ("ENV_DETAIL_JOINERY_OD_R", "Ong_Dia", 0.80, 0.42, 1.78, (0.18, 0.16, 0.28)),
+        ("ENV_DETAIL_JOINERY_XX_L", "Xin_Xam", -1.68, 1.00, 2.54, (0.24, 0.18, 0.34)),
+        ("ENV_DETAIL_JOINERY_XX_R", "Xin_Xam", 1.68, 1.00, 2.54, (0.24, 0.18, 0.34)),
+        ("ENV_DETAIL_JOINERY_HCN_L", "Hoi_Cho_Neo", -1.32, 0.80, 2.35, (0.22, 0.18, 0.32)),
+        ("ENV_DETAIL_JOINERY_HCN_R", "Hoi_Cho_Neo", 1.32, 0.80, 2.35, (0.22, 0.18, 0.32)),
+        ("ENV_DETAIL_JOINERY_MV_L", "Meo_Vat", -1.50, 0.00, 2.35, (0.22, 0.18, 0.32)),
+        ("ENV_DETAIL_JOINERY_MV_R", "Meo_Vat", 1.50, 0.92, 2.35, (0.22, 0.18, 0.32)),
+    )
+    for name, destination_key, local_x, local_y, local_z, dimensions in joinery_specs:
+        add_destination_detail_box(
+            name,
+            destination_key,
+            local_x,
+            local_y,
+            local_z,
+            dimensions,
+            wood_material,
+        )
+
+    # A few useful ledges add hand-scale function without adding new rooms or
+    # changing the existing pavilion counters and shelves.
+    shelf_specs = (
+        ("ENV_DETAIL_COUNTER_QXG", "Quay_Xa_Giao", 0.0, -1.20, 1.05, (1.80, 0.26, 0.12), wood_material),
+        ("ENV_DETAIL_SHELF_XX", "Xin_Xam", -0.72, -0.96, 1.56, (0.92, 0.22, 0.12), wood_material),
+        ("ENV_DETAIL_COUNTER_MV", "Meo_Vat", -0.78, 0.35, 1.30, (0.72, 0.30, 0.12), stone_material),
+    )
+    for name, destination_key, local_x, local_y, local_z, dimensions, material in shelf_specs:
+        add_destination_detail_box(
+            name,
+            destination_key,
+            local_x,
+            local_y,
+            local_z,
+            dimensions,
+            material,
+        )
+
+    # Unlettered timber sign frames provide a quiet threshold cue without
+    # introducing readable UI, signage clutter, or blocking panels.
+    sign_frame_specs = (
+        ("ENV_DETAIL_SIGNFRAME_QXG", "Quay_Xa_Giao", 1.55, 2.06),
+        ("ENV_DETAIL_SIGNFRAME_OD", "Ong_Dia", 0.92, 1.18),
+        ("ENV_DETAIL_SIGNFRAME_XX", "Xin_Xam", 1.42, 1.82),
+        ("ENV_DETAIL_SIGNFRAME_HCN", "Hoi_Cho_Neo", 1.20, 1.46),
+        ("ENV_DETAIL_SIGNFRAME_MV", "Meo_Vat", 1.18, 0.55),
+    )
+    for name, destination_key, width, local_y in sign_frame_specs:
+        for side, suffix in ((-1.0, "L"), (1.0, "R")):
+            add_destination_detail_box(
+                "{}_POST_{}".format(name, suffix),
+                destination_key,
+                side * (width * 0.5),
+                local_y,
+                0.88,
+                (0.12, 0.12, 1.76),
+                wood_material,
+            )
+        add_destination_detail_box(
+            "{}_HEADER".format(name),
+            destination_key,
+            0.0,
+            local_y,
+            1.78,
+            (width + 0.12, 0.12, 0.12),
+            wood_material,
+        )
+
+    # Five tiny, destination-specific cues finish the hand-scale read without
+    # adding avatars, mechanics, readable signs, or decorative clutter.
+    prop_specs = (
+        ("ENV_DETAIL_PROP_QXG_TRAY", "Quay_Xa_Giao", 0.0, 0.0, 0.84, (0.46, 0.28, 0.08), stone_material),
+        ("ENV_DETAIL_PROP_OD_PLATE", "Ong_Dia", 0.48, 0.38, 1.82, (0.26, 0.22, 0.06), stone_material),
+        ("ENV_DETAIL_PROP_XX_PAPER", "Xin_Xam", 0.58, 0.05, 1.20, (0.42, 0.26, 0.08), wood_material),
+        ("ENV_DETAIL_PROP_HCN_BLOCK", "Hoi_Cho_Neo", 0.62, 0.10, 1.24, (0.34, 0.24, 0.08), stone_material),
+        ("ENV_DETAIL_PROP_MV_CADDY", "Meo_Vat", -0.64, 0.36, 1.25, (0.38, 0.28, 0.12), wood_material),
+    )
+    for name, destination_key, local_x, local_y, local_z, dimensions, material in prop_specs:
+        add_destination_detail_box(
+            name,
+            destination_key,
+            local_x,
+            local_y,
+            local_z,
+            dimensions,
+            material,
         )
 
     light_locations = (
@@ -2588,6 +3016,9 @@ def verify_environment(environment_collection, courtyard_center):
     plaza_objects = [
         obj for obj in environment_objects if obj.name.startswith("ENV_PLAZA_")
     ]
+    substrate_objects = [
+        obj for obj in environment_objects if obj.name == "ENV_SITE_SUBSTRATE"
+    ]
     perimeter_objects = [
         obj
         for obj in environment_objects
@@ -2613,6 +3044,31 @@ def verify_environment(environment_collection, courtyard_center):
                 "ENV_PHO_CHO_EDGE_COVER_",
             )
         )
+    ]
+    seating_objects = [
+        obj for obj in environment_objects if obj.name.startswith("ENV_BENCH_") and obj.name.endswith("_Seat")
+    ]
+    pot_objects = [
+        obj for obj in environment_objects if obj.name.startswith("ENV_POT_") and obj.name.endswith("_Body")
+    ]
+    entry_detail_objects = [
+        obj for obj in environment_objects if obj.name.startswith("ENV_DETAIL_ENTRY_")
+    ]
+    fixture_detail_objects = [
+        obj for obj in environment_objects if obj.name.startswith("ENV_DETAIL_FIXTURE_")
+    ]
+    joinery_detail_objects = [
+        obj for obj in environment_objects if obj.name.startswith("ENV_DETAIL_JOINERY_")
+    ]
+    shelf_detail_objects = [
+        obj for obj in environment_objects
+        if obj.name.startswith(("ENV_DETAIL_COUNTER_", "ENV_DETAIL_SHELF_"))
+    ]
+    sign_frame_detail_objects = [
+        obj for obj in environment_objects if obj.name.startswith("ENV_DETAIL_SIGNFRAME_")
+    ]
+    prop_detail_objects = [
+        obj for obj in environment_objects if obj.name.startswith("ENV_DETAIL_PROP_")
     ]
     expected_destination_counts = (
         (QUAY_COLLECTION_NAME, QXG_PREFIX, EXPECTED_QXG_OBJECT_COUNT),
@@ -2643,6 +3099,7 @@ def verify_environment(environment_collection, courtyard_center):
         "ENV_PATH_BRANCH_",
         "ENV_PHO_CHO_PAVING_",
         "ENV_PERIMETER_GROUND_",
+        "ENV_SITE_SUBSTRATE",
     )
     passive_sightline_names = {
         "GROUND_ChoNeo",
@@ -2681,7 +3138,16 @@ def verify_environment(environment_collection, courtyard_center):
     print("Verification: center planter objects: {}".format(len(center_planters)))
     print("Verification: center tree objects: {}".format(len(center_tree_objects)))
     print("Verification: vegetation objects: {}".format(len(vegetation_objects)))
+    print("Verification: human-scale bench locations: {}".format(len(seating_objects)))
+    print("Verification: grounded pot locations: {}".format(len(pot_objects)))
+    print("Verification: entrance grounding objects: {}".format(len(entry_detail_objects)))
+    print("Verification: restrained fixture objects: {}".format(len(fixture_detail_objects)))
+    print("Verification: pavilion joinery objects: {}".format(len(joinery_detail_objects)))
+    print("Verification: counter/shelf objects: {}".format(len(shelf_detail_objects)))
+    print("Verification: subtle sign-frame objects: {}".format(len(sign_frame_detail_objects)))
+    print("Verification: destination prop objects: {}".format(len(prop_detail_objects)))
     print("Verification: plaza surface objects: {}".format(len(plaza_objects)))
+    print("Verification: connected site substrate objects: {}".format(len(substrate_objects)))
     print("Verification: perimeter context objects: {}".format(len(perimeter_objects)))
     print(
         "Verification: future Phố Chợ placeholder masses: {}".format(
@@ -2729,8 +3195,33 @@ def verify_environment(environment_collection, courtyard_center):
         raise RuntimeError("The central garden planter was not created.")
     if not center_tree_objects:
         raise RuntimeError("The central garden tree was not created.")
+    if len(seating_objects) != 5:
+        raise RuntimeError(
+            "Expected 5 human-scale bench locations, found {}.".format(len(seating_objects))
+        )
+    if len(pot_objects) != 6:
+        raise RuntimeError(
+            "Expected 6 grounded pot locations, found {}.".format(len(pot_objects))
+        )
+    expected_detail_counts = (
+        ("entrance grounding", entry_detail_objects, 5),
+        ("restrained fixtures", fixture_detail_objects, 12),
+        ("pavilion joinery", joinery_detail_objects, 10),
+        ("counters/shelves", shelf_detail_objects, 3),
+        ("subtle sign frames", sign_frame_detail_objects, 15),
+        ("destination props", prop_detail_objects, 5),
+    )
+    for label, objects, expected_count in expected_detail_counts:
+        if len(objects) != expected_count:
+            raise RuntimeError(
+                "Expected {} {} objects, found {}.".format(
+                    expected_count, label, len(objects)
+                )
+            )
     if len(plaza_objects) < 3:
         raise RuntimeError("The connected inner plaza surfaces were not created.")
+    if len(substrate_objects) != 1:
+        raise RuntimeError("The connected inner site substrate was not created exactly once.")
     if len(perimeter_objects) < 20:
         raise RuntimeError("The Phase 8 perimeter context was not created.")
     if len(future_market_masses) != 2:
