@@ -473,6 +473,11 @@ export default function ChoNeo3DPreview() {
       return;
     }
 
+    if (activeDestination.prefix === "XX_") {
+      xinXamStartRef.current = true;
+      return;
+    }
+
     if (activeDestination.prefix in DESTINATION_ENTRY_ROUTES) {
       destinationEntryRequestRef.current = activeDestination.prefix;
       return;
@@ -531,6 +536,7 @@ export default function ChoNeo3DPreview() {
     } | null = null;
     let destinationEntryActive = false;
     let destinationEntryWasPointerLocked = false;
+    let xinXamRitualLight: THREE.PointLight | null = null;
     let ongDiaAmbience: {
       light: THREE.PointLight;
       smoke: THREE.Points;
@@ -677,10 +683,14 @@ export default function ChoNeo3DPreview() {
     const startXinXamInteraction = () => {
       if (xinXamInteractionActive || activeZoneId !== "XX_") return;
 
+      const sticks = xinXamParts.filter(({ isHolder }) => !isHolder);
+      const selectedStick =
+        sticks[Math.floor(Math.random() * sticks.length)]?.object ?? null;
+
       xinXamInteractionActive = true;
       xinXamAnimation = {
         elapsed: 0,
-        selectedStick: xinXamParts.find(({ object }) => object.name === "XX_STICK_03")?.object ?? null,
+        selectedStick,
       };
       walkingKeys.clear();
       walkingVelocity.set(0, 0);
@@ -693,17 +703,23 @@ export default function ChoNeo3DPreview() {
     };
 
     const finishXinXamInteraction = () => {
-      const message = XIN_XAM_MESSAGES[Math.floor(Math.random() * XIN_XAM_MESSAGES.length)];
+      const selectedObject = xinXamAnimation?.selectedStick ?? null;
       resetXinXamParts();
-      if (xinXamAnimation?.selectedStick) {
-        const selected = xinXamParts.find(({ object }) => object === xinXamAnimation?.selectedStick);
+
+      if (selectedObject) {
+        const selected = xinXamParts.find(({ object }) => object === selectedObject);
         if (selected) {
-          selected.object.position.y = selected.position.y + 0.14;
-          selected.object.rotation.z = selected.rotation.z + 0.1;
+          selected.object.position.y = selected.position.y + 0.32;
+          selected.object.rotation.z = selected.rotation.z + 0.08;
         }
       }
+
       xinXamAnimation = null;
-      setXinXamResult(message);
+      xinXamInteractionActive = false;
+      if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
+      setIsXinXamInteracting(false);
+      setXinXamResult(null);
+      destinationEntryRequestRef.current = "XX_";
     };
 
     const startDestinationEntry = () => {
@@ -846,7 +862,9 @@ export default function ChoNeo3DPreview() {
 
       if ((event.code === "KeyE" || event.code === "Enter") && activeZoneId) {
         event.preventDefault();
-        if (activeZoneId === "OD_") {
+        if (activeZoneId === "XX_") {
+          startXinXamInteraction();
+        } else if (activeZoneId === "OD_") {
           return;
         } else if (activeZoneId in DESTINATION_ENTRY_ROUTES) {
           destinationEntryRequestRef.current = activeZoneId;
@@ -1103,6 +1121,21 @@ export default function ChoNeo3DPreview() {
             }
           });
           xinXamParts = loadedXinXamParts;
+
+          const xinXamHolder = loadedAsset.getObjectByName("XX_HOLDER_Cup");
+          if (xinXamHolder) {
+            const ritualLightPosition = new THREE.Vector3();
+            xinXamHolder.getWorldPosition(ritualLightPosition);
+            const ritualLight = new THREE.PointLight(0xffc57b, 0, 4.2, 2);
+            ritualLight.position.set(
+              ritualLightPosition.x,
+              ritualLightPosition.y + 0.45,
+              ritualLightPosition.z,
+            );
+            runtimeLighting.add(ritualLight);
+            xinXamRitualLight = ritualLight;
+          }
+
           collisionVolumes = createGlbCollisionVolumes(loadedAsset);
           const loadedProximityZones = createGlbProximityZones(loadedAsset);
           proximityZones = loadedProximityZones.length === DESTINATION_PROXIMITY_DEFINITIONS.length
@@ -1204,6 +1237,7 @@ export default function ChoNeo3DPreview() {
         xinXamInteractionActive = false;
         xinXamAnimation = null;
         resetXinXamParts();
+        if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
         walkingVelocity.set(0, 0);
         touchMovement.set(0, 0);
         controls.enabled = !pointerLocked && !touchWalkingActive;
@@ -1214,9 +1248,15 @@ export default function ChoNeo3DPreview() {
       if (xinXamAnimation) {
         xinXamAnimation.elapsed += delta;
         const elapsed = xinXamAnimation.elapsed;
-        const progress = THREE.MathUtils.clamp(elapsed / 1.05, 0, 1);
-        const shakeEnvelope = progress < 0.82 ? 1 - progress / 0.82 : 0;
-        const shake = Math.sin(elapsed * 52) * 0.075 * shakeEnvelope;
+        const progress = THREE.MathUtils.clamp(elapsed / 1.55, 0, 1);
+        const shakeEnvelope = progress < 0.68 ? 1 - progress / 0.68 : 0;
+        const shake = Math.sin(elapsed * 48) * 0.08 * shakeEnvelope;
+
+        if (xinXamRitualLight) {
+          const lightRise = THREE.MathUtils.smoothstep(progress, 0.04, 0.45);
+          const lightFall = 1 - THREE.MathUtils.smoothstep(progress, 0.72, 1);
+          xinXamRitualLight.intensity = 0.18 + 1.05 * lightRise * lightFall;
+        }
 
         xinXamParts.forEach(({ object, position, rotation, isHolder }) => {
           if (isHolder) {
@@ -1237,9 +1277,11 @@ export default function ChoNeo3DPreview() {
         const selectedStick = xinXamParts.find(
           ({ object }) => object === xinXamAnimation?.selectedStick,
         );
-        if (selectedStick && progress > 0.48) {
-          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.48, 1);
-          selectedStick.object.position.y = selectedStick.position.y + revealProgress * 0.14;
+        if (selectedStick && progress > 0.42) {
+          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.42, 0.94);
+          selectedStick.object.position.y = selectedStick.position.y + revealProgress * 0.32;
+          selectedStick.object.rotation.z =
+            selectedStick.rotation.z + revealProgress * 0.08;
         }
 
         if (progress >= 1) finishXinXamInteraction();
@@ -1442,25 +1484,9 @@ export default function ChoNeo3DPreview() {
         </div>
       )}
       {isXinXamInteracting && (
-        <div className={styles.xinXamOverlay} role="dialog" aria-modal="true" aria-live="polite">
-          <div className={styles.xinXamCard}>
-            <p className={styles.xinXamKicker}>Xin Xăm</p>
-            {xinXamResult ? (
-              <>
-                <h2 className={styles.xinXamTitle}>Một lời nhắc nhỏ</h2>
-                <p className={styles.xinXamMessage}>{xinXamResult}</p>
-                <button
-                  type="button"
-                  className={styles.xinXamDismiss}
-                  onClick={dismissXinXam}
-                >
-                  Khép lại
-                </button>
-              </>
-            ) : (
-              <p className={styles.xinXamMessage}>Lắng nghe một nhịp rồi hãy đi tiếp.</p>
-            )}
-          </div>
+        <div className={styles.xinXamCeremonyCue} role="status" aria-live="polite">
+          <span>Xin Xăm</span>
+          <strong>Lắng một nhịp…</strong>
         </div>
       )}
       {destinationEntry && destinationEntryRoute ? (
