@@ -143,6 +143,21 @@ export default function XinXamPage() {
     setHasLoadedTopic(true);
   }, [dismissedTopic, selectedTopic]);
 
+  useEffect(() => {
+    if (!isEmbedded) return;
+
+    const handleParentMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.source !== window.parent) return;
+      if (event.data?.type !== "cho-neo:xin-xam:ritual-complete") return;
+
+      completeDrawAfter3DRitual();
+    };
+
+    window.addEventListener("message", handleParentMessage);
+    return () => window.removeEventListener("message", handleParentMessage);
+  }, [isEmbedded, selectedTopic]);
+
   useEffect(
     () => () => {
       if (drawTimerRef.current) window.clearTimeout(drawTimerRef.current);
@@ -152,8 +167,52 @@ export default function XinXamPage() {
     [],
   );
 
+  function completeDrawAfter3DRitual() {
+    if (!drawInProgressRef.current) return;
+
+    const savedStick = getSavedStickForTopic(selectedTopic);
+    if (savedStick) {
+      setDismissedTopic(null);
+      setSelectedStick(savedStick);
+      setRitualState("revealed");
+      setIsLocSoOpen(false);
+      setDrawNotice(
+        "Quẻ này đang được giữ trong 7 ngày. Đổi qua chuyện khác nếu muốn xin thêm.",
+      );
+      drawInProgressRef.current = false;
+      return;
+    }
+
+    const nextStick = chooseStick(selectedTopic);
+    saveWeeklyMemory(selectedTopic, nextStick);
+    setDismissedTopic(null);
+    setDrawNotice("");
+    setSelectedStick(nextStick);
+    setRitualState("revealing");
+
+    const revealDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 0
+      : 220;
+    revealTimerRef.current = window.setTimeout(() => {
+      setRitualState("revealed");
+      drawInProgressRef.current = false;
+    }, revealDelay);
+  }
+
   function handleShakeHolder() {
     if (ritualState !== "ready" || drawInProgressRef.current) return;
+
+    if (isEmbedded) {
+      drawInProgressRef.current = true;
+      setDrawNotice("");
+      setRitualState("drawing");
+      window.parent.postMessage(
+        { type: "cho-neo:xin-xam:draw-request", topic: selectedTopic },
+        window.location.origin,
+      );
+      return;
+    }
+
     const savedStick = getSavedStickForTopic(selectedTopic);
     if (savedStick) {
       setDismissedTopic(null);
