@@ -250,6 +250,15 @@
   pointer-events: auto;
 }
 
+.destinationEntryOverlayCeremony {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    visibility 0s linear 180ms;
+}
+
 .destinationEntryPanel {
   display: flex;
   flex-direction: column;
