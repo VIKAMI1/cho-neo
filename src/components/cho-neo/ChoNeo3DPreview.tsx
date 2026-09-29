@@ -1914,7 +1914,8 @@ export default function ChoNeo3DPreview() {
           className={`${styles.destinationEntryOverlay} ${destinationThemeClass} ${
             destinationEntry.prefix === "XX_" ? styles.xinXamEntryOverlay : ""
           } ${
-            destinationEntry.prefix === "XX_" && isXinXamInteracting
+            (destinationEntry.prefix === "XX_" && isXinXamInteracting) ||
+            (destinationEntry.prefix === "OD_" && isOngDiaInteracting)
               ? styles.destinationEntryOverlayCeremony
               : ""
           }`}
