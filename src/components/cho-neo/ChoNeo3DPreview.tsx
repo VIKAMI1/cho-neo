@@ -60,6 +60,12 @@ const DESTINATION_ENTRY_ROUTES = {
     eyebrow: "Gặp gỡ",
     theme: "social",
   },
+  OD_: {
+    href: "/cho-neo/ong-dia?embed=1",
+    label: "Ông Địa",
+    eyebrow: "Ghé bàn",
+    theme: "shrine",
+  },
   XX_: {
     href: "/xin-xam?embed=1",
     label: "Xin Xăm",
@@ -458,6 +464,7 @@ export default function ChoNeo3DPreview() {
   const [activeDestination, setActiveDestination] = useState<ProximityZone | null>(null);
   const [interactionMessage, setInteractionMessage] = useState<string | null>(null);
   const [isXinXamInteracting, setIsXinXamInteracting] = useState(false);
+  const [isOngDiaInteracting, setIsOngDiaInteracting] = useState(false);
   const [xinXamResult, setXinXamResult] = useState<string | null>(null);
   const [destinationEntry, setDestinationEntry] = useState<ProximityZone | null>(null);
   const xinXamStartRef = useRef(false);
@@ -468,11 +475,6 @@ export default function ChoNeo3DPreview() {
 
   const activateDestination = () => {
     if (!activeDestination) return;
-
-    // Ông Địa is ambient-only in Milestone 1.
-    if (activeDestination.prefix === "OD_") {
-      return;
-    }
 
     if (activeDestination.prefix in DESTINATION_ENTRY_ROUTES) {
       destinationEntryRequestRef.current = activeDestination.prefix;
@@ -520,6 +522,8 @@ export default function ChoNeo3DPreview() {
     let lastLookX = 0;
     let lastLookY = 0;
     let xinXamInteractionActive = false;
+    let ongDiaInteractionActive = false;
+    let ongDiaAnimation: { elapsed: number } | null = null;
     let xinXamParts: Array<{
       object: THREE.Object3D;
       position: THREE.Vector3;
@@ -610,6 +614,78 @@ export default function ChoNeo3DPreview() {
 
     let xinXamCinematicProgress = 0;
 
+    const ongDiaCinematicScene = new THREE.Scene();
+    const ongDiaCinematicCamera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
+    ongDiaCinematicCamera.position.set(0, 0.78, 4.65);
+    ongDiaCinematicCamera.lookAt(0, 0.38, 0);
+
+    const ongDiaCinematicGroup = new THREE.Group();
+    ongDiaCinematicGroup.visible = false;
+    ongDiaCinematicScene.add(ongDiaCinematicGroup);
+
+    const ongDiaIncensePot = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.58, 0.47, 0.5, 28),
+      new THREE.MeshStandardMaterial({
+        color: 0x7f3f2b,
+        roughness: 0.78,
+        metalness: 0.02,
+        emissive: 0x2d120b,
+        emissiveIntensity: 0.18,
+      }),
+    );
+    ongDiaIncensePot.position.y = -0.56;
+    ongDiaCinematicGroup.add(ongDiaIncensePot);
+
+    const ongDiaIncenseEmbers: THREE.MeshStandardMaterial[] = [];
+    [-0.15, 0, 0.15].forEach((x, index) => {
+      const stick = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.025, 0.025, 1.72, 10),
+        new THREE.MeshStandardMaterial({
+          color: 0x8c5733,
+          roughness: 0.72,
+        }),
+      );
+      stick.position.set(x, 0.48, index === 1 ? 0.02 : 0);
+      stick.rotation.z = (index - 1) * 0.025;
+      ongDiaCinematicGroup.add(stick);
+
+      const emberMaterial = new THREE.MeshStandardMaterial({
+        color: 0xe08045,
+        roughness: 0.42,
+        emissive: 0xff6a2a,
+        emissiveIntensity: 1.2,
+      });
+      const ember = new THREE.Mesh(
+        new THREE.SphereGeometry(0.055, 12, 8),
+        emberMaterial,
+      );
+      ember.position.set(x, 1.35, index === 1 ? 0.02 : 0);
+      ongDiaIncenseEmbers.push(emberMaterial);
+      ongDiaCinematicGroup.add(ember);
+    });
+
+    const ongDiaSmokePositions = new Float32Array(18 * 3);
+    const ongDiaSmokeGeometry = new THREE.BufferGeometry();
+    const ongDiaSmokeAttribute = new THREE.BufferAttribute(ongDiaSmokePositions, 3);
+    ongDiaSmokeGeometry.setAttribute("position", ongDiaSmokeAttribute);
+    const ongDiaSmokeMaterial = new THREE.PointsMaterial({
+      color: 0xf0dcc1,
+      size: 0.12,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+    const ongDiaSmoke = new THREE.Points(ongDiaSmokeGeometry, ongDiaSmokeMaterial);
+    ongDiaCinematicGroup.add(ongDiaSmoke);
+
+    const ongDiaFill = new THREE.HemisphereLight(0xffe2b3, 0x261713, 1.85);
+    const ongDiaKey = new THREE.PointLight(0xffa65e, 4.7, 8, 2);
+    ongDiaKey.position.set(1.5, 1.8, 2.8);
+    const ongDiaRim = new THREE.PointLight(0x8da78f, 1.35, 7, 2);
+    ongDiaRim.position.set(-2.0, 1.2, 1.4);
+    ongDiaCinematicScene.add(ongDiaFill, ongDiaKey, ongDiaRim);
+
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.set(12, 11, 15);
 
@@ -672,7 +748,7 @@ export default function ChoNeo3DPreview() {
     };
 
     const enterWalkingMode = () => {
-      if (xinXamInteractionActive) return;
+      if (xinXamInteractionActive || ongDiaInteractionActive) return;
 
       if (!touchDevice || !touchWalkingActive) {
         walkingPosition.set(0, WALKING_EYE_HEIGHT, 11.5);
@@ -850,6 +926,30 @@ export default function ChoNeo3DPreview() {
       );
     };
 
+    const startOngDiaInteraction = () => {
+      if (ongDiaInteractionActive || !destinationEntryActive) return;
+
+      ongDiaInteractionActive = true;
+      ongDiaAnimation = { elapsed: 0 };
+      ongDiaCinematicGroup.visible = true;
+      ongDiaSmokeMaterial.opacity = 0;
+      setIsOngDiaInteracting(true);
+      setInteractionMessage(null);
+      setIsWalking(false);
+    };
+
+    const finishOngDiaInteraction = () => {
+      ongDiaAnimation = null;
+      ongDiaInteractionActive = false;
+      ongDiaCinematicGroup.visible = false;
+      ongDiaSmokeMaterial.opacity = 0;
+      setIsOngDiaInteracting(false);
+      destinationFrameRef.current?.contentWindow?.postMessage(
+        { type: "cho-neo:ong-dia:ritual-complete" },
+        window.location.origin,
+      );
+    };
+
     const startDestinationEntry = () => {
       const requestedPrefix = destinationEntryRequestRef.current;
       destinationEntryRequestRef.current = null;
@@ -993,9 +1093,7 @@ export default function ChoNeo3DPreview() {
 
       if ((event.code === "KeyE" || event.code === "Enter") && activeZoneId) {
         event.preventDefault();
-        if (activeZoneId === "OD_") {
-          return;
-        } else if (activeZoneId in DESTINATION_ENTRY_ROUTES) {
+        if (activeZoneId in DESTINATION_ENTRY_ROUTES) {
           destinationEntryRequestRef.current = activeZoneId;
         } else {
           showInteractionReady(proximityZones.find(({ prefix }) => prefix === activeZoneId) ?? null);
@@ -1153,20 +1251,26 @@ export default function ChoNeo3DPreview() {
       lookTouchIdentifier = null;
     };
 
-    const handleXinXamFrameMessage = (event: MessageEvent) => {
+    const handleDestinationFrameMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.source !== destinationFrameRef.current?.contentWindow) return;
-      if (event.data?.type !== "cho-neo:xin-xam:draw-request") return;
       if (!destinationEntryActive) return;
 
-      const requestedVisualIndex =
-        typeof event.data?.visualIndex === "number"
-          ? event.data.visualIndex
-          : null;
-      startXinXamInteraction(true, requestedVisualIndex);
+      if (event.data?.type === "cho-neo:xin-xam:draw-request") {
+        const requestedVisualIndex =
+          typeof event.data?.visualIndex === "number"
+            ? event.data.visualIndex
+            : null;
+        startXinXamInteraction(true, requestedVisualIndex);
+        return;
+      }
+
+      if (event.data?.type === "cho-neo:ong-dia:ritual-request") {
+        startOngDiaInteraction();
+      }
     };
 
-    window.addEventListener("message", handleXinXamFrameMessage);
+    window.addEventListener("message", handleDestinationFrameMessage);
     document.addEventListener("pointerlockchange", handlePointerLockChange);
     document.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("keydown", handleKeyDown);
@@ -1222,6 +1326,8 @@ export default function ChoNeo3DPreview() {
       camera.updateProjectionMatrix();
       xinXamCinematicCamera.aspect = width / height;
       xinXamCinematicCamera.updateProjectionMatrix();
+      ongDiaCinematicCamera.aspect = width / height;
+      ongDiaCinematicCamera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
       xinXamCinematicRenderer.setSize(width, height, false);
       labelRenderer.setSize(width, height);
@@ -1433,6 +1539,48 @@ export default function ChoNeo3DPreview() {
         setIsWalking(movementActive);
       }
 
+      if (ongDiaAnimation) {
+        ongDiaAnimation.elapsed += delta;
+        const elapsed = ongDiaAnimation.elapsed;
+        const progress = THREE.MathUtils.clamp(elapsed / 2.9, 0, 1);
+        const enter = THREE.MathUtils.smoothstep(progress, 0.02, 0.2);
+        const exit = 1 - THREE.MathUtils.smoothstep(progress, 0.86, 1);
+
+        ongDiaCinematicGroup.visible = enter > 0.01 && exit > 0.01;
+        ongDiaCinematicGroup.scale.setScalar(0.92 + enter * 0.08);
+        ongDiaCinematicGroup.position.y = -0.08 + enter * 0.08;
+        ongDiaCinematicCamera.position.z = 4.65 - enter * 0.32;
+
+        ongDiaIncenseEmbers.forEach((material, index) => {
+          material.emissiveIntensity =
+            1.1 +
+            Math.sin(elapsed * 5.4 + index * 0.8) * 0.22 +
+            enter * 0.55;
+        });
+
+        const smokeOpacity =
+          THREE.MathUtils.smoothstep(progress, 0.08, 0.34) *
+          (1 - THREE.MathUtils.smoothstep(progress, 0.8, 1));
+        ongDiaSmokeMaterial.opacity = 0.12 + smokeOpacity * 0.42;
+
+        for (let index = 0; index < 18; index += 1) {
+          const lane = index % 3;
+          const phase = (index / 18 + elapsed * (0.18 + lane * 0.018)) % 1;
+          const baseX = [-0.15, 0, 0.15][lane] ?? 0;
+          const i = index * 3;
+          ongDiaSmokeAttribute.array[i] =
+            baseX +
+            Math.sin(elapsed * 1.35 + index * 0.73) *
+              (0.035 + phase * 0.1);
+          ongDiaSmokeAttribute.array[i + 1] = 1.38 + phase * 1.65;
+          ongDiaSmokeAttribute.array[i + 2] =
+            -0.02 + Math.cos(elapsed * 1.1 + index) * 0.045 * phase;
+        }
+        ongDiaSmokeAttribute.needsUpdate = true;
+
+        if (progress >= 1) finishOngDiaInteraction();
+      }
+
       if (xinXamAnimation) {
         xinXamAnimation.elapsed += delta;
         const elapsed = xinXamAnimation.elapsed;
@@ -1639,6 +1787,11 @@ export default function ChoNeo3DPreview() {
           xinXamCinematicScene,
           xinXamCinematicCamera,
         );
+      } else if (ongDiaAnimation) {
+        xinXamCinematicRenderer.render(
+          ongDiaCinematicScene,
+          ongDiaCinematicCamera,
+        );
       }
 
       labelRenderer.render(scene, camera);
@@ -1653,7 +1806,7 @@ export default function ChoNeo3DPreview() {
       if (document.pointerLockElement === renderer.domElement) {
         document.exitPointerLock();
       }
-      window.removeEventListener("message", handleXinXamFrameMessage);
+      window.removeEventListener("message", handleDestinationFrameMessage);
       document.removeEventListener("pointerlockchange", handlePointerLockChange);
       document.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("keydown", handleKeyDown);
@@ -1686,6 +1839,7 @@ export default function ChoNeo3DPreview() {
       renderer.setAnimationLoop(null);
       disposeObject(scene);
       disposeObject(xinXamCinematicScene);
+      disposeObject(ongDiaCinematicScene);
       if (!fallbackDisposed) disposeObject(fallbackEnvironment);
       renderer.dispose();
       xinXamCinematicRenderer.dispose();
@@ -1704,6 +1858,7 @@ export default function ChoNeo3DPreview() {
   const destinationThemeClass = destinationEntryRoute
     ? {
         social: styles.socialEntryTheme,
+        shrine: styles.shrineEntryTheme,
         ritual: styles.ritualEntryTheme,
         guide: styles.guideEntryTheme,
         practical: styles.practicalEntryTheme,
@@ -1724,7 +1879,7 @@ export default function ChoNeo3DPreview() {
               : "Click vào thế giới để đi bộ · Drag để orbit debug"}
         </div>
       )}
-      {!destinationEntry && !isXinXamInteracting && activeDestination && activeDestination.prefix !== "OD_" && (
+      {!destinationEntry && !isXinXamInteracting && !isOngDiaInteracting && activeDestination && (
         <div className={styles.destinationPrompt} role="status" aria-live="polite">
           {interactionMessage ? (
             <div className={styles.destinationPromptMessage}>{interactionMessage}</div>
@@ -1746,6 +1901,12 @@ export default function ChoNeo3DPreview() {
         <div className={styles.xinXamCeremonyCue} role="status" aria-live="polite">
           <span>Xin Xăm</span>
           <strong>Lắng một nhịp…</strong>
+        </div>
+      )}
+      {isOngDiaInteracting && (
+        <div className={styles.ongDiaCeremonyCue} role="status" aria-live="polite">
+          <span>Ông Địa</span>
+          <strong>Khói nhang đang lên…</strong>
         </div>
       )}
       {destinationEntry && destinationEntryRoute ? (
