@@ -461,6 +461,7 @@ export default function ChoNeo3DPreview() {
   const [xinXamResult, setXinXamResult] = useState<string | null>(null);
   const [destinationEntry, setDestinationEntry] = useState<ProximityZone | null>(null);
   const xinXamStartRef = useRef(false);
+  const xinXamVisualIndexRef = useRef<number | null>(null);
   const xinXamDismissRef = useRef(false);
   const destinationEntryRequestRef = useRef<ProximityZone["prefix"] | null>(null);
   const resumeDestinationEntryRef = useRef<(() => void) | null>(null);
@@ -751,7 +752,10 @@ export default function ChoNeo3DPreview() {
       });
     };
 
-    const startXinXamInteraction = (forceFromEmbedded = false) => {
+    const startXinXamInteraction = (
+      forceFromEmbedded = false,
+      requestedVisualIndex: number | null = null,
+    ) => {
       if (
         xinXamInteractionActive ||
         (!forceFromEmbedded && activeZoneId !== "XX_")
@@ -772,9 +776,12 @@ export default function ChoNeo3DPreview() {
       xinXamAnimation = {
         elapsed: 0,
         selectedStick,
-        selectedVisualIndex: sticks.length
-          ? Math.max(0, sticks.findIndex(({ object }) => object === selectedStick)) % 5
-          : Math.floor(Math.random() * 5),
+        selectedVisualIndex:
+          requestedVisualIndex !== null
+            ? THREE.MathUtils.clamp(Math.floor(requestedVisualIndex), 0, 4)
+            : sticks.length
+              ? Math.max(0, sticks.findIndex(({ object }) => object === selectedStick)) % 5
+              : Math.floor(Math.random() * 5),
       };
       xinXamCinematicProgress = 0;
       xinXamCinematicGroup.visible = true;
@@ -1153,7 +1160,11 @@ export default function ChoNeo3DPreview() {
       if (event.data?.type !== "cho-neo:xin-xam:draw-request") return;
       if (!destinationEntryActive) return;
 
-      startXinXamInteraction(true);
+      const requestedVisualIndex =
+        typeof event.data?.visualIndex === "number"
+          ? event.data.visualIndex
+          : null;
+      startXinXamInteraction(true, requestedVisualIndex);
     };
 
     window.addEventListener("message", handleXinXamFrameMessage);
