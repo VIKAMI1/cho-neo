@@ -267,6 +267,63 @@
   background: #fff8ee;
 }
 
+.xinXamEntryOverlay {
+  background: rgba(10, 20, 24, 0.3);
+  backdrop-filter: blur(3px);
+}
+
+.xinXamEntryPanel {
+  position: relative;
+  width: min(470px, 100%);
+  height: min(760px, 100%);
+  border-color: rgba(201, 163, 103, 0.6);
+  border-radius: 28px;
+  background: #efe3c7;
+  box-shadow:
+    0 28px 90px rgba(5, 12, 16, 0.42),
+    inset 0 0 0 1px rgba(255, 250, 231, 0.64);
+}
+
+.xinXamEntryHeader {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.xinXamEntryHeader > div {
+  display: none;
+}
+
+.xinXamEntryHeader button {
+  width: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-color: rgba(88, 58, 37, 0.3);
+  color: #4d3424;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  line-height: 1;
+  background: rgba(247, 238, 214, 0.88);
+  box-shadow: 0 8px 20px rgba(73, 47, 27, 0.14);
+  pointer-events: auto;
+}
+
+.xinXamEntryHeader button:hover,
+.xinXamEntryHeader button:focus-visible {
+  border-color: rgba(66, 88, 65, 0.68);
+  background: #fbf4df;
+}
+
+.xinXamEntryFrame {
+  background: #efe3c7;
+}
+
 .mobileControls,
 .mobileControlsHidden {
   position: absolute;
