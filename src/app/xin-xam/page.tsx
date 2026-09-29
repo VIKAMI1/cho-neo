@@ -125,7 +125,13 @@ export default function XinXamPage() {
   );
 
   useEffect(() => {
-    setIsEmbedded(new URLSearchParams(window.location.search).get("embed") === "1");
+    const embedded = new URLSearchParams(window.location.search).get("embed") === "1";
+    setIsEmbedded(embedded);
+
+    if (embedded) {
+      window.history.scrollRestoration = "manual";
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+    }
   }, []);
 
   useEffect(() => {
@@ -1687,14 +1693,22 @@ export default function XinXamPage() {
             "stage"
             "card"
             "locso";
-          gap: 0.72rem;
+          gap: 0.62rem;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-layout::before {
+          content: "";
+          display: block;
+          position: absolute;
+          width: 0;
+          height: 0;
         }
 
         .xin-xam-page.is-embedded .xin-xam-title-card {
           border: 0;
           border-bottom: 1px solid rgba(116, 83, 52, 0.16);
           border-radius: 0;
-          padding: 0.45rem 2.2rem 0.85rem;
+          padding: 0.28rem 3.15rem 0.72rem;
           background: transparent;
           box-shadow: none;
           text-align: center;
@@ -1704,7 +1718,7 @@ export default function XinXamPage() {
         .xin-xam-page.is-embedded .xin-xam-title-card > p {
           color: #4f3423;
           font-family: var(--cho-neo-font-display);
-          font-size: clamp(2rem, 7vw, 2.75rem);
+          font-size: clamp(2.15rem, 7vw, 2.8rem);
           font-weight: 600;
           letter-spacing: 0.01em;
           line-height: 1;
@@ -1729,12 +1743,12 @@ export default function XinXamPage() {
 
         .xin-xam-page.is-embedded .xin-xam-topic-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 0.42rem;
-          margin-top: 0.8rem;
+          gap: 0.34rem;
+          margin-top: 0.66rem;
         }
 
         .xin-xam-page.is-embedded .xin-xam-topic-grid button {
-          min-height: 40px;
+          min-height: 36px;
           border-color: rgba(104, 75, 48, 0.2);
           border-radius: 999px;
           padding: 0 0.7rem;
@@ -1768,7 +1782,7 @@ export default function XinXamPage() {
 
         .xin-xam-page.is-embedded .xin-xam-room {
           border-color: rgba(119, 84, 50, 0.22);
-          border-radius: 18px;
+          border-radius: 16px;
           background: #2a1710;
           box-shadow:
             0 16px 34px rgba(83, 55, 31, 0.14),
