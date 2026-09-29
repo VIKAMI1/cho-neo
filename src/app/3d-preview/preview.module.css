@@ -9,6 +9,7 @@
 }
 
 .sceneCanvas,
+.xinXamCinematicCanvas,
 .labelLayer {
   position: absolute;
   inset: 0;
@@ -22,6 +23,11 @@
   cursor: grab;
   outline: none;
   touch-action: none;
+}
+
+.xinXamCinematicCanvas {
+  z-index: 6;
+  pointer-events: none;
 }
 
 .sceneCanvas:active {
