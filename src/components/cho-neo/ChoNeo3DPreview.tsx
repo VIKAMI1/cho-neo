@@ -461,7 +461,6 @@ export default function ChoNeo3DPreview() {
   const [xinXamResult, setXinXamResult] = useState<string | null>(null);
   const [destinationEntry, setDestinationEntry] = useState<ProximityZone | null>(null);
   const xinXamStartRef = useRef(false);
-  const xinXamVisualIndexRef = useRef<number | null>(null);
   const xinXamDismissRef = useRef(false);
   const destinationEntryRequestRef = useRef<ProximityZone["prefix"] | null>(null);
   const resumeDestinationEntryRef = useRef<(() => void) | null>(null);
