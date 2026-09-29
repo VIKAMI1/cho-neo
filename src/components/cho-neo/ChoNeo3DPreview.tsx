@@ -55,6 +55,7 @@ const XIN_XAM_MESSAGES = [
 
 const DESTINATION_ENTRY_ROUTES = {
   QXG_: { href: "/cho-neo/gossip?embed=1", label: "Quầy Xã Giao" },
+  XX_: { href: "/xin-xam?embed=1", label: "Xin Xăm" },
   HCN_: { href: "/cho-neo/hoi-cho-neo?embed=1", label: "Hỏi Chợ Neo" },
   MV_: { href: "/meo-vat?embed=1", label: "Mẹo Vặt" },
 } as const;
@@ -452,11 +453,6 @@ export default function ChoNeo3DPreview() {
       return;
     }
 
-    if (activeDestination.prefix === "XX_") {
-      xinXamStartRef.current = true;
-      return;
-    }
-
     if (activeDestination.prefix in DESTINATION_ENTRY_ROUTES) {
       destinationEntryRequestRef.current = activeDestination.prefix;
       return;
@@ -830,9 +826,7 @@ export default function ChoNeo3DPreview() {
 
       if ((event.code === "KeyE" || event.code === "Enter") && activeZoneId) {
         event.preventDefault();
-        if (activeZoneId === "XX_") {
-          startXinXamInteraction();
-        } else if (activeZoneId === "OD_") {
+        if (activeZoneId === "OD_") {
           return;
         } else if (activeZoneId in DESTINATION_ENTRY_ROUTES) {
           destinationEntryRequestRef.current = activeZoneId;
