@@ -533,6 +533,7 @@ export default function ChoNeo3DPreview() {
     let xinXamAnimation: {
       elapsed: number;
       selectedStick: THREE.Object3D | null;
+      selectedVisualIndex: number;
     } | null = null;
     let destinationEntryActive = false;
     let destinationEntryWasPointerLocked = false;
@@ -559,6 +560,59 @@ export default function ChoNeo3DPreview() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x91a8b0);
     scene.fog = new THREE.Fog(0x91a8b0, 28, 75);
+
+    // Xin Xăm gets a separate transparent 3D close-up scene so the ritual
+    // can never be hidden behind pavilion geometry or lost to a world-space camera angle.
+    const xinXamCinematicScene = new THREE.Scene();
+    const xinXamCinematicCamera = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
+    xinXamCinematicCamera.position.set(0, 0.72, 4.8);
+    xinXamCinematicCamera.lookAt(0, 0.52, 0);
+
+    const xinXamCinematicGroup = new THREE.Group();
+    xinXamCinematicGroup.visible = false;
+    xinXamCinematicScene.add(xinXamCinematicGroup);
+
+    const cinematicCup = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.48, 0.4, 0.92, 24),
+      new THREE.MeshStandardMaterial({
+        color: 0x6b351f,
+        roughness: 0.66,
+        metalness: 0.03,
+        emissive: 0x241006,
+        emissiveIntensity: 0.2,
+      }),
+    );
+    cinematicCup.position.y = -0.46;
+    cinematicCup.castShadow = true;
+    xinXamCinematicGroup.add(cinematicCup);
+
+    const cinematicSticks: THREE.Mesh[] = [];
+    [-0.28, -0.14, 0, 0.14, 0.28].forEach((x, index) => {
+      const stick = new THREE.Mesh(
+        new THREE.BoxGeometry(0.085, 1.62, 0.085),
+        new THREE.MeshStandardMaterial({
+          color: index === 2 ? 0xc18a4f : 0x95502d,
+          roughness: 0.58,
+          metalness: 0.02,
+          emissive: index === 2 ? 0x4a2810 : 0x2b1208,
+          emissiveIntensity: index === 2 ? 0.38 : 0.18,
+        }),
+      );
+      stick.position.set(x, 0.58, 0);
+      stick.rotation.z = (index - 2) * 0.055;
+      stick.castShadow = true;
+      cinematicSticks.push(stick);
+      xinXamCinematicGroup.add(stick);
+    });
+
+    const cinematicFill = new THREE.HemisphereLight(0xffe4b4, 0x17292c, 2.1);
+    const cinematicKey = new THREE.PointLight(0xffb85f, 4.4, 8, 2);
+    cinematicKey.position.set(1.8, 2.1, 3.2);
+    const cinematicRim = new THREE.PointLight(0x8fb8a1, 2.2, 7, 2);
+    cinematicRim.position.set(-2.2, 1.2, 1.2);
+    xinXamCinematicScene.add(cinematicFill, cinematicKey, cinematicRim);
+
+    let xinXamCinematicProgress = 0;
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.set(12, 11, 15);
@@ -705,7 +759,12 @@ export default function ChoNeo3DPreview() {
       xinXamAnimation = {
         elapsed: 0,
         selectedStick,
+        selectedVisualIndex: sticks.length
+          ? Math.max(0, sticks.findIndex(({ object }) => object === selectedStick)) % 5
+          : Math.floor(Math.random() * 5),
       };
+      xinXamCinematicProgress = 0;
+      xinXamCinematicGroup.visible = true;
 
       xinXamCameraStartPosition = camera.position.clone();
       xinXamCameraStartQuaternion = camera.quaternion.clone();
@@ -756,6 +815,8 @@ export default function ChoNeo3DPreview() {
 
       xinXamAnimation = null;
       xinXamInteractionActive = false;
+      xinXamCinematicProgress = 0;
+      xinXamCinematicGroup.visible = false;
       xinXamCameraStartPosition = null;
       xinXamCameraStartQuaternion = null;
       xinXamCameraTargetPosition = null;
@@ -1125,6 +1186,8 @@ export default function ChoNeo3DPreview() {
 
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      xinXamCinematicCamera.aspect = width / height;
+      xinXamCinematicCamera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
       labelRenderer.setSize(width, height);
     };
@@ -1339,6 +1402,7 @@ export default function ChoNeo3DPreview() {
         xinXamAnimation.elapsed += delta;
         const elapsed = xinXamAnimation.elapsed;
         const progress = THREE.MathUtils.clamp(elapsed / 3.85, 0, 1);
+        xinXamCinematicProgress = progress;
         const cameraProgress = THREE.MathUtils.smoothstep(progress, 0.0, 0.22);
         const shakeEnvelope =
           progress < 0.5
@@ -1393,19 +1457,42 @@ export default function ChoNeo3DPreview() {
             selectedStick.position.y + revealProgress * 0.34;
         }
 
-        if (xinXamHeroStick && xinXamHeroStickOrigin) {
-          if (progress >= 0.4) {
-            xinXamHeroStick.visible = true;
-            const heroRise = THREE.MathUtils.smoothstep(progress, 0.4, 0.64);
-            const heroSettle = THREE.MathUtils.smoothstep(progress, 0.64, 0.82);
-            xinXamHeroStick.position.copy(xinXamHeroStickOrigin);
-            xinXamHeroStick.position.y += heroRise * 1.34;
-            xinXamHeroStick.rotation.z =
-              -0.08 + Math.sin(elapsed * 3.4) * 0.035 * (1 - heroSettle);
-            xinXamHeroStick.scale.setScalar(0.92 + heroRise * 0.08);
-          } else {
-            xinXamHeroStick.visible = false;
-          }
+        if (xinXamHeroStick) xinXamHeroStick.visible = false;
+
+        // Guaranteed-visible 3D close-up: all five sticks shake, one rises clearly,
+        // then holds long enough to read as an intentional ritual beat.
+        const selectedVisualIndex = xinXamAnimation.selectedVisualIndex;
+        const cinematicEntrance = THREE.MathUtils.smoothstep(progress, 0.04, 0.2);
+        const cinematicExit = 1 - THREE.MathUtils.smoothstep(progress, 0.9, 1);
+        xinXamCinematicGroup.visible = cinematicEntrance > 0.01 && cinematicExit > 0.01;
+        xinXamCinematicGroup.scale.setScalar(0.76 + cinematicEntrance * 0.24);
+        xinXamCinematicGroup.position.y = -0.12 + cinematicEntrance * 0.12;
+        xinXamCinematicGroup.rotation.y = Math.sin(elapsed * 1.1) * 0.035;
+
+        cinematicCup.rotation.z =
+          Math.sin(elapsed * 34) * 0.045 * shakeEnvelope;
+
+        cinematicSticks.forEach((stick, index) => {
+          const baseX = [-0.28, -0.14, 0, 0.14, 0.28][index] ?? 0;
+          stick.position.x = baseX + Math.sin(elapsed * 39 + index) * 0.025 * shakeEnvelope;
+          stick.position.y = 0.58;
+          stick.rotation.z =
+            (index - 2) * 0.055 +
+            Math.sin(elapsed * 37 + index * 0.8) * 0.035 * shakeEnvelope;
+          stick.scale.setScalar(index === selectedVisualIndex ? 1.08 : 1);
+        });
+
+        const cinematicSelected = cinematicSticks[selectedVisualIndex];
+        if (cinematicSelected && progress >= 0.42) {
+          const rise = THREE.MathUtils.smoothstep(progress, 0.42, 0.66);
+          const settle = THREE.MathUtils.smoothstep(progress, 0.66, 0.8);
+          cinematicSelected.position.y = 0.58 + rise * 1.42;
+          cinematicSelected.rotation.z =
+            (selectedVisualIndex - 2) * 0.055 +
+            Math.sin(elapsed * 4.2) * 0.03 * (1 - settle);
+          cinematicSelected.scale.setScalar(1.08 + rise * 0.12);
+          const selectedMaterial = cinematicSelected.material as THREE.MeshStandardMaterial;
+          selectedMaterial.emissiveIntensity = 0.38 + rise * 0.9;
         }
 
         if (progress >= 1) finishXinXamInteraction();
@@ -1510,6 +1597,14 @@ export default function ChoNeo3DPreview() {
 
       updateProximity(movementActive || destinationEntryActive);
       renderer.render(scene, camera);
+
+      if (xinXamAnimation && xinXamCinematicProgress > 0.01) {
+        renderer.autoClear = false;
+        renderer.clearDepth();
+        renderer.render(xinXamCinematicScene, xinXamCinematicCamera);
+        renderer.autoClear = true;
+      }
+
       labelRenderer.render(scene, camera);
     };
 
@@ -1553,6 +1648,7 @@ export default function ChoNeo3DPreview() {
       timer.dispose();
       renderer.setAnimationLoop(null);
       disposeObject(scene);
+      disposeObject(xinXamCinematicScene);
       if (!fallbackDisposed) disposeObject(fallbackEnvironment);
       renderer.dispose();
       renderer.domElement.remove();
