@@ -1653,6 +1653,229 @@ export default function XinXamPage() {
           }
         }
 
+        .xin-xam-page.is-embedded {
+          --room-pass2-text-primary: #3f2d22;
+          --room-pass2-text-secondary: rgba(63, 45, 34, 0.76);
+          --room-pass2-text-muted: rgba(63, 45, 34, 0.58);
+          --room-pass2-border: rgba(116, 83, 52, 0.26);
+          --room-pass2-border-soft: rgba(116, 83, 52, 0.16);
+          --room-pass2-surface: rgba(248, 240, 219, 0.96);
+          --room-pass2-surface-soft: rgba(243, 232, 204, 0.94);
+          --room-pass2-control: rgba(246, 237, 214, 0.96);
+          --cho-neo-text-primary: var(--room-pass2-text-primary);
+          --cho-neo-text-accent: #6b4831;
+          min-height: 100%;
+          padding: 1.05rem 1rem 1.2rem;
+          background:
+            radial-gradient(circle at 22% 10%, rgba(184, 139, 82, 0.14), transparent 12rem),
+            radial-gradient(circle at 84% 92%, rgba(108, 132, 98, 0.11), transparent 13rem),
+            linear-gradient(180deg, #f5ecd5 0%, #ecdfbf 100%);
+          color: var(--cho-neo-text-primary);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topbar,
+        .xin-xam-page.is-embedded .xin-xam-feedback-panel {
+          display: none;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-layout {
+          width: 100%;
+          margin: 0;
+          grid-template-columns: 1fr;
+          grid-template-areas:
+            "intro"
+            "stage"
+            "card"
+            "locso";
+          gap: 0.72rem;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-title-card {
+          border: 0;
+          border-bottom: 1px solid rgba(116, 83, 52, 0.16);
+          border-radius: 0;
+          padding: 0.45rem 2.2rem 0.85rem;
+          background: transparent;
+          box-shadow: none;
+          text-align: center;
+          backdrop-filter: none;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-title-card > p {
+          color: #4f3423;
+          font-family: var(--cho-neo-font-display);
+          font-size: clamp(2rem, 7vw, 2.75rem);
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          line-height: 1;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-title-card h1 {
+          margin-top: 0.46rem;
+          color: #6d5039;
+          font-family: var(--cho-neo-font-ui);
+          font-size: 0.9rem;
+          font-weight: 600;
+          line-height: 1.35;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-title-card > span {
+          max-width: 330px;
+          margin: 0.32rem auto 0;
+          color: rgba(73, 52, 37, 0.66);
+          font-size: 0.74rem;
+          line-height: 1.4;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.42rem;
+          margin-top: 0.8rem;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button {
+          min-height: 40px;
+          border-color: rgba(104, 75, 48, 0.2);
+          border-radius: 999px;
+          padding: 0 0.7rem;
+          background: rgba(255, 250, 235, 0.66);
+          color: #63462f;
+          font-size: 0.72rem;
+          box-shadow: none;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button span {
+          color: #8b6243;
+          font-size: 0.76rem;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button:hover,
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button:focus-visible {
+          border-color: rgba(61, 96, 72, 0.48);
+          background: rgba(244, 245, 226, 0.92);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button.active {
+          border-color: rgba(48, 85, 62, 0.72);
+          background: linear-gradient(180deg, #58765c, #3f6048);
+          color: #fffaf0;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button.active span {
+          color: #fff7e6;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-room {
+          border-color: rgba(119, 84, 50, 0.22);
+          border-radius: 18px;
+          background: #2a1710;
+          box-shadow:
+            0 16px 34px rgba(83, 55, 31, 0.14),
+            inset 0 0 0 1px rgba(255, 246, 220, 0.08);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-stage-image {
+          filter: sepia(0.08) saturate(0.86) brightness(1.04);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-room-shade {
+          background:
+            linear-gradient(180deg, rgba(255, 237, 202, 0.02), rgba(37, 16, 10, 0.08)),
+            radial-gradient(circle at 38% 86%, rgba(255, 210, 123, 0.12), transparent 9rem);
+        }
+
+        .xin-xam-page.is-embedded .xam-holder-hotspot {
+          border-color: rgba(255, 228, 157, 0.78);
+          box-shadow:
+            0 0 0 1px rgba(87, 47, 22, 0.7),
+            0 0 18px rgba(248, 174, 75, 0.34),
+            inset 0 1px 5px rgba(255, 238, 190, 0.28);
+        }
+
+        .xin-xam-page.is-embedded .xam-holder-label {
+          border-color: rgba(109, 77, 48, 0.2);
+          background: rgba(249, 241, 220, 0.94);
+          color: #5c3d28;
+          box-shadow: 0 8px 18px rgba(52, 31, 18, 0.16);
+        }
+
+        .xin-xam-page.is-embedded .xam-card,
+        .xin-xam-page.is-embedded .xam-loc-so-annex {
+          border-color: rgba(116, 83, 52, 0.18);
+          background:
+            linear-gradient(180deg, rgba(252, 247, 231, 0.96), rgba(243, 233, 207, 0.96));
+          box-shadow: 0 12px 28px rgba(87, 61, 36, 0.1);
+          backdrop-filter: none;
+        }
+
+        .xin-xam-page.is-embedded .xam-card {
+          border-radius: 18px;
+          padding: 0.9rem;
+          opacity: 1;
+        }
+
+        .xin-xam-page.is-embedded .xam-card-meta,
+        .xin-xam-page.is-embedded .xam-card h2,
+        .xin-xam-page.is-embedded .xam-poem,
+        .xin-xam-page.is-embedded .xam-action span,
+        .xin-xam-page.is-embedded .xam-loc-so-annex strong {
+          color: #5d402b !important;
+        }
+
+        .xin-xam-page.is-embedded .xam-card p,
+        .xin-xam-page.is-embedded .xam-loc-so-annex small,
+        .xin-xam-page.is-embedded .xam-loc-so-result p {
+          color: rgba(62, 44, 32, 0.8);
+        }
+
+        .xin-xam-page.is-embedded .xam-card-meta strong,
+        .xin-xam-page.is-embedded .xam-loc-so-annex button > span:first-child,
+        .xin-xam-page.is-embedded .xam-loc-so-result span {
+          border-color: rgba(68, 99, 73, 0.24);
+          background: rgba(69, 105, 77, 0.1);
+          color: #426247;
+        }
+
+        .xin-xam-page.is-embedded .xam-action {
+          border-left-color: rgba(68, 99, 73, 0.54);
+        }
+
+        .xin-xam-page.is-embedded .xam-change-topic {
+          border-color: rgba(103, 76, 50, 0.18);
+          background: rgba(255, 250, 235, 0.7);
+          color: #654831;
+        }
+
+        .xin-xam-page.is-embedded .xam-change-topic:hover,
+        .xin-xam-page.is-embedded .xam-change-topic:focus-visible {
+          border-color: rgba(61, 96, 72, 0.42);
+          background: rgba(238, 241, 222, 0.92);
+          color: #3f6048;
+        }
+
+        .xin-xam-page.is-embedded .xam-draw-notice {
+          border-color: rgba(104, 75, 48, 0.18);
+          background: rgba(238, 226, 196, 0.7);
+          color: rgba(65, 47, 34, 0.76) !important;
+        }
+
+        .xin-xam-page.is-embedded .xam-loc-so-annex {
+          margin-top: 0;
+          border-radius: 16px;
+          padding: 0.72rem;
+        }
+
+        .xin-xam-page.is-embedded .xam-loc-so-annex.is-open {
+          border-color: rgba(68, 99, 73, 0.3);
+          background:
+            linear-gradient(180deg, rgba(246, 241, 220, 0.98), rgba(232, 230, 202, 0.98));
+        }
+
+        .xin-xam-page.is-embedded .xam-loc-so-result {
+          border-top-color: rgba(104, 75, 48, 0.14);
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .xam-holder-glow,
           .xam-holder-rim,
