@@ -537,6 +537,11 @@ export default function ChoNeo3DPreview() {
     let destinationEntryActive = false;
     let destinationEntryWasPointerLocked = false;
     let xinXamRitualLight: THREE.PointLight | null = null;
+    let xinXamRitualFocus: THREE.Vector3 | null = null;
+    let xinXamCameraStartPosition: THREE.Vector3 | null = null;
+    let xinXamCameraStartQuaternion: THREE.Quaternion | null = null;
+    let xinXamCameraTargetPosition: THREE.Vector3 | null = null;
+    let xinXamCameraTargetQuaternion: THREE.Quaternion | null = null;
     let ongDiaAmbience: {
       light: THREE.PointLight;
       smoke: THREE.Points;
@@ -693,6 +698,32 @@ export default function ChoNeo3DPreview() {
         elapsed: 0,
         selectedStick,
       };
+
+      xinXamCameraStartPosition = camera.position.clone();
+      xinXamCameraStartQuaternion = camera.quaternion.clone();
+      if (xinXamRitualFocus) {
+        const focus = xinXamRitualFocus.clone();
+        const towardPlayer = new THREE.Vector3(
+          walkingPosition.x - focus.x,
+          0,
+          walkingPosition.z - focus.z,
+        );
+        if (towardPlayer.lengthSq() < 0.001) towardPlayer.set(0, 0, 1);
+        towardPlayer.normalize();
+
+        xinXamCameraTargetPosition = focus
+          .clone()
+          .addScaledVector(towardPlayer, 2.15);
+        xinXamCameraTargetPosition.y = Math.max(
+          WALKING_EYE_HEIGHT,
+          focus.y + 0.55,
+        );
+
+        const lookCamera = camera.clone();
+        lookCamera.position.copy(xinXamCameraTargetPosition);
+        lookCamera.lookAt(focus.x, focus.y + 0.18, focus.z);
+        xinXamCameraTargetQuaternion = lookCamera.quaternion.clone();
+      }
       walkingKeys.clear();
       walkingVelocity.set(0, 0);
       touchMovement.set(0, 0);
@@ -717,6 +748,10 @@ export default function ChoNeo3DPreview() {
 
       xinXamAnimation = null;
       xinXamInteractionActive = false;
+      xinXamCameraStartPosition = null;
+      xinXamCameraStartQuaternion = null;
+      xinXamCameraTargetPosition = null;
+      xinXamCameraTargetQuaternion = null;
       if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
       setIsXinXamInteracting(false);
       setXinXamResult(null);
@@ -1137,6 +1172,7 @@ export default function ChoNeo3DPreview() {
             );
             runtimeLighting.add(ritualLight);
             xinXamRitualLight = ritualLight;
+            xinXamRitualFocus = ritualLightPosition.clone();
           }
 
           collisionVolumes = createGlbCollisionVolumes(loadedAsset);
@@ -1251,14 +1287,34 @@ export default function ChoNeo3DPreview() {
       if (xinXamAnimation) {
         xinXamAnimation.elapsed += delta;
         const elapsed = xinXamAnimation.elapsed;
-        const progress = THREE.MathUtils.clamp(elapsed / 1.55, 0, 1);
-        const shakeEnvelope = progress < 0.68 ? 1 - progress / 0.68 : 0;
-        const shake = Math.sin(elapsed * 48) * 0.08 * shakeEnvelope;
+        const progress = THREE.MathUtils.clamp(elapsed / 3.05, 0, 1);
+        const cameraProgress = THREE.MathUtils.smoothstep(progress, 0.0, 0.22);
+        const shakeEnvelope =
+          progress < 0.5
+            ? Math.sin(THREE.MathUtils.clamp((progress - 0.12) / 0.38, 0, 1) * Math.PI)
+            : 0;
+        const shake = Math.sin(elapsed * 44) * 0.13 * shakeEnvelope;
+
+        if (
+          xinXamCameraStartPosition &&
+          xinXamCameraStartQuaternion &&
+          xinXamCameraTargetPosition &&
+          xinXamCameraTargetQuaternion
+        ) {
+          camera.position.lerpVectors(
+            xinXamCameraStartPosition,
+            xinXamCameraTargetPosition,
+            cameraProgress,
+          );
+          camera.quaternion
+            .copy(xinXamCameraStartQuaternion)
+            .slerp(xinXamCameraTargetQuaternion, cameraProgress);
+        }
 
         if (xinXamRitualLight) {
-          const lightRise = THREE.MathUtils.smoothstep(progress, 0.04, 0.45);
-          const lightFall = 1 - THREE.MathUtils.smoothstep(progress, 0.72, 1);
-          xinXamRitualLight.intensity = 0.18 + 1.05 * lightRise * lightFall;
+          const lightRise = THREE.MathUtils.smoothstep(progress, 0.05, 0.3);
+          const lightFall = 1 - THREE.MathUtils.smoothstep(progress, 0.78, 1);
+          xinXamRitualLight.intensity = 0.14 + 1.35 * lightRise * lightFall;
         }
 
         xinXamParts.forEach(({ object, position, rotation, isHolder }) => {
@@ -1280,11 +1336,16 @@ export default function ChoNeo3DPreview() {
         const selectedStick = xinXamParts.find(
           ({ object }) => object === xinXamAnimation?.selectedStick,
         );
-        if (selectedStick && progress > 0.42) {
-          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.42, 0.94);
-          selectedStick.object.position.y = selectedStick.position.y + revealProgress * 0.32;
+        if (selectedStick && progress > 0.44) {
+          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.44, 0.72);
+          selectedStick.object.position.y =
+            selectedStick.position.y + revealProgress * 0.72;
           selectedStick.object.rotation.z =
-            selectedStick.rotation.z + revealProgress * 0.08;
+            selectedStick.rotation.z + revealProgress * 0.12;
+
+          const settle = THREE.MathUtils.smoothstep(progress, 0.72, 0.9);
+          selectedStick.object.rotation.x =
+            selectedStick.rotation.x + Math.sin(elapsed * 4.2) * 0.015 * (1 - settle);
         }
 
         if (progress >= 1) finishXinXamInteraction();
