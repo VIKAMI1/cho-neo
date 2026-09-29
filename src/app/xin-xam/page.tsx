@@ -114,6 +114,7 @@ export default function XinXamPage() {
   const drawTimerRef = useRef<number | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const drawInProgressRef = useRef(false);
+  const pendingEmbeddedStickRef = useRef<XinXamStick | null>(null);
 
   const selectedTopicCopy =
     XIN_XAM_TOPICS.find((topic) => topic.key === selectedTopic) ??
@@ -163,6 +164,7 @@ export default function XinXamPage() {
       if (drawTimerRef.current) window.clearTimeout(drawTimerRef.current);
       if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
       drawInProgressRef.current = false;
+      pendingEmbeddedStickRef.current = null;
     },
     [],
   );
@@ -170,7 +172,11 @@ export default function XinXamPage() {
   function completeDrawAfter3DRitual() {
     if (!drawInProgressRef.current) return;
 
-    const nextStick = selectedStick ?? chooseStick(selectedTopic);
+    const nextStick =
+      pendingEmbeddedStickRef.current ??
+      selectedStick ??
+      chooseStick(selectedTopic);
+    pendingEmbeddedStickRef.current = null;
     saveWeeklyMemory(selectedTopic, nextStick);
     setDismissedTopic(null);
     setDrawNotice("");
@@ -196,6 +202,7 @@ export default function XinXamPage() {
       );
 
       drawInProgressRef.current = true;
+      pendingEmbeddedStickRef.current = nextStick;
       setDismissedTopic(null);
       setDrawNotice("");
       setSelectedStick(nextStick);
