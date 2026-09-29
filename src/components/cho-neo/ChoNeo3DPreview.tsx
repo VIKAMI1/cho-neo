@@ -683,6 +683,7 @@ export default function ChoNeo3DPreview() {
     const startXinXamInteraction = () => {
       if (xinXamInteractionActive || activeZoneId !== "XX_") return;
 
+      resetXinXamParts();
       const sticks = xinXamParts.filter(({ isHolder }) => !isHolder);
       const selectedStick =
         sticks[Math.floor(Math.random() * sticks.length)]?.object ?? null;
@@ -762,6 +763,8 @@ export default function ChoNeo3DPreview() {
       destinationEntryActive = false;
       destinationEntryWasPointerLocked = false;
       setDestinationEntry(null);
+      resetXinXamParts();
+      if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
       walkingKeys.clear();
       walkingVelocity.set(0, 0);
       touchMovement.set(0, 0);
