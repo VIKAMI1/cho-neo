@@ -277,6 +277,7 @@
   width: min(470px, 100%);
   height: min(760px, 100%);
   border-color: rgba(201, 163, 103, 0.6);
+  overscroll-behavior: contain;
   border-radius: 28px;
   background: #efe3c7;
   box-shadow:
@@ -286,8 +287,8 @@
 
 .xinXamEntryHeader {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 14px;
+  right: 14px;
   z-index: 3;
   min-height: 0;
   padding: 0;
@@ -300,9 +301,9 @@
 }
 
 .xinXamEntryHeader button {
-  width: 42px;
-  min-width: 42px;
-  min-height: 42px;
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
   padding: 0;
   border-color: rgba(88, 58, 37, 0.3);
   color: #4d3424;
