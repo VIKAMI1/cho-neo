@@ -54,10 +54,30 @@ const XIN_XAM_MESSAGES = [
 ] as const;
 
 const DESTINATION_ENTRY_ROUTES = {
-  QXG_: { href: "/cho-neo/gossip?embed=1", label: "Quầy Xã Giao" },
-  XX_: { href: "/xin-xam?embed=1", label: "Xin Xăm" },
-  HCN_: { href: "/cho-neo/hoi-cho-neo?embed=1", label: "Hỏi Chợ Neo" },
-  MV_: { href: "/meo-vat?embed=1", label: "Mẹo Vặt" },
+  QXG_: {
+    href: "/cho-neo/gossip?embed=1",
+    label: "Quầy Xã Giao",
+    eyebrow: "Gặp gỡ",
+    theme: "social",
+  },
+  XX_: {
+    href: "/xin-xam?embed=1",
+    label: "Xin Xăm",
+    eyebrow: "Tĩnh tâm",
+    theme: "ritual",
+  },
+  HCN_: {
+    href: "/cho-neo/hoi-cho-neo?embed=1",
+    label: "Hỏi Chợ Neo",
+    eyebrow: "Hỏi nghề",
+    theme: "guide",
+  },
+  MV_: {
+    href: "/meo-vat?embed=1",
+    label: "Mẹo Vặt",
+    eyebrow: "Mẹo nghề",
+    theme: "practical",
+  },
 } as const;
 
 type ProximityZone = {
@@ -1380,6 +1400,15 @@ export default function ChoNeo3DPreview() {
       ]
     : null;
 
+  const destinationThemeClass = destinationEntryRoute
+    ? {
+        social: styles.socialEntryTheme,
+        ritual: styles.ritualEntryTheme,
+        guide: styles.guideEntryTheme,
+        practical: styles.practicalEntryTheme,
+      }[destinationEntryRoute.theme]
+    : "";
+
   return (
     <div ref={mountRef} className={styles.sceneRoot}>
       {!destinationEntry && (
@@ -1436,25 +1465,27 @@ export default function ChoNeo3DPreview() {
       )}
       {destinationEntry && destinationEntryRoute ? (
         <div
-          className={`${styles.destinationEntryOverlay} ${
+          className={`${styles.destinationEntryOverlay} ${destinationThemeClass} ${
             destinationEntry.prefix === "XX_" ? styles.xinXamEntryOverlay : ""
           }`}
           role="dialog"
           aria-modal="true"
         >
           <section
-            className={`${styles.destinationEntryPanel} ${
+            className={`${styles.destinationEntryPanel} ${destinationThemeClass} ${
               destinationEntry.prefix === "XX_" ? styles.xinXamEntryPanel : ""
             }`}
             aria-label={destinationEntryRoute.label}
           >
             <header
-              className={`${styles.destinationEntryHeader} ${
+              className={`${styles.destinationEntryHeader} ${destinationThemeClass} ${
                 destinationEntry.prefix === "XX_" ? styles.xinXamEntryHeader : ""
               }`}
             >
               <div>
-                <p className={styles.destinationEntryKicker}>Chợ Neo · destination</p>
+                <p className={styles.destinationEntryKicker}>
+                  Chợ Neo · {destinationEntryRoute.eyebrow}
+                </p>
                 <h2>{destinationEntryRoute.label}</h2>
               </div>
               <button
@@ -1466,7 +1497,7 @@ export default function ChoNeo3DPreview() {
               </button>
             </header>
             <iframe
-              className={`${styles.destinationEntryFrame} ${
+              className={`${styles.destinationEntryFrame} ${destinationThemeClass} ${
                 destinationEntry.prefix === "XX_" ? styles.xinXamEntryFrame : ""
               }`}
               src={destinationEntryRoute.href}
