@@ -310,6 +310,7 @@ export default function OngDiaPage() {
   const [ongDiaHelpFeedback, setOngDiaHelpFeedback] = useState("");
   const [ongDiaAfterChatFeedback, setOngDiaAfterChatFeedback] = useState("");
   const [ongDiaFinalFeedback, setOngDiaFinalFeedback] = useState("");
+  const [isEmbedded, setIsEmbedded] = useState(false);
   const blessingMessageIndexRef = useRef(0);
   const prayerRequestInFlightRef = useRef(false);
   const prayerRequestTokenRef = useRef(0);
@@ -322,6 +323,18 @@ export default function OngDiaPage() {
   const blessingVisualTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  useEffect(() => {
+    const embedded = new URLSearchParams(window.location.search).get("embed") === "1";
+    setIsEmbedded(embedded);
+
+    if (embedded) {
+      window.history.scrollRestoration = "manual";
+      window.requestAnimationFrame(() =>
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" }),
+      );
+    }
+  }, []);
 
   useEffect(() => {
     const todayKey = getLocalDayKey(new Date());
@@ -602,9 +615,26 @@ export default function OngDiaPage() {
 
   function handleBlessingRequest() {
     const experience = smallPrayer.trim() ? "conversation" : "ritual";
-    void ensureChoNeoMember(() =>
-      requestPrayerResponse("Xin vía nhẹ", undefined, true, experience),
-    );
+    void ensureChoNeoMember(() => {
+      if (isEmbedded) {
+        const requestId = `${Date.now()}-${experience}`;
+        window.parent.postMessage(
+          {
+            type: "cho-neo:ong-dia:ritual-request",
+            experience,
+            requestId,
+          },
+          window.location.origin,
+        );
+      }
+
+      return requestPrayerResponse(
+        "Xin vía nhẹ",
+        undefined,
+        !isEmbedded,
+        experience,
+      );
+    });
   }
 
   function handleRetryPrayerRequest() {
@@ -778,7 +808,7 @@ export default function OngDiaPage() {
   }
 
   return (
-    <main className="ong-dia-page">
+    <main className={`ong-dia-page ${isEmbedded ? "is-embedded" : ""}`}>
       <section className="ong-dia-shell" aria-labelledby="ong-dia-title">
         <div className="ong-dia-copy">
           <p className="ong-dia-eyebrow ong-dia-sr-only">
@@ -2851,6 +2881,124 @@ export default function OngDiaPage() {
           .ong-dia-back small {
             font-size: 0.62rem;
           }
+        }
+
+        .ong-dia-page.is-embedded {
+          --room-pass2-text-primary: #432f23;
+          --room-pass2-text-secondary: rgba(67, 47, 35, 0.78);
+          --room-pass2-text-muted: rgba(67, 47, 35, 0.58);
+          --room-pass2-border: rgba(128, 86, 52, 0.24);
+          --room-pass2-border-soft: rgba(128, 86, 52, 0.16);
+          --room-pass2-surface: rgba(249, 241, 220, 0.98);
+          --room-pass2-surface-soft: rgba(244, 233, 206, 0.97);
+          --room-pass2-control: rgba(250, 244, 226, 0.98);
+          --cho-neo-text-primary: var(--room-pass2-text-primary);
+          --cho-neo-text-accent: #875b3d;
+          min-height: 100%;
+          padding: 1rem;
+          background:
+            radial-gradient(circle at 20% 8%, rgba(193, 135, 78, 0.13), transparent 13rem),
+            radial-gradient(circle at 88% 90%, rgba(103, 128, 96, 0.1), transparent 13rem),
+            linear-gradient(180deg, #f5ecd6 0%, #eadbbd 100%);
+          color: var(--cho-neo-text-primary);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-shell,
+        .ong-dia-page.is-embedded .ong-dia-feedback-panel {
+          display: none;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-stage-wrap {
+          display: none;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-blessing-card {
+          width: min(720px, 100%);
+          margin: 0 auto;
+          border-color: rgba(128, 86, 52, 0.18);
+          border-radius: 18px;
+          background:
+            linear-gradient(180deg, rgba(252, 247, 231, 0.97), rgba(242, 231, 204, 0.97));
+          box-shadow: 0 14px 32px rgba(83, 57, 33, 0.1);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-daily-message {
+          border-bottom: 1px solid rgba(128, 86, 52, 0.14);
+          padding-bottom: 0.85rem;
+          text-align: center;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-daily-message p {
+          color: #875b3d !important;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-daily-message h2 {
+          color: #4d3426;
+          font-size: clamp(1.55rem, 4vw, 2rem);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-daily-message span {
+          color: rgba(67, 47, 35, 0.66);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-prayer-panel textarea {
+          min-height: 112px;
+          border-color: rgba(128, 86, 52, 0.2);
+          background: rgba(255, 250, 236, 0.74);
+          color: #432f23;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-prayer-panel textarea::placeholder {
+          color: rgba(67, 47, 35, 0.48);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-prayer-actions-left > button:first-child {
+          border-color: rgba(72, 99, 74, 0.34);
+          background: linear-gradient(180deg, #5d7a60, #45634c);
+          color: #fff9eb;
+          box-shadow: 0 8px 20px rgba(51, 77, 57, 0.16);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-clear-prayer-button {
+          border-color: rgba(128, 86, 52, 0.18);
+          background: rgba(255, 250, 236, 0.74);
+          color: #6c4b34;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-keepsake-card {
+          border-color: rgba(128, 86, 52, 0.2);
+          background:
+            linear-gradient(135deg, rgba(255, 252, 240, 0.92), transparent 44%),
+            linear-gradient(180deg, rgba(248, 240, 218, 0.98), rgba(236, 224, 194, 0.98));
+          box-shadow: 0 12px 28px rgba(83, 57, 33, 0.1);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-keepsake-card::before {
+          background:
+            linear-gradient(90deg, rgba(174, 124, 72, 0.11), transparent 24% 76%, rgba(174, 124, 72, 0.08)),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 34%);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-keepsake-line span,
+        .ong-dia-page.is-embedded .ong-dia-share-notice,
+        .ong-dia-page.is-embedded .ong-dia-return-copy,
+        .ong-dia-page.is-embedded .ong-dia-privacy-note {
+          color: rgba(67, 47, 35, 0.76) !important;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-compact-fallback,
+        .ong-dia-page.is-embedded .ong-dia-clear-confirmation,
+        .ong-dia-page.is-embedded .ong-dia-loc-notice {
+          border-color: rgba(128, 86, 52, 0.16);
+          background: rgba(244, 232, 204, 0.72);
+          color: rgba(67, 47, 35, 0.76) !important;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-blessing-actions {
+          display: none;
         }
 
         @media (prefers-reduced-motion: reduce) {
