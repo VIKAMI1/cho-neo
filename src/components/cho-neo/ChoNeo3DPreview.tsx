@@ -47,12 +47,6 @@ const DESTINATION_PROXIMITY_DEFINITIONS = [
   { prefix: "MV_", name: "Mẹo Vặt", cue: "Khám phá Mẹo Vặt" },
 ] as const;
 
-const XIN_XAM_MESSAGES = [
-  "Hôm nay, một bước nhỏ về phía điều làm lòng mình nhẹ hơn.",
-  "Có những câu trả lời đến chậm; cứ bình tĩnh đi tiếp.",
-  "Giữ lại điều chân thành, rồi để ngày mai mở thêm một lối.",
-] as const;
-
 const DESTINATION_ENTRY_ROUTES = {
   QXG_: {
     href: "/cho-neo/gossip?embed=1",
@@ -465,10 +459,7 @@ export default function ChoNeo3DPreview() {
   const [interactionMessage, setInteractionMessage] = useState<string | null>(null);
   const [isXinXamInteracting, setIsXinXamInteracting] = useState(false);
   const [isOngDiaInteracting, setIsOngDiaInteracting] = useState(false);
-  const [xinXamResult, setXinXamResult] = useState<string | null>(null);
   const [destinationEntry, setDestinationEntry] = useState<ProximityZone | null>(null);
-  const xinXamStartRef = useRef(false);
-  const xinXamDismissRef = useRef(false);
   const destinationEntryRequestRef = useRef<ProximityZone["prefix"] | null>(null);
   const resumeDestinationEntryRef = useRef<(() => void) | null>(null);
   const interactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -487,12 +478,6 @@ export default function ChoNeo3DPreview() {
       setInteractionMessage(null);
       interactionTimerRef.current = null;
     }, 1600);
-  };
-
-  const dismissXinXam = () => {
-    xinXamDismissRef.current = true;
-    setIsXinXamInteracting(false);
-    setXinXamResult(null);
   };
 
   const closeDestinationEntry = () => {
@@ -532,6 +517,7 @@ export default function ChoNeo3DPreview() {
     }> = [];
     let xinXamAnimation: {
       elapsed: number;
+      requestId: string | null;
       selectedStick: THREE.Object3D | null;
       selectedVisualIndex: number;
     } | null = null;
@@ -830,6 +816,7 @@ export default function ChoNeo3DPreview() {
     const startXinXamInteraction = (
       forceFromEmbedded = false,
       requestedVisualIndex: number | null = null,
+      requestId: string | null = null,
     ) => {
       if (
         xinXamInteractionActive ||
@@ -850,6 +837,7 @@ export default function ChoNeo3DPreview() {
       xinXamInteractionActive = true;
       xinXamAnimation = {
         elapsed: 0,
+        requestId,
         selectedStick,
         selectedVisualIndex:
           requestedVisualIndex !== null
@@ -891,12 +879,12 @@ export default function ChoNeo3DPreview() {
       touchMovement.set(0, 0);
       controls.enabled = false;
       setInteractionMessage(null);
-      setXinXamResult(null);
       setIsXinXamInteracting(true);
       setIsWalking(false);
     };
 
     const finishXinXamInteraction = () => {
+      const requestId = xinXamAnimation?.requestId ?? null;
       const selectedObject = xinXamAnimation?.selectedStick ?? null;
       resetXinXamParts();
 
@@ -919,9 +907,8 @@ export default function ChoNeo3DPreview() {
       if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
       if (xinXamHeroStick) xinXamHeroStick.visible = false;
       setIsXinXamInteracting(false);
-      setXinXamResult(null);
       destinationFrameRef.current?.contentWindow?.postMessage(
-        { type: "cho-neo:xin-xam:ritual-complete" },
+        { type: "cho-neo:xin-xam:ritual-complete", requestId },
         window.location.origin,
       );
     };
@@ -1261,7 +1248,11 @@ export default function ChoNeo3DPreview() {
           typeof event.data?.visualIndex === "number"
             ? event.data.visualIndex
             : null;
-        startXinXamInteraction(true, requestedVisualIndex);
+        const requestId =
+          typeof event.data?.requestId === "string"
+            ? event.data.requestId
+            : null;
+        startXinXamInteraction(true, requestedVisualIndex, requestId);
         return;
       }
 
@@ -1516,27 +1507,8 @@ export default function ChoNeo3DPreview() {
       const pointerLocked = document.pointerLockElement === renderer.domElement;
       const movementActive = pointerLocked || touchWalkingActive;
 
-      if (xinXamStartRef.current) {
-        xinXamStartRef.current = false;
-        startXinXamInteraction();
-      }
-
       if (destinationEntryRequestRef.current) {
         startDestinationEntry();
-      }
-
-      if (xinXamDismissRef.current) {
-        xinXamDismissRef.current = false;
-        xinXamInteractionActive = false;
-        xinXamAnimation = null;
-        resetXinXamParts();
-        if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
-        if (xinXamHeroStick) xinXamHeroStick.visible = false;
-        walkingVelocity.set(0, 0);
-        touchMovement.set(0, 0);
-        controls.enabled = !pointerLocked && !touchWalkingActive;
-        updateWalkingCamera();
-        setIsWalking(movementActive);
       }
 
       if (ongDiaAnimation) {
