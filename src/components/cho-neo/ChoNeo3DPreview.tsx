@@ -47,16 +47,31 @@ const DESTINATION_PROXIMITY_DEFINITIONS = [
   { prefix: "MV_", name: "Mẹo Vặt", cue: "Khám phá Mẹo Vặt" },
 ] as const;
 
-const XIN_XAM_MESSAGES = [
-  "Hôm nay, một bước nhỏ về phía điều làm lòng mình nhẹ hơn.",
-  "Có những câu trả lời đến chậm; cứ bình tĩnh đi tiếp.",
-  "Giữ lại điều chân thành, rồi để ngày mai mở thêm một lối.",
-] as const;
-
 const DESTINATION_ENTRY_ROUTES = {
-  QXG_: { href: "/cho-neo/gossip?embed=1", label: "Quầy Xã Giao" },
-  HCN_: { href: "/cho-neo/hoi-cho-neo?embed=1", label: "Hỏi Chợ Neo" },
-  MV_: { href: "/meo-vat?embed=1", label: "Mẹo Vặt" },
+  QXG_: {
+    href: "/cho-neo/gossip?embed=1",
+    label: "Quầy Xã Giao",
+    eyebrow: "Gặp gỡ",
+    theme: "social",
+  },
+  XX_: {
+    href: "/xin-xam?embed=1",
+    label: "Xin Xăm",
+    eyebrow: "Tĩnh tâm",
+    theme: "ritual",
+  },
+  HCN_: {
+    href: "/cho-neo/hoi-cho-neo?embed=1",
+    label: "Hỏi Chợ Neo",
+    eyebrow: "Hỏi nghề",
+    theme: "guide",
+  },
+  MV_: {
+    href: "/meo-vat?embed=1",
+    label: "Mẹo Vặt",
+    eyebrow: "Mẹo nghề",
+    theme: "practical",
+  },
 } as const;
 
 type ProximityZone = {
@@ -430,16 +445,14 @@ export default function ChoNeo3DPreview() {
   const mobileMovePadRef = useRef<HTMLDivElement>(null);
   const mobileMoveThumbRef = useRef<HTMLDivElement>(null);
   const mobileLookPadRef = useRef<HTMLDivElement>(null);
+  const destinationFrameRef = useRef<HTMLIFrameElement>(null);
   const [isWalking, setIsWalking] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [activeDestination, setActiveDestination] = useState<ProximityZone | null>(null);
   const [interactionMessage, setInteractionMessage] = useState<string | null>(null);
   const [isXinXamInteracting, setIsXinXamInteracting] = useState(false);
-  const [xinXamResult, setXinXamResult] = useState<string | null>(null);
   const [destinationEntry, setDestinationEntry] = useState<ProximityZone | null>(null);
-  const xinXamStartRef = useRef(false);
-  const xinXamDismissRef = useRef(false);
   const destinationEntryRequestRef = useRef<ProximityZone["prefix"] | null>(null);
   const resumeDestinationEntryRef = useRef<(() => void) | null>(null);
   const interactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -449,11 +462,6 @@ export default function ChoNeo3DPreview() {
 
     // Ông Địa is ambient-only in Milestone 1.
     if (activeDestination.prefix === "OD_") {
-      return;
-    }
-
-    if (activeDestination.prefix === "XX_") {
-      xinXamStartRef.current = true;
       return;
     }
 
@@ -468,12 +476,6 @@ export default function ChoNeo3DPreview() {
       setInteractionMessage(null);
       interactionTimerRef.current = null;
     }, 1600);
-  };
-
-  const dismissXinXam = () => {
-    xinXamDismissRef.current = true;
-    setIsXinXamInteracting(false);
-    setXinXamResult(null);
   };
 
   const closeDestinationEntry = () => {
@@ -511,10 +513,20 @@ export default function ChoNeo3DPreview() {
     }> = [];
     let xinXamAnimation: {
       elapsed: number;
+      requestId: string | null;
       selectedStick: THREE.Object3D | null;
+      selectedVisualIndex: number;
     } | null = null;
     let destinationEntryActive = false;
     let destinationEntryWasPointerLocked = false;
+    let xinXamRitualLight: THREE.PointLight | null = null;
+    let xinXamRitualFocus: THREE.Vector3 | null = null;
+    let xinXamHeroStick: THREE.Group | null = null;
+    let xinXamHeroStickOrigin: THREE.Vector3 | null = null;
+    let xinXamCameraStartPosition: THREE.Vector3 | null = null;
+    let xinXamCameraStartQuaternion: THREE.Quaternion | null = null;
+    let xinXamCameraTargetPosition: THREE.Vector3 | null = null;
+    let xinXamCameraTargetQuaternion: THREE.Quaternion | null = null;
     let ongDiaAmbience: {
       light: THREE.PointLight;
       smoke: THREE.Points;
@@ -531,6 +543,59 @@ export default function ChoNeo3DPreview() {
     scene.background = new THREE.Color(0x91a8b0);
     scene.fog = new THREE.Fog(0x91a8b0, 28, 75);
 
+    // Xin Xăm gets a separate transparent 3D close-up scene so the ritual
+    // can never be hidden behind pavilion geometry or lost to a world-space camera angle.
+    const xinXamCinematicScene = new THREE.Scene();
+    const xinXamCinematicCamera = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
+    xinXamCinematicCamera.position.set(0, 0.72, 4.8);
+    xinXamCinematicCamera.lookAt(0, 0.52, 0);
+
+    const xinXamCinematicGroup = new THREE.Group();
+    xinXamCinematicGroup.visible = false;
+    xinXamCinematicScene.add(xinXamCinematicGroup);
+
+    const cinematicCup = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.48, 0.4, 0.92, 24),
+      new THREE.MeshStandardMaterial({
+        color: 0x6b351f,
+        roughness: 0.66,
+        metalness: 0.03,
+        emissive: 0x241006,
+        emissiveIntensity: 0.2,
+      }),
+    );
+    cinematicCup.position.y = -0.46;
+    cinematicCup.castShadow = true;
+    xinXamCinematicGroup.add(cinematicCup);
+
+    const cinematicSticks: THREE.Mesh[] = [];
+    [-0.28, -0.14, 0, 0.14, 0.28].forEach((x, index) => {
+      const stick = new THREE.Mesh(
+        new THREE.BoxGeometry(0.085, 1.62, 0.085),
+        new THREE.MeshStandardMaterial({
+          color: index === 2 ? 0xc18a4f : 0x95502d,
+          roughness: 0.58,
+          metalness: 0.02,
+          emissive: index === 2 ? 0x4a2810 : 0x2b1208,
+          emissiveIntensity: index === 2 ? 0.38 : 0.18,
+        }),
+      );
+      stick.position.set(x, 0.58, 0);
+      stick.rotation.z = (index - 2) * 0.055;
+      stick.castShadow = true;
+      cinematicSticks.push(stick);
+      xinXamCinematicGroup.add(stick);
+    });
+
+    const cinematicFill = new THREE.HemisphereLight(0xffe4b4, 0x17292c, 2.1);
+    const cinematicKey = new THREE.PointLight(0xffb85f, 4.4, 8, 2);
+    cinematicKey.position.set(1.8, 2.1, 3.2);
+    const cinematicRim = new THREE.PointLight(0x8fb8a1, 2.2, 7, 2);
+    cinematicRim.position.set(-2.2, 1.2, 1.2);
+    xinXamCinematicScene.add(cinematicFill, cinematicKey, cinematicRim);
+
+    let xinXamCinematicProgress = 0;
+
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.set(12, 11, 15);
 
@@ -545,6 +610,20 @@ export default function ChoNeo3DPreview() {
     renderer.domElement.setAttribute("aria-label", "Interactive Chợ Neo 3D scene");
     renderer.domElement.tabIndex = 0;
     mount.appendChild(renderer.domElement);
+
+    const xinXamCinematicRenderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true,
+      powerPreference: "high-performance",
+    });
+    xinXamCinematicRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    xinXamCinematicRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    xinXamCinematicRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    xinXamCinematicRenderer.toneMappingExposure = 1.12;
+    xinXamCinematicRenderer.setClearColor(0x000000, 0);
+    xinXamCinematicRenderer.domElement.className = styles.xinXamCinematicCanvas;
+    xinXamCinematicRenderer.domElement.setAttribute("aria-hidden", "true");
+    mount.appendChild(xinXamCinematicRenderer.domElement);
 
     const labelRenderer = new CSS2DRenderer();
     labelRenderer.domElement.className = styles.labelLayer;
@@ -658,36 +737,104 @@ export default function ChoNeo3DPreview() {
       });
     };
 
-    const startXinXamInteraction = () => {
-      if (xinXamInteractionActive || activeZoneId !== "XX_") return;
+    const startXinXamInteraction = (
+      forceFromEmbedded = false,
+      requestedVisualIndex: number | null = null,
+      requestId: string | null = null,
+    ) => {
+      if (
+        xinXamInteractionActive ||
+        (!forceFromEmbedded && activeZoneId !== "XX_")
+      ) return;
+
+      resetXinXamParts();
+      if (xinXamHeroStick && xinXamHeroStickOrigin) {
+        xinXamHeroStick.visible = false;
+        xinXamHeroStick.position.copy(xinXamHeroStickOrigin);
+        xinXamHeroStick.rotation.set(0, 0, -0.08);
+        xinXamHeroStick.scale.setScalar(1);
+      }
+      const sticks = xinXamParts.filter(({ isHolder }) => !isHolder);
+      const selectedStick =
+        sticks[Math.floor(Math.random() * sticks.length)]?.object ?? null;
 
       xinXamInteractionActive = true;
       xinXamAnimation = {
         elapsed: 0,
-        selectedStick: xinXamParts.find(({ object }) => object.name === "XX_STICK_03")?.object ?? null,
+        requestId,
+        selectedStick,
+        selectedVisualIndex:
+          requestedVisualIndex !== null
+            ? THREE.MathUtils.clamp(Math.floor(requestedVisualIndex), 0, 4)
+            : sticks.length
+              ? Math.max(0, sticks.findIndex(({ object }) => object === selectedStick)) % 5
+              : Math.floor(Math.random() * 5),
       };
+      xinXamCinematicProgress = 0;
+      xinXamCinematicGroup.visible = true;
+
+      xinXamCameraStartPosition = camera.position.clone();
+      xinXamCameraStartQuaternion = camera.quaternion.clone();
+      if (xinXamRitualFocus) {
+        const focus = xinXamRitualFocus.clone();
+        const towardPlayer = new THREE.Vector3(
+          walkingPosition.x - focus.x,
+          0,
+          walkingPosition.z - focus.z,
+        );
+        if (towardPlayer.lengthSq() < 0.001) towardPlayer.set(0, 0, 1);
+        towardPlayer.normalize();
+
+        xinXamCameraTargetPosition = focus
+          .clone()
+          .addScaledVector(towardPlayer, 2.15);
+        xinXamCameraTargetPosition.y = Math.max(
+          WALKING_EYE_HEIGHT,
+          focus.y + 0.55,
+        );
+
+        const lookCamera = camera.clone();
+        lookCamera.position.copy(xinXamCameraTargetPosition);
+        lookCamera.lookAt(focus.x, focus.y + 0.82, focus.z);
+        xinXamCameraTargetQuaternion = lookCamera.quaternion.clone();
+      }
       walkingKeys.clear();
       walkingVelocity.set(0, 0);
       touchMovement.set(0, 0);
       controls.enabled = false;
       setInteractionMessage(null);
-      setXinXamResult(null);
       setIsXinXamInteracting(true);
       setIsWalking(false);
     };
 
     const finishXinXamInteraction = () => {
-      const message = XIN_XAM_MESSAGES[Math.floor(Math.random() * XIN_XAM_MESSAGES.length)];
+      const requestId = xinXamAnimation?.requestId ?? null;
+      const selectedObject = xinXamAnimation?.selectedStick ?? null;
       resetXinXamParts();
-      if (xinXamAnimation?.selectedStick) {
-        const selected = xinXamParts.find(({ object }) => object === xinXamAnimation?.selectedStick);
+
+      if (selectedObject) {
+        const selected = xinXamParts.find(({ object }) => object === selectedObject);
         if (selected) {
-          selected.object.position.y = selected.position.y + 0.14;
-          selected.object.rotation.z = selected.rotation.z + 0.1;
+          selected.object.position.y = selected.position.y + 0.32;
+          selected.object.rotation.z = selected.rotation.z + 0.08;
         }
       }
+
       xinXamAnimation = null;
-      setXinXamResult(message);
+      xinXamInteractionActive = false;
+      xinXamCinematicProgress = 0;
+      xinXamCinematicGroup.visible = false;
+      xinXamCameraStartPosition = null;
+      xinXamCameraStartQuaternion = null;
+      xinXamCameraTargetPosition = null;
+      xinXamCameraTargetQuaternion = null;
+      if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
+      if (xinXamHeroStick) xinXamHeroStick.visible = false;
+      setIsXinXamInteracting(false);
+      destinationFrameRef.current?.contentWindow?.postMessage(
+        { type: "cho-neo:xin-xam:ritual-complete", requestId },
+        window.location.origin,
+      );
     };
 
     const startDestinationEntry = () => {
@@ -730,6 +877,9 @@ export default function ChoNeo3DPreview() {
       destinationEntryActive = false;
       destinationEntryWasPointerLocked = false;
       setDestinationEntry(null);
+      resetXinXamParts();
+      if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
+      if (xinXamHeroStick) xinXamHeroStick.visible = false;
       walkingKeys.clear();
       walkingVelocity.set(0, 0);
       touchMovement.set(0, 0);
@@ -830,9 +980,7 @@ export default function ChoNeo3DPreview() {
 
       if ((event.code === "KeyE" || event.code === "Enter") && activeZoneId) {
         event.preventDefault();
-        if (activeZoneId === "XX_") {
-          startXinXamInteraction();
-        } else if (activeZoneId === "OD_") {
+        if (activeZoneId === "OD_") {
           return;
         } else if (activeZoneId in DESTINATION_ENTRY_ROUTES) {
           destinationEntryRequestRef.current = activeZoneId;
@@ -992,6 +1140,24 @@ export default function ChoNeo3DPreview() {
       lookTouchIdentifier = null;
     };
 
+    const handleXinXamFrameMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.source !== destinationFrameRef.current?.contentWindow) return;
+      if (event.data?.type !== "cho-neo:xin-xam:draw-request") return;
+      if (!destinationEntryActive) return;
+
+      const requestedVisualIndex =
+        typeof event.data?.visualIndex === "number"
+          ? event.data.visualIndex
+          : null;
+      const requestId =
+        typeof event.data?.requestId === "string"
+          ? event.data.requestId
+          : null;
+      startXinXamInteraction(true, requestedVisualIndex, requestId);
+    };
+
+    window.addEventListener("message", handleXinXamFrameMessage);
     document.addEventListener("pointerlockchange", handlePointerLockChange);
     document.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("keydown", handleKeyDown);
@@ -1045,7 +1211,10 @@ export default function ChoNeo3DPreview() {
 
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      xinXamCinematicCamera.aspect = width / height;
+      xinXamCinematicCamera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
+      xinXamCinematicRenderer.setSize(width, height, false);
       labelRenderer.setSize(width, height);
     };
 
@@ -1089,6 +1258,62 @@ export default function ChoNeo3DPreview() {
             }
           });
           xinXamParts = loadedXinXamParts;
+
+          const xinXamHolder = loadedAsset.getObjectByName("XX_HOLDER_Cup");
+          if (xinXamHolder) {
+            const ritualLightPosition = new THREE.Vector3();
+            xinXamHolder.getWorldPosition(ritualLightPosition);
+            const ritualLight = new THREE.PointLight(0xffc57b, 0, 4.2, 2);
+            ritualLight.position.set(
+              ritualLightPosition.x,
+              ritualLightPosition.y + 0.45,
+              ritualLightPosition.z,
+            );
+            runtimeLighting.add(ritualLight);
+            xinXamRitualLight = ritualLight;
+            xinXamRitualFocus = ritualLightPosition.clone();
+
+            const heroStick = new THREE.Group();
+            heroStick.name = "Xin Xam selected ritual stick";
+            const shaft = new THREE.Mesh(
+              new THREE.BoxGeometry(0.075, 1.22, 0.075),
+              new THREE.MeshStandardMaterial({
+                color: 0x8a4426,
+                roughness: 0.62,
+                metalness: 0.02,
+                emissive: 0x3a1408,
+                emissiveIntensity: 0.28,
+              }),
+            );
+            shaft.position.y = 0.61;
+            shaft.castShadow = true;
+
+            const cap = new THREE.Mesh(
+              new THREE.BoxGeometry(0.105, 0.13, 0.105),
+              new THREE.MeshStandardMaterial({
+                color: 0xd3a45f,
+                roughness: 0.5,
+                metalness: 0.08,
+                emissive: 0x553011,
+                emissiveIntensity: 0.22,
+              }),
+            );
+            cap.position.y = 1.235;
+            cap.castShadow = true;
+
+            heroStick.add(shaft, cap);
+            heroStick.position.set(
+              ritualLightPosition.x,
+              ritualLightPosition.y + 0.02,
+              ritualLightPosition.z,
+            );
+            heroStick.rotation.z = -0.08;
+            heroStick.visible = false;
+            scene.add(heroStick);
+            xinXamHeroStick = heroStick;
+            xinXamHeroStickOrigin = heroStick.position.clone();
+          }
+
           collisionVolumes = createGlbCollisionVolumes(loadedAsset);
           const loadedProximityZones = createGlbProximityZones(loadedAsset);
           proximityZones = loadedProximityZones.length === DESTINATION_PROXIMITY_DEFINITIONS.length
@@ -1176,33 +1401,43 @@ export default function ChoNeo3DPreview() {
       const pointerLocked = document.pointerLockElement === renderer.domElement;
       const movementActive = pointerLocked || touchWalkingActive;
 
-      if (xinXamStartRef.current) {
-        xinXamStartRef.current = false;
-        startXinXamInteraction();
-      }
-
       if (destinationEntryRequestRef.current) {
         startDestinationEntry();
-      }
-
-      if (xinXamDismissRef.current) {
-        xinXamDismissRef.current = false;
-        xinXamInteractionActive = false;
-        xinXamAnimation = null;
-        resetXinXamParts();
-        walkingVelocity.set(0, 0);
-        touchMovement.set(0, 0);
-        controls.enabled = !pointerLocked && !touchWalkingActive;
-        updateWalkingCamera();
-        setIsWalking(movementActive);
       }
 
       if (xinXamAnimation) {
         xinXamAnimation.elapsed += delta;
         const elapsed = xinXamAnimation.elapsed;
-        const progress = THREE.MathUtils.clamp(elapsed / 1.05, 0, 1);
-        const shakeEnvelope = progress < 0.82 ? 1 - progress / 0.82 : 0;
-        const shake = Math.sin(elapsed * 52) * 0.075 * shakeEnvelope;
+        const progress = THREE.MathUtils.clamp(elapsed / 3.85, 0, 1);
+        xinXamCinematicProgress = progress;
+        const cameraProgress = THREE.MathUtils.smoothstep(progress, 0.0, 0.22);
+        const shakeEnvelope =
+          progress < 0.5
+            ? Math.sin(THREE.MathUtils.clamp((progress - 0.12) / 0.38, 0, 1) * Math.PI)
+            : 0;
+        const shake = Math.sin(elapsed * 44) * 0.13 * shakeEnvelope;
+
+        if (
+          xinXamCameraStartPosition &&
+          xinXamCameraStartQuaternion &&
+          xinXamCameraTargetPosition &&
+          xinXamCameraTargetQuaternion
+        ) {
+          camera.position.lerpVectors(
+            xinXamCameraStartPosition,
+            xinXamCameraTargetPosition,
+            cameraProgress,
+          );
+          camera.quaternion
+            .copy(xinXamCameraStartQuaternion)
+            .slerp(xinXamCameraTargetQuaternion, cameraProgress);
+        }
+
+        if (xinXamRitualLight) {
+          const lightRise = THREE.MathUtils.smoothstep(progress, 0.05, 0.3);
+          const lightFall = 1 - THREE.MathUtils.smoothstep(progress, 0.78, 1);
+          xinXamRitualLight.intensity = 0.14 + 1.35 * lightRise * lightFall;
+        }
 
         xinXamParts.forEach(({ object, position, rotation, isHolder }) => {
           if (isHolder) {
@@ -1223,9 +1458,48 @@ export default function ChoNeo3DPreview() {
         const selectedStick = xinXamParts.find(
           ({ object }) => object === xinXamAnimation?.selectedStick,
         );
-        if (selectedStick && progress > 0.48) {
-          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.48, 1);
-          selectedStick.object.position.y = selectedStick.position.y + revealProgress * 0.14;
+        if (selectedStick && progress > 0.38) {
+          const revealProgress = THREE.MathUtils.smoothstep(progress, 0.38, 0.62);
+          selectedStick.object.position.y =
+            selectedStick.position.y + revealProgress * 0.34;
+        }
+
+        if (xinXamHeroStick) xinXamHeroStick.visible = false;
+
+        // Guaranteed-visible 3D close-up: all five sticks shake, one rises clearly,
+        // then holds long enough to read as an intentional ritual beat.
+        const selectedVisualIndex = xinXamAnimation.selectedVisualIndex;
+        const cinematicEntrance = THREE.MathUtils.smoothstep(progress, 0.04, 0.2);
+        const cinematicExit = 1 - THREE.MathUtils.smoothstep(progress, 0.9, 1);
+        xinXamCinematicGroup.visible = cinematicEntrance > 0.01 && cinematicExit > 0.01;
+        xinXamCinematicGroup.scale.setScalar(0.76 + cinematicEntrance * 0.24);
+        xinXamCinematicGroup.position.y = -0.12 + cinematicEntrance * 0.12;
+        xinXamCinematicGroup.rotation.y = Math.sin(elapsed * 1.1) * 0.035;
+
+        cinematicCup.rotation.z =
+          Math.sin(elapsed * 34) * 0.045 * shakeEnvelope;
+
+        cinematicSticks.forEach((stick, index) => {
+          const baseX = [-0.28, -0.14, 0, 0.14, 0.28][index] ?? 0;
+          stick.position.x = baseX + Math.sin(elapsed * 39 + index) * 0.025 * shakeEnvelope;
+          stick.position.y = 0.58;
+          stick.rotation.z =
+            (index - 2) * 0.055 +
+            Math.sin(elapsed * 37 + index * 0.8) * 0.035 * shakeEnvelope;
+          stick.scale.setScalar(index === selectedVisualIndex ? 1.08 : 1);
+        });
+
+        const cinematicSelected = cinematicSticks[selectedVisualIndex];
+        if (cinematicSelected && progress >= 0.42) {
+          const rise = THREE.MathUtils.smoothstep(progress, 0.42, 0.66);
+          const settle = THREE.MathUtils.smoothstep(progress, 0.66, 0.8);
+          cinematicSelected.position.y = 0.58 + rise * 1.42;
+          cinematicSelected.rotation.z =
+            (selectedVisualIndex - 2) * 0.055 +
+            Math.sin(elapsed * 4.2) * 0.03 * (1 - settle);
+          cinematicSelected.scale.setScalar(1.08 + rise * 0.12);
+          const selectedMaterial = cinematicSelected.material as THREE.MeshStandardMaterial;
+          selectedMaterial.emissiveIntensity = 0.38 + rise * 0.9;
         }
 
         if (progress >= 1) finishXinXamInteraction();
@@ -1330,6 +1604,15 @@ export default function ChoNeo3DPreview() {
 
       updateProximity(movementActive || destinationEntryActive);
       renderer.render(scene, camera);
+
+      xinXamCinematicRenderer.clear();
+      if (xinXamAnimation && xinXamCinematicProgress > 0.01) {
+        xinXamCinematicRenderer.render(
+          xinXamCinematicScene,
+          xinXamCinematicCamera,
+        );
+      }
+
       labelRenderer.render(scene, camera);
     };
 
@@ -1342,6 +1625,7 @@ export default function ChoNeo3DPreview() {
       if (document.pointerLockElement === renderer.domElement) {
         document.exitPointerLock();
       }
+      window.removeEventListener("message", handleXinXamFrameMessage);
       document.removeEventListener("pointerlockchange", handlePointerLockChange);
       document.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("keydown", handleKeyDown);
@@ -1373,9 +1657,12 @@ export default function ChoNeo3DPreview() {
       timer.dispose();
       renderer.setAnimationLoop(null);
       disposeObject(scene);
+      disposeObject(xinXamCinematicScene);
       if (!fallbackDisposed) disposeObject(fallbackEnvironment);
       renderer.dispose();
+      xinXamCinematicRenderer.dispose();
       renderer.domElement.remove();
+      xinXamCinematicRenderer.domElement.remove();
       labelRenderer.domElement.remove();
     };
   }, []);
@@ -1385,6 +1672,15 @@ export default function ChoNeo3DPreview() {
         destinationEntry.prefix as keyof typeof DESTINATION_ENTRY_ROUTES
       ]
     : null;
+
+  const destinationThemeClass = destinationEntryRoute
+    ? {
+        social: styles.socialEntryTheme,
+        ritual: styles.ritualEntryTheme,
+        guide: styles.guideEntryTheme,
+        practical: styles.practicalEntryTheme,
+      }[destinationEntryRoute.theme]
+    : "";
 
   return (
     <div ref={mountRef} className={styles.sceneRoot}>
@@ -1419,41 +1715,53 @@ export default function ChoNeo3DPreview() {
         </div>
       )}
       {isXinXamInteracting && (
-        <div className={styles.xinXamOverlay} role="dialog" aria-modal="true" aria-live="polite">
-          <div className={styles.xinXamCard}>
-            <p className={styles.xinXamKicker}>Xin Xăm</p>
-            {xinXamResult ? (
-              <>
-                <h2 className={styles.xinXamTitle}>Một lời nhắc nhỏ</h2>
-                <p className={styles.xinXamMessage}>{xinXamResult}</p>
-                <button
-                  type="button"
-                  className={styles.xinXamDismiss}
-                  onClick={dismissXinXam}
-                >
-                  Khép lại
-                </button>
-              </>
-            ) : (
-              <p className={styles.xinXamMessage}>Lắng nghe một nhịp rồi hãy đi tiếp.</p>
-            )}
-          </div>
+        <div className={styles.xinXamCeremonyCue} role="status" aria-live="polite">
+          <span>Xin Xăm</span>
+          <strong>Lắng một nhịp…</strong>
         </div>
       )}
       {destinationEntry && destinationEntryRoute ? (
-        <div className={styles.destinationEntryOverlay} role="dialog" aria-modal="true">
-          <section className={styles.destinationEntryPanel} aria-label={destinationEntryRoute.label}>
-            <header className={styles.destinationEntryHeader}>
+        <div
+          className={`${styles.destinationEntryOverlay} ${destinationThemeClass} ${
+            destinationEntry.prefix === "XX_" ? styles.xinXamEntryOverlay : ""
+          } ${
+            destinationEntry.prefix === "XX_" && isXinXamInteracting
+              ? styles.destinationEntryOverlayCeremony
+              : ""
+          }`}
+          role="dialog"
+          aria-modal="true"
+        >
+          <section
+            className={`${styles.destinationEntryPanel} ${destinationThemeClass} ${
+              destinationEntry.prefix === "XX_" ? styles.xinXamEntryPanel : ""
+            }`}
+            aria-label={destinationEntryRoute.label}
+          >
+            <header
+              className={`${styles.destinationEntryHeader} ${destinationThemeClass} ${
+                destinationEntry.prefix === "XX_" ? styles.xinXamEntryHeader : ""
+              }`}
+            >
               <div>
-                <p className={styles.destinationEntryKicker}>Chợ Neo · destination</p>
+                <p className={styles.destinationEntryKicker}>
+                  Chợ Neo · {destinationEntryRoute.eyebrow}
+                </p>
                 <h2>{destinationEntryRoute.label}</h2>
               </div>
-              <button type="button" onClick={closeDestinationEntry}>
-                ← Quay lại 3D
+              <button
+                type="button"
+                onClick={closeDestinationEntry}
+                aria-label={destinationEntry.prefix === "XX_" ? "Đóng Xin Xăm và quay lại 3D" : undefined}
+              >
+                {destinationEntry.prefix === "XX_" ? "×" : "← Quay lại 3D"}
               </button>
             </header>
             <iframe
-              className={styles.destinationEntryFrame}
+              ref={destinationFrameRef}
+              className={`${styles.destinationEntryFrame} ${destinationThemeClass} ${
+                destinationEntry.prefix === "XX_" ? styles.xinXamEntryFrame : ""
+              }`}
               src={destinationEntryRoute.href}
               title={`${destinationEntryRoute.label} — Chợ Neo`}
             />

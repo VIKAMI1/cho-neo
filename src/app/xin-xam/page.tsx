@@ -110,9 +110,13 @@ export default function XinXamPage() {
   const [helpFeedback, setHelpFeedback] = useState("");
   const [afterChatFeedback, setAfterChatFeedback] = useState("");
   const [finalFeedback, setFinalFeedback] = useState("");
+  const [isEmbedded, setIsEmbedded] = useState(false);
   const drawTimerRef = useRef<number | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const drawInProgressRef = useRef(false);
+  const pendingEmbeddedStickRef = useRef<XinXamStick | null>(null);
+  const pendingEmbeddedRequestIdRef = useRef<string | null>(null);
+  const embeddedRitualTimeoutRef = useRef<number | null>(null);
 
   const selectedTopicCopy =
     XIN_XAM_TOPICS.find((topic) => topic.key === selectedTopic) ??
@@ -124,6 +128,16 @@ export default function XinXamPage() {
   );
 
   useEffect(() => {
+    const embedded = new URLSearchParams(window.location.search).get("embed") === "1";
+    setIsEmbedded(embedded);
+
+    if (embedded) {
+      window.history.scrollRestoration = "manual";
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+    }
+  }, []);
+
+  useEffect(() => {
     const savedStick = getSavedStickForTopic(selectedTopic);
     const shouldShowSavedStick = savedStick && dismissedTopic !== selectedTopic;
     setSelectedStick(shouldShowSavedStick ? savedStick : null);
@@ -132,17 +146,109 @@ export default function XinXamPage() {
     setHasLoadedTopic(true);
   }, [dismissedTopic, selectedTopic]);
 
+  useEffect(() => {
+    if (!isEmbedded) return;
+
+    const handleParentMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.source !== window.parent) return;
+      if (event.data?.type !== "cho-neo:xin-xam:ritual-complete") return;
+      if (
+        !pendingEmbeddedRequestIdRef.current ||
+        event.data?.requestId !== pendingEmbeddedRequestIdRef.current
+      ) return;
+
+      completeDrawAfter3DRitual();
+    };
+
+    window.addEventListener("message", handleParentMessage);
+    return () => window.removeEventListener("message", handleParentMessage);
+  }, [isEmbedded, selectedTopic]);
+
   useEffect(
     () => () => {
       if (drawTimerRef.current) window.clearTimeout(drawTimerRef.current);
       if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
+      if (embeddedRitualTimeoutRef.current) {
+        window.clearTimeout(embeddedRitualTimeoutRef.current);
+      }
       drawInProgressRef.current = false;
+      pendingEmbeddedStickRef.current = null;
+      pendingEmbeddedRequestIdRef.current = null;
     },
     [],
   );
 
+  function completeDrawAfter3DRitual() {
+    if (!drawInProgressRef.current) return;
+
+    const nextStick =
+      pendingEmbeddedStickRef.current ??
+      selectedStick ??
+      chooseStick(selectedTopic);
+
+    if (embeddedRitualTimeoutRef.current) {
+      window.clearTimeout(embeddedRitualTimeoutRef.current);
+      embeddedRitualTimeoutRef.current = null;
+    }
+    pendingEmbeddedStickRef.current = null;
+    pendingEmbeddedRequestIdRef.current = null;
+    saveWeeklyMemory(selectedTopic, nextStick);
+    setDismissedTopic(null);
+    setDrawNotice("");
+    setSelectedStick(nextStick);
+    setRitualState("revealing");
+
+    const revealDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 0
+      : 220;
+    revealTimerRef.current = window.setTimeout(() => {
+      setRitualState("revealed");
+      drawInProgressRef.current = false;
+    }, revealDelay);
+  }
+
   function handleShakeHolder() {
     if (ritualState !== "ready" || drawInProgressRef.current) return;
+
+    if (isEmbedded) {
+      const nextStick = chooseStick(selectedTopic);
+      const stickIndex = LOCAL_XIN_XAM_SEED_STICKS.findIndex(
+        (stick) => stick.id === nextStick.id,
+      );
+
+      const requestId = `${Date.now()}-${nextStick.id}`;
+
+      drawInProgressRef.current = true;
+      pendingEmbeddedStickRef.current = nextStick;
+      pendingEmbeddedRequestIdRef.current = requestId;
+      setDismissedTopic(null);
+      setDrawNotice("");
+      setSelectedStick(nextStick);
+      setRitualState("drawing");
+      window.parent.postMessage(
+        {
+          type: "cho-neo:xin-xam:draw-request",
+          topic: selectedTopic,
+          stickId: nextStick.id,
+          visualIndex: Math.max(0, stickIndex) % 5,
+          requestId,
+        },
+        window.location.origin,
+      );
+
+      embeddedRitualTimeoutRef.current = window.setTimeout(() => {
+        if (pendingEmbeddedRequestIdRef.current !== requestId) return;
+        pendingEmbeddedRequestIdRef.current = null;
+        pendingEmbeddedStickRef.current = null;
+        drawInProgressRef.current = false;
+        setSelectedStick(null);
+        setRitualState("ready");
+        setDrawNotice("Nghi thức bị gián đoạn. Thử rút xăm lại nhé.");
+      }, 8000);
+      return;
+    }
+
     const savedStick = getSavedStickForTopic(selectedTopic);
     if (savedStick) {
       setDismissedTopic(null);
@@ -302,7 +408,7 @@ export default function XinXamPage() {
   }
 
   return (
-    <main className="xin-xam-page">
+    <main className={`xin-xam-page ${isEmbedded ? "is-embedded" : ""}`}>
       <section className="xin-xam-topbar" aria-label="Điều hướng Xin Xăm">
         <Link href="/cho-neo" className="xin-xam-header-control">
           ‹ Chợ Neo
@@ -493,13 +599,15 @@ export default function XinXamPage() {
             className={`xam-holder-hotspot ${ritualState === "drawing" ? "is-shaking" : ""}`}
             onClick={handleShakeHolder}
             disabled={ritualState !== "ready"}
-            aria-label="Xin một quẻ nhẹ"
+            aria-label={isEmbedded ? "Rút xăm" : "Xin một quẻ nhẹ"}
           >
             <span className="xam-holder-glow" aria-hidden="true" />
             <span className="xam-holder-rim" aria-hidden="true" />
             <span className="xam-holder-symbol" aria-hidden="true">福</span>
             {ritualState === "ready" && (
-              <span className="xam-holder-label">Xin một quẻ nhẹ</span>
+              <span className="xam-holder-label">
+                {isEmbedded ? "Rút xăm" : "Xin một quẻ nhẹ"}
+              </span>
             )}
           </button>
 
@@ -584,6 +692,15 @@ export default function XinXamPage() {
           font-family: var(--cho-neo-font-ui);
           font-weight: 400;
           padding: clamp(0.75rem, 2vw, 1.2rem);
+        }
+
+        .xin-xam-page.is-embedded {
+          min-height: 100%;
+          padding: clamp(0.55rem, 1.2vw, 0.85rem);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topbar {
+          display: none;
         }
 
         .xin-xam-topbar {
@@ -1637,6 +1754,237 @@ export default function XinXamPage() {
             font-size: 0.96rem;
             letter-spacing: 0.025em;
           }
+        }
+
+        .xin-xam-page.is-embedded {
+          --room-pass2-text-primary: #3f2d22;
+          --room-pass2-text-secondary: rgba(63, 45, 34, 0.76);
+          --room-pass2-text-muted: rgba(63, 45, 34, 0.58);
+          --room-pass2-border: rgba(116, 83, 52, 0.26);
+          --room-pass2-border-soft: rgba(116, 83, 52, 0.16);
+          --room-pass2-surface: rgba(248, 240, 219, 0.96);
+          --room-pass2-surface-soft: rgba(243, 232, 204, 0.94);
+          --room-pass2-control: rgba(246, 237, 214, 0.96);
+          --cho-neo-text-primary: var(--room-pass2-text-primary);
+          --cho-neo-text-accent: #6b4831;
+          min-height: 100%;
+          padding: 1.05rem 1rem 1.2rem;
+          background:
+            radial-gradient(circle at 22% 10%, rgba(184, 139, 82, 0.14), transparent 12rem),
+            radial-gradient(circle at 84% 92%, rgba(108, 132, 98, 0.11), transparent 13rem),
+            linear-gradient(180deg, #f5ecd5 0%, #ecdfbf 100%);
+          color: var(--cho-neo-text-primary);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topbar,
+        .xin-xam-page.is-embedded .xin-xam-feedback-panel {
+          display: none;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-layout {
+          width: 100%;
+          margin: 0;
+          grid-template-columns: 1fr;
+          grid-template-areas:
+            "intro"
+            "stage"
+            "card"
+            "locso";
+          gap: 0.62rem;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-layout::before {
+          content: "";
+          display: block;
+          position: absolute;
+          width: 0;
+          height: 0;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-title-card {
+          border: 0;
+          border-bottom: 1px solid rgba(116, 83, 52, 0.16);
+          border-radius: 0;
+          padding: 0.28rem 3.15rem 0.72rem;
+          background: transparent;
+          box-shadow: none;
+          text-align: center;
+          backdrop-filter: none;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-title-card > p {
+          color: #4f3423;
+          font-family: var(--cho-neo-font-display);
+          font-size: clamp(2.15rem, 7vw, 2.8rem);
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          line-height: 1;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-title-card h1 {
+          margin-top: 0.46rem;
+          color: #6d5039;
+          font-family: var(--cho-neo-font-ui);
+          font-size: 0.9rem;
+          font-weight: 600;
+          line-height: 1.35;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-title-card > span {
+          max-width: 330px;
+          margin: 0.32rem auto 0;
+          color: rgba(73, 52, 37, 0.66);
+          font-size: 0.74rem;
+          line-height: 1.4;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.34rem;
+          margin-top: 0.66rem;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button {
+          min-height: 36px;
+          border-color: rgba(104, 75, 48, 0.2);
+          border-radius: 999px;
+          padding: 0 0.7rem;
+          background: rgba(255, 250, 235, 0.66);
+          color: #63462f;
+          font-size: 0.72rem;
+          box-shadow: none;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button span {
+          color: #8b6243;
+          font-size: 0.76rem;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button:hover,
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button:focus-visible {
+          border-color: rgba(61, 96, 72, 0.48);
+          background: rgba(244, 245, 226, 0.92);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button.active {
+          border-color: rgba(48, 85, 62, 0.72);
+          background: linear-gradient(180deg, #58765c, #3f6048);
+          color: #fffaf0;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-topic-grid button.active span {
+          color: #fff7e6;
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-room {
+          border-color: rgba(119, 84, 50, 0.22);
+          border-radius: 16px;
+          background: #2a1710;
+          box-shadow:
+            0 16px 34px rgba(83, 55, 31, 0.14),
+            inset 0 0 0 1px rgba(255, 246, 220, 0.08);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-stage-image {
+          filter: sepia(0.08) saturate(0.86) brightness(1.04);
+        }
+
+        .xin-xam-page.is-embedded .xin-xam-room-shade {
+          background:
+            linear-gradient(180deg, rgba(255, 237, 202, 0.02), rgba(37, 16, 10, 0.08)),
+            radial-gradient(circle at 38% 86%, rgba(255, 210, 123, 0.12), transparent 9rem);
+        }
+
+        .xin-xam-page.is-embedded .xam-holder-hotspot {
+          border-color: rgba(255, 228, 157, 0.78);
+          box-shadow:
+            0 0 0 1px rgba(87, 47, 22, 0.7),
+            0 0 18px rgba(248, 174, 75, 0.34),
+            inset 0 1px 5px rgba(255, 238, 190, 0.28);
+        }
+
+        .xin-xam-page.is-embedded .xam-holder-label {
+          border-color: rgba(109, 77, 48, 0.2);
+          background: rgba(249, 241, 220, 0.94);
+          color: #5c3d28;
+          box-shadow: 0 8px 18px rgba(52, 31, 18, 0.16);
+        }
+
+        .xin-xam-page.is-embedded .xam-card,
+        .xin-xam-page.is-embedded .xam-loc-so-annex {
+          border-color: rgba(116, 83, 52, 0.18);
+          background:
+            linear-gradient(180deg, rgba(252, 247, 231, 0.96), rgba(243, 233, 207, 0.96));
+          box-shadow: 0 12px 28px rgba(87, 61, 36, 0.1);
+          backdrop-filter: none;
+        }
+
+        .xin-xam-page.is-embedded .xam-card {
+          border-radius: 18px;
+          padding: 0.9rem;
+          opacity: 1;
+        }
+
+        .xin-xam-page.is-embedded .xam-card-meta,
+        .xin-xam-page.is-embedded .xam-card h2,
+        .xin-xam-page.is-embedded .xam-poem,
+        .xin-xam-page.is-embedded .xam-action span,
+        .xin-xam-page.is-embedded .xam-loc-so-annex strong {
+          color: #5d402b !important;
+        }
+
+        .xin-xam-page.is-embedded .xam-card p,
+        .xin-xam-page.is-embedded .xam-loc-so-annex small,
+        .xin-xam-page.is-embedded .xam-loc-so-result p {
+          color: rgba(62, 44, 32, 0.8);
+        }
+
+        .xin-xam-page.is-embedded .xam-card-meta strong,
+        .xin-xam-page.is-embedded .xam-loc-so-annex button > span:first-child,
+        .xin-xam-page.is-embedded .xam-loc-so-result span {
+          border-color: rgba(68, 99, 73, 0.24);
+          background: rgba(69, 105, 77, 0.1);
+          color: #426247;
+        }
+
+        .xin-xam-page.is-embedded .xam-action {
+          border-left-color: rgba(68, 99, 73, 0.54);
+        }
+
+        .xin-xam-page.is-embedded .xam-change-topic {
+          border-color: rgba(103, 76, 50, 0.18);
+          background: rgba(255, 250, 235, 0.7);
+          color: #654831;
+        }
+
+        .xin-xam-page.is-embedded .xam-change-topic:hover,
+        .xin-xam-page.is-embedded .xam-change-topic:focus-visible {
+          border-color: rgba(61, 96, 72, 0.42);
+          background: rgba(238, 241, 222, 0.92);
+          color: #3f6048;
+        }
+
+        .xin-xam-page.is-embedded .xam-draw-notice {
+          border-color: rgba(104, 75, 48, 0.18);
+          background: rgba(238, 226, 196, 0.7);
+          color: rgba(65, 47, 34, 0.76) !important;
+        }
+
+        .xin-xam-page.is-embedded .xam-loc-so-annex {
+          margin-top: 0;
+          border-radius: 16px;
+          padding: 0.72rem;
+        }
+
+        .xin-xam-page.is-embedded .xam-loc-so-annex.is-open {
+          border-color: rgba(68, 99, 73, 0.3);
+          background:
+            linear-gradient(180deg, rgba(246, 241, 220, 0.98), rgba(232, 230, 202, 0.98));
+        }
+
+        .xin-xam-page.is-embedded .xam-loc-so-result {
+          border-top-color: rgba(104, 75, 48, 0.14);
         }
 
         @media (prefers-reduced-motion: reduce) {

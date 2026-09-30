@@ -9,6 +9,7 @@
 }
 
 .sceneCanvas,
+.xinXamCinematicCanvas,
 .labelLayer {
   position: absolute;
   inset: 0;
@@ -22,6 +23,11 @@
   cursor: grab;
   outline: none;
   touch-action: none;
+}
+
+.xinXamCinematicCanvas {
+  z-index: 6;
+  pointer-events: none;
 }
 
 .sceneCanvas:active {
@@ -188,7 +194,48 @@
   outline: none;
 }
 
+.xinXamCeremonyCue {
+  position: absolute;
+  left: 50%;
+  bottom: max(26px, calc(env(safe-area-inset-bottom) + 26px));
+  z-index: 7;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 148px;
+  padding: 10px 18px;
+  border: 1px solid rgba(244, 211, 151, 0.28);
+  border-radius: 999px;
+  color: #fff7e9;
+  background: rgba(28, 38, 36, 0.58);
+  box-shadow: 0 12px 32px rgba(4, 13, 17, 0.2);
+  backdrop-filter: blur(9px);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.xinXamCeremonyCue span {
+  color: #e8c58e;
+  font-family: var(--cho-neo-font-display);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.xinXamCeremonyCue strong {
+  color: rgba(255, 250, 241, 0.76);
+  font-family: var(--cho-neo-font-ui);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
 .destinationEntryOverlay {
+  --destination-accent: #b98255;
+  --destination-accent-soft: rgba(185, 130, 85, 0.18);
+  --destination-deep: #192d34;
+  --destination-deep-2: #352321;
+  --destination-paper: #f7eedb;
+  --destination-paper-2: #eadbbd;
   position: absolute;
   inset: 0;
   z-index: 9;
@@ -196,8 +243,20 @@
   place-items: center;
   padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
     max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
-  background: rgba(13, 25, 28, 0.42);
+  background:
+    radial-gradient(circle at 50% 18%, var(--destination-accent-soft), transparent 26rem),
+    rgba(9, 20, 25, 0.5);
+  backdrop-filter: blur(4px);
   pointer-events: auto;
+}
+
+.destinationEntryOverlayCeremony {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    visibility 0s linear 180ms;
 }
 
 .destinationEntryPanel {
@@ -206,10 +265,12 @@
   width: min(1100px, 100%);
   height: min(760px, 100%);
   overflow: hidden;
-  border: 1px solid rgba(255, 247, 237, 0.3);
-  border-radius: 18px;
-  background: #fff8ee;
-  box-shadow: 0 22px 70px rgba(5, 14, 18, 0.34);
+  border: 1px solid color-mix(in srgb, var(--destination-accent) 44%, transparent);
+  border-radius: 24px;
+  background: var(--destination-paper);
+  box-shadow:
+    0 26px 84px rgba(4, 12, 16, 0.38),
+    inset 0 0 0 1px rgba(255, 248, 230, 0.42);
 }
 
 .destinationEntryHeader {
@@ -220,12 +281,14 @@
   min-height: 66px;
   padding: 10px 14px 10px 18px;
   color: #fff8ee;
-  background: linear-gradient(135deg, #3d2021, #182e34);
+  background:
+    linear-gradient(135deg, var(--destination-deep-2), var(--destination-deep));
+  border-bottom: 1px solid color-mix(in srgb, var(--destination-accent) 28%, transparent);
 }
 
 .destinationEntryKicker {
   margin: 0 0 3px;
-  color: rgba(248, 211, 145, 0.78);
+  color: color-mix(in srgb, var(--destination-accent) 76%, #fff2d4);
   font-family: var(--cho-neo-font-ui);
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -255,7 +318,8 @@
 
 .destinationEntryHeader button:hover,
 .destinationEntryHeader button:focus-visible {
-  border-color: rgba(248, 211, 145, 0.76);
+  border-color: color-mix(in srgb, var(--destination-accent) 72%, #fff0d0);
+  background: rgba(255, 247, 237, 0.13);
   outline: none;
 }
 
@@ -264,7 +328,101 @@
   width: 100%;
   min-height: 0;
   border: 0;
-  background: #fff8ee;
+  background: var(--destination-paper);
+}
+
+.socialEntryTheme {
+  --destination-accent: #c27858;
+  --destination-accent-soft: rgba(194, 120, 88, 0.2);
+  --destination-deep: #24383a;
+  --destination-deep-2: #5a2f29;
+  --destination-paper: #f4e6d2;
+  --destination-paper-2: #e7ceb1;
+}
+
+.ritualEntryTheme {
+  --destination-accent: #ae8754;
+  --destination-accent-soft: rgba(174, 135, 84, 0.18);
+  --destination-deep: #263c38;
+  --destination-deep-2: #4c3429;
+  --destination-paper: #efe3c7;
+  --destination-paper-2: #dfcda9;
+}
+
+.guideEntryTheme {
+  --destination-accent: #7f9b83;
+  --destination-accent-soft: rgba(127, 155, 131, 0.2);
+  --destination-deep: #213944;
+  --destination-deep-2: #3e3530;
+  --destination-paper: #f0e8d7;
+  --destination-paper-2: #d9d8bd;
+}
+
+.practicalEntryTheme {
+  --destination-accent: #a86f57;
+  --destination-accent-soft: rgba(168, 111, 87, 0.18);
+  --destination-deep: #2b3a3b;
+  --destination-deep-2: #493029;
+  --destination-paper: #f7ecd8;
+  --destination-paper-2: #e8d5b8;
+}
+
+.xinXamEntryOverlay {
+  background: rgba(10, 20, 24, 0.3);
+  backdrop-filter: blur(3px);
+}
+
+.xinXamEntryPanel {
+  position: relative;
+  width: min(470px, 100%);
+  height: min(760px, 100%);
+  border-color: rgba(201, 163, 103, 0.6);
+  overscroll-behavior: contain;
+  border-radius: 28px;
+  background: #efe3c7;
+  box-shadow:
+    0 28px 90px rgba(5, 12, 16, 0.42),
+    inset 0 0 0 1px rgba(255, 250, 231, 0.64);
+}
+
+.xinXamEntryHeader {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.xinXamEntryHeader > div {
+  display: none;
+}
+
+.xinXamEntryHeader button {
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-color: rgba(88, 58, 37, 0.3);
+  color: #4d3424;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  line-height: 1;
+  background: rgba(247, 238, 214, 0.88);
+  box-shadow: 0 8px 20px rgba(73, 47, 27, 0.14);
+  pointer-events: auto;
+}
+
+.xinXamEntryHeader button:hover,
+.xinXamEntryHeader button:focus-visible {
+  border-color: rgba(66, 88, 65, 0.68);
+  background: #fbf4df;
+}
+
+.xinXamEntryFrame {
+  background: #efe3c7;
 }
 
 .mobileControls,
