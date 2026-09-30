@@ -115,6 +115,8 @@ export default function XinXamPage() {
   const revealTimerRef = useRef<number | null>(null);
   const drawInProgressRef = useRef(false);
   const pendingEmbeddedStickRef = useRef<XinXamStick | null>(null);
+  const pendingEmbeddedRequestIdRef = useRef<string | null>(null);
+  const embeddedRitualTimeoutRef = useRef<number | null>(null);
 
   const selectedTopicCopy =
     XIN_XAM_TOPICS.find((topic) => topic.key === selectedTopic) ??
@@ -151,6 +153,10 @@ export default function XinXamPage() {
       if (event.origin !== window.location.origin) return;
       if (event.source !== window.parent) return;
       if (event.data?.type !== "cho-neo:xin-xam:ritual-complete") return;
+      if (
+        !pendingEmbeddedRequestIdRef.current ||
+        event.data?.requestId !== pendingEmbeddedRequestIdRef.current
+      ) return;
 
       completeDrawAfter3DRitual();
     };
@@ -163,8 +169,12 @@ export default function XinXamPage() {
     () => () => {
       if (drawTimerRef.current) window.clearTimeout(drawTimerRef.current);
       if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
+      if (embeddedRitualTimeoutRef.current) {
+        window.clearTimeout(embeddedRitualTimeoutRef.current);
+      }
       drawInProgressRef.current = false;
       pendingEmbeddedStickRef.current = null;
+      pendingEmbeddedRequestIdRef.current = null;
     },
     [],
   );
@@ -176,7 +186,13 @@ export default function XinXamPage() {
       pendingEmbeddedStickRef.current ??
       selectedStick ??
       chooseStick(selectedTopic);
+
+    if (embeddedRitualTimeoutRef.current) {
+      window.clearTimeout(embeddedRitualTimeoutRef.current);
+      embeddedRitualTimeoutRef.current = null;
+    }
     pendingEmbeddedStickRef.current = null;
+    pendingEmbeddedRequestIdRef.current = null;
     saveWeeklyMemory(selectedTopic, nextStick);
     setDismissedTopic(null);
     setDrawNotice("");
@@ -201,8 +217,11 @@ export default function XinXamPage() {
         (stick) => stick.id === nextStick.id,
       );
 
+      const requestId = `${Date.now()}-${nextStick.id}`;
+
       drawInProgressRef.current = true;
       pendingEmbeddedStickRef.current = nextStick;
+      pendingEmbeddedRequestIdRef.current = requestId;
       setDismissedTopic(null);
       setDrawNotice("");
       setSelectedStick(nextStick);
@@ -213,9 +232,20 @@ export default function XinXamPage() {
           topic: selectedTopic,
           stickId: nextStick.id,
           visualIndex: Math.max(0, stickIndex) % 5,
+          requestId,
         },
         window.location.origin,
       );
+
+      embeddedRitualTimeoutRef.current = window.setTimeout(() => {
+        if (pendingEmbeddedRequestIdRef.current !== requestId) return;
+        pendingEmbeddedRequestIdRef.current = null;
+        pendingEmbeddedStickRef.current = null;
+        drawInProgressRef.current = false;
+        setSelectedStick(null);
+        setRitualState("ready");
+        setDrawNotice("Nghi thức bị gián đoạn. Thử rút xăm lại nhé.");
+      }, 8000);
       return;
     }
 
@@ -569,7 +599,7 @@ export default function XinXamPage() {
             className={`xam-holder-hotspot ${ritualState === "drawing" ? "is-shaking" : ""}`}
             onClick={handleShakeHolder}
             disabled={ritualState !== "ready"}
-            aria-label="Xin một quẻ nhẹ"
+            aria-label={isEmbedded ? "Rút xăm" : "Xin một quẻ nhẹ"}
           >
             <span className="xam-holder-glow" aria-hidden="true" />
             <span className="xam-holder-rim" aria-hidden="true" />
