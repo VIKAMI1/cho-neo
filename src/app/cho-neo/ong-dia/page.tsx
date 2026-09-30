@@ -2909,22 +2909,12 @@ export default function OngDiaPage() {
         }
 
         .ong-dia-page.is-embedded .ong-dia-stage-wrap {
-          width: min(660px, 100%);
-          border-radius: 18px;
-          padding: 0.35rem;
-          background: rgba(119, 78, 45, 0.12);
-          box-shadow:
-            0 16px 34px rgba(79, 52, 31, 0.12),
-            inset 0 0 0 1px rgba(255, 248, 228, 0.58);
-        }
-
-        .ong-dia-page.is-embedded .ong-dia-stage {
-          border-radius: 15px;
+          display: none;
         }
 
         .ong-dia-page.is-embedded .ong-dia-blessing-card {
           width: min(720px, 100%);
-          margin-top: 0.72rem;
+          margin: 0 auto;
           border-color: rgba(128, 86, 52, 0.18);
           border-radius: 18px;
           background:
@@ -2932,8 +2922,29 @@ export default function OngDiaPage() {
           box-shadow: 0 14px 32px rgba(83, 57, 33, 0.1);
         }
 
+        .ong-dia-page.is-embedded .ong-dia-daily-message {
+          border-bottom: 1px solid rgba(128, 86, 52, 0.14);
+          padding-bottom: 0.85rem;
+          text-align: center;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-daily-message p {
+          color: #875b3d !important;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-daily-message h2 {
+          color: #4d3426;
+          font-size: clamp(1.55rem, 4vw, 2rem);
+        }
+
+        .ong-dia-page.is-embedded .ong-dia-daily-message span {
+          color: rgba(67, 47, 35, 0.66);
+        }
+
         .ong-dia-page.is-embedded .ong-dia-prayer-panel textarea {
-          min-height: 96px;
+          min-height: 112px;
           border-color: rgba(128, 86, 52, 0.2);
           background: rgba(255, 250, 236, 0.74);
           color: #432f23;
