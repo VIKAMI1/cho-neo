@@ -617,8 +617,13 @@ export default function OngDiaPage() {
     const experience = smallPrayer.trim() ? "conversation" : "ritual";
     void ensureChoNeoMember(() => {
       if (isEmbedded) {
+        const requestId = `${Date.now()}-${experience}`;
         window.parent.postMessage(
-          { type: "cho-neo:ong-dia:ritual-request", experience },
+          {
+            type: "cho-neo:ong-dia:ritual-request",
+            experience,
+            requestId,
+          },
           window.location.origin,
         );
       }
