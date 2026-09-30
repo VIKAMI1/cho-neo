@@ -508,7 +508,8 @@ export default function ChoNeo3DPreview() {
     let lastLookY = 0;
     let xinXamInteractionActive = false;
     let ongDiaInteractionActive = false;
-    let ongDiaAnimation: { elapsed: number } | null = null;
+    let ongDiaAnimation: { elapsed: number; requestId: string | null } | null = null;
+    let ongDiaLastRequestId: string | null = null;
     let xinXamParts: Array<{
       object: THREE.Object3D;
       position: THREE.Vector3;
@@ -913,11 +914,27 @@ export default function ChoNeo3DPreview() {
       );
     };
 
-    const startOngDiaInteraction = () => {
-      if (ongDiaInteractionActive || !destinationEntryActive) return;
+    const resetOngDiaInteraction = () => {
+      ongDiaAnimation = null;
+      ongDiaInteractionActive = false;
+      ongDiaCinematicGroup.visible = false;
+      ongDiaCinematicGroup.scale.setScalar(1);
+      ongDiaCinematicGroup.position.set(0, 0, 0);
+      ongDiaCinematicCamera.position.set(0, 0.78, 4.65);
+      ongDiaSmokeMaterial.opacity = 0;
+      setIsOngDiaInteracting(false);
+    };
 
+    const startOngDiaInteraction = (requestId: string | null = null) => {
+      if (
+        ongDiaInteractionActive ||
+        !destinationEntryActive ||
+        (requestId && requestId === ongDiaLastRequestId)
+      ) return;
+
+      if (requestId) ongDiaLastRequestId = requestId;
       ongDiaInteractionActive = true;
-      ongDiaAnimation = { elapsed: 0 };
+      ongDiaAnimation = { elapsed: 0, requestId };
       ongDiaCinematicGroup.visible = true;
       ongDiaSmokeMaterial.opacity = 0;
       setIsOngDiaInteracting(true);
@@ -926,13 +943,10 @@ export default function ChoNeo3DPreview() {
     };
 
     const finishOngDiaInteraction = () => {
-      ongDiaAnimation = null;
-      ongDiaInteractionActive = false;
-      ongDiaCinematicGroup.visible = false;
-      ongDiaSmokeMaterial.opacity = 0;
-      setIsOngDiaInteracting(false);
+      const requestId = ongDiaAnimation?.requestId ?? null;
+      resetOngDiaInteraction();
       destinationFrameRef.current?.contentWindow?.postMessage(
-        { type: "cho-neo:ong-dia:ritual-complete" },
+        { type: "cho-neo:ong-dia:ritual-complete", requestId },
         window.location.origin,
       );
     };
@@ -980,6 +994,7 @@ export default function ChoNeo3DPreview() {
       resetXinXamParts();
       if (xinXamRitualLight) xinXamRitualLight.intensity = 0;
       if (xinXamHeroStick) xinXamHeroStick.visible = false;
+      resetOngDiaInteraction();
       walkingKeys.clear();
       walkingVelocity.set(0, 0);
       touchMovement.set(0, 0);
@@ -1257,7 +1272,11 @@ export default function ChoNeo3DPreview() {
       }
 
       if (event.data?.type === "cho-neo:ong-dia:ritual-request") {
-        startOngDiaInteraction();
+        const requestId =
+          typeof event.data?.requestId === "string"
+            ? event.data.requestId
+            : null;
+        startOngDiaInteraction(requestId);
       }
     };
 
