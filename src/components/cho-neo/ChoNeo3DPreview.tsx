@@ -651,20 +651,42 @@ export default function ChoNeo3DPreview() {
       ongDiaCinematicGroup.add(ember);
     });
 
-    const ongDiaSmokePositions = new Float32Array(18 * 3);
-    const ongDiaSmokeGeometry = new THREE.BufferGeometry();
-    const ongDiaSmokeAttribute = new THREE.BufferAttribute(ongDiaSmokePositions, 3);
-    ongDiaSmokeGeometry.setAttribute("position", ongDiaSmokeAttribute);
-    const ongDiaSmokeMaterial = new THREE.PointsMaterial({
-      color: 0xf0dcc1,
-      size: 0.12,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      sizeAttenuation: true,
+    const smokeCanvas = document.createElement("canvas");
+    smokeCanvas.width = 96;
+    smokeCanvas.height = 96;
+    const smokeContext = smokeCanvas.getContext("2d");
+    if (smokeContext) {
+      const gradient = smokeContext.createRadialGradient(48, 48, 5, 48, 48, 46);
+      gradient.addColorStop(0, "rgba(250, 239, 218, 0.72)");
+      gradient.addColorStop(0.36, "rgba(239, 225, 203, 0.38)");
+      gradient.addColorStop(1, "rgba(230, 218, 199, 0)");
+      smokeContext.fillStyle = gradient;
+      smokeContext.fillRect(0, 0, 96, 96);
+    }
+    const ongDiaSmokeTexture = new THREE.CanvasTexture(smokeCanvas);
+    ongDiaSmokeTexture.colorSpace = THREE.SRGBColorSpace;
+
+    const ongDiaSmokeSprites = Array.from({ length: 12 }, (_, index) => {
+      const material = new THREE.SpriteMaterial({
+        map: ongDiaSmokeTexture,
+        color: 0xf3e4cf,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const sprite = new THREE.Sprite(material);
+      const lane = index % 3;
+      sprite.position.set([-0.15, 0, 0.15][lane] ?? 0, 1.38, -0.02);
+      sprite.scale.set(0.22, 0.36, 1);
+      ongDiaCinematicGroup.add(sprite);
+      return {
+        lane,
+        material,
+        phase: index / 12,
+        speed: 0.12 + (index % 4) * 0.012,
+        sprite,
+      };
     });
-    const ongDiaSmoke = new THREE.Points(ongDiaSmokeGeometry, ongDiaSmokeMaterial);
-    ongDiaCinematicGroup.add(ongDiaSmoke);
 
     const ongDiaFill = new THREE.HemisphereLight(0xffe2b3, 0x261713, 1.85);
     const ongDiaKey = new THREE.PointLight(0xffa65e, 4.7, 8, 2);
@@ -921,7 +943,9 @@ export default function ChoNeo3DPreview() {
       ongDiaCinematicGroup.scale.setScalar(1);
       ongDiaCinematicGroup.position.set(0, 0, 0);
       ongDiaCinematicCamera.position.set(0, 0.78, 4.65);
-      ongDiaSmokeMaterial.opacity = 0;
+      ongDiaSmokeSprites.forEach(({ material }) => {
+        material.opacity = 0;
+      });
       setIsOngDiaInteracting(false);
     };
 
@@ -936,7 +960,9 @@ export default function ChoNeo3DPreview() {
       ongDiaInteractionActive = true;
       ongDiaAnimation = { elapsed: 0, requestId };
       ongDiaCinematicGroup.visible = true;
-      ongDiaSmokeMaterial.opacity = 0;
+      ongDiaSmokeSprites.forEach(({ material }) => {
+        material.opacity = 0;
+      });
       setIsOngDiaInteracting(true);
       setInteractionMessage(null);
       setIsWalking(false);
@@ -1549,25 +1575,32 @@ export default function ChoNeo3DPreview() {
             enter * 0.55;
         });
 
-        const smokeOpacity =
+        const smokeStrength =
           THREE.MathUtils.smoothstep(progress, 0.08, 0.34) *
-          (1 - THREE.MathUtils.smoothstep(progress, 0.8, 1));
-        ongDiaSmokeMaterial.opacity = 0.12 + smokeOpacity * 0.42;
+          (1 - THREE.MathUtils.smoothstep(progress, 0.82, 1));
 
-        for (let index = 0; index < 18; index += 1) {
-          const lane = index % 3;
-          const phase = (index / 18 + elapsed * (0.18 + lane * 0.018)) % 1;
-          const baseX = [-0.15, 0, 0.15][lane] ?? 0;
-          const i = index * 3;
-          ongDiaSmokeAttribute.array[i] =
-            baseX +
-            Math.sin(elapsed * 1.35 + index * 0.73) *
-              (0.035 + phase * 0.1);
-          ongDiaSmokeAttribute.array[i + 1] = 1.38 + phase * 1.65;
-          ongDiaSmokeAttribute.array[i + 2] =
-            -0.02 + Math.cos(elapsed * 1.1 + index) * 0.045 * phase;
-        }
-        ongDiaSmokeAttribute.needsUpdate = true;
+        ongDiaSmokeSprites.forEach(
+          ({ lane, material, phase, speed, sprite }, index) => {
+            const cycle = (phase + elapsed * speed) % 1;
+            const baseX = [-0.15, 0, 0.15][lane] ?? 0;
+            const drift = 0.04 + cycle * 0.14;
+            const width = 0.2 + cycle * 0.34;
+            const height = 0.34 + cycle * 0.62;
+
+            sprite.position.set(
+              baseX + Math.sin(elapsed * 1.2 + index * 0.71) * drift,
+              1.38 + cycle * 1.7,
+              -0.02 + Math.cos(elapsed * 0.92 + index) * 0.05 * cycle,
+            );
+            sprite.scale.set(width, height, 1);
+            material.rotation =
+              Math.sin(elapsed * 0.75 + index * 0.43) * 0.28;
+            material.opacity =
+              smokeStrength *
+              Math.sin(Math.PI * cycle) *
+              (0.22 + (index % 3) * 0.035);
+          },
+        );
 
         if (progress >= 1) finishOngDiaInteraction();
       }
